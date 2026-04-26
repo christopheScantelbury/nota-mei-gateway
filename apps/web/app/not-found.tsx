@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 export default function NotFound() {
   return (
     <div
@@ -17,7 +19,7 @@ export default function NotFound() {
         404
       </h1>
       <p style={{ color: '#8AA0B8', margin: 0 }}>Página não encontrada</p>
-      <a
+      <Link
         href="/"
         style={{
           marginTop: '1rem',
@@ -30,7 +32,7 @@ export default function NotFound() {
         }}
       >
         Voltar ao início
-      </a>
+      </Link>
     </div>
   )
 }
