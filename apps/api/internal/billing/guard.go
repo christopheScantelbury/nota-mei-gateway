@@ -1,8 +1,10 @@
+// Package billing implements the BillingGuard that enforces monthly emission limits.
 package billing
 
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
@@ -13,6 +15,7 @@ type Guard struct {
 	rdb *redis.Client
 }
 
+// NewGuard parses redisURL and returns a Guard backed by that Redis instance.
 func NewGuard(redisURL string) (*Guard, error) {
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
@@ -21,6 +24,8 @@ func NewGuard(redisURL string) (*Guard, error) {
 	return &Guard{rdb: redis.NewClient(opt)}, nil
 }
 
+// Allow atomically increments the MEI's emission counter for the current month
+// and returns true if the new count is within the given limit.
 func (g *Guard) Allow(ctx context.Context, meiID uuid.UUID, limit int) (bool, error) {
 	key := fmt.Sprintf("billing:%s:%s", meiID, monthKey())
 	count, err := g.rdb.Incr(ctx, key).Result()
@@ -30,6 +35,7 @@ func (g *Guard) Allow(ctx context.Context, meiID uuid.UUID, limit int) (bool, er
 	return int(count) <= limit, nil
 }
 
+// monthKey returns the current month in YYYY-MM format for Redis key namespacing.
 func monthKey() string {
-	return ""
+	return time.Now().UTC().Format("2006-01")
 }
