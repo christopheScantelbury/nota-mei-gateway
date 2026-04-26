@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --cyan-500: #00E8FF;
+  --navy-900: #0A0F1E;
+  --navy-700: #142035;
+  --navy-600: #1E3050;
+  --text-1: #EEF4FF;
+  --text-2: #8AA0B8;
+}
+
+body {
+  background-color: var(--navy-900);
+  color: var(--text-1);
+}
