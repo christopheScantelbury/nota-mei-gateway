@@ -1,3 +1,5 @@
+// Package cert provides access to A1 digital certificates stored in AWS Secrets Manager.
+// Certificates are never written to disk — always kept in memory.
 package cert
 
 import (
@@ -8,13 +10,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 )
 
-// Provider retrieves A1 certificates from AWS Secrets Manager.
-// Certificates are never written to disk — always kept in memory.
+// Provider retrieves A1 certificates from AWS Secrets Manager and wraps KMS for decryption.
 type Provider struct {
 	secrets *secretsmanager.Client
 	kms     *kms.Client
 }
 
+// New loads AWS default configuration for the given region and returns a Provider.
 func New(ctx context.Context, region string) (*Provider, error) {
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
 	if err != nil {

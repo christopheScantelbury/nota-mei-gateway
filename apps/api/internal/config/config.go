@@ -1,3 +1,4 @@
+// Package config loads and validates application configuration from environment variables.
 package config
 
 import (
@@ -5,6 +6,7 @@ import (
 	"os"
 )
 
+// Config holds all runtime configuration for the API server.
 type Config struct {
 	AppEnv   string
 	Port     string
@@ -29,6 +31,8 @@ type Config struct {
 	ReceitaAPIURL string
 }
 
+// Load reads environment variables and returns a populated Config.
+// Panics on startup if any required variable is missing.
 func Load() *Config {
 	return &Config{
 		AppEnv:   getEnv("APP_ENV", "development"),
