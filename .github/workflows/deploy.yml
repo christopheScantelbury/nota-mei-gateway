@@ -10,17 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Install Railway CLI
         run: npm install -g @railway/cli
-
       - name: Deploy
-        run: |
-          if [ -z "$RAILWAY_TOKEN" ]; then
-            echo "RAILWAY_TOKEN nao configurado — deploy ignorado (configure em PLAT-03)"
-            exit 0
-          fi
-          railway up --service api
+        run: railway up --service api
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
@@ -29,23 +22,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-
       - name: Install Vercel CLI
         run: npm install -g vercel
-
       - name: Deploy
-        run: |
-          if [ -z "$VERCEL_TOKEN" ]; then
-            echo "VERCEL_TOKEN nao configurado — deploy ignorado (configure em PLAT-04)"
-            exit 0
-          fi
-          vercel --prod --token="$VERCEL_TOKEN" --yes
+        run: vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
         working-directory: apps/web
         env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
