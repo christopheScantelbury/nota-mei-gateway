@@ -8,10 +8,14 @@ jobs:
   deploy-api:
     name: Deploy API → Railway
     runs-on: ubuntu-latest
+    # Só executa quando o secret estiver configurado (PLAT-03)
+    if: ${{ secrets.RAILWAY_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
+
       - name: Install Railway CLI
         run: npm install -g @railway/cli
+
       - name: Deploy
         run: railway up --service api
         env:
@@ -20,13 +24,18 @@ jobs:
   deploy-web:
     name: Deploy Web → Vercel
     runs-on: ubuntu-latest
+    # Só executa quando os secrets estiverem configurados (PLAT-04)
+    if: ${{ secrets.VERCEL_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+
       - name: Install Vercel CLI
         run: npm install -g vercel
+
       - name: Deploy
         run: vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
         working-directory: apps/web
