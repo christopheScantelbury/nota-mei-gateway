@@ -28,6 +28,9 @@ go.work.sum
 .env
 .env.local
 
+# Supabase CLI (link, cache local)
+supabase/.temp/
+
 # Node
 node_modules/
 .next/
