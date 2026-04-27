@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
 
 jobs:
   deploy-api:
@@ -13,14 +13,30 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
       - name: Deploy
-        run: |
-          if [ -z "$RAILWAY_TOKEN" ]; then
-            echo "::notice title=Deploy API::RAILWAY_TOKEN não definido no repositório — deploy Railway ignorado."
-            exit 0
-          fi
-          railway up --service api
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          REF_NAME: ${{ github.ref_name }}
+          RAILWAY_TOKEN_MAIN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_TOKEN_STAGING: ${{ secrets.RAILWAY_TOKEN_STAGING }}
+          SVC_PROD: ${{ vars.RAILWAY_SERVICE_PROD }}
+          SVC_STAGING: ${{ vars.RAILWAY_SERVICE_STAGING }}
+        run: |
+          SPROD="${SVC_PROD:-api}"
+          SSTG="${SVC_STAGING:-api-staging}"
+          if [ "$REF_NAME" = "main" ]; then
+            if [ -z "$RAILWAY_TOKEN_MAIN" ]; then
+              echo "::notice title=Deploy API (prod)::RAILWAY_TOKEN não definido — deploy ignorado."
+              exit 0
+            fi
+            export RAILWAY_TOKEN="$RAILWAY_TOKEN_MAIN"
+            railway up --service "$SPROD"
+          else
+            if [ -z "$RAILWAY_TOKEN_STAGING" ]; then
+              echo "::notice title=Deploy API (staging)::RAILWAY_TOKEN_STAGING não definido — deploy develop ignorado."
+              exit 0
+            fi
+            export RAILWAY_TOKEN="$RAILWAY_TOKEN_STAGING"
+            railway up --service "$SSTG"
+          fi
 
   deploy-web:
     name: Deploy Web → Vercel
@@ -33,14 +49,19 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel
       - name: Deploy
-        run: |
-          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
-            echo "::notice title=Deploy Web::Secrets VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID incompletos — deploy Vercel ignorado."
-            exit 0
-          fi
-          vercel --prod --token="$VERCEL_TOKEN" --yes
-        working-directory: apps/web
         env:
+          REF_NAME: ${{ github.ref_name }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        working-directory: apps/web
+        run: |
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo "::notice title=Deploy Web::Secrets VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID incompletos — deploy ignorado."
+            exit 0
+          fi
+          if [ "$REF_NAME" = "main" ]; then
+            vercel --prod --token="$VERCEL_TOKEN" --yes
+          else
+            vercel --token="$VERCEL_TOKEN" --yes
+          fi
