@@ -60,8 +60,11 @@ API REST em Go (Fiber) para emissão de NFS-e para MEI, com dashboard Next.js, S
 | `make test` | Testes API + web |
 | `make lint` | Lint API + web |
 | `make build` | Build API + web |
-| `make migrate` | `supabase db push` (projeto remoto após `supabase link`) |
-| `make migrate-local` | `supabase db reset` (migrations + seed) |
+| `make migrate` | `npx supabase db push` (remoto após `npm run db:link`) |
+| `make migrate-local` | `npx supabase db reset` (migrations + seed) |
+| `npm run db:login` | `npx supabase login` (browser) |
+| `npm run db:link` | `npx supabase link` (pede project ref e password DB) |
+| `npm run db:push` | `npx supabase db push` |
 
 ## Monorepo
 
