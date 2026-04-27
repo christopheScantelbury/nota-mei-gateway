@@ -1,3 +1,10 @@
+# Variáveis obrigatórias no painel Railway (não colocar valores aqui):
+# DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY, REDIS_URL, RABBITMQ_URL
+# AWS_REGION, AWS_KMS_KEY_ARN
+# STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+# STRIPE_PRICE_STARTER, STRIPE_PRICE_BASIC, STRIPE_PRICE_PRO, STRIPE_PRICE_BUSINESS
+# RECEITA_API_URL, APP_ENV, LOG_LEVEL, PORT (opcional; Railway injeta PORT)
+
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "apps/api/Dockerfile"
