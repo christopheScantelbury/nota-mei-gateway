@@ -16,6 +16,9 @@
     "turbo": "^2.3.3"
   },
   "overrides": {
-    "eslint": "8.57.1"
+    "eslint": "8.57.1",
+    "nota-mei-gateway-web": {
+      "eslint": "8.57.1"
+    }
   }
 }

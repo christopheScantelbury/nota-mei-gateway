@@ -31,6 +31,7 @@ type Config struct {
 	ReceitaAPIURL string
 }
 
+// Load lê variáveis de ambiente, valida as obrigatórias e devolve a configuração.
 func Load() *Config {
 	required := []string{
 		"DATABASE_URL",
