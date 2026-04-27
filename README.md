@@ -10,6 +10,7 @@ API REST em Go (Fiber) para emissão de NFS-e para MEI, com dashboard Next.js, S
 - [Supabase CLI](https://supabase.com/docs/guides/cli)
 - `golangci-lint` (opcional localmente; o CI instala)
 
+
 ## Setup local
 
 1. Clonar o repositório e instalar dependências Node na raiz:
@@ -59,6 +60,7 @@ API REST em Go (Fiber) para emissão de NFS-e para MEI, com dashboard Next.js, S
 | `make test` | Testes API + web |
 | `make lint` | Lint API + web |
 | `make build` | Build API + web |
+| `make migrate` | `supabase db push` (projeto remoto após `supabase link`) |
 | `make migrate-local` | `supabase db reset` (migrations + seed) |
 
 ## Monorepo
