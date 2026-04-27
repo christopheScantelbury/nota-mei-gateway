@@ -13,7 +13,12 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
       - name: Deploy
-        run: railway up --service api
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "::notice title=Deploy API::RAILWAY_TOKEN não definido no repositório — deploy Railway ignorado."
+            exit 0
+          fi
+          railway up --service api
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
@@ -28,8 +33,14 @@ jobs:
       - name: Install Vercel CLI
         run: npm install -g vercel
       - name: Deploy
-        run: vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
+        run: |
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo "::notice title=Deploy Web::Secrets VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID incompletos — deploy Vercel ignorado."
+            exit 0
+          fi
+          vercel --prod --token="$VERCEL_TOKEN" --yes
         working-directory: apps/web
         env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
