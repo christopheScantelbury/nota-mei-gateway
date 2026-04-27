@@ -8,11 +8,16 @@
   ],
   "scripts": {
     "dev": "turbo run dev",
+    "dev:stack": "docker compose up -d",
+    "dev:supabase": "supabase start",
+    "dev:apps": "concurrently -n api,web -c blue,green \"cd apps/api && go run ./cmd/server\" \"cd apps/web && npm run dev\"",
+    "dev:local": "npm run dev:stack && npm run dev:supabase && npm run dev:apps",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test"
   },
   "devDependencies": {
+    "concurrently": "^9.1.2",
     "turbo": "^2.3.3"
   },
   "overrides": {

@@ -7,6 +7,13 @@ on:
     branches: [main, develop]
 
 jobs:
+  compose-validate:
+    name: Docker Compose validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose -f docker-compose.yml config
+
   test-api:
     name: Go lint + test
     runs-on: ubuntu-latest
