@@ -76,6 +76,19 @@ Variáveis da API: ver `.env.example` e `apps/api/.env.example`. Painel Railway:
 
 Dashboard (Vercel): define no painel Vercel as variáveis `NEXT_PUBLIC_*` listadas em `apps/web/.env.local.example` (não commits com secrets).
 
+## Deploy (GitHub Actions)
+
+O workflow `.github/workflows/deploy.yml` corre em **push** para `main` e `develop`.
+
+| Secret / variável | Uso |
+|-------------------|-----|
+| `RAILWAY_TOKEN` | API em produção (`main`) — serviço `api` por defeito |
+| `RAILWAY_TOKEN_STAGING` | API em staging (`develop`) — omitir para ignorar deploy Railway em develop |
+| `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` | Web: `main` → `--prod`; `develop` → preview |
+| Variáveis do repositório `RAILWAY_SERVICE_PROD` / `RAILWAY_SERVICE_STAGING` | Opcional: nomes dos serviços Railway (padrão `api` e `api-staging`) |
+
+Checklist manual (domínio, dois ambientes Railway, variáveis): issue **[PLAT-03](https://github.com/christopheScantelbury/nota-mei-gateway/issues/3)**.
+
 ## Documentação
 
 - `CLAUDE.md` — manifesto técnico e ordem de execução dos épicos
