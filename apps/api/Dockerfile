@@ -1,5 +1,5 @@
 FROM golang:1.25-alpine AS builder
-ARG SERVICE_PATH=apps/api
+ARG SERVICE_PATH=.
 WORKDIR /app
 RUN apk add --no-cache git ca-certificates
 
