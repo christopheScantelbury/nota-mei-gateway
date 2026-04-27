@@ -26,6 +26,7 @@ func main() {
 		return c.JSON(fiber.Map{"status": "ok", "env": cfg.AppEnv})
 	})
 
-	log.Info().Str("port", cfg.Port).Str("env", cfg.AppEnv).Msg("servidor iniciado")
-	log.Fatal().Err(app.Listen(":" + cfg.Port)).Send()
+	addr := "0.0.0.0:" + cfg.Port
+	log.Info().Str("addr", addr).Str("env", cfg.AppEnv).Msg("servidor iniciado")
+	log.Fatal().Err(app.Listen(addr)).Send()
 }
