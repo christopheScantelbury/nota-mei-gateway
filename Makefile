@@ -4,7 +4,7 @@ dev-stack:
 	docker compose up -d
 
 dev-supabase:
-	supabase start
+	npx supabase start
 
 dev: dev-stack dev-supabase
 	npm run dev:apps
@@ -22,7 +22,7 @@ build:
 	cd apps/web && npm run build
 
 migrate:
-	supabase db push
+	npx supabase db push
 
 migrate-local:
-	supabase db reset
+	npx supabase db reset
