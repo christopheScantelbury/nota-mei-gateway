@@ -60,8 +60,11 @@ API REST em Go (Fiber) para emissão de NFS-e para MEI, com dashboard Next.js, S
 | `make test` | Testes API + web |
 | `make lint` | Lint API + web |
 | `make build` | Build API + web |
-| `make migrate` | `supabase db push` (projeto remoto após `supabase link`) |
-| `make migrate-local` | `supabase db reset` (migrations + seed) |
+| `make migrate` | `npx supabase db push` (remoto após `npm run db:link`) |
+| `make migrate-local` | `npx supabase db reset` (migrations + seed) |
+| `npm run db:login` | `npx supabase login` (browser) |
+| `npm run db:link` | `npx supabase link` (pede project ref e password DB) |
+| `npm run db:push` | `npx supabase db push` |
 
 ## Monorepo
 
@@ -72,6 +75,19 @@ API REST em Go (Fiber) para emissão de NFS-e para MEI, com dashboard Next.js, S
 Variáveis da API: ver `.env.example` e `apps/api/.env.example`. Painel Railway: comentários em `apps/api/railway.toml`.
 
 Dashboard (Vercel): define no painel Vercel as variáveis `NEXT_PUBLIC_*` listadas em `apps/web/.env.local.example` (não commits com secrets).
+
+## Deploy (GitHub Actions)
+
+O workflow `.github/workflows/deploy.yml` corre em **push** para `main` e `develop`.
+
+| Secret / variável | Uso |
+|-------------------|-----|
+| `RAILWAY_TOKEN` | API em produção (`main`) — serviço `api` por defeito |
+| `RAILWAY_TOKEN_STAGING` | API em staging (`develop`) — omitir para ignorar deploy Railway em develop |
+| `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` | Web: `main` → `--prod`; `develop` → preview |
+| Variáveis do repositório `RAILWAY_SERVICE_PROD` / `RAILWAY_SERVICE_STAGING` | Opcional: nomes dos serviços Railway (padrão `api` e `api-staging`) |
+
+Checklist manual (domínio, dois ambientes Railway, variáveis): issue **[PLAT-03](https://github.com/christopheScantelbury/nota-mei-gateway/issues/3)**.
 
 ## Documentação
 
