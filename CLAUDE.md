@@ -582,7 +582,7 @@ vercel --prod               # deploy manual produção
 ---
 
 ## 13. ESTADO ATUAL — ONDE PARAMOS
-> Última atualização: 2026-05-01 · branch `main` · commit `85ac2e0`
+> Última atualização: 2026-05-01 · branch `main` · commit `a0449de`
 
 ### O que já está implementado em código
 
@@ -598,13 +598,14 @@ vercel --prod               # deploy manual produção
 | **QA** | QA-02, QA-04, QA-05 | ✅ | `internal/*/\_test.go`, `docs/load-test.js`, `docs/deploy-checklist.md` |
 | **SDK** | SDK-06, SDK-07, SDK-08 | ✅ | `docs/openapi.yaml`, `internal/sandbox/`, `apps/web/app/(landing)/sandbox/`, `packages/sdk-node/` |
 | **SDK Node.js** | SDK-01 | ✅ | `packages/sdk-node/src/` — `client.ts`, `http.ts`, `webhook.ts`, `errors.ts` |
+| **SDK Python** | SDK-02 | ✅ | `packages/sdk-python/src/notamei/` — `client.py`, `async_client.py`, `_webhook.py`, `_models.py` |
 
 ### O que ainda está em aberto (GitHub Issues)
 
 **Épico SDK** — próximas tasks em ordem de prioridade:
 ```
 SDK-01 (#83)  ✅ concluído  SDK Node.js/TypeScript — packages/sdk-node/
-SDK-02 (#84)  🟢 normal    SDK Python — pip install notamei-gateway
+SDK-02 (#84)  ✅ concluído  SDK Python — packages/sdk-python/
 SDK-03 (#85)  🟡 alta      Plugin WooCommerce
 SDK-04 (#86)  🟢 normal    App Zapier oficial
 SDK-05 (#87)  🟢 normal    Extensão Google Sheets
@@ -655,9 +656,9 @@ STR-05  (#13)  Metered billing excedentes
 
 ### Próxima task recomendada
 
-**SDK-02 (#84)** — SDK Python (`pip install notamei-gateway`)
-- Depende de: `docs/openapi.yaml` ✅, SDK-01 ✅ (estrutura e contratos já definidos)
-- Mesma interface pública do Node.js adaptada para Python (snake_case nativo, sem deps, retry)
+**SDK-03 (#85)** — Plugin WooCommerce
+- Depende de: SDK-01 ✅, SDK-02 ✅, `docs/openapi.yaml` ✅
+- Plugin PHP para WooCommerce que emite NFS-e automaticamente após compra confirmada
 
 ### Pontos de atenção para o próximo dev
 
