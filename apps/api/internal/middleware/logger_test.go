@@ -40,7 +40,7 @@ func TestRequestLogger_GeneratesRequestID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, _ := io.ReadAll(resp.Body)
 	rid := strings.TrimSpace(string(body))
@@ -65,7 +65,7 @@ func TestRequestLogger_HonoursInboundRequestID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, _ := io.ReadAll(resp.Body)
 	if strings.TrimSpace(string(body)) != "my-custom-id" {
@@ -92,7 +92,7 @@ func TestRequestLogger_PropagatesLoggerToContext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, _ := io.ReadAll(resp.Body)
 	if strings.TrimSpace(string(body)) != "ok" {
@@ -116,7 +116,7 @@ func TestRequestLogger_LogsStructuredJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var entry map[string]interface{}
 	if err := json.Unmarshal(buf.Bytes(), &entry); err != nil {
@@ -124,10 +124,10 @@ func TestRequestLogger_LogsStructuredJSON(t *testing.T) {
 	}
 
 	checks := map[string]string{
-		"request_id":  "test-rid-123",
-		"method":      "GET",
-		"path":        "/hello",
-		"level":       "info",
+		"request_id": "test-rid-123",
+		"method":     "GET",
+		"path":       "/hello",
+		"level":      "info",
 	}
 	for field, want := range checks {
 		if got, ok := entry[field]; !ok || got != want {
@@ -155,7 +155,7 @@ func TestRequestLogger_WarnOn4xx(t *testing.T) {
 	})
 
 	resp, _ := app.Test(httptest.NewRequest("GET", "/missing", nil))
-	resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var entry map[string]interface{}
 	if err := json.Unmarshal(buf.Bytes(), &entry); err != nil {
@@ -177,7 +177,7 @@ func TestRequestLogger_ErrorOn5xx(t *testing.T) {
 	})
 
 	resp, _ := app.Test(httptest.NewRequest("GET", "/boom", nil))
-	resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var entry map[string]interface{}
 	if err := json.Unmarshal(buf.Bytes(), &entry); err != nil {
