@@ -20,13 +20,13 @@ type RPSWrap struct {
 
 // InfDeclaracaoPrestacaoServico is the main body of the RPS.
 type InfDeclaracaoPrestacaoServico struct {
-	Rps                     RPSIdentificacao `xml:"Rps"`
-	Competencia             string           `xml:"Competencia"`
-	Servico                 Servico          `xml:"Servico"`
-	Prestador               Prestador        `xml:"Prestador"`
-	Tomador                 Tomador          `xml:"Tomador"`
-	OptanteSimplesNacional  string           `xml:"OptanteSimplesNacional"`
-	IncentivoFiscal         string           `xml:"IncentivoFiscal"`
+	Rps                    RPSIdentificacao `xml:"Rps"`
+	Competencia            string           `xml:"Competencia"`
+	Servico                Servico          `xml:"Servico"`
+	Prestador              Prestador        `xml:"Prestador"`
+	Tomador                Tomador          `xml:"Tomador"`
+	OptanteSimplesNacional string           `xml:"OptanteSimplesNacional"`
+	IncentivoFiscal        string           `xml:"IncentivoFiscal"`
 }
 
 // RPSIdentificacao identifies the RPS document.
@@ -45,21 +45,21 @@ type IdentificacaoRps struct {
 
 // Servico describes the service being invoiced.
 type Servico struct {
-	Valores         Valores `xml:"Valores"`
-	CodigoNbs       string  `xml:"CodigoNbs"`
-	Discriminacao   string  `xml:"Discriminacao"`
-	CodigoMunicipio string  `xml:"CodigoMunicipio"`
-	ExigibilidadeISS string `xml:"ExigibilidadeISS"`
+	Valores          Valores `xml:"Valores"`
+	CodigoNbs        string  `xml:"CodigoNbs"`
+	Discriminacao    string  `xml:"Discriminacao"`
+	CodigoMunicipio  string  `xml:"CodigoMunicipio"`
+	ExigibilidadeISS string  `xml:"ExigibilidadeISS"`
 }
 
 // Valores holds monetary values for the service.
 type Valores struct {
-	ValorServicos       string `xml:"ValorServicos"`
-	ValorDeducoes       string `xml:"ValorDeducoes,omitempty"`
-	AliquotaISS         string `xml:"AliquotaISS"`
-	ValorIss            string `xml:"ValorIss,omitempty"`
-	BaseCalculo         string `xml:"BaseCalculo,omitempty"`
-	ValorLiquidoNfse    string `xml:"ValorLiquidoNfse,omitempty"`
+	ValorServicos    string `xml:"ValorServicos"`
+	ValorDeducoes    string `xml:"ValorDeducoes,omitempty"`
+	AliquotaISS      string `xml:"AliquotaISS"`
+	ValorIss         string `xml:"ValorIss,omitempty"`
+	BaseCalculo      string `xml:"BaseCalculo,omitempty"`
+	ValorLiquidoNfse string `xml:"ValorLiquidoNfse,omitempty"`
 }
 
 // Prestador identifies the MEI providing the service.
@@ -89,13 +89,13 @@ type CpfCnpj struct {
 
 // Endereco holds address information (optional for tomador).
 type Endereco struct {
-	Logradouro  string `xml:"Logradouro,omitempty"`
-	Numero      string `xml:"Numero,omitempty"`
-	Complemento string `xml:"Complemento,omitempty"`
-	Bairro      string `xml:"Bairro,omitempty"`
+	Logradouro      string `xml:"Logradouro,omitempty"`
+	Numero          string `xml:"Numero,omitempty"`
+	Complemento     string `xml:"Complemento,omitempty"`
+	Bairro          string `xml:"Bairro,omitempty"`
 	CodigoMunicipio string `xml:"CodigoMunicipio,omitempty"`
-	Uf          string `xml:"Uf,omitempty"`
-	Cep         string `xml:"Cep,omitempty"`
+	Uf              string `xml:"Uf,omitempty"`
+	Cep             string `xml:"Cep,omitempty"`
 }
 
 // Contato holds optional contact info for the tomador.
@@ -106,8 +106,8 @@ type Contato struct {
 
 // CancelarNfseEnvio is the root element for cancellation requests.
 type CancelarNfseEnvio struct {
-	XMLName xml.Name        `xml:"CancelarNfseEnvio"`
-	XMLNS   string          `xml:"xmlns,attr"`
+	XMLName xml.Name           `xml:"CancelarNfseEnvio"`
+	XMLNS   string             `xml:"xmlns,attr"`
 	Pedido  PedidoCancelamento `xml:"Pedido"`
 }
 
@@ -118,13 +118,13 @@ type PedidoCancelamento struct {
 
 // InfPedidoCancelamento identifies the NFS-e to cancel.
 type InfPedidoCancelamento struct {
-	IdentificacaoNfse IdentificacaoNfse `xml:"IdentificacaoNfse"`
+	IdentificacaoNfse  IdentificacaoNfse `xml:"IdentificacaoNfse"`
 	CodigoCancelamento string            `xml:"CodigoCancelamento"`
 }
 
 // IdentificacaoNfse holds the issued NFS-e number and prestador info.
 type IdentificacaoNfse struct {
-	Numero             string   `xml:"Numero"`
-	CpfCnpjPrestador   CpfCnpj  `xml:"CpfCnpjPrestador"`
-	CodigoMunicipio    string   `xml:"CodigoMunicipio"`
+	Numero           string  `xml:"Numero"`
+	CpfCnpjPrestador CpfCnpj `xml:"CpfCnpjPrestador"`
+	CodigoMunicipio  string  `xml:"CodigoMunicipio"`
 }
