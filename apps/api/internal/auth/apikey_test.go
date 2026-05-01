@@ -42,8 +42,10 @@ func TestGenerateKey_Uniqueness(t *testing.T) {
 
 func TestHashKey_Deterministic(t *testing.T) {
 	const raw = "sk_live_abc123"
-	if HashKey(raw) != HashKey(raw) {
-		t.Error("HashKey is not deterministic")
+	h1 := HashKey(raw)
+	h2 := HashKey(raw)
+	if h1 != h2 {
+		t.Errorf("HashKey is not deterministic: %q vs %q", h1, h2)
 	}
 }
 
