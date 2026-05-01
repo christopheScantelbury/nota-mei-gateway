@@ -2,16 +2,32 @@
   "name": "nota-mei-gateway",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "npm@10.9.2",
   "workspaces": [
     "apps/*"
   ],
   "scripts": {
     "dev": "turbo run dev",
+    "dev:stack": "docker compose up -d",
+    "dev:supabase": "npx supabase start",
+    "db:login": "npx supabase login",
+    "db:link": "npx supabase link",
+    "db:push": "npx supabase db push",
+    "db:reset": "npx supabase db reset",
+    "dev:apps": "concurrently -n api,web -c blue,green \"cd apps/api && go run ./cmd/server\" \"cd apps/web && npm run dev\"",
+    "dev:local": "npm run dev:stack && npm run dev:supabase && npm run dev:apps",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test"
   },
   "devDependencies": {
+    "concurrently": "^9.1.2",
+    "supabase": "^2.49.8",
     "turbo": "^2.3.3"
+  },
+  "overrides": {
+    "eslint": "8.57.1",
+    "eslint-config-next": "14.2.5",
+    "@next/eslint-plugin-next": "14.2.5"
   }
 }

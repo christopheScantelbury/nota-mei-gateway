@@ -26,11 +26,16 @@ go.work.sum
 
 # env file
 .env
+.env.local
+
+# Supabase CLI (link, cache local)
+supabase/.temp/
 
 # Node
 node_modules/
 .next/
 out/
+.turbo/
 
 # Editor/IDE
 # .idea/

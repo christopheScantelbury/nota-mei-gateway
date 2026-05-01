@@ -104,7 +104,7 @@ nota-mei-gateway/
 │       └── next.config.ts
 ├── supabase/
 │   ├── migrations/                 # arquivos .sql versionados
-│   ├── seed.sql                    # dados iniciais (planos, NBS sample)
+│   ├── seed.sql                    # dados iniciais (planos)
 │   └── config.toml                 # supabase CLI config
 ├── docs/
 │   ├── architecture.md             # diagrama e decisões de arquitetura
@@ -205,7 +205,8 @@ CREATE TABLE notas_fiscais (
   cancelada_em        TIMESTAMPTZ,
   emitida_em          TIMESTAMPTZ,
   created_at          TIMESTAMPTZ DEFAULT NOW(),
-  updated_at          TIMESTAMPTZ DEFAULT NOW()
+  updated_at          TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT status_values CHECK (status IN ('PROCESSANDO','AUTORIZADA','REJEITADA','CANCELADA','ERRO_TEMPORARIO'))
 );
 
 -- Deduplicação de eventos Stripe
@@ -222,21 +223,31 @@ CREATE UNIQUE INDEX ON api_keys(key_hash);
 CREATE INDEX ON notas_fiscais(mei_id, competencia);
 CREATE INDEX ON notas_fiscais(status) WHERE status = 'PROCESSANDO';
 CREATE INDEX ON emissoes_mensais(mei_id, competencia);
-CREATE UNIQUE INDEX ON meis(stripe_customer_id);
 ```
 
 ### Row Level Security (RLS)
 ```sql
--- Toda tabela tem RLS habilitado
-ALTER TABLE notas_fiscais ENABLE ROW LEVEL SECURITY;
-ALTER TABLE api_keys ENABLE ROW LEVEL SECURITY;
-ALTER TABLE emissoes_mensais ENABLE ROW LEVEL SECURITY;
+ALTER TABLE meis              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE api_keys          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE planos            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE emissoes_mensais  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notas_fiscais     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE stripe_events     ENABLE ROW LEVEL SECURITY;
 
--- Policy padrão: MEI só vê seus dados (via Supabase Auth JWT)
-CREATE POLICY "mei_own_data" ON notas_fiscais
+CREATE POLICY "mei_own_data_meis" ON meis
+  FOR ALL USING (id = auth.uid());
+
+CREATE POLICY "mei_own_data_api_keys" ON api_keys
   FOR ALL USING (mei_id = auth.uid());
 
--- API Go usa service_role key (bypass RLS controlado)
+CREATE POLICY "mei_own_data_emissoes" ON emissoes_mensais
+  FOR ALL USING (mei_id = auth.uid());
+
+CREATE POLICY "mei_own_data_notas" ON notas_fiscais
+  FOR ALL USING (mei_id = auth.uid());
+
+CREATE POLICY "planos_public_read" ON planos
+  FOR SELECT USING (true);
 ```
 
 ---

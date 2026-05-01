@@ -28,43 +28,64 @@ type Config struct {
 	StripePricePro      string
 	StripePriceBusiness string
 
+	WebhookHMACSecret string
+
 	ReceitaAPIURL string
 }
 
-// Load reads environment variables and returns a populated Config.
-// Panics on startup if any required variable is missing.
+// Load lê variáveis de ambiente, valida as obrigatórias e devolve a configuração.
 func Load() *Config {
+	required := []string{
+		"DATABASE_URL",
+		"SUPABASE_SERVICE_ROLE_KEY",
+		"REDIS_URL",
+		"RABBITMQ_URL",
+		"AWS_REGION",
+		"AWS_KMS_KEY_ARN",
+		"STRIPE_SECRET_KEY",
+		"STRIPE_WEBHOOK_SECRET",
+		"STRIPE_PRICE_STARTER",
+		"STRIPE_PRICE_BASIC",
+		"STRIPE_PRICE_PRO",
+		"STRIPE_PRICE_BUSINESS",
+		"WEBHOOK_HMAC_SECRET",
+		"RECEITA_API_URL",
+	}
+	var missing []string
+	for _, k := range required {
+		if os.Getenv(k) == "" {
+			missing = append(missing, k)
+		}
+	}
+	if len(missing) > 0 {
+		panic(fmt.Sprintf("variáveis de ambiente obrigatórias ausentes: %v", missing))
+	}
+
 	return &Config{
 		AppEnv:   getEnv("APP_ENV", "development"),
 		Port:     getEnv("PORT", "8080"),
 		LogLevel: getEnv("LOG_LEVEL", "info"),
 
-		DatabaseURL:        mustEnv("DATABASE_URL"),
-		SupabaseServiceKey: mustEnv("SUPABASE_SERVICE_ROLE_KEY"),
+		DatabaseURL:        os.Getenv("DATABASE_URL"),
+		SupabaseServiceKey: os.Getenv("SUPABASE_SERVICE_ROLE_KEY"),
 
-		RedisURL:    mustEnv("REDIS_URL"),
-		RabbitMQURL: mustEnv("RABBITMQ_URL"),
+		RedisURL:    os.Getenv("REDIS_URL"),
+		RabbitMQURL: os.Getenv("RABBITMQ_URL"),
 
-		AWSRegion:    mustEnv("AWS_REGION"),
-		AWSKMSKeyARN: mustEnv("AWS_KMS_KEY_ARN"),
+		AWSRegion:    os.Getenv("AWS_REGION"),
+		AWSKMSKeyARN: os.Getenv("AWS_KMS_KEY_ARN"),
 
-		StripeSecretKey:     mustEnv("STRIPE_SECRET_KEY"),
-		StripeWebhookSecret: mustEnv("STRIPE_WEBHOOK_SECRET"),
-		StripePriceStarter:  mustEnv("STRIPE_PRICE_STARTER"),
-		StripePriceBasic:    mustEnv("STRIPE_PRICE_BASIC"),
-		StripePricePro:      mustEnv("STRIPE_PRICE_PRO"),
-		StripePriceBusiness: mustEnv("STRIPE_PRICE_BUSINESS"),
+		StripeSecretKey:     os.Getenv("STRIPE_SECRET_KEY"),
+		StripeWebhookSecret: os.Getenv("STRIPE_WEBHOOK_SECRET"),
+		StripePriceStarter:  os.Getenv("STRIPE_PRICE_STARTER"),
+		StripePriceBasic:    os.Getenv("STRIPE_PRICE_BASIC"),
+		StripePricePro:      os.Getenv("STRIPE_PRICE_PRO"),
+		StripePriceBusiness: os.Getenv("STRIPE_PRICE_BUSINESS"),
 
-		ReceitaAPIURL: mustEnv("RECEITA_API_URL"),
+		WebhookHMACSecret: os.Getenv("WEBHOOK_HMAC_SECRET"),
+
+		ReceitaAPIURL: os.Getenv("RECEITA_API_URL"),
 	}
-}
-
-func mustEnv(key string) string {
-	v := os.Getenv(key)
-	if v == "" {
-		panic(fmt.Sprintf("variável de ambiente obrigatória não definida: %s", key))
-	}
-	return v
 }
 
 func getEnv(key, fallback string) string {

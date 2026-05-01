@@ -21,6 +21,11 @@ func New(ctx context.Context, databaseURL string) (*Client, error) {
 	return &Client{pool: pool}, nil
 }
 
+// Pool returns the underlying pgx connection pool.
+func (c *Client) Pool() *pgxpool.Pool {
+	return c.pool
+}
+
 // Close releases all connections in the pool.
 func (c *Client) Close() {
 	c.pool.Close()

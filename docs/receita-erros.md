@@ -5,7 +5,7 @@
 | E001 | CNPJ inválido | Validar CNPJ antes do envio |
 | E002 | Certificado inválido ou expirado | Renovar certificado A1 via `/v1/auth/certificate` |
 | E003 | Alíquota ISS inválida para o município | Consultar tabela de alíquotas do município |
-| E004 | Código NBS inválido | Verificar código NBS em `nbs_catalog` |
+| E004 | Código NBS inválido | Verificar o código na listagem oficial de NBS (Receita Federal) |
 | E010 | RPS duplicado | Usar `idempotency_key` único por nota |
 | E020 | MEI não habilitado para emissão | Verificar situação cadastral na Receita |
 | E050 | Serviço temporariamente indisponível | Retry com backoff exponencial |
