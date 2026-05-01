@@ -128,7 +128,7 @@ func TestAuthMiddleware_ValidBearer(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer sk_test_abc123")
 	req.Header.Set("Content-Type", "application/json")
 	resp := mustTest(t, app, req)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	// Should reach the handler (202) not auth block (401).
 	if resp.StatusCode == http.StatusUnauthorized {
 		t.Error("valid Bearer token should not be rejected by auth middleware")
@@ -154,7 +154,7 @@ func TestEmitirNota_MissingFields(t *testing.T) {
 			req.Header.Set("Authorization", "Bearer sk_test_abc123")
 			req.Header.Set("Content-Type", "application/json")
 			resp := mustTest(t, app, req)
-			defer resp.Body.Close()
+			defer func() { _ = resp.Body.Close() }()
 			if resp.StatusCode != http.StatusUnprocessableEntity {
 				t.Errorf("status = %d, want 422", resp.StatusCode)
 			}
@@ -173,7 +173,7 @@ func TestEmitirNota_ValidRequest_Accepted(t *testing.T) {
 	req.Header.Set("Authorization", "Bearer sk_test_abc123")
 	req.Header.Set("Content-Type", "application/json")
 	resp := mustTest(t, app, req)
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusAccepted {
 		t.Errorf("status = %d, want 202", resp.StatusCode)
 	}
@@ -186,6 +186,7 @@ func TestUnknownRoute_404(t *testing.T) {
 	// Test a path outside the /v1 group so auth middleware doesn't intercept.
 	req := httptest.NewRequest(http.MethodGet, "/nonexistent", nil)
 	resp := mustTest(t, app, req)
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("unknown route: status = %d, want 404", resp.StatusCode)
 	}
