@@ -28,6 +28,8 @@ type Config struct {
 	StripePricePro      string
 	StripePriceBusiness string
 
+	WebhookHMACSecret string
+
 	ReceitaAPIURL string
 }
 
@@ -46,6 +48,7 @@ func Load() *Config {
 		"STRIPE_PRICE_BASIC",
 		"STRIPE_PRICE_PRO",
 		"STRIPE_PRICE_BUSINESS",
+		"WEBHOOK_HMAC_SECRET",
 		"RECEITA_API_URL",
 	}
 	var missing []string
@@ -78,6 +81,8 @@ func Load() *Config {
 		StripePriceBasic:    os.Getenv("STRIPE_PRICE_BASIC"),
 		StripePricePro:      os.Getenv("STRIPE_PRICE_PRO"),
 		StripePriceBusiness: os.Getenv("STRIPE_PRICE_BUSINESS"),
+
+		WebhookHMACSecret: os.Getenv("WEBHOOK_HMAC_SECRET"),
 
 		ReceitaAPIURL: os.Getenv("RECEITA_API_URL"),
 	}
