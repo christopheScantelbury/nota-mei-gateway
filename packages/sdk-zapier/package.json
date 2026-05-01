@@ -1,0 +1,27 @@
+{
+  "name": "notamei-gateway-zapier",
+  "version": "1.0.0",
+  "description": "Nota MEI Gateway — emissão automática de NFS-e via Zapier",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --testTimeout=10000",
+    "build": "zapier build",
+    "push": "zapier push",
+    "validate": "zapier validate"
+  },
+  "dependencies": {
+    "zapier-platform-core": "^16.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "jest": {
+    "testEnvironment": "node"
+  },
+  "zapier": {
+    "appId": "zapier-app-id-pending"
+  }
+}
