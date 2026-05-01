@@ -87,6 +87,7 @@ func TestHealthEndpoint_OK(t *testing.T) {
 	app := newTestApp()
 	req := httptest.NewRequest(http.MethodGet, "/v1/health", nil)
 	resp := mustTest(t, app, req)
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("status = %d, want 200", resp.StatusCode)
@@ -103,6 +104,7 @@ func TestAuthMiddleware_MissingBearer(t *testing.T) {
 	app := newTestApp()
 	req := httptest.NewRequest(http.MethodPost, "/v1/nfse", nil)
 	resp := mustTest(t, app, req)
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", resp.StatusCode)
 	}
@@ -113,6 +115,7 @@ func TestAuthMiddleware_MalformedBearer(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/v1/nfse", nil)
 	req.Header.Set("Authorization", "Token abc123") // not "Bearer"
 	resp := mustTest(t, app, req)
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", resp.StatusCode)
 	}
