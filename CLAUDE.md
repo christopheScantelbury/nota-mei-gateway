@@ -447,6 +447,7 @@ Semana 8-9  →  NFS-01 → NFS-02 → NFS-03 → NFS-04
 Semana 10   →  API-01 → API-02 → API-03 → API-04 → API-05 → API-06
 Semana 11   →  WBK-01 → WBK-02 → WBK-03 → DASH-01 → DASH-02 → DASH-03
 Semana 12   →  QA-01 → QA-02 → QA-03 → QA-04 → QA-05
+Semana 13+  →  SDK-06 ✅ → SDK-08 ✅ → SDK-07 → SDK-01 → SDK-02 → SDK-03 → SDK-04 → SDK-05
 ```
 
 ---
@@ -532,6 +533,10 @@ go test ./...               # testa
 go vet ./...                # analisa
 golangci-lint run           # lint completo
 
+# OpenAPI
+npm run openapi:lint         # valida docs/openapi.yaml com @redocly/cli
+npm run openapi:types        # gera apps/web/lib/api-types.ts via openapi-typescript
+
 # Stripe (desenvolvimento)
 stripe listen --forward-to localhost:8080/v1/webhooks/stripe
 
@@ -573,3 +578,96 @@ vercel --prod               # deploy manual produção
 | Schema ABRASF | https://www.nfse.gov.br/downloads/schemas |
 | CloudAMQP | https://www.cloudamqp.com |
 | Grafana Cloud | https://grafana.com/auth/sign-up |
+
+---
+
+## 13. ESTADO ATUAL — ONDE PARAMOS
+> Última atualização: 2026-05-01 · branch `main` · commit `c081f5c`
+
+### O que já está implementado em código
+
+| Épico | Issues | Status | Arquivos principais |
+|---|---|---|---|
+| **AUTH** | AUTH-02, AUTH-03 | ✅ | `internal/auth/apikey.go`, `internal/auth/middleware.go`, `internal/auth/repository.go` |
+| **DOC-BUILDER** | DOC-01, DOC-02, DOC-06 | ✅ | `internal/document/rps.go`, `internal/document/builder.go`, `internal/document/builder_test.go` |
+| **NFS-e** | NFS-01–05 | ✅ | `internal/nfse/adapter.go`, `internal/nfse/models.go`, `internal/nfse/nota_repository.go`, `internal/nfse/poller.go` |
+| **BILLING** | BIL-03 (guard) | ✅ | `internal/billing/guard.go`, `internal/billing/repository.go` |
+| **WEBHOOK** | WBK-01–03 | ✅ | `internal/webhook/publisher.go`, `internal/webhook/consumer.go`, `internal/webhook/requeuer.go` |
+| **API** | API-01–06, API-08 | ✅ | `internal/handler/nfse.go`, `internal/handler/billing.go`, `internal/handler/stripe_webhook.go` |
+| **DASHBOARD** | DASH-01–03 | ✅ | `apps/web/app/(dashboard)/` (notas, billing, layout) |
+| **QA** | QA-02, QA-04, QA-05 | ✅ | `internal/*/\_test.go`, `docs/load-test.js`, `docs/deploy-checklist.md` |
+| **SDK** | SDK-06, SDK-08 | ✅ | `docs/openapi.yaml`, `internal/sandbox/`, `apps/web/app/(landing)/sandbox/` |
+
+### O que ainda está em aberto (GitHub Issues)
+
+**Épico SDK** — próximas tasks em ordem de prioridade:
+```
+SDK-07 (#82)  🟡 alta      Developer portal (Mintlify ou Scalar)
+SDK-01 (#83)  🟡 alta      SDK Node.js/TypeScript — npm install @scantelburydevs/notamei
+SDK-02 (#84)  🟢 normal    SDK Python — pip install notamei-gateway
+SDK-03 (#85)  🟡 alta      Plugin WooCommerce
+SDK-04 (#86)  🟢 normal    App Zapier oficial
+SDK-05 (#87)  🟢 normal    Extensão Google Sheets
+```
+
+**Infra ainda não provisionada** (requer acesso às contas — não é só código):
+```
+PLAT-01 (#1)   Supabase projeto de produção + schema
+PLAT-03 (#3)   Deploy API Go no Railway (prod + staging)
+PLAT-04 (#4)   Redis + RabbitMQ como add-ons Railway
+PLAT-05 (#5)   Deploy Worker Webhooks no Railway
+PLAT-06 (#6)   GitHub Actions: deploy automático Railway + Vercel
+PLAT-07 (#7)   Projeto Vercel para dashboard e landing
+PLAT-08 (#8)   Turborepo estrutura completa
+```
+
+**Código restante (pode ser feito sem infra real)**:
+```
+INF-05  (#18)  Logger zerolog com request ID
+INF-06  (#19)  GitHub Actions lint + test + deploy
+INF-07  (#20)  Middleware recovery de panic (já existe via fiber/recover)
+INF-08  (#21)  Prometheus metrics + Grafana Cloud
+AUTH-01 (#22)  POST /v1/auth/register (cadastro MEI + upload cert)
+AUTH-04 (#25)  AWS KMS + Secrets Manager (cert.go já tem interface)
+AUTH-05 (#26)  Validação CNPJ na Receita Federal
+DOC-03  (#31)  Assinatura XML xmlsec1 (NoopSigner atual é placeholder)
+DOC-04  (#32)  Validação NBS + cache Redis
+DOC-05  (#33)  Lookup alíquota ISS por município
+NFS-06  (#40)  Retry backoff exponencial (1s, 4s, 16s)
+NFS-07  (#41)  Job para notas PROCESSANDO travadas (poller.go já cobre parcialmente)
+BIL-01  (#42)  Seed planos no Supabase
+BIL-02  (#43)  BillingGuard integrado ao Stripe (guard.go tem TODO)
+BIL-03  (#44)  Contador emissões mensais
+BIL-04  (#45)  Job renovação de cota mensal
+BIL-05  (#46)  GET /v1/billing/usage (handler existe, integração real pendente)
+BIL-06  (#47)  Upgrade/downgrade Stripe Customer Portal
+WBK-04  (#51)  Retry webhook 1min / 5min / 30min (requeuer.go cobre, mas sem backoff)
+API-07  (#58)  Rate limiter por API Key (Redis)
+DASH-04 (#63)  Landing page pública
+QA-01   (#64)  Testes E2E fluxo completo sandbox Receita
+QA-03   (#66)  Collection Postman completa
+STR-01  (#9)   Stripe: configurar produtos e preços
+STR-02  (#10)  Stripe: fluxo checkout ao cadastrar MEI
+STR-03  (#11)  Stripe: processar eventos de pagamento
+STR-04  (#12)  BillingGuard integrado ao Stripe
+STR-05  (#13)  Metered billing excedentes
+```
+
+### Próxima task recomendada
+
+**SDK-07 (#82)** — Developer portal com Mintlify ou Scalar.
+- Depende de: `docs/openapi.yaml` ✅ (já existe)
+- O portal deve hospedar: referência da API gerada do OpenAPI, guias de início rápido, exemplos de código, e linkar para o playground `/sandbox`
+- Opção recomendada: **Scalar** (open-source, auto-hospedado na Vercel, consome o `openapi.yaml` diretamente)
+
+### Pontos de atenção para o próximo dev
+
+1. **`document/signer.go`** usa `NoopSigner{}` — a assinatura XML real com `xmlsec1` (DOC-03) ainda não foi implementada. Sem ela, as NFS-e enviadas à Receita serão rejeitadas em produção.
+
+2. **`pkg/cert/`** tem a interface `CertProvider` definida mas a implementação AWS Secrets Manager (AUTH-04) está pendente. Em desenvolvimento usa-se o `NoopSigner`.
+
+3. **`billing/guard.go`** tem um `TODO` para integrar a verificação com o Stripe real — atualmente valida apenas pelo banco local.
+
+4. **`cmd/worker/main.go`** — o worker de webhooks e o poller de NFS-e precisam das variáveis `RABBITMQ_URL`, `DATABASE_URL` e `REDIS_URL` para funcionar. Em local, usar o `docker-compose.yml`.
+
+5. **CI (`.github/workflows/ci.yml`)** — o job `openapi-lint` vai falhar se `package-lock.json` não tiver `@redocly/cli` e `openapi-typescript`. Rodar `npm install` localmente para gerar o lockfile atualizado antes de fazer push.
