@@ -582,7 +582,7 @@ vercel --prod               # deploy manual produção
 ---
 
 ## 13. ESTADO ATUAL — ONDE PARAMOS
-> Última atualização: 2026-05-01 · branch `main` · commit `a0449de`
+> Última atualização: 2026-05-01 · branch `main` · commit `7fbac22`
 
 ### O que já está implementado em código
 
@@ -599,6 +599,7 @@ vercel --prod               # deploy manual produção
 | **SDK** | SDK-06, SDK-07, SDK-08 | ✅ | `docs/openapi.yaml`, `internal/sandbox/`, `apps/web/app/(landing)/sandbox/`, `packages/sdk-node/` |
 | **SDK Node.js** | SDK-01 | ✅ | `packages/sdk-node/src/` — `client.ts`, `http.ts`, `webhook.ts`, `errors.ts` |
 | **SDK Python** | SDK-02 | ✅ | `packages/sdk-python/src/notamei/` — `client.py`, `async_client.py`, `_webhook.py`, `_models.py` |
+| **Plugin WooCommerce** | SDK-03 | ✅ | `packages/sdk-woo/` — `notamei-gateway.php`, `includes/class-notamei-*.php` |
 
 ### O que ainda está em aberto (GitHub Issues)
 
@@ -606,7 +607,7 @@ vercel --prod               # deploy manual produção
 ```
 SDK-01 (#83)  ✅ concluído  SDK Node.js/TypeScript — packages/sdk-node/
 SDK-02 (#84)  ✅ concluído  SDK Python — packages/sdk-python/
-SDK-03 (#85)  🟡 alta      Plugin WooCommerce
+SDK-03 (#85)  ✅ concluído  Plugin WooCommerce — packages/sdk-woo/
 SDK-04 (#86)  🟢 normal    App Zapier oficial
 SDK-05 (#87)  🟢 normal    Extensão Google Sheets
 ```
@@ -656,9 +657,9 @@ STR-05  (#13)  Metered billing excedentes
 
 ### Próxima task recomendada
 
-**SDK-03 (#85)** — Plugin WooCommerce
-- Depende de: SDK-01 ✅, SDK-02 ✅, `docs/openapi.yaml` ✅
-- Plugin PHP para WooCommerce que emite NFS-e automaticamente após compra confirmada
+**SDK-04 (#86)** — App Zapier
+- Depende de: SDK-01 ✅, SDK-02 ✅, SDK-03 ✅
+- App Zapier para integrar Nota MEI Gateway com qualquer ferramenta via automação no-code
 
 ### Pontos de atenção para o próximo dev
 
