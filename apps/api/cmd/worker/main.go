@@ -5,10 +5,12 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/config"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/nfse"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/webhook"
+	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/cert"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/supabase"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -34,14 +36,30 @@ func main() {
 	}
 	defer db.Close()
 
+	// ── Certificate provider ───────────────────────────────────────────────
+	certProv, err := cert.New(ctx, cfg.AWSRegion)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to init cert provider")
+	}
+
 	// ── Nota repository ────────────────────────────────────────────────────
 	notaRepo := nfse.NewNotaRepository(db)
+
+	// ── NFS-e adapter ──────────────────────────────────────────────────────
+	adapter := nfse.NewAdapter(cfg.ReceitaAPIURL)
 
 	// ── API base URL ───────────────────────────────────────────────────────
 	apiBase := "https://api.notameigateway.com.br"
 	if cfg.AppEnv == "development" {
 		apiBase = "http://localhost:8080"
 	}
+
+	// ── RabbitMQ publisher ─────────────────────────────────────────────────
+	publisher, err := webhook.NewPublisher(cfg.RabbitMQURL)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to init webhook publisher")
+	}
+	defer publisher.Close()
 
 	// ── Webhook consumer ───────────────────────────────────────────────────
 	consumer, err := webhook.NewConsumer(cfg.RabbitMQURL, notaRepo, apiBase)
@@ -50,11 +68,93 @@ func main() {
 	}
 	defer consumer.Close()
 
+	// ── NFS-e status poller ────────────────────────────────────────────────
+	// Polls the Receita Federal every 30s for PROCESSANDO notas with a protocol.
+	poller := nfse.NewPoller(notaRepo, adapter, certProv, publisher, 30*time.Second)
+
+	// ── Webhook requeuer ───────────────────────────────────────────────────
+	// Sweeps the DB every 5 minutes for undelivered webhooks and re-publishes them.
+	sweepFn := buildSweepFn(notaRepo, cfg.WebhookHMACSecret)
+	requeuer := webhook.NewRequeuer(sweepFn, publisher, 5*time.Minute)
+
 	log.Info().Str("env", cfg.AppEnv).Msg("webhook worker iniciado")
 
-	if err := consumer.Start(ctx); err != nil && err != context.Canceled {
-		log.Fatal().Err(err).Msg("worker exited with error")
+	// ── Run all goroutines until SIGINT/SIGTERM ─────────────────────────────
+	done := make(chan error, 3)
+
+	go func() { done <- consumer.Start(ctx) }()
+	go func() {
+		poller.Run(ctx)
+		done <- nil
+	}()
+	go func() {
+		requeuer.Run(ctx)
+		done <- nil
+	}()
+
+	// Wait for first goroutine to return (or ctx cancel).
+	select {
+	case err := <-done:
+		if err != nil && err != context.Canceled {
+			log.Fatal().Err(err).Msg("worker goroutine exited with error")
+		}
+	case <-ctx.Done():
 	}
 
 	log.Info().Msg("worker encerrado")
+}
+
+// buildSweepFn creates the SweepFunc closure that maps nfse.Nota → webhook.DeliveryMessage.
+func buildSweepFn(repo *nfse.NotaRepository, hmacSecret string) webhook.SweepFunc {
+	return func(ctx context.Context, limit int) ([]webhook.DeliveryMessage, error) {
+		notas, err := repo.FindPendingWebhooks(ctx, limit)
+		if err != nil {
+			return nil, err
+		}
+
+		msgs := make([]webhook.DeliveryMessage, 0, len(notas))
+		for _, n := range notas {
+			if n.WebhookURL == nil {
+				continue
+			}
+			msg := webhook.DeliveryMessage{
+				NotaID:        n.ID.String(),
+				Event:         statusToEvent(n.Status),
+				Status:        n.Status,
+				WebhookURL:    *n.WebhookURL,
+				WebhookSecret: hmacSecret,
+			}
+			if n.NumeroNFSe != nil {
+				msg.NumeroNFSe = *n.NumeroNFSe
+			}
+			if n.CodVerificacao != nil {
+				msg.CodVerificacao = *n.CodVerificacao
+			}
+			if n.ErroCodigo != nil {
+				msg.ErroCodigo = *n.ErroCodigo
+			}
+			if n.ErroDescricao != nil {
+				msg.ErroDescricao = *n.ErroDescricao
+			}
+			if n.EmitidaEm != nil {
+				msg.EmitidaEm = *n.EmitidaEm
+			}
+			msgs = append(msgs, msg)
+		}
+		return msgs, nil
+	}
+}
+
+// statusToEvent maps a nota status string to a webhook EventType.
+func statusToEvent(status string) webhook.EventType {
+	switch status {
+	case "AUTORIZADA":
+		return webhook.EventAutorizada
+	case "REJEITADA":
+		return webhook.EventRejeitada
+	case "CANCELADA":
+		return webhook.EventCancelada
+	default:
+		return webhook.EventType(status)
+	}
 }
