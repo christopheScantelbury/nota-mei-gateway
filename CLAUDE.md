@@ -582,7 +582,7 @@ vercel --prod               # deploy manual produção
 ---
 
 ## 13. ESTADO ATUAL — ONDE PARAMOS
-> Última atualização: 2026-05-01 · branch `main` · commit `c081f5c`
+> Última atualização: 2026-05-01 · branch `main` · commit `85ac2e0`
 
 ### O que já está implementado em código
 
@@ -596,14 +596,14 @@ vercel --prod               # deploy manual produção
 | **API** | API-01–06, API-08 | ✅ | `internal/handler/nfse.go`, `internal/handler/billing.go`, `internal/handler/stripe_webhook.go` |
 | **DASHBOARD** | DASH-01–03 | ✅ | `apps/web/app/(dashboard)/` (notas, billing, layout) |
 | **QA** | QA-02, QA-04, QA-05 | ✅ | `internal/*/\_test.go`, `docs/load-test.js`, `docs/deploy-checklist.md` |
-| **SDK** | SDK-06, SDK-08 | ✅ | `docs/openapi.yaml`, `internal/sandbox/`, `apps/web/app/(landing)/sandbox/` |
+| **SDK** | SDK-06, SDK-07, SDK-08 | ✅ | `docs/openapi.yaml`, `internal/sandbox/`, `apps/web/app/(landing)/sandbox/`, `packages/sdk-node/` |
+| **SDK Node.js** | SDK-01 | ✅ | `packages/sdk-node/src/` — `client.ts`, `http.ts`, `webhook.ts`, `errors.ts` |
 
 ### O que ainda está em aberto (GitHub Issues)
 
 **Épico SDK** — próximas tasks em ordem de prioridade:
 ```
-SDK-07 (#82)  🟡 alta      Developer portal (Mintlify ou Scalar)
-SDK-01 (#83)  🟡 alta      SDK Node.js/TypeScript — npm install @scantelburydevs/notamei
+SDK-01 (#83)  ✅ concluído  SDK Node.js/TypeScript — packages/sdk-node/
 SDK-02 (#84)  🟢 normal    SDK Python — pip install notamei-gateway
 SDK-03 (#85)  🟡 alta      Plugin WooCommerce
 SDK-04 (#86)  🟢 normal    App Zapier oficial
@@ -655,10 +655,9 @@ STR-05  (#13)  Metered billing excedentes
 
 ### Próxima task recomendada
 
-**SDK-07 (#82)** — Developer portal com Mintlify ou Scalar.
-- Depende de: `docs/openapi.yaml` ✅ (já existe)
-- O portal deve hospedar: referência da API gerada do OpenAPI, guias de início rápido, exemplos de código, e linkar para o playground `/sandbox`
-- Opção recomendada: **Scalar** (open-source, auto-hospedado na Vercel, consome o `openapi.yaml` diretamente)
+**SDK-02 (#84)** — SDK Python (`pip install notamei-gateway`)
+- Depende de: `docs/openapi.yaml` ✅, SDK-01 ✅ (estrutura e contratos já definidos)
+- Mesma interface pública do Node.js adaptada para Python (snake_case nativo, sem deps, retry)
 
 ### Pontos de atenção para o próximo dev
 
