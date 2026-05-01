@@ -15,20 +15,20 @@ const DemoKey = "sk_test_sandbox_demo"
 
 // fakeNota represents an in-memory sandbox nota.
 type fakeNota struct {
-	ID                string    `json:"id"`
-	Status            string    `json:"status"`
-	NumeroNFSe        string    `json:"numero_nfse"`
-	CodigoVerificacao string    `json:"codigo_verificacao"`
-	ProtocoloReceita  string    `json:"protocolo_receita"`
-	ValorServico      float64   `json:"valor_servico"`
-	TomadorNome       string    `json:"tomador_nome"`
-	TomadorDoc        string    `json:"tomador_doc"`
-	Competencia       string    `json:"competencia"`
-	WebhookURL        string    `json:"webhook_url,omitempty"`
-	WebhookEntregue   bool      `json:"webhook_entregue"`
-	EmitidaEm         string    `json:"emitida_em"`
-	CreatedAt         string    `json:"created_at"`
-	UpdatedAt         string    `json:"updated_at"`
+	ID                string  `json:"id"`
+	Status            string  `json:"status"`
+	NumeroNFSe        string  `json:"numero_nfse"`
+	CodigoVerificacao string  `json:"codigo_verificacao"`
+	ProtocoloReceita  string  `json:"protocolo_receita"`
+	ValorServico      float64 `json:"valor_servico"`
+	TomadorNome       string  `json:"tomador_nome"`
+	TomadorDoc        string  `json:"tomador_doc"`
+	Competencia       string  `json:"competencia"`
+	WebhookURL        string  `json:"webhook_url,omitempty"`
+	WebhookEntregue   bool    `json:"webhook_entregue"`
+	EmitidaEm         string  `json:"emitida_em"`
+	CreatedAt         string  `json:"created_at"`
+	UpdatedAt         string  `json:"updated_at"`
 }
 
 // webhookRecord is a received sandbox webhook payload.
@@ -39,10 +39,10 @@ type webhookRecord struct {
 
 // Handler is the sandbox HTTP handler. All NFS-e operations return simulated data.
 type Handler struct {
-	rl      *IPRateLimiter
-	mu      sync.RWMutex
-	notas   map[string]*fakeNota   // keyed by nota ID
-	hooks   []webhookRecord        // last 20 received webhooks
+	rl    *IPRateLimiter
+	mu    sync.RWMutex
+	notas map[string]*fakeNota // keyed by nota ID
+	hooks []webhookRecord      // last 20 received webhooks
 }
 
 // New creates a Handler with a rate limit of 20 requests per hour per IP.

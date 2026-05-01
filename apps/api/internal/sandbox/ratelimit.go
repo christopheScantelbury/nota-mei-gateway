@@ -9,7 +9,7 @@ import (
 
 // ipBucket tracks request timestamps for a single IP address.
 type ipBucket struct {
-	mu        sync.Mutex
+	mu         sync.Mutex
 	timestamps []time.Time
 }
 
