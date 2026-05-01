@@ -288,6 +288,64 @@ func (r *NotaRepository) FindPendingWebhooks(ctx context.Context, limit int) ([]
 	return notas, rows.Err()
 }
 
+// NotaParaConsulta extends Nota with MEI data needed by the status poller.
+type NotaParaConsulta struct {
+	Nota
+	CNPJ          string
+	MunicipioIBGE string
+	CertSecretARN *string // nullable — MEI might not have a cert yet
+}
+
+// FindProcessandoComProtocolo returns PROCESSANDO notas that already have a
+// protocolo_receita (i.e. were accepted async by the Receita Federal) and
+// are thus ready to be polled for their final status.
+func (r *NotaRepository) FindProcessandoComProtocolo(ctx context.Context, limit int) ([]NotaParaConsulta, error) {
+	rows, err := r.db.Pool().Query(ctx, `
+		SELECT n.id, n.mei_id, n.numero_rps, n.status,
+		       n.protocolo_receita, n.numero_nfse, n.codigo_verificacao,
+		       n.xml_enviado, n.xml_retorno, n.pdf_path,
+		       n.webhook_url, n.webhook_entregue, n.webhook_tentativas,
+		       n.idempotency_key, n.tomador_doc, n.tomador_nome,
+		       n.valor_servico, n.competencia,
+		       n.erro_codigo, n.erro_descricao,
+		       n.cancelada_em, n.emitida_em,
+		       n.created_at, n.updated_at,
+		       m.cnpj, m.municipio_ibge, m.cert_secret_arn
+		FROM notas_fiscais n
+		JOIN meis m ON m.id = n.mei_id
+		WHERE n.status = 'PROCESSANDO'
+		  AND n.protocolo_receita IS NOT NULL
+		ORDER BY n.updated_at ASC
+		LIMIT $1
+	`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []NotaParaConsulta
+	for rows.Next() {
+		var nc NotaParaConsulta
+		err := rows.Scan(
+			&nc.ID, &nc.MeiID, &nc.NumeroRPS, &nc.Status,
+			&nc.ProtocoloReceita, &nc.NumeroNFSe, &nc.CodVerificacao,
+			&nc.XMLEnviado, &nc.XMLRetorno, &nc.PDFPath,
+			&nc.WebhookURL, &nc.WebhookEntregue, &nc.WebhookTentativas,
+			&nc.IdempotencyKey, &nc.TomadorDoc, &nc.TomadorNome,
+			&nc.ValorServico, &nc.Competencia,
+			&nc.ErroCodigo, &nc.ErroDescricao,
+			&nc.CanceladaEm, &nc.EmitidaEm,
+			&nc.CreatedAt, &nc.UpdatedAt,
+			&nc.CNPJ, &nc.MunicipioIBGE, &nc.CertSecretARN,
+		)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, nc)
+	}
+	return out, rows.Err()
+}
+
 // ─── scanner helpers ───────────────────────────────────────────────────────
 
 // scanner is satisfied by both pgx.Row and pgx.Rows.
