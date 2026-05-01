@@ -18,10 +18,14 @@
     "dev:local": "npm run dev:stack && npm run dev:supabase && npm run dev:apps",
     "build": "turbo run build",
     "lint": "turbo run lint",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "openapi:lint": "redocly lint docs/openapi.yaml",
+    "openapi:types": "openapi-typescript docs/openapi.yaml -o apps/web/lib/api-types.ts"
   },
   "devDependencies": {
+    "@redocly/cli": "^1.25.0",
     "concurrently": "^9.1.2",
+    "openapi-typescript": "^7.4.0",
     "supabase": "^2.49.8",
     "turbo": "^2.3.3"
   },
