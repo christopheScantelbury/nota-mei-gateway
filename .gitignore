@@ -43,6 +43,13 @@ dist/
 # .idea/
 # .vscode/
 
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+*.egg
+
 # Arquivos locais com credenciais (NUNCA commitar)
 *.local.md
 ACESSOS*
