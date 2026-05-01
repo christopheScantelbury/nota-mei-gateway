@@ -30,7 +30,7 @@ func (a *Adapter) Enviar(ctx context.Context, xmlBody []byte, cert *tls.Certific
 	if err != nil {
 		return nil, fmt.Errorf("envio request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -45,14 +45,14 @@ func (a *Adapter) Enviar(ctx context.Context, xmlBody []byte, cert *tls.Certific
 }
 
 // Consultar queries the status of an RPS batch by protocol number.
-// Calls GET /consulta?cnpj=&protocolo=&ambiente=.
+// Calls GET /consulta?cnpj=&protocolo=.
 func (a *Adapter) Consultar(ctx context.Context, cnpj, protocolo string, cert *tls.Certificate) (*ConsultaResponse, error) {
 	url := fmt.Sprintf("%s/consulta?cnpj=%s&protocolo=%s", a.baseURL, cnpj, protocolo)
 	resp, err := a.do(ctx, http.MethodGet, url, nil, cert)
 	if err != nil {
 		return nil, fmt.Errorf("consulta request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -72,7 +72,7 @@ func (a *Adapter) Cancelar(ctx context.Context, xmlBody []byte, cert *tls.Certif
 	if err != nil {
 		return nil, fmt.Errorf("cancelamento request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -128,9 +128,9 @@ type rececionarLoteRpsResposta struct {
 
 // gerarNfseResposta is returned by synchronous single-RPS endpoints.
 type gerarNfseResposta struct {
-	XMLName               xml.Name              `xml:"GerarNfseResposta"`
-	ListaNfse             *listaNfse            `xml:"ListaNfse"`
-	ListaMensagemRetorno  listaMensagemRetorno  `xml:"ListaMensagemRetorno"`
+	XMLName              xml.Name             `xml:"GerarNfseResposta"`
+	ListaNfse            *listaNfse           `xml:"ListaNfse"`
+	ListaMensagemRetorno listaMensagemRetorno `xml:"ListaMensagemRetorno"`
 }
 
 type listaNfse struct {
@@ -183,7 +183,7 @@ func parseEnvioResponse(body []byte) (*EnvioResponse, error) {
 	if err := xml.Unmarshal(body, &batch); err == nil && batch.Protocolo != "" {
 		r.Protocolo = batch.Protocolo
 		for _, m := range batch.ListaMensagemRetorno.Mensagens {
-			r.Erros = append(r.Erros, Erro{Codigo: m.Codigo, Descricao: m.Descricao})
+			r.Erros = append(r.Erros, Erro(m))
 		}
 		return r, nil
 	}
@@ -195,7 +195,7 @@ func parseEnvioResponse(body []byte) (*EnvioResponse, error) {
 	}
 
 	for _, m := range sync.ListaMensagemRetorno.Mensagens {
-		r.Erros = append(r.Erros, Erro{Codigo: m.Codigo, Descricao: m.Descricao})
+		r.Erros = append(r.Erros, Erro(m))
 	}
 	if sync.ListaNfse != nil && len(sync.ListaNfse.CompNfse) > 0 {
 		inf := sync.ListaNfse.CompNfse[0].Nfse.InfNfse
@@ -225,7 +225,7 @@ func parseConsultaResponse(body []byte) (*ConsultaResponse, error) {
 	}
 
 	for _, m := range raw.ListaMensagemRetorno.Mensagens {
-		r.Erros = append(r.Erros, Erro{Codigo: m.Codigo, Descricao: m.Descricao})
+		r.Erros = append(r.Erros, Erro(m))
 	}
 
 	if raw.ListaNfse != nil && len(raw.ListaNfse.CompNfse) > 0 {
@@ -245,7 +245,7 @@ func parseCancelamentoResponse(body []byte) (*CancelamentoResponse, error) {
 
 	r := &CancelamentoResponse{OK: raw.Sucesso == "true"}
 	for _, m := range raw.ListaMensagemRetorno.Mensagens {
-		r.Erros = append(r.Erros, Erro{Codigo: m.Codigo, Descricao: m.Descricao})
+		r.Erros = append(r.Erros, Erro(m))
 	}
 	return r, nil
 }

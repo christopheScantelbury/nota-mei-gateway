@@ -185,9 +185,9 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 			Msg("nota rejeitada pela Receita Federal")
 		h.publishEvent(ctx, nota, webhook.EventRejeitada, envioResp.NumeroNFSe, envioResp.CodVerificacao, codigo, descricao)
 		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
-			"nota_id":       nota.ID,
-			"status":        "REJEITADA",
-			"erro_codigo":   codigo,
+			"nota_id":        nota.ID,
+			"status":         "REJEITADA",
+			"erro_codigo":    codigo,
 			"erro_descricao": descricao,
 		})
 	}
@@ -505,15 +505,15 @@ func validateEmissaoRequest(r document.EmissaoRequest) []fiber.Map {
 
 func notaToMap(n nfse.Nota) fiber.Map {
 	m := fiber.Map{
-		"id":          n.ID,
-		"numero_rps":  n.NumeroRPS,
-		"status":      n.Status,
-		"competencia": derefStr(n.Competencia),
-		"tomador_doc": derefStr(n.TomadorDoc),
-		"tomador_nome": derefStr(n.TomadorNome),
+		"id":            n.ID,
+		"numero_rps":    n.NumeroRPS,
+		"status":        n.Status,
+		"competencia":   derefStr(n.Competencia),
+		"tomador_doc":   derefStr(n.TomadorDoc),
+		"tomador_nome":  derefStr(n.TomadorNome),
 		"valor_servico": derefFloat(n.ValorServico),
-		"created_at":  n.CreatedAt,
-		"updated_at":  n.UpdatedAt,
+		"created_at":    n.CreatedAt,
+		"updated_at":    n.UpdatedAt,
 	}
 	if n.NumeroNFSe != nil {
 		m["numero_nfse"] = *n.NumeroNFSe
@@ -578,4 +578,3 @@ func isNotFound(err error) bool {
 	_, ok := err.(nfse.ErrNotaNotFound)
 	return ok
 }
-
