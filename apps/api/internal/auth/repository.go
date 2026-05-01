@@ -19,17 +19,17 @@ type APIKey struct {
 
 // MEI holds the authenticated MEI plus their current subscription limits.
 type MEI struct {
-	ID                  uuid.UUID
-	CNPJ                string
-	RazaoSocial         string
-	Email               string
-	MunicipioIBGE       string
-	StripeCustomerID    *string
-	StripeSubID         *string
-	StripeSubStatus     *string
-	PlanoLimite         int
-	PlanoPrecExcedente  float64
-	TotalEmitidas       int
+	ID                 uuid.UUID
+	CNPJ               string
+	RazaoSocial        string
+	Email              string
+	MunicipioIBGE      string
+	StripeCustomerID   *string
+	StripeSubID        *string
+	StripeSubStatus    *string
+	PlanoLimite        int
+	PlanoPrecExcedente float64
+	TotalEmitidas      int
 }
 
 // Repository handles auth-related database operations.

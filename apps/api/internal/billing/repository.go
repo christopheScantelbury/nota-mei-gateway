@@ -12,12 +12,12 @@ import (
 
 // Plano holds the billing plan data for a MEI.
 type Plano struct {
-	ID                uuid.UUID
-	Nome              string
-	EmissoesLimite    int
-	PrecMensalBRL     float64
-	PrecExcedenteBRL  float64
-	StripePriceID     *string
+	ID               uuid.UUID
+	Nome             string
+	EmissoesLimite   int
+	PrecMensalBRL    float64
+	PrecExcedenteBRL float64
+	StripePriceID    *string
 }
 
 // EmissaoMensal holds the MEI's monthly emission record.

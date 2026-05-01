@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/rs/zerolog/log"
 	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/rs/zerolog/log"
 )
 
 // NotaUpdater is the subset of the nota repository needed by the consumer.
@@ -154,7 +154,7 @@ func (c *Consumer) deliver(ctx context.Context, url, secret string, body []byte)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("webhook returned HTTP %d", resp.StatusCode)
@@ -185,13 +185,13 @@ type webhookPayload struct {
 
 func buildPayload(msg DeliveryMessage, apiBase string) webhookPayload {
 	p := webhookPayload{
-		Event:         string(msg.Event),
-		NotaID:        msg.NotaID,
-		Status:        msg.Status,
-		NumeroNFSe:    msg.NumeroNFSe,
+		Event:          string(msg.Event),
+		NotaID:         msg.NotaID,
+		Status:         msg.Status,
+		NumeroNFSe:     msg.NumeroNFSe,
 		CodVerificacao: msg.CodVerificacao,
-		ErroCodigo:    msg.ErroCodigo,
-		ErroDescricao: msg.ErroDescricao,
+		ErroCodigo:     msg.ErroCodigo,
+		ErroDescricao:  msg.ErroDescricao,
 	}
 	if !msg.EmitidaEm.IsZero() {
 		p.EmitidaEm = msg.EmitidaEm.UTC().Format(time.RFC3339)

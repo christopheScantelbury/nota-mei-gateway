@@ -20,4 +20,3 @@ type NoopSigner struct{}
 func (NoopSigner) Sign(xmlDoc []byte, _ *tls.Certificate) ([]byte, error) {
 	return xmlDoc, nil
 }
-

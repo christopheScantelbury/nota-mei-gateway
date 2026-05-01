@@ -28,7 +28,7 @@ type ServicoRequest struct {
 
 // TomadorRequest holds the service recipient details.
 type TomadorRequest struct {
-	Tipo          string `json:"tipo"` // PF | PJ
+	Tipo          string `json:"tipo"`      // PF | PJ
 	Documento     string `json:"documento"` // CPF or CNPJ digits only
 	RazaoSocial   string `json:"razao_social"`
 	Email         string `json:"email,omitempty"`
@@ -81,9 +81,9 @@ func (b *Builder) Build(req EmissaoRequest, cnpj, municipio string, numeroRPS in
 				Prestador: Prestador{
 					CpfCnpj: CpfCnpj{Cnpj: cnpj},
 				},
-				Tomador:                 buildTomador(req.Tomador),
-				OptanteSimplesNacional:  "1", // MEI is always Simples Nacional
-				IncentivoFiscal:         "2",
+				Tomador:                buildTomador(req.Tomador),
+				OptanteSimplesNacional: "1", // MEI is always Simples Nacional
+				IncentivoFiscal:        "2",
 			},
 		},
 	}
