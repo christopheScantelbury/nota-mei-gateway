@@ -13,6 +13,7 @@ import (
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/document"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/handler"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/nfse"
+	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/sandbox"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/webhook"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/cert"
 	stripeClient "github.com/christopheScantelbury/nota-mei-gateway/api/pkg/stripe"
@@ -129,6 +130,37 @@ func main() {
 
 	// Stripe webhook — raw body needed for signature verification.
 	app.Post("/v1/webhooks/stripe", stripeWH.Handle)
+
+	// ── Sandbox (public demo, no real Receita Federal calls) ───────────────
+	sbx := sandbox.New()
+	sbxGroup := app.Group("/v1", func(c *fiber.Ctx) error {
+		if !sandbox.IsSandboxKey(c.Get("Authorization")) {
+			return c.Next() // not a sandbox request — fall through to real auth
+		}
+		return c.Next()
+	}, sbx.RateLimitMiddleware)
+
+	sbxGroup.Post("/nfse", func(c *fiber.Ctx) error {
+		if !sandbox.IsSandboxKey(c.Get("Authorization")) {
+			return c.Next()
+		}
+		return sbx.EmitirNota(c)
+	})
+	sbxGroup.Get("/nfse", func(c *fiber.Ctx) error {
+		if !sandbox.IsSandboxKey(c.Get("Authorization")) {
+			return c.Next()
+		}
+		return sbx.ListarNotas(c)
+	})
+	sbxGroup.Get("/nfse/:id", func(c *fiber.Ctx) error {
+		if !sandbox.IsSandboxKey(c.Get("Authorization")) {
+			return c.Next()
+		}
+		return sbx.ConsultarNota(c)
+	})
+	// Sandbox webhook receiver — public, no auth needed.
+	app.Post("/v1/sandbox/webhook", sbx.ReceiveWebhook)
+	app.Get("/v1/sandbox/webhook", sbx.ListWebhooks)
 
 	// ── Authenticated endpoints ────────────────────────────────────────────
 	authMw := auth.Middleware(authRepo)
