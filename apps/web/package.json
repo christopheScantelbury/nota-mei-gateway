@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "cross-env NEXT_IGNORE_INCORRECT_LOCKFILE=1 next build",
+    "dev": "node -e \"require('fs').copyFileSync('../../docs/openapi.yaml','public/openapi.yaml')\" && next dev",
+    "build": "node -e \"require('fs').copyFileSync('../../docs/openapi.yaml','public/openapi.yaml')\" && cross-env NEXT_IGNORE_INCORRECT_LOCKFILE=1 next build",
     "start": "next start",
     "lint": "next lint",
     "test": "echo \"No tests yet\""
