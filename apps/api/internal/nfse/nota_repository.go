@@ -1,0 +1,329 @@
+package nfse
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/supabase"
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+)
+
+// Nota represents a row in the notas_fiscais table.
+type Nota struct {
+	ID                uuid.UUID
+	MeiID             uuid.UUID
+	NumeroRPS         int64
+	Status            string // PROCESSANDO | AUTORIZADA | REJEITADA | CANCELADA | ERRO_TEMPORARIO
+	ProtocoloReceita  *string
+	NumeroNFSe        *string
+	CodVerificacao    *string
+	XMLEnviado        *string
+	XMLRetorno        *string
+	PDFPath           *string
+	WebhookURL        *string
+	WebhookEntregue   bool
+	WebhookTentativas int
+	IdempotencyKey    *string
+	TomadorDoc        *string
+	TomadorNome       *string
+	ValorServico      *float64
+	Competencia       *string
+	ErroCodigo        *string
+	ErroDescricao     *string
+	CanceladaEm       *time.Time
+	EmitidaEm         *time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+// ErrNotaNotFound is returned when a nota does not exist or does not belong to the MEI.
+type ErrNotaNotFound struct{}
+
+func (ErrNotaNotFound) Error() string { return "nota fiscal not found" }
+
+// NotaRepository handles all DB operations for the notas_fiscais table.
+type NotaRepository struct {
+	db *supabase.Client
+}
+
+// NewNotaRepository creates a NotaRepository.
+func NewNotaRepository(db *supabase.Client) *NotaRepository {
+	return &NotaRepository{db: db}
+}
+
+// NextNumeroRPS atomically allocates the next RPS sequence number for a MEI.
+// Uses a Postgres sequence-per-MEI strategy via a RETURNING clause.
+func (r *NotaRepository) NextNumeroRPS(ctx context.Context, meiID uuid.UUID) (int64, error) {
+	row := r.db.Pool().QueryRow(ctx, `
+		SELECT COALESCE(MAX(numero_rps), 0) + 1
+		FROM notas_fiscais
+		WHERE mei_id = $1
+	`, meiID)
+	var n int64
+	if err := row.Scan(&n); err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+// CreateNotaInput carries the data needed to insert a new nota.
+type CreateNotaInput struct {
+	MeiID          uuid.UUID
+	NumeroRPS      int64
+	XMLEnviado     string
+	WebhookURL     string
+	IdempotencyKey string
+	TomadorDoc     string
+	TomadorNome    string
+	ValorServico   float64
+	Competencia    string
+}
+
+// Create inserts a new nota with status PROCESSANDO and returns it.
+func (r *NotaRepository) Create(ctx context.Context, in CreateNotaInput) (*Nota, error) {
+	var id uuid.UUID
+	err := r.db.Pool().QueryRow(ctx, `
+		INSERT INTO notas_fiscais (
+			mei_id, numero_rps, status, xml_enviado,
+			webhook_url, idempotency_key,
+			tomador_doc, tomador_nome, valor_servico, competencia
+		) VALUES ($1,$2,'PROCESSANDO',$3,$4,$5,$6,$7,$8,$9)
+		RETURNING id
+	`,
+		in.MeiID, in.NumeroRPS, nullStr(in.XMLEnviado),
+		nullStr(in.WebhookURL), nullStr(in.IdempotencyKey),
+		nullStr(in.TomadorDoc), nullStr(in.TomadorNome),
+		in.ValorServico, nullStr(in.Competencia),
+	).Scan(&id)
+	if err != nil {
+		return nil, err
+	}
+	return r.FindByID(ctx, id, in.MeiID)
+}
+
+// FindByID loads a nota by its UUID, restricted to the given MEI.
+func (r *NotaRepository) FindByID(ctx context.Context, notaID, meiID uuid.UUID) (*Nota, error) {
+	row := r.db.Pool().QueryRow(ctx, `
+		SELECT id, mei_id, numero_rps, status,
+		       protocolo_receita, numero_nfse, codigo_verificacao,
+		       xml_enviado, xml_retorno, pdf_path,
+		       webhook_url, webhook_entregue, webhook_tentativas,
+		       idempotency_key, tomador_doc, tomador_nome,
+		       valor_servico, competencia,
+		       erro_codigo, erro_descricao,
+		       cancelada_em, emitida_em,
+		       created_at, updated_at
+		FROM notas_fiscais
+		WHERE id = $1 AND mei_id = $2
+	`, notaID, meiID)
+	return scanNota(row)
+}
+
+// ListByMEI returns a paginated list of notas for a given MEI, newest first.
+func (r *NotaRepository) ListByMEI(ctx context.Context, meiID uuid.UUID, limit, offset int) ([]Nota, int, error) {
+	rows, err := r.db.Pool().Query(ctx, `
+		SELECT id, mei_id, numero_rps, status,
+		       protocolo_receita, numero_nfse, codigo_verificacao,
+		       xml_enviado, xml_retorno, pdf_path,
+		       webhook_url, webhook_entregue, webhook_tentativas,
+		       idempotency_key, tomador_doc, tomador_nome,
+		       valor_servico, competencia,
+		       erro_codigo, erro_descricao,
+		       cancelada_em, emitida_em,
+		       created_at, updated_at
+		FROM notas_fiscais
+		WHERE mei_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
+	`, meiID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var notas []Nota
+	for rows.Next() {
+		n, err := scanNotaFromRows(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		notas = append(notas, *n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	var total int
+	if err := r.db.Pool().QueryRow(ctx, `
+		SELECT COUNT(*) FROM notas_fiscais WHERE mei_id = $1
+	`, meiID).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	return notas, total, nil
+}
+
+// SetProtocolo stores the async protocol received from the Receita Federal.
+func (r *NotaRepository) SetProtocolo(ctx context.Context, notaID uuid.UUID, protocolo string) error {
+	_, err := r.db.Pool().Exec(ctx, `
+		UPDATE notas_fiscais
+		SET protocolo_receita = $1, updated_at = NOW()
+		WHERE id = $2
+	`, protocolo, notaID)
+	return err
+}
+
+// Autorizar marks a nota as AUTORIZADA with the official NFS-e number.
+func (r *NotaRepository) Autorizar(ctx context.Context, notaID uuid.UUID, numeroNFSe, codVerificacao, xmlRetorno string) error {
+	_, err := r.db.Pool().Exec(ctx, `
+		UPDATE notas_fiscais
+		SET status = 'AUTORIZADA',
+		    numero_nfse = $1,
+		    codigo_verificacao = $2,
+		    xml_retorno = $3,
+		    emitida_em = NOW(),
+		    updated_at = NOW()
+		WHERE id = $4
+	`, numeroNFSe, codVerificacao, xmlRetorno, notaID)
+	return err
+}
+
+// Rejeitar marks a nota as REJEITADA with error details.
+func (r *NotaRepository) Rejeitar(ctx context.Context, notaID uuid.UUID, erroCodigo, erroDescricao string) error {
+	_, err := r.db.Pool().Exec(ctx, `
+		UPDATE notas_fiscais
+		SET status = 'REJEITADA',
+		    erro_codigo = $1,
+		    erro_descricao = $2,
+		    updated_at = NOW()
+		WHERE id = $3
+	`, erroCodigo, erroDescricao, notaID)
+	return err
+}
+
+// Cancelar marks a nota as CANCELADA.
+func (r *NotaRepository) Cancelar(ctx context.Context, notaID, meiID uuid.UUID) error {
+	tag, err := r.db.Pool().Exec(ctx, `
+		UPDATE notas_fiscais
+		SET status = 'CANCELADA',
+		    cancelada_em = NOW(),
+		    updated_at = NOW()
+		WHERE id = $1 AND mei_id = $2 AND status = 'AUTORIZADA'
+	`, notaID, meiID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotaNotFound{}
+	}
+	return nil
+}
+
+// SetPDFPath updates the Supabase Storage path for the generated PDF.
+func (r *NotaRepository) SetPDFPath(ctx context.Context, notaID uuid.UUID, path string) error {
+	_, err := r.db.Pool().Exec(ctx, `
+		UPDATE notas_fiscais SET pdf_path = $1, updated_at = NOW() WHERE id = $2
+	`, path, notaID)
+	return err
+}
+
+// MarcarWebhookEntregue marks a nota's webhook as successfully delivered.
+func (r *NotaRepository) MarcarWebhookEntregue(ctx context.Context, notaID uuid.UUID) error {
+	_, err := r.db.Pool().Exec(ctx, `
+		UPDATE notas_fiscais
+		SET webhook_entregue = true,
+		    webhook_tentativas = webhook_tentativas + 1,
+		    updated_at = NOW()
+		WHERE id = $1
+	`, notaID)
+	return err
+}
+
+// IncrementWebhookTentativas increments the delivery attempt counter.
+func (r *NotaRepository) IncrementWebhookTentativas(ctx context.Context, notaID uuid.UUID) error {
+	_, err := r.db.Pool().Exec(ctx, `
+		UPDATE notas_fiscais
+		SET webhook_tentativas = webhook_tentativas + 1,
+		    updated_at = NOW()
+		WHERE id = $1
+	`, notaID)
+	return err
+}
+
+// FindPendingWebhooks returns notas that have a webhook_url but have not been delivered yet.
+func (r *NotaRepository) FindPendingWebhooks(ctx context.Context, limit int) ([]Nota, error) {
+	rows, err := r.db.Pool().Query(ctx, `
+		SELECT id, mei_id, numero_rps, status,
+		       protocolo_receita, numero_nfse, codigo_verificacao,
+		       xml_enviado, xml_retorno, pdf_path,
+		       webhook_url, webhook_entregue, webhook_tentativas,
+		       idempotency_key, tomador_doc, tomador_nome,
+		       valor_servico, competencia,
+		       erro_codigo, erro_descricao,
+		       cancelada_em, emitida_em,
+		       created_at, updated_at
+		FROM notas_fiscais
+		WHERE webhook_url IS NOT NULL
+		  AND webhook_entregue = false
+		  AND status IN ('AUTORIZADA','REJEITADA','CANCELADA')
+		  AND webhook_tentativas < 5
+		ORDER BY updated_at ASC
+		LIMIT $1
+	`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var notas []Nota
+	for rows.Next() {
+		n, err := scanNotaFromRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		notas = append(notas, *n)
+	}
+	return notas, rows.Err()
+}
+
+// ─── scanner helpers ───────────────────────────────────────────────────────
+
+// scanner is satisfied by both pgx.Row and pgx.Rows.
+type scanner interface {
+	Scan(dest ...any) error
+}
+
+func scanNota(row scanner) (*Nota, error) {
+	var n Nota
+	err := row.Scan(
+		&n.ID, &n.MeiID, &n.NumeroRPS, &n.Status,
+		&n.ProtocoloReceita, &n.NumeroNFSe, &n.CodVerificacao,
+		&n.XMLEnviado, &n.XMLRetorno, &n.PDFPath,
+		&n.WebhookURL, &n.WebhookEntregue, &n.WebhookTentativas,
+		&n.IdempotencyKey, &n.TomadorDoc, &n.TomadorNome,
+		&n.ValorServico, &n.Competencia,
+		&n.ErroCodigo, &n.ErroDescricao,
+		&n.CanceladaEm, &n.EmitidaEm,
+		&n.CreatedAt, &n.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotaNotFound{}
+		}
+		return nil, err
+	}
+	return &n, nil
+}
+
+func scanNotaFromRows(rows scanner) (*Nota, error) {
+	return scanNota(rows)
+}
+
+func nullStr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
+}

@@ -10,6 +10,11 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// keyTTL is how long a billing counter key is retained in Redis after last write.
+// Keys are namespaced per month (YYYY-MM), so they become unreachable after the
+// month rolls over anyway; the TTL just ensures eventual garbage collection.
+const keyTTL = 90 * 24 * time.Hour
+
 // Guard checks and increments the monthly emission counter via Redis.
 type Guard struct {
 	rdb *redis.Client
@@ -26,9 +31,19 @@ func NewGuard(redisURL string) (*Guard, error) {
 
 // Allow atomically increments the MEI's emission counter for the current month
 // and returns true if the new count is within the given limit.
+// The Redis key expires automatically after keyTTL to avoid accumulation.
 func (g *Guard) Allow(ctx context.Context, meiID uuid.UUID, limit int) (bool, error) {
 	key := fmt.Sprintf("billing:%s:%s", meiID, monthKey())
-	count, err := g.rdb.Incr(ctx, key).Result()
+
+	pipe := g.rdb.Pipeline()
+	incrCmd := pipe.Incr(ctx, key)
+	pipe.Expire(ctx, key, keyTTL)
+
+	if _, err := pipe.Exec(ctx); err != nil {
+		return false, err
+	}
+
+	count, err := incrCmd.Result()
 	if err != nil {
 		return false, err
 	}

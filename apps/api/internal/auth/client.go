@@ -1,4 +1,4 @@
 package auth
 
-// Client reserva o pacote para API keys e middleware (AUTH-03).
+// Client is kept for compatibility; logic lives in Repository and Middleware.
 type Client struct{}
