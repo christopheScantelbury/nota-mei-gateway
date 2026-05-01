@@ -3,10 +3,10 @@ package nfse
 
 // EnvioResponse is the parsed response from POST /nfse/servico/pr/envio.
 type EnvioResponse struct {
-	Protocolo    string
-	NumeroNFSe   string
+	Protocolo      string
+	NumeroNFSe     string
 	CodVerificacao string
-	Erros        []Erro
+	Erros          []Erro
 }
 
 // ConsultaResponse is the parsed response from GET /nfse/servico/pr/consulta.
