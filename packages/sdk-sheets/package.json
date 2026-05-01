@@ -1,0 +1,22 @@
+{
+  "name": "@notamei/sdk-sheets",
+  "version": "1.0.0",
+  "description": "Google Sheets Add-on for Nota MEI Gateway",
+  "private": true,
+  "scripts": {
+    "test": "jest",
+    "push": "clasp push",
+    "open": "clasp open"
+  },
+  "devDependencies": {
+    "@google/clasp": "^2.4.2",
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": ["**/test/**/*.test.js"]
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

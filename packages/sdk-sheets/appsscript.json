@@ -1,0 +1,22 @@
+{
+  "timeZone": "America/Sao_Paulo",
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/script.container.ui",
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/script.scriptapp",
+    "https://www.googleapis.com/auth/drive"
+  ],
+  "addOns": {
+    "common": {
+      "name": "Nota MEI Gateway",
+      "logoUrl": "https://notameigateway.com.br/assets/logo-32x32.png",
+      "homepageTrigger": { "runFunction": "onHomepage" }
+    },
+    "sheets": {
+      "onFileScopeGrantedTrigger": { "runFunction": "onFileScopeGranted" }
+    }
+  }
+}
