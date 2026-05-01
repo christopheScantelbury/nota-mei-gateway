@@ -40,3 +40,7 @@ out/
 # Editor/IDE
 # .idea/
 # .vscode/
+
+# Arquivos locais com credenciais (NUNCA commitar)
+*.local.md
+ACESSOS*
