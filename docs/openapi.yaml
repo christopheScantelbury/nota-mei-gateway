@@ -774,7 +774,7 @@ components:
           format: double
           minimum: 0
           maximum: 10
-          description: Alíquota ISS em percentual (ex.: 2.0 = 2%)
+          description: "Alíquota ISS em percentual (ex.: 2.0 = 2%)"
           example: 2.0
 
     TomadorRequest:
