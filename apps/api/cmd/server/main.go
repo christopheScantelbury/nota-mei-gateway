@@ -81,7 +81,7 @@ func main() {
 	nfseH := handler.NewNFSeHandler(
 		notaRepo, adapter, builder, signer, certProv,
 		billingRepo, billingGrd, publisher,
-		apiBase, cfg.StripeWebhookSecret, // reuse webhook secret as HMAC key
+		apiBase, cfg.WebhookHMACSecret,
 	)
 	billingH := handler.NewBillingHandler(
 		sc,
