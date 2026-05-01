@@ -12,12 +12,12 @@ import (
 
 // BillingHandler handles billing-related endpoints.
 type BillingHandler struct {
-	stripe          *stripeClient.Client
-	priceStarter    string
-	priceBasic      string
-	pricePro        string
-	priceBusiness   string
-	apiBase         string
+	stripe        *stripeClient.Client
+	priceStarter  string
+	priceBasic    string
+	pricePro      string
+	priceBusiness string
+	apiBase       string
 }
 
 // NewBillingHandler creates a BillingHandler.
@@ -44,10 +44,10 @@ func (h *BillingHandler) GetUsage(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
-		"plano_limite":       mei.PlanoLimite,
-		"total_emitidas":     mei.TotalEmitidas,
-		"stripe_sub_status":  derefStr(mei.StripeSubStatus),
-		"stripe_sub_id":      derefStr(mei.StripeSubID),
+		"plano_limite":      mei.PlanoLimite,
+		"total_emitidas":    mei.TotalEmitidas,
+		"stripe_sub_status": derefStr(mei.StripeSubStatus),
+		"stripe_sub_id":     derefStr(mei.StripeSubID),
 	})
 }
 

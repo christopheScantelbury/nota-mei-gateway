@@ -18,6 +18,8 @@ const (
 // EventType represents the type of NFS-e lifecycle event.
 type EventType string
 
+// EventAutorizada, EventRejeitada and EventCancelada are the NFS-e lifecycle
+// event types delivered to customer webhook endpoints.
 const (
 	EventAutorizada EventType = "nfse.autorizada"
 	EventRejeitada  EventType = "nfse.rejeitada"
@@ -26,18 +28,18 @@ const (
 
 // DeliveryMessage is the message body persisted to RabbitMQ.
 type DeliveryMessage struct {
-	NotaID           string    `json:"nota_id"`
-	Event            EventType `json:"event"`
-	Status           string    `json:"status"`
-	NumeroNFSe       string    `json:"numero_nfse,omitempty"`
-	CodVerificacao   string    `json:"codigo_verificacao,omitempty"`
-	WebhookURL       string    `json:"webhook_url"`
-	WebhookSecret    string    `json:"webhook_secret"` // HMAC key, never logged
-	EmitidaEm        time.Time `json:"emitida_em,omitempty"`
-	PDFURL           string    `json:"pdf_url,omitempty"`
-	XMLURL           string    `json:"xml_url,omitempty"`
-	ErroCodigo       string    `json:"erro_codigo,omitempty"`
-	ErroDescricao    string    `json:"erro_descricao,omitempty"`
+	NotaID         string    `json:"nota_id"`
+	Event          EventType `json:"event"`
+	Status         string    `json:"status"`
+	NumeroNFSe     string    `json:"numero_nfse,omitempty"`
+	CodVerificacao string    `json:"codigo_verificacao,omitempty"`
+	WebhookURL     string    `json:"webhook_url"`
+	WebhookSecret  string    `json:"webhook_secret"` // HMAC key, never logged
+	EmitidaEm      time.Time `json:"emitida_em,omitempty"`
+	PDFURL         string    `json:"pdf_url,omitempty"`
+	XMLURL         string    `json:"xml_url,omitempty"`
+	ErroCodigo     string    `json:"erro_codigo,omitempty"`
+	ErroDescricao  string    `json:"erro_descricao,omitempty"`
 }
 
 // Publisher holds an AMQP connection and channel for publishing webhook events.
