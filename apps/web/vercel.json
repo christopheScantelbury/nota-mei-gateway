@@ -1,0 +1,5 @@
+{
+  "installCommand": "cd ../.. && npm ci",
+  "buildCommand": "cd ../.. && npx turbo run build --filter=nota-mei-gateway-web",
+  "framework": "nextjs"
+}

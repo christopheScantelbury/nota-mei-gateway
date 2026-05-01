@@ -1,10 +1,13 @@
-.PHONY: dev test lint build migrate migrate-local
+.PHONY: dev dev-stack dev-supabase test lint build migrate migrate-local
 
-dev:
-	@echo "→ Iniciando ambiente de desenvolvimento..."
-	supabase start &
-	cd apps/api && go run ./cmd/server &
-	cd apps/web && npm run dev
+dev-stack:
+	docker compose up -d
+
+dev-supabase:
+	npx supabase start
+
+dev: dev-stack dev-supabase
+	npm run dev:apps
 
 test:
 	cd apps/api && go test ./... -v -race
@@ -19,7 +22,7 @@ build:
 	cd apps/web && npm run build
 
 migrate:
-	supabase db push
+	npx supabase db push
 
 migrate-local:
-	supabase db reset
+	npx supabase db reset
