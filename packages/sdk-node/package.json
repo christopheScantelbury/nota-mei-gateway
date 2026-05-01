@@ -1,0 +1,39 @@
+{
+  "name": "@scantelburydevs/notamei",
+  "version": "0.1.0",
+  "description": "SDK oficial Node.js/TypeScript para a API Nota MEI Gateway",
+  "keywords": ["nfse", "mei", "nota fiscal", "receita federal", "nfs-e"],
+  "author": "ScantelburyDevs",
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean --target node18",
+    "test": "node --import tsx/esm --test test/client.test.ts test/webhook.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.3.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

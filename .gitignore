@@ -35,7 +35,9 @@ supabase/.temp/
 node_modules/
 .next/
 out/
+dist/
 .turbo/
+*.tsbuildinfo
 
 # Editor/IDE
 # .idea/
