@@ -12,6 +12,7 @@ import (
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/config"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/document"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/handler"
+	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/middleware"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/nfse"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/sandbox"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/webhook"
@@ -20,7 +21,6 @@ import (
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/supabase"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/recover"
-	"github.com/gofiber/fiber/v2/middleware/requestid"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -112,7 +112,7 @@ func main() {
 	})
 
 	app.Use(recover.New())
-	app.Use(requestid.New())
+	app.Use(middleware.RequestLogger())
 
 	// ── Public endpoints ───────────────────────────────────────────────────
 	app.Get("/v1/health", func(c *fiber.Ctx) error {
