@@ -20,7 +20,6 @@ import (
 	stripeClient "github.com/christopheScantelbury/nota-mei-gateway/api/pkg/stripe"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/supabase"
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -111,7 +110,7 @@ func main() {
 		},
 	})
 
-	app.Use(recover.New())
+	app.Use(middleware.PanicRecovery())
 	app.Use(middleware.RequestLogger())
 
 	// ── Public endpoints ───────────────────────────────────────────────────
