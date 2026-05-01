@@ -1,4 +1,4 @@
-openapi: 3.1.0
+﻿openapi: 3.1.0
 
 info:
   title: Nota MEI Gateway
@@ -849,8 +849,7 @@ components:
         status:
           $ref: '#/components/schemas/NotaStatus'
         numero_nfse:
-          type: string
-          nullable: true
+          type: [string, 'null']
           example: "000123"
         valor_servico:
           type: number
@@ -866,7 +865,6 @@ components:
         emitida_em:
           type: string
           format: date-time
-          nullable: true
         created_at:
           type: string
           format: date-time
@@ -877,28 +875,23 @@ components:
         - type: object
           properties:
             protocolo_receita:
-              type: string
-              nullable: true
+              type: [string, 'null']
               example: "202604011234567"
             codigo_verificacao:
-              type: string
-              nullable: true
+              type: [string, 'null']
               example: "ABC12345"
             tomador_doc:
               type: string
               example: "12345678000190"
             erro_codigo:
-              type: string
-              nullable: true
+              type: [string, 'null']
               example: "E10"
             erro_descricao:
-              type: string
-              nullable: true
+              type: [string, 'null']
               example: "CNPJ inválido"
             webhook_url:
               type: string
               format: uri
-              nullable: true
             webhook_entregue:
               type: boolean
               example: true
@@ -908,7 +901,6 @@ components:
             cancelada_em:
               type: string
               format: date-time
-              nullable: true
             updated_at:
               type: string
               format: date-time
@@ -962,7 +954,6 @@ components:
         renovacao_em:
           type: string
           format: date-time
-          nullable: true
           description: Data de renovação da assinatura
 
     WebhookPayload:
@@ -978,35 +969,28 @@ components:
         status:
           $ref: '#/components/schemas/NotaStatus'
         numero_nfse:
-          type: string
-          nullable: true
+          type: [string, 'null']
           description: Número NFS-e (apenas em nfse.autorizada)
         codigo_verificacao:
-          type: string
-          nullable: true
+          type: [string, 'null']
           description: Código de verificação (apenas em nfse.autorizada)
         pdf_url:
           type: string
           format: uri
-          nullable: true
           description: URL do PDF (apenas em nfse.autorizada)
         xml_url:
           type: string
           format: uri
-          nullable: true
           description: URL do XML (apenas em nfse.autorizada)
         emitida_em:
           type: string
           format: date-time
-          nullable: true
           description: Timestamp de autorização (apenas em nfse.autorizada)
         erro_codigo:
-          type: string
-          nullable: true
+          type: [string, 'null']
           description: Código de erro da Receita (apenas em nfse.rejeitada)
         erro_descricao:
-          type: string
-          nullable: true
+          type: [string, 'null']
           description: Descrição do erro (apenas em nfse.rejeitada)
         signature:
           type: string
