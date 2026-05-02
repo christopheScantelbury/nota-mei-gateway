@@ -20,8 +20,10 @@ import (
 	stripeClient "github.com/christopheScantelbury/nota-mei-gateway/api/pkg/stripe"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/supabase"
 	"github.com/gofiber/fiber/v2"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"github.com/valyala/fasthttp/fasthttpadaptor"
 )
 
 func main() {
@@ -112,6 +114,7 @@ func main() {
 
 	app.Use(middleware.PanicRecovery())
 	app.Use(middleware.RequestLogger())
+	app.Use(middleware.PrometheusMetrics())
 
 	// ── Public endpoints ───────────────────────────────────────────────────
 	app.Get("/v1/health", func(c *fiber.Ctx) error {
@@ -125,6 +128,13 @@ func main() {
 			"status": "ok",
 			"env":    cfg.AppEnv,
 		})
+	})
+
+	// Prometheus metrics — scraped by Grafana Agent running in Railway.
+	metricsH := fasthttpadaptor.NewFastHTTPHandler(promhttp.Handler())
+	app.Get("/metrics", func(c *fiber.Ctx) error {
+		metricsH(c.Context())
+		return nil
 	})
 
 	// Stripe webhook — raw body needed for signature verification.
