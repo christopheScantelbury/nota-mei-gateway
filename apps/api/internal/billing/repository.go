@@ -74,6 +74,31 @@ func (r *Repository) GetOrCreateEmissaoMensal(ctx context.Context, meiID uuid.UU
 	return &em, nil
 }
 
+// RenewMonth creates emissoes_mensais rows for all MEIs for the given competencia,
+// carrying each MEI's most recent plan forward. Returns the number of new rows inserted.
+func (r *Repository) RenewMonth(ctx context.Context, competencia string) (int, error) {
+	tag, err := r.db.Pool().Exec(ctx, `
+		INSERT INTO emissoes_mensais (mei_id, plano_id, competencia, total_emitidas)
+		SELECT
+			m.id,
+			(
+				SELECT plano_id
+				FROM emissoes_mensais
+				WHERE mei_id = m.id
+				ORDER BY competencia DESC
+				LIMIT 1
+			),
+			$1,
+			0
+		FROM meis m
+		ON CONFLICT (mei_id, competencia) DO NOTHING
+	`, competencia)
+	if err != nil {
+		return 0, err
+	}
+	return int(tag.RowsAffected()), nil
+}
+
 // IncrementEmitidas atomically increments the MEI's monthly emission counter.
 func (r *Repository) IncrementEmitidas(ctx context.Context, meiID uuid.UUID) (int, error) {
 	row := r.db.Pool().QueryRow(ctx, `

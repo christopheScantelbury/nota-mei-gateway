@@ -7,6 +7,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/billing"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/config"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/nfse"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/webhook"
@@ -41,6 +42,14 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to init cert provider")
 	}
+
+	// ── Billing renewer ────────────────────────────────────────────────────
+	billingRepo := billing.NewRepository(db)
+	redisLocker, err := billing.NewRedisLocker(cfg.RedisURL)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to init redis locker")
+	}
+	renewer := billing.NewRenewer(billingRepo, redisLocker, 24*time.Hour)
 
 	// ── Nota repository ────────────────────────────────────────────────────
 	notaRepo := nfse.NewNotaRepository(db)
@@ -80,7 +89,7 @@ func main() {
 	log.Info().Str("env", cfg.AppEnv).Msg("webhook worker iniciado")
 
 	// ── Run all goroutines until SIGINT/SIGTERM ─────────────────────────────
-	done := make(chan error, 3)
+	done := make(chan error, 4)
 
 	go func() { done <- consumer.Start(ctx) }()
 	go func() {
@@ -89,6 +98,10 @@ func main() {
 	}()
 	go func() {
 		requeuer.Run(ctx)
+		done <- nil
+	}()
+	go func() {
+		renewer.Run(ctx)
 		done <- nil
 	}()
 
