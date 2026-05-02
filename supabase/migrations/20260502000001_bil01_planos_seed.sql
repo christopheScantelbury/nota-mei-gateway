@@ -1,6 +1,9 @@
--- Seed local (supabase db reset) — idempotente via ON CONFLICT.
--- Os dados reais de produção são inseridos pela migration bil01_planos_seed.
--- stripe_price_id / stripe_product_id preenchidos em STR-01.
+-- BIL-01: Seed dos planos do produto
+-- Adiciona constraint UNIQUE(nome) necessária para o upsert idempotente.
+-- stripe_price_id / stripe_product_id são preenchidos em STR-01 após criar os
+-- produtos no Stripe Dashboard.
+
+ALTER TABLE planos ADD CONSTRAINT planos_nome_unique UNIQUE (nome);
 
 INSERT INTO planos (nome, emissoes_limite, preco_mensal_brl, preco_excedente_brl, stripe_price_id, stripe_product_id, ativo)
 VALUES
