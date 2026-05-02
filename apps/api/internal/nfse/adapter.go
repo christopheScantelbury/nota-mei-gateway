@@ -19,7 +19,10 @@ import (
 var backoffDelays = []time.Duration{1 * time.Second, 4 * time.Second, 16 * time.Second}
 
 // transientErr wraps 5xx HTTP responses — safe to retry.
-type transientErr struct{ code int; body []byte }
+type transientErr struct {
+	code int
+	body []byte
+}
 
 func (e transientErr) Error() string {
 	return fmt.Sprintf("receita federal server error %d: %.200s", e.code, e.body)

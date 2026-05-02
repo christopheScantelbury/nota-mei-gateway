@@ -14,10 +14,11 @@ const (
 	// QueueWebhook is the durable queue name for webhook delivery jobs.
 	QueueWebhook = "nfse.webhook.delivery"
 
-	// Retry queues hold failed messages for a TTL before dead-lettering
-	// them back to QueueWebhook for re-delivery.
-	QueueRetry1m  = "nfse.webhook.retry.1m"
-	QueueRetry5m  = "nfse.webhook.retry.5m"
+	// QueueRetry1m holds failed messages for 1 minute before dead-lettering back to QueueWebhook.
+	QueueRetry1m = "nfse.webhook.retry.1m"
+	// QueueRetry5m holds failed messages for 5 minutes before dead-lettering back to QueueWebhook.
+	QueueRetry5m = "nfse.webhook.retry.5m"
+	// QueueRetry30m holds failed messages for 30 minutes before dead-lettering back to QueueWebhook.
 	QueueRetry30m = "nfse.webhook.retry.30m"
 
 	// MaxRetries is the number of delayed retries after the initial attempt.
