@@ -1,6 +1,7 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "apps/api/Dockerfile"
+buildArgs = { SERVICE_PATH = "apps/api" }
 
 [deploy]
 startCommand = "./server"
