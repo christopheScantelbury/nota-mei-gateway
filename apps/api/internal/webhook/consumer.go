@@ -49,6 +49,12 @@ func NewConsumer(amqpURL string, repo NotaUpdater, apiBase string) (*Consumer, e
 		return nil, fmt.Errorf("queue declare: %w", err)
 	}
 
+	if err = declareRetryQueues(ch); err != nil {
+		_ = ch.Close()
+		_ = conn.Close()
+		return nil, err
+	}
+
 	// Prefetch one message at a time for reliable processing.
 	if err = ch.Qos(1, 0, false); err != nil {
 		_ = ch.Close()
@@ -127,15 +133,56 @@ func (c *Consumer) handle(ctx context.Context, d amqp.Delivery) {
 	body, _ := json.Marshal(payload)
 
 	if err := c.deliver(ctx, msg.WebhookURL, msg.WebhookSecret, body); err != nil {
-		l.Warn().Err(err).Msg("webhook delivery failed — requeuing")
+		l.Warn().Err(err).Int("retry_count", msg.RetryCount).Msg("webhook delivery failed")
 		_ = c.repo.IncrementWebhookTentativas(ctx, notaID)
-		_ = d.Nack(false, true) // requeue for retry
+
+		nextQueue, ok := retryQueueFor(msg.RetryCount)
+		if !ok {
+			l.Error().
+				Str("nota_id", msg.NotaID).
+				Int("attempts", msg.RetryCount+1).
+				Msg("webhook: all retries exhausted — message abandoned")
+		} else {
+			msg.RetryCount++
+			if pubErr := c.publishToQueue(ctx, nextQueue, msg); pubErr != nil {
+				l.Error().Err(pubErr).Str("queue", nextQueue).Msg("webhook: failed to enqueue retry")
+			}
+		}
+		_ = d.Ack(false) // remove from main queue; retry queue (or exhaustion) handles it
 		return
 	}
 
 	l.Info().Msg("webhook delivered")
 	_ = c.repo.MarcarWebhookEntregue(ctx, notaID)
 	_ = d.Ack(false)
+}
+
+// retryQueueFor returns the retry queue for the given retry count (0-indexed).
+// Returns ("", false) when MaxRetries have been exhausted.
+func retryQueueFor(retryCount int) (string, bool) {
+	switch retryCount {
+	case 0:
+		return QueueRetry1m, true
+	case 1:
+		return QueueRetry5m, true
+	case 2:
+		return QueueRetry30m, true
+	default:
+		return "", false
+	}
+}
+
+// publishToQueue serialises msg and publishes it to the named queue.
+func (c *Consumer) publishToQueue(ctx context.Context, queue string, msg DeliveryMessage) error {
+	body, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	return c.ch.PublishWithContext(ctx, "", queue, false, false, amqp.Publishing{
+		ContentType:  "application/json",
+		DeliveryMode: amqp.Persistent,
+		Body:         body,
+	})
 }
 
 // deliver sends the signed HTTP POST to the customer's webhook_url.

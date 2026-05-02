@@ -1,7 +1,12 @@
 package nfse
 
 import (
+	"context"
+	"errors"
+	"fmt"
+	"net"
 	"testing"
+	"time"
 )
 
 // ─── parseEnvioResponse ────────────────────────────────────────────────────
@@ -198,5 +203,114 @@ func TestParseCancelamentoResponse_Failed(t *testing.T) {
 	}
 	if len(r.Erros) != 1 || r.Erros[0].Codigo != "E77" {
 		t.Errorf("unexpected Erros: %v", r.Erros)
+	}
+}
+
+// ─── withRetry ────────────────────────────────────────────────────────────
+
+func TestWithRetry_SucceedsOnFirstAttempt(t *testing.T) {
+	calls := 0
+	err := withRetry(context.Background(), backoffDelays, func() error {
+		calls++
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if calls != 1 {
+		t.Errorf("expected 1 call, got %d", calls)
+	}
+}
+
+func TestWithRetry_RetriesTransientErrors(t *testing.T) {
+	// Use zero delays for fast tests.
+	delays := []time.Duration{0, 0, 0}
+	calls := 0
+	err := withRetry(context.Background(), delays, func() error {
+		calls++
+		if calls < 3 {
+			return transientErr{code: 503, body: []byte("down")}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("expected success after retries, got %v", err)
+	}
+	if calls != 3 {
+		t.Errorf("expected 3 calls, got %d", calls)
+	}
+}
+
+func TestWithRetry_ExhaustsAllAttempts(t *testing.T) {
+	delays := []time.Duration{0, 0}
+	calls := 0
+	err := withRetry(context.Background(), delays, func() error {
+		calls++
+		return transientErr{code: 503, body: []byte("down")}
+	})
+	if err == nil {
+		t.Fatal("expected error after exhausting retries")
+	}
+	if calls != len(delays)+1 {
+		t.Errorf("expected %d calls, got %d", len(delays)+1, calls)
+	}
+}
+
+func TestWithRetry_DoesNotRetryPermanentErrors(t *testing.T) {
+	delays := []time.Duration{0, 0, 0}
+	calls := 0
+	permanent := fmt.Errorf("receita federal client error 422: bad request")
+	err := withRetry(context.Background(), delays, func() error {
+		calls++
+		return permanent
+	})
+	if !errors.Is(err, permanent) {
+		t.Fatalf("expected permanent error returned, got %v", err)
+	}
+	if calls != 1 {
+		t.Errorf("permanent error should not retry, got %d calls", calls)
+	}
+}
+
+func TestWithRetry_StopsOnContextCancel(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // already cancelled
+
+	err := withRetry(ctx, backoffDelays, func() error {
+		return transientErr{code: 503, body: []byte("down")}
+	})
+	// First call happens before context is checked, then ctx.Done fires.
+	if err == nil {
+		t.Fatal("expected error on cancelled context")
+	}
+}
+
+// ─── isTransient ──────────────────────────────────────────────────────────
+
+func TestIsTransient_TransientHTTPError(t *testing.T) {
+	if !isTransient(transientErr{code: 503, body: nil}) {
+		t.Error("transientErr should be transient")
+	}
+}
+
+func TestIsTransient_NetworkError(t *testing.T) {
+	netErr := &net.OpError{Op: "dial", Err: errors.New("connection refused")}
+	if !isTransient(netErr) {
+		t.Error("net.Error should be transient")
+	}
+}
+
+func TestIsTransient_ContextErrors(t *testing.T) {
+	if isTransient(context.Canceled) {
+		t.Error("context.Canceled should not be transient")
+	}
+	if isTransient(context.DeadlineExceeded) {
+		t.Error("context.DeadlineExceeded should not be transient")
+	}
+}
+
+func TestIsTransient_PlainError(t *testing.T) {
+	if isTransient(errors.New("some other error")) {
+		t.Error("plain error should not be transient")
 	}
 }

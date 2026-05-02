@@ -6,11 +6,27 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
+	"math/rand"
+	"net"
 	"net/http"
 	"time"
 )
+
+// backoffDelays defines the wait times between retry attempts: 1s, 4s, 16s.
+var backoffDelays = []time.Duration{1 * time.Second, 4 * time.Second, 16 * time.Second}
+
+// transientErr wraps 5xx HTTP responses — safe to retry.
+type transientErr struct {
+	code int
+	body []byte
+}
+
+func (e transientErr) Error() string {
+	return fmt.Sprintf("receita federal server error %d: %.200s", e.code, e.body)
+}
 
 // Adapter is the HTTP mTLS client for the Receita Federal NFS-e Nacional API.
 type Adapter struct {
@@ -24,66 +40,94 @@ func NewAdapter(baseURL string) *Adapter {
 }
 
 // Enviar sends an RPS XML envelope to POST /envio and parses the response.
-// cert is the MEI's A1 TLS certificate used for mutual TLS authentication.
+// Retries up to 3 times on 5xx or network errors with exponential backoff (1s/4s/16s ±10%).
 func (a *Adapter) Enviar(ctx context.Context, xmlBody []byte, cert *tls.Certificate) (*EnvioResponse, error) {
-	resp, err := a.do(ctx, http.MethodPost, a.baseURL+"/envio", xmlBody, cert)
+	var result *EnvioResponse
+	err := withRetry(ctx, backoffDelays, func() error {
+		resp, err := a.do(ctx, http.MethodPost, a.baseURL+"/envio", xmlBody, cert)
+		if err != nil {
+			return err // network/timeout — transient
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode >= 500 {
+			return transientErr{code: resp.StatusCode, body: body}
+		}
+		if resp.StatusCode >= 400 {
+			return fmt.Errorf("receita federal client error %d: %.200s", resp.StatusCode, body)
+		}
+		result, err = parseEnvioResponse(body)
+		return err
+	})
 	if err != nil {
-		return nil, fmt.Errorf("envio request: %w", err)
+		return nil, fmt.Errorf("envio: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read envio response: %w", err)
-	}
-
-	if resp.StatusCode >= 500 {
-		return nil, fmt.Errorf("receita federal server error %d: %s", resp.StatusCode, body)
-	}
-
-	return parseEnvioResponse(body)
+	return result, nil
 }
 
 // Consultar queries the status of an RPS batch by protocol number.
-// Calls GET /consulta?cnpj=&protocolo=.
+// Retries up to 3 times on 5xx or network errors with exponential backoff (1s/4s/16s ±10%).
 func (a *Adapter) Consultar(ctx context.Context, cnpj, protocolo string, cert *tls.Certificate) (*ConsultaResponse, error) {
 	url := fmt.Sprintf("%s/consulta?cnpj=%s&protocolo=%s", a.baseURL, cnpj, protocolo)
-	resp, err := a.do(ctx, http.MethodGet, url, nil, cert)
+	var result *ConsultaResponse
+	err := withRetry(ctx, backoffDelays, func() error {
+		resp, err := a.do(ctx, http.MethodGet, url, nil, cert)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode >= 500 {
+			return transientErr{code: resp.StatusCode, body: body}
+		}
+		if resp.StatusCode >= 400 {
+			return fmt.Errorf("receita federal client error %d: %.200s", resp.StatusCode, body)
+		}
+		result, err = parseConsultaResponse(body)
+		return err
+	})
 	if err != nil {
-		return nil, fmt.Errorf("consulta request: %w", err)
+		return nil, fmt.Errorf("consulta: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read consulta response: %w", err)
-	}
-
-	if resp.StatusCode >= 500 {
-		return nil, fmt.Errorf("receita federal server error %d: %s", resp.StatusCode, body)
-	}
-
-	return parseConsultaResponse(body)
+	return result, nil
 }
 
 // Cancelar sends a cancellation XML envelope to POST /cancelamento.
+// Retries up to 3 times on 5xx or network errors with exponential backoff (1s/4s/16s ±10%).
 func (a *Adapter) Cancelar(ctx context.Context, xmlBody []byte, cert *tls.Certificate) (*CancelamentoResponse, error) {
-	resp, err := a.do(ctx, http.MethodPost, a.baseURL+"/cancelamento", xmlBody, cert)
+	var result *CancelamentoResponse
+	err := withRetry(ctx, backoffDelays, func() error {
+		resp, err := a.do(ctx, http.MethodPost, a.baseURL+"/cancelamento", xmlBody, cert)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode >= 500 {
+			return transientErr{code: resp.StatusCode, body: body}
+		}
+		if resp.StatusCode >= 400 {
+			return fmt.Errorf("receita federal client error %d: %.200s", resp.StatusCode, body)
+		}
+		result, err = parseCancelamentoResponse(body)
+		return err
+	})
 	if err != nil {
-		return nil, fmt.Errorf("cancelamento request: %w", err)
+		return nil, fmt.Errorf("cancelamento: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read cancelamento response: %w", err)
-	}
-
-	if resp.StatusCode >= 500 {
-		return nil, fmt.Errorf("receita federal server error %d: %s", resp.StatusCode, body)
-	}
-
-	return parseCancelamentoResponse(body)
+	return result, nil
 }
 
 // do executes an HTTP request with mTLS using the provided certificate.
@@ -115,6 +159,49 @@ func (a *Adapter) do(ctx context.Context, method, url string, body []byte, cert 
 	req.Header.Set("Accept", "application/xml")
 
 	return client.Do(req)
+}
+
+// ─── Retry helpers ─────────────────────────────────────────────────────────
+
+// withRetry calls fn up to len(delays)+1 times. Between attempts it sleeps for
+// the next delay ±10% jitter. Only transient errors are retried; permanent
+// errors (4xx, context cancellation) return immediately.
+func withRetry(ctx context.Context, delays []time.Duration, fn func() error) error {
+	var err error
+	for attempt := 0; attempt <= len(delays); attempt++ {
+		err = fn()
+		if err == nil {
+			return nil
+		}
+		if !isTransient(err) {
+			return err
+		}
+		if attempt < len(delays) {
+			d := delays[attempt]
+			// ±10% jitter
+			jitter := time.Duration(float64(d) * (0.9 + 0.2*rand.Float64()))
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(jitter):
+			}
+		}
+	}
+	return err
+}
+
+// isTransient returns true for errors that are safe to retry:
+// network errors (timeout, connection refused) and 5xx HTTP responses.
+func isTransient(err error) bool {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	var te transientErr
+	if errors.As(err, &te) {
+		return true
+	}
+	var netErr net.Error
+	return errors.As(err, &netErr)
 }
 
 // ─── XML response types ────────────────────────────────────────────────────
