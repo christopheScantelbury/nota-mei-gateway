@@ -56,6 +56,11 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to init billing guard")
 	}
 
+	rateLimiter, err := middleware.NewRateLimiter(cfg.RedisURL, 100)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to init rate limiter")
+	}
+
 	publisher, err := webhook.NewPublisher(cfg.RabbitMQURL)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to connect to RabbitMQ")
@@ -179,7 +184,7 @@ func main() {
 	// ── Authenticated endpoints ────────────────────────────────────────────
 	authMw := auth.Middleware(authRepo)
 
-	v1 := app.Group("/v1", authMw)
+	v1 := app.Group("/v1", authMw, rateLimiter.Middleware())
 
 	// NFS-e
 	v1.Post("/nfse", nfseH.EmitirNota)
