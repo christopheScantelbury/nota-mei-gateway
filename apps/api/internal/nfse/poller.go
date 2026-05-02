@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/webhook"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
@@ -15,14 +16,20 @@ type CertLoader interface {
 	GetCert(ctx context.Context, secretARN string) (*tls.Certificate, error)
 }
 
+// EmissaoCounter increments the monthly emission counter for a MEI in the DB.
+type EmissaoCounter interface {
+	IncrementEmitidas(ctx context.Context, meiID uuid.UUID) (int, error)
+}
+
 // Poller periodically queries the Receita Federal API for PROCESSANDO notas
 // that already have a protocolo_receita, and finalises their status.
 type Poller struct {
-	repo       *NotaRepository
-	adapter    *Adapter
-	certLoader CertLoader
-	publisher  *webhook.Publisher
-	interval   time.Duration
+	repo           *NotaRepository
+	adapter        *Adapter
+	certLoader     CertLoader
+	publisher      *webhook.Publisher
+	interval       time.Duration
+	billingCounter EmissaoCounter // optional; nil disables DB counter increment
 }
 
 // NewPoller creates a Poller with the given interval between sweeps.
@@ -40,6 +47,13 @@ func NewPoller(
 		publisher:  publisher,
 		interval:   interval,
 	}
+}
+
+// WithBillingCounter attaches an EmissaoCounter so the poller increments
+// total_emitidas in the DB whenever a nota is authorised.
+func (p *Poller) WithBillingCounter(c EmissaoCounter) *Poller {
+	p.billingCounter = c
+	return p
 }
 
 // Run starts the polling loop. It blocks until ctx is cancelled.
@@ -111,6 +125,7 @@ func (p *Poller) consultaNota(ctx context.Context, nc NotaParaConsulta) {
 			return
 		}
 		l.Info().Str("numero_nfse", resp.NumeroNFSe).Msg("poller: nota autorizada")
+		p.incrementCounter(ctx, nc.MeiID)
 		p.publishEvent(ctx, nc, webhook.EventAutorizada, resp.NumeroNFSe, resp.CodVerificacao, "", "")
 
 	case "REJEITADA":
@@ -164,6 +179,19 @@ func (p *Poller) publishEvent(
 
 	if err := p.publisher.Publish(ctx, msg); err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("nota_id", nc.ID.String()).Msg("poller: failed to publish webhook event")
+	}
+}
+
+// incrementCounter increments the monthly emission counter in the DB if a
+// billing counter is configured. Logs and ignores errors — the nota is already
+// authorised at this point.
+func (p *Poller) incrementCounter(ctx context.Context, meiID uuid.UUID) {
+	if p.billingCounter == nil {
+		return
+	}
+	if _, err := p.billingCounter.IncrementEmitidas(ctx, meiID); err != nil {
+		log.Ctx(ctx).Error().Err(err).Str("mei_id", meiID.String()).
+			Msg("poller: failed to increment emissoes_mensais counter")
 	}
 }
 

@@ -79,7 +79,8 @@ func main() {
 
 	// ── NFS-e status poller ────────────────────────────────────────────────
 	// Polls the Receita Federal every 30s for PROCESSANDO notas with a protocol.
-	poller := nfse.NewPoller(notaRepo, adapter, certProv, publisher, 30*time.Second)
+	poller := nfse.NewPoller(notaRepo, adapter, certProv, publisher, 30*time.Second).
+		WithBillingCounter(billingRepo)
 
 	// ── Webhook requeuer ───────────────────────────────────────────────────
 	// Sweeps the DB every 5 minutes for undelivered webhooks and re-publishes them.

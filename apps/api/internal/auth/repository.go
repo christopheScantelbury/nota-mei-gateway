@@ -42,6 +42,7 @@ type MEI struct {
 	StripeCustomerID   *string
 	StripeSubID        *string
 	StripeSubStatus    *string
+	PlanoNome          string
 	PlanoLimite        int
 	PlanoPrecExcedente float64
 	TotalEmitidas      int
@@ -84,6 +85,7 @@ func (r *Repository) FindMEI(ctx context.Context, meiID uuid.UUID) (*MEI, error)
 			m.stripe_customer_id,
 			em.stripe_subscription_id,
 			em.stripe_subscription_status,
+			COALESCE(p.nome, 'Trial')                 AS plano_nome,
 			COALESCE(p.emissoes_limite, 5)            AS plano_limite,
 			COALESCE(p.preco_excedente_brl, 0.50)     AS plano_prec_excedente,
 			COALESCE(em.total_emitidas, 0)            AS total_emitidas
@@ -101,6 +103,7 @@ func (r *Repository) FindMEI(ctx context.Context, meiID uuid.UUID) (*MEI, error)
 		&mei.StripeCustomerID,
 		&mei.StripeSubID,
 		&mei.StripeSubStatus,
+		&mei.PlanoNome,
 		&mei.PlanoLimite,
 		&mei.PlanoPrecExcedente,
 		&mei.TotalEmitidas,

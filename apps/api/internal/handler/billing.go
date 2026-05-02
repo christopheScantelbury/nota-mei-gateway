@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"math"
+	"time"
+
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/auth"
 	stripeClient "github.com/christopheScantelbury/nota-mei-gateway/api/pkg/stripe"
 	"github.com/gofiber/fiber/v2"
@@ -43,12 +46,30 @@ func (h *BillingHandler) GetUsage(c *fiber.Ctx) error {
 		return internalError(c, "MEI not in context")
 	}
 
+	utilizadas := mei.TotalEmitidas
+	limite := mei.PlanoLimite
+	disponiveis := max(0, limite-utilizadas)
+
+	excedente := math.Max(0, float64(utilizadas-limite)) * mei.PlanoPrecExcedente
+
+	now := time.Now().UTC()
+	renovacaoEm := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC)
+
 	return c.JSON(fiber.Map{
-		"plano_limite":      mei.PlanoLimite,
-		"total_emitidas":    mei.TotalEmitidas,
-		"stripe_sub_status": derefStr(mei.StripeSubStatus),
-		"stripe_sub_id":     derefStr(mei.StripeSubID),
+		"plano":                    mei.PlanoNome,
+		"emissoes_limite":          limite,
+		"emissoes_utilizadas":      utilizadas,
+		"emissoes_disponiveis":     disponiveis,
+		"renovacao_em":             renovacaoEm.Format(time.RFC3339),
+		"excedente_estimado_reais": math.Round(excedente*100) / 100,
 	})
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // GetPortal handles GET /v1/billing/portal — creates a Stripe Customer Portal session.
