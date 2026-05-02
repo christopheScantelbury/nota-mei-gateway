@@ -36,7 +36,14 @@ func NewRedisLocker(redisURL string) (*RedisLocker, error) {
 
 // Acquire sets key with NX EX if it doesn't exist. Returns true on first call per month.
 func (l *RedisLocker) Acquire(ctx context.Context, key string, ttl time.Duration) (bool, error) {
-	return l.rdb.SetNX(ctx, key, "1", ttl).Result()
+	err := l.rdb.SetArgs(ctx, key, "1", redis.SetArgs{Mode: "NX", TTL: ttl}).Err()
+	if err == redis.Nil {
+		return false, nil // key already exists — lock held by another process
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // Renewer runs the monthly quota renewal job. A distributed lock ensures only one
