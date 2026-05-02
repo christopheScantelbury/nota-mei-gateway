@@ -165,6 +165,58 @@ func (r *NotaRepository) ListByMEI(ctx context.Context, meiID uuid.UUID, limit, 
 	return notas, total, nil
 }
 
+// FindProcessandoSemProtocolo returns PROCESSANDO notas that have no protocol
+// and were created longer ago than the age threshold. Ordered oldest first.
+func (r *NotaRepository) FindProcessandoSemProtocolo(ctx context.Context, olderThan time.Duration, limit int) ([]Nota, error) {
+	threshold := time.Now().UTC().Add(-olderThan)
+	rows, err := r.db.Pool().Query(ctx, `
+		SELECT id, mei_id, numero_rps, status,
+		       protocolo_receita, numero_nfse, codigo_verificacao,
+		       xml_enviado, xml_retorno, pdf_path,
+		       webhook_url, webhook_entregue, webhook_tentativas,
+		       idempotency_key, tomador_doc, tomador_nome,
+		       valor_servico, competencia,
+		       erro_codigo, erro_descricao,
+		       cancelada_em, emitida_em,
+		       created_at, updated_at
+		FROM notas_fiscais
+		WHERE status = 'PROCESSANDO'
+		  AND protocolo_receita IS NULL
+		  AND created_at < $1
+		ORDER BY created_at ASC
+		LIMIT $2
+	`, threshold, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var notas []Nota
+	for rows.Next() {
+		n, err := scanNotaFromRows(rows)
+		if err != nil {
+			return nil, err
+		}
+		notas = append(notas, *n)
+	}
+	return notas, rows.Err()
+}
+
+// MarcarErroTemporario transitions a PROCESSANDO nota to ERRO_TEMPORARIO.
+// Only updates the row if it is still PROCESSANDO (safe for concurrent callers).
+func (r *NotaRepository) MarcarErroTemporario(ctx context.Context, notaID uuid.UUID, erroCodigo, erroDescricao string) error {
+	_, err := r.db.Pool().Exec(ctx, `
+		UPDATE notas_fiscais
+		SET status         = 'ERRO_TEMPORARIO',
+		    erro_codigo    = $1,
+		    erro_descricao = $2,
+		    updated_at     = NOW()
+		WHERE id = $3
+		  AND status = 'PROCESSANDO'
+	`, erroCodigo, erroDescricao, notaID)
+	return err
+}
+
 // SetProtocolo stores the async protocol received from the Receita Federal.
 func (r *NotaRepository) SetProtocolo(ctx context.Context, notaID uuid.UUID, protocolo string) error {
 	_, err := r.db.Pool().Exec(ctx, `
