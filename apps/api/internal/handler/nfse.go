@@ -35,6 +35,7 @@ type NFSeHandler struct {
 	billingGrd   *billing.Guard
 	publisher    *webhook.Publisher
 	nbsValidator *document.NBSValidator
+	issLookup    *document.ISSLookup
 	apiBase      string
 	whSecret     string // HMAC secret used to sign webhook payloads
 }
@@ -69,6 +70,14 @@ func NewNFSeHandler(
 // unknown NBS codes with INVALID_NBS before processing the request.
 func (h *NFSeHandler) WithNBSValidator(v *document.NBSValidator) *NFSeHandler {
 	h.nbsValidator = v
+	return h
+}
+
+// WithISSLookup sets the ISS rate lookup table. When set, EmitirNota will
+// resolve the effective alíquota from the municipality default when the caller
+// does not supply one explicitly.
+func (h *NFSeHandler) WithISSLookup(l *document.ISSLookup) *NFSeHandler {
+	h.issLookup = l
 	return h
 }
 
@@ -140,13 +149,18 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 		return internalError(c, "erro ao alocar número de RPS")
 	}
 
-	// ── 3. Build RPS XML ─────────────────────────────────────────────────
+	// ── 3. Resolve ISS rate ───────────────────────────────────────────────
+	if h.issLookup != nil {
+		req.Servico.AliquotaISS = h.issLookup.Resolve(mei.MunicipioIBGE, req.Servico.AliquotaISS)
+	}
+
+	// ── 4. Build RPS XML ─────────────────────────────────────────────────
 	xmlDoc, err := h.builder.Build(req, mei.CNPJ, mei.MunicipioIBGE, numeroRPS)
 	if err != nil {
 		return validationError(c, "erro ao construir RPS: "+err.Error())
 	}
 
-	// ── 4. Load certificate ───────────────────────────────────────────────
+	// ── 5. Load certificate ───────────────────────────────────────────────
 	if mei.ID == uuid.Nil {
 		return internalError(c, "MEI sem certificado configurado")
 	}
@@ -158,13 +172,13 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 		return internalError(c, "erro ao carregar certificado digital")
 	}
 
-	// ── 5. Sign XML ───────────────────────────────────────────────────────
+	// ── 6. Sign XML ───────────────────────────────────────────────────────
 	signedXML, err := h.signer.Sign(xmlDoc, cert)
 	if err != nil {
 		return internalError(c, "erro ao assinar XML")
 	}
 
-	// ── 6. Persist nota with PROCESSANDO status ───────────────────────────
+	// ── 7. Persist nota with PROCESSANDO status ───────────────────────────
 	nota, err := h.notaRepo.Create(ctx, nfse.CreateNotaInput{
 		MeiID:          mei.ID,
 		NumeroRPS:      numeroRPS,
@@ -186,7 +200,7 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 		Int64("numero_rps", numeroRPS).
 		Msg("nota criada, enviando para Receita Federal")
 
-	// ── 7. Send to Receita Federal ────────────────────────────────────────
+	// ── 8. Send to Receita Federal ────────────────────────────────────────
 	envioResp, err := h.adapter.Enviar(ctx, signedXML, cert)
 	if err != nil {
 		// Transient error — keep status PROCESSANDO for later polling.
@@ -198,7 +212,7 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 		})
 	}
 
-	// ── 8. Process response ───────────────────────────────────────────────
+	// ── 9. Process response ───────────────────────────────────────────────
 	if len(envioResp.Erros) > 0 {
 		codigo := envioResp.Erros[0].Codigo
 		descricao := envioResp.Erros[0].Descricao

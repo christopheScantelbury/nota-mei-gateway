@@ -88,6 +88,12 @@ func main() {
 		log.Warn().Err(err).Msg("NBS warm failed — validator will fall back to DB")
 	}
 
+	// ── ISS rate lookup (in-memory, loaded from DB at startup) ────────────
+	issLookup, err := document.NewISSLookup(ctx, db.Pool())
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to load ISS aliquotas")
+	}
+
 	// ── Handlers ───────────────────────────────────────────────────────────
 	apiBase := "https://api.notameigateway.com.br"
 	if cfg.AppEnv == "development" {
@@ -100,7 +106,7 @@ func main() {
 		notaRepo, adapter, builder, signer, certProv,
 		billingRepo, billingGrd, publisher,
 		apiBase, cfg.WebhookHMACSecret,
-	).WithNBSValidator(nbsValidator)
+	).WithNBSValidator(nbsValidator).WithISSLookup(issLookup)
 	billingH := handler.NewBillingHandler(
 		sc,
 		cfg.StripePriceStarter, cfg.StripePriceBasic,
