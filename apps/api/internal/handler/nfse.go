@@ -4,6 +4,7 @@ package handler
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -25,16 +26,17 @@ type CertProvider interface {
 
 // NFSeHandler holds all dependencies needed to serve NFS-e endpoints.
 type NFSeHandler struct {
-	notaRepo    *nfse.NotaRepository
-	adapter     *nfse.Adapter
-	builder     *document.Builder
-	signer      document.Signer
-	certProv    CertProvider
-	billingRepo *billing.Repository
-	billingGrd  *billing.Guard
-	publisher   *webhook.Publisher
-	apiBase     string
-	whSecret    string // HMAC secret used to sign webhook payloads
+	notaRepo     *nfse.NotaRepository
+	adapter      *nfse.Adapter
+	builder      *document.Builder
+	signer       document.Signer
+	certProv     CertProvider
+	billingRepo  *billing.Repository
+	billingGrd   *billing.Guard
+	publisher    *webhook.Publisher
+	nbsValidator *document.NBSValidator
+	apiBase      string
+	whSecret     string // HMAC secret used to sign webhook payloads
 }
 
 // NewNFSeHandler creates an NFSeHandler with all its dependencies.
@@ -63,6 +65,13 @@ func NewNFSeHandler(
 	}
 }
 
+// WithNBSValidator sets the NBS validator. When set, EmitirNota will reject
+// unknown NBS codes with INVALID_NBS before processing the request.
+func (h *NFSeHandler) WithNBSValidator(v *document.NBSValidator) *NFSeHandler {
+	h.nbsValidator = v
+	return h
+}
+
 // ─── POST /v1/nfse ─────────────────────────────────────────────────────────
 
 // EmitirNota handles POST /v1/nfse.
@@ -88,6 +97,21 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 	}
 
 	ctx := c.Context()
+
+	// ── NBS validation ────────────────────────────────────────────────────
+	if h.nbsValidator != nil {
+		if err := h.nbsValidator.Validate(ctx, req.Servico.CodigoNBS); err != nil {
+			if errors.Is(err, document.ErrInvalidNBS) {
+				return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+					"error":      "INVALID_NBS",
+					"message":    "código NBS inválido ou não encontrado",
+					"request_id": c.Locals("request_id"),
+				})
+			}
+			log.Ctx(ctx).Error().Err(err).Str("codigo_nbs", req.Servico.CodigoNBS).Msg("nbs validation error")
+			return internalError(c, "erro ao validar código NBS")
+		}
+	}
 
 	// ── 1. Billing check ──────────────────────────────────────────────────
 	em, err := h.billingRepo.GetOrCreateEmissaoMensal(ctx, mei.ID)

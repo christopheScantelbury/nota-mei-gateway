@@ -79,6 +79,15 @@ func main() {
 	builder := document.NewBuilder()
 	signer := document.NoopSigner{} // TODO: replace with XMLDSig implementation
 
+	// ── NBS validator (Redis cache + DB fallback) ──────────────────────────
+	nbsValidator, err := document.NewNBSValidator(cfg.RedisURL, db.Pool())
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to init NBS validator")
+	}
+	if err := nbsValidator.Warm(ctx); err != nil {
+		log.Warn().Err(err).Msg("NBS warm failed — validator will fall back to DB")
+	}
+
 	// ── Handlers ───────────────────────────────────────────────────────────
 	apiBase := "https://api.notameigateway.com.br"
 	if cfg.AppEnv == "development" {
@@ -91,7 +100,7 @@ func main() {
 		notaRepo, adapter, builder, signer, certProv,
 		billingRepo, billingGrd, publisher,
 		apiBase, cfg.WebhookHMACSecret,
-	)
+	).WithNBSValidator(nbsValidator)
 	billingH := handler.NewBillingHandler(
 		sc,
 		cfg.StripePriceStarter, cfg.StripePriceBasic,
