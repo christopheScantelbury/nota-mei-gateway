@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -47,6 +48,7 @@ func TestRegister_Success(t *testing.T) {
 
 	body := `{"cnpj":"12345678000190","razao_social":"Empresa Teste","email":"a@b.com","municipio_ibge":"3550308"}`
 	resp := mustTest(t, app, registerReq(body))
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated {
 		t.Errorf("status = %d, want 201", resp.StatusCode)
@@ -74,10 +76,12 @@ func TestRegister_FormattedCNPJ(t *testing.T) {
 	// Formatted CNPJ should be accepted and normalised.
 	body := `{"cnpj":"12.345.678/0001-90","razao_social":"Teste","email":"x@y.com","municipio_ibge":"3550308"}`
 	resp := mustTest(t, app, registerReq(body))
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated {
 		t.Errorf("status = %d, want 201", resp.StatusCode)
 	}
+	_, _ = io.Copy(io.Discard, resp.Body)
 }
 
 func TestRegister_InvalidCNPJ(t *testing.T) {
@@ -86,11 +90,12 @@ func TestRegister_InvalidCNPJ(t *testing.T) {
 
 	body := `{"cnpj":"123","razao_social":"Teste","email":"x@y.com","municipio_ibge":"3550308"}`
 	resp := mustTest(t, app, registerReq(body))
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 422", resp.StatusCode)
 	}
-	assertFieldError(t, resp, "cnpj")
+	assertRegFieldError(t, resp, "cnpj")
 }
 
 func TestRegister_MissingRazaoSocial(t *testing.T) {
@@ -99,11 +104,12 @@ func TestRegister_MissingRazaoSocial(t *testing.T) {
 
 	body := `{"cnpj":"12345678000190","razao_social":"","email":"x@y.com","municipio_ibge":"3550308"}`
 	resp := mustTest(t, app, registerReq(body))
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 422", resp.StatusCode)
 	}
-	assertFieldError(t, resp, "razao_social")
+	assertRegFieldError(t, resp, "razao_social")
 }
 
 func TestRegister_MissingEmail(t *testing.T) {
@@ -112,11 +118,12 @@ func TestRegister_MissingEmail(t *testing.T) {
 
 	body := `{"cnpj":"12345678000190","razao_social":"Teste","email":"","municipio_ibge":"3550308"}`
 	resp := mustTest(t, app, registerReq(body))
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 422", resp.StatusCode)
 	}
-	assertFieldError(t, resp, "email")
+	assertRegFieldError(t, resp, "email")
 }
 
 func TestRegister_InvalidMunicipio(t *testing.T) {
@@ -125,11 +132,12 @@ func TestRegister_InvalidMunicipio(t *testing.T) {
 
 	body := `{"cnpj":"12345678000190","razao_social":"Teste","email":"x@y.com","municipio_ibge":"123"}`
 	resp := mustTest(t, app, registerReq(body))
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 422", resp.StatusCode)
 	}
-	assertFieldError(t, resp, "municipio_ibge")
+	assertRegFieldError(t, resp, "municipio_ibge")
 }
 
 func TestRegister_MultipleValidationErrors(t *testing.T) {
@@ -138,6 +146,7 @@ func TestRegister_MultipleValidationErrors(t *testing.T) {
 
 	body := `{"cnpj":"","razao_social":"","email":"","municipio_ibge":""}`
 	resp := mustTest(t, app, registerReq(body))
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 422", resp.StatusCode)
@@ -152,21 +161,13 @@ func TestRegister_MultipleValidationErrors(t *testing.T) {
 	}
 }
 
-func TestRegister_ConflictCNPJ(t *testing.T) {
-	// Simulate a PostgreSQL unique constraint violation via error message.
-	// In production this comes from pgconn.PgError Code=23505; here we test
-	// the handler's conflict path using a stubbed error that the handler
-	// cannot inspect as a pgconn.PgError — so we test via a real PgError.
-	stub := &stubRegistrar{err: errors.New("23505: duplicate key")}
-	_ = stub // validation-only path already covered; DB-level conflict tested in integration
-}
-
 func TestRegister_InternalError(t *testing.T) {
 	stub := &stubRegistrar{err: errors.New("connection refused")}
 	app := newRegisterApp(stub)
 
 	body := `{"cnpj":"12345678000190","razao_social":"Teste","email":"x@y.com","municipio_ibge":"3550308"}`
 	resp := mustTest(t, app, registerReq(body))
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusInternalServerError {
 		t.Errorf("status = %d, want 500", resp.StatusCode)
@@ -187,15 +188,18 @@ func TestRegister_InvalidJSON(t *testing.T) {
 	r := httptest.NewRequest(http.MethodPost, "/v1/auth/register", bytes.NewBufferString("{bad json"))
 	r.Header.Set("Content-Type", "application/json")
 	resp := mustTest(t, app, r)
+	defer func() { _ = resp.Body.Close() }()
+	_, _ = io.Copy(io.Discard, resp.Body)
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 422", resp.StatusCode)
 	}
 }
 
-// assertFieldError checks that the response body contains a "fields" array
+// assertRegFieldError checks that the response body contains a "fields" array
 // with at least one entry whose "field" value matches name.
-func assertFieldError(t *testing.T, resp *http.Response, name string) {
+// Renamed to avoid conflict with any other assertFieldError in the package.
+func assertRegFieldError(t *testing.T, resp *http.Response, name string) {
 	t.Helper()
 	var got map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&got); err != nil {
