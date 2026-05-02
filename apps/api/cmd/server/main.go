@@ -80,6 +80,8 @@ func main() {
 		apiBase = "http://localhost:" + cfg.Port
 	}
 
+	registerH := handler.NewRegisterHandler(authRepo)
+
 	nfseH := handler.NewNFSeHandler(
 		notaRepo, adapter, builder, signer, certProv,
 		billingRepo, billingGrd, publisher,
@@ -136,6 +138,9 @@ func main() {
 		metricsH(c.Context())
 		return nil
 	})
+
+	// MEI registration — public, no Bearer token required.
+	app.Post("/v1/auth/register", registerH.Register)
 
 	// Stripe webhook — raw body needed for signature verification.
 	app.Post("/v1/webhooks/stripe", stripeWH.Handle)

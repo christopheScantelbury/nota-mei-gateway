@@ -3,11 +3,26 @@ package auth
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/supabase"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 )
+
+// RegisterMEIParams holds the data needed to register a new MEI.
+type RegisterMEIParams struct {
+	CNPJ          string
+	RazaoSocial   string
+	Email         string
+	MunicipioIBGE string
+}
+
+// RegisterMEIResult is returned after a successful registration.
+type RegisterMEIResult struct {
+	MeiID  uuid.UUID
+	APIKey string // raw key, shown once
+}
 
 // APIKey holds the data loaded from the api_keys table.
 type APIKey struct {
@@ -96,4 +111,58 @@ func (r *Repository) FindMEI(ctx context.Context, meiID uuid.UUID) (*MEI, error)
 		return nil, err
 	}
 	return &mei, nil
+}
+
+// RegisterMEI inserts a new MEI, assigns the Trial plan for the current month,
+// and creates a live API key — all inside a single transaction.
+func (r *Repository) RegisterMEI(ctx context.Context, p RegisterMEIParams) (*RegisterMEIResult, error) {
+	tx, err := r.db.Pool().Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var meiID uuid.UUID
+	err = tx.QueryRow(ctx, `
+		INSERT INTO meis (cnpj, razao_social, email, municipio_ibge)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id
+	`, p.CNPJ, p.RazaoSocial, p.Email, p.MunicipioIBGE).Scan(&meiID)
+	if err != nil {
+		return nil, err
+	}
+
+	var planID uuid.UUID
+	err = tx.QueryRow(ctx,
+		`SELECT id FROM planos WHERE nome = 'Trial' AND ativo = true LIMIT 1`,
+	).Scan(&planID)
+	if err != nil {
+		return nil, err
+	}
+
+	competencia := time.Now().UTC().Format("2006-01")
+	_, err = tx.Exec(ctx, `
+		INSERT INTO emissoes_mensais (mei_id, plano_id, competencia)
+		VALUES ($1, $2, $3)
+	`, meiID, planID, competencia)
+	if err != nil {
+		return nil, err
+	}
+
+	rawKey, hash, err := GenerateKey(true)
+	if err != nil {
+		return nil, err
+	}
+	_, err = tx.Exec(ctx, `
+		INSERT INTO api_keys (mei_id, key_hash, key_prefix, label)
+		VALUES ($1, $2, $3, 'default')
+	`, meiID, hash, PrefixOf(rawKey))
+	if err != nil {
+		return nil, err
+	}
+
+	if err = tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return &RegisterMEIResult{MeiID: meiID, APIKey: rawKey}, nil
 }
