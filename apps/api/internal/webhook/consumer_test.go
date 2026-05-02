@@ -101,6 +101,42 @@ func TestBuildPayload_NoAPIBase(t *testing.T) {
 	}
 }
 
+// ─── retryQueueFor ────────────────────────────────────────────────────────
+
+func TestRetryQueueFor_ReturnsCorrectQueues(t *testing.T) {
+	cases := []struct {
+		retryCount int
+		wantQueue  string
+		wantOK     bool
+	}{
+		{0, QueueRetry1m, true},
+		{1, QueueRetry5m, true},
+		{2, QueueRetry30m, true},
+		{3, "", false},
+		{99, "", false},
+	}
+	for _, tc := range cases {
+		q, ok := retryQueueFor(tc.retryCount)
+		if ok != tc.wantOK {
+			t.Errorf("retryQueueFor(%d): ok=%v, want %v", tc.retryCount, ok, tc.wantOK)
+		}
+		if q != tc.wantQueue {
+			t.Errorf("retryQueueFor(%d): queue=%q, want %q", tc.retryCount, q, tc.wantQueue)
+		}
+	}
+}
+
+func TestRetryQueueFor_ExhaustsAfterMaxRetries(t *testing.T) {
+	for i := 0; i < MaxRetries; i++ {
+		if _, ok := retryQueueFor(i); !ok {
+			t.Errorf("retryQueueFor(%d) returned ok=false, expected true (MaxRetries=%d)", i, MaxRetries)
+		}
+	}
+	if _, ok := retryQueueFor(MaxRetries); ok {
+		t.Errorf("retryQueueFor(%d) returned ok=true, expected false (exhausted)", MaxRetries)
+	}
+}
+
 // ─── EventType constants ───────────────────────────────────────────────────
 
 func TestEventTypeValues(t *testing.T) {
