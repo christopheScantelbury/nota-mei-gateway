@@ -82,6 +82,11 @@ func main() {
 	poller := nfse.NewPoller(notaRepo, adapter, certProv, publisher, 30*time.Second).
 		WithBillingCounter(billingRepo)
 
+	// ── Stuck nota poller ─────────────────────────────────────────────────────
+	// Marks PROCESSANDO notas that never received a protocol as ERRO_TEMPORARIO
+	// after 2 minutes, cycling every 30 seconds.
+	stuckPoller := nfse.NewStuckPoller(notaRepo, redisLocker, 2*time.Minute, 30*time.Second, 50)
+
 	// ── Webhook requeuer ───────────────────────────────────────────────────
 	// Sweeps the DB every 5 minutes for undelivered webhooks and re-publishes them.
 	sweepFn := buildSweepFn(notaRepo, cfg.WebhookHMACSecret)
@@ -90,11 +95,15 @@ func main() {
 	log.Info().Str("env", cfg.AppEnv).Msg("webhook worker iniciado")
 
 	// ── Run all goroutines until SIGINT/SIGTERM ─────────────────────────────
-	done := make(chan error, 4)
+	done := make(chan error, 5)
 
 	go func() { done <- consumer.Start(ctx) }()
 	go func() {
 		poller.Run(ctx)
+		done <- nil
+	}()
+	go func() {
+		stuckPoller.Run(ctx)
 		done <- nil
 	}()
 	go func() {
