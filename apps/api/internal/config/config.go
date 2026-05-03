@@ -34,10 +34,29 @@ type Config struct {
 }
 
 // Load lê variáveis de ambiente, valida as obrigatórias e devolve a configuração.
+// Variáveis essenciais causam panic se ausentes.
+// Variáveis de serviços externos (Redis, RabbitMQ, AWS, Stripe) emitem warning —
+// a API sobe em modo degradado e as features dependentes retornam erro na primeira chamada.
 func Load() *Config {
-	required := []string{
+	// Essential: sem estas a API não consegue nem autenticar requests.
+	essential := []string{
 		"DATABASE_URL",
 		"SUPABASE_SERVICE_ROLE_KEY",
+		"WEBHOOK_HMAC_SECRET",
+		"RECEITA_API_URL",
+	}
+	var missing []string
+	for _, k := range essential {
+		if os.Getenv(k) == "" {
+			missing = append(missing, k)
+		}
+	}
+	if len(missing) > 0 {
+		panic(fmt.Sprintf("variáveis de ambiente obrigatórias ausentes: %v", missing))
+	}
+
+	// Soft-required: serviços externos opcionais. Log de aviso se ausentes.
+	softRequired := []string{
 		"REDIS_URL",
 		"RABBITMQ_URL",
 		"AWS_REGION",
@@ -48,17 +67,15 @@ func Load() *Config {
 		"STRIPE_PRICE_BASIC",
 		"STRIPE_PRICE_PRO",
 		"STRIPE_PRICE_BUSINESS",
-		"WEBHOOK_HMAC_SECRET",
-		"RECEITA_API_URL",
 	}
-	var missing []string
-	for _, k := range required {
+	var softMissing []string
+	for _, k := range softRequired {
 		if os.Getenv(k) == "" {
-			missing = append(missing, k)
+			softMissing = append(softMissing, k)
 		}
 	}
-	if len(missing) > 0 {
-		panic(fmt.Sprintf("variáveis de ambiente obrigatórias ausentes: %v", missing))
+	if len(softMissing) > 0 {
+		fmt.Printf("WARN: variáveis de serviços externos ausentes (modo degradado): %v\n", softMissing)
 	}
 
 	return &Config{
