@@ -51,6 +51,10 @@ func NewGuard(redisURL string) (*Guard, error) {
 // and returns true if the new count is within the given limit.
 // The Redis key expires automatically after keyTTL to avoid accumulation.
 func (g *Guard) Allow(ctx context.Context, meiID uuid.UUID, limit int) (bool, error) {
+	if g == nil {
+		// Guard unavailable (Redis not connected) — allow all emissions.
+		return true, nil
+	}
 	key := fmt.Sprintf("billing:%s:%s", meiID, monthKey())
 
 	pipe := g.rdb.Pipeline()
@@ -74,6 +78,9 @@ func (g *Guard) Allow(ctx context.Context, meiID uuid.UUID, limit int) (bool, er
 // with a 5-minute TTL.  Call this after reading the status from the database so
 // that subsequent requests avoid a DB round-trip.
 func (g *Guard) CacheSubscriptionStatus(ctx context.Context, meiID uuid.UUID, status string) error {
+	if g == nil {
+		return nil
+	}
 	key := subStatusKey(meiID)
 	// Store a sentinel for "no subscription" (nil/empty) so we can distinguish
 	// a cache miss from an explicit nil entry.
@@ -88,6 +95,9 @@ func (g *Guard) CacheSubscriptionStatus(ctx context.Context, meiID uuid.UUID, st
 // for the given MEI.  Returns ("", false) on cache miss or Redis error.
 // Returns ("", true) when the MEI has no subscription (status "none").
 func (g *Guard) GetCachedSubscriptionStatus(ctx context.Context, meiID uuid.UUID) (string, bool) {
+	if g == nil {
+		return "", false
+	}
 	val, err := g.rdb.Get(ctx, subStatusKey(meiID)).Result()
 	if err != nil {
 		if !errors.Is(err, redis.Nil) {
@@ -106,6 +116,9 @@ func (g *Guard) GetCachedSubscriptionStatus(ctx context.Context, meiID uuid.UUID
 // the given MEI.  Call this from the Stripe webhook handler whenever a
 // subscription event is processed so the next request re-reads from the DB.
 func (g *Guard) InvalidateSubscriptionCache(ctx context.Context, meiID uuid.UUID) error {
+	if g == nil {
+		return nil
+	}
 	return g.rdb.Del(ctx, subStatusKey(meiID)).Err()
 }
 

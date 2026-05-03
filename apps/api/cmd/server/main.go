@@ -46,24 +46,30 @@ func main() {
 	}
 	defer db.Close()
 
+	// cert.New only loads AWS SDK config; actual credentials are verified on first call.
 	certProv, err := cert.New(ctx, cfg.AWSRegion, cfg.AWSKMSKeyARN)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to init cert provider")
+		log.Warn().Err(err).Msg("cert provider unavailable — certificate features disabled")
+		certProv = nil
 	}
 
 	billingGrd, err := billing.NewGuard(cfg.RedisURL)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to init billing guard")
+		log.Warn().Err(err).Msg("billing guard unavailable — emission limits not enforced")
+		billingGrd = nil
 	}
 
 	rateLimiter, err := middleware.NewRateLimiter(cfg.RedisURL, 100)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to init rate limiter")
+		log.Warn().Err(err).Msg("rate limiter unavailable — rate limiting disabled")
+		rateLimiter = nil
 	}
 
+	// RabbitMQ dials immediately; if not yet ready, API starts without webhook delivery.
 	publisher, err := webhook.NewPublisher(cfg.RabbitMQURL)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to connect to RabbitMQ")
+		log.Warn().Err(err).Msg("RabbitMQ unavailable — webhook delivery disabled")
+		publisher = nil
 	}
 	defer publisher.Close()
 
@@ -89,16 +95,17 @@ func main() {
 	// ── NBS validator (Redis cache + DB fallback) ──────────────────────────
 	nbsValidator, err := document.NewNBSValidator(cfg.RedisURL, db.Pool())
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to init NBS validator")
-	}
-	if err := nbsValidator.Warm(ctx); err != nil {
+		log.Warn().Err(err).Msg("NBS validator unavailable — NBS validation will use DB-only fallback")
+		nbsValidator = nil
+	} else if err := nbsValidator.Warm(ctx); err != nil {
 		log.Warn().Err(err).Msg("NBS warm failed — validator will fall back to DB")
 	}
 
 	// ── ISS rate lookup (in-memory, loaded from DB at startup) ────────────
 	issLookup, err := document.NewISSLookup(ctx, db.Pool())
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to load ISS aliquotas")
+		log.Warn().Err(err).Msg("ISS lookup unavailable — ISS rates will not be validated at startup")
+		issLookup = nil
 	}
 
 	// ── Handlers ───────────────────────────────────────────────────────────
@@ -109,7 +116,7 @@ func main() {
 
 	cnpjValidator, err := auth.NewCNPJValidator(cfg.RedisURL)
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to init CNPJ validator")
+		log.Warn().Err(err).Msg("CNPJ validator unavailable — CNPJ dedup cache disabled")
 	}
 
 	registerH := handler.NewRegisterHandler(authRepo).WithCNPJValidator(cnpjValidator)
@@ -219,7 +226,13 @@ func main() {
 	// ── Authenticated endpoints ────────────────────────────────────────────
 	authMw := auth.Middleware(authRepo)
 
-	v1 := app.Group("/v1", authMw, rateLimiter.Middleware())
+	var rlMw fiber.Handler
+	if rateLimiter != nil {
+		rlMw = rateLimiter.Middleware()
+	} else {
+		rlMw = func(c *fiber.Ctx) error { return c.Next() } // no-op when Redis unavailable
+	}
+	v1 := app.Group("/v1", authMw, rlMw)
 
 	// NFS-e
 	v1.Post("/nfse", nfseH.EmitirNota)

@@ -120,7 +120,11 @@ func declareRetryQueues(ch *amqp.Channel) error {
 }
 
 // Publish serialises msg as JSON and enqueues it for delivery.
+// Returns an error if the publisher is nil (RabbitMQ unavailable).
 func (p *Publisher) Publish(ctx context.Context, msg DeliveryMessage) error {
+	if p == nil {
+		return fmt.Errorf("webhook publisher not available (RabbitMQ not connected)")
+	}
 	body, err := json.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("marshal webhook message: %w", err)
@@ -139,8 +143,11 @@ func (p *Publisher) Publish(ctx context.Context, msg DeliveryMessage) error {
 	)
 }
 
-// Close releases the channel and connection.
+// Close releases the channel and connection. Safe to call on nil receiver.
 func (p *Publisher) Close() {
+	if p == nil {
+		return
+	}
 	_ = p.ch.Close()
 	_ = p.conn.Close()
 }
