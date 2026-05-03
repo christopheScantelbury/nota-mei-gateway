@@ -1,0 +1,77 @@
+name: E2E — Staging
+
+# Runs after every successful deploy to main (staging env re-deploys via deploy.yml).
+# Can also be triggered manually for a quick sanity check.
+on:
+  workflow_run:
+    workflows: ["Deploy"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: "API URL to test against"
+        required: false
+        default: "https://api-staging-staging-8d1e.up.railway.app"
+
+jobs:
+  e2e:
+    name: E2E integration tests
+    # Only run if the triggering deploy succeeded (or if manually triggered).
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      E2E_API_URL: ${{ github.event.inputs.api_url || 'https://api-staging-staging-8d1e.up.railway.app' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache: true
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Wait for staging to be healthy
+        run: |
+          echo "Aguardando staging ficar saudável em $E2E_API_URL ..."
+          for i in $(seq 1 24); do
+            status=$(curl -s -o /dev/null -w "%{http_code}" "$E2E_API_URL/v1/health" || echo "000")
+            echo "  tentativa $i: HTTP $status"
+            if [ "$status" = "200" ]; then
+              echo "Staging saudável ✅"
+              break
+            fi
+            if [ "$i" = "24" ]; then
+              echo "❌ Staging não respondeu após 2 minutos"
+              exit 1
+            fi
+            sleep 5
+          done
+
+      - name: Run E2E tests
+        working-directory: apps/api
+        run: |
+          go test -v -timeout=5m -tags=e2e \
+            ../../tests/e2e/ \
+            2>&1 | tee /tmp/e2e-report.txt
+        env:
+          E2E_API_URL: ${{ env.E2E_API_URL }}
+
+      - name: Upload E2E report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report-${{ github.run_id }}
+          path: /tmp/e2e-report.txt
+          retention-days: 30
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat /tmp/e2e-report.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
