@@ -22,14 +22,14 @@ type Plano struct {
 
 // EmissaoMensal holds the MEI's monthly emission record.
 type EmissaoMensal struct {
-	ID                 uuid.UUID
-	MeiID              uuid.UUID
-	PlanoID            *uuid.UUID
-	Competencia        string
-	TotalEmitidas      int
-	StripeSubID        *string
-	StripeSubStatus    *string
-	StripeSubItemID    *string // metered billing item for overage reporting
+	ID              uuid.UUID
+	MeiID           uuid.UUID
+	PlanoID         *uuid.UUID
+	Competencia     string
+	TotalEmitidas   int
+	StripeSubID     *string
+	StripeSubStatus *string
+	StripeSubItemID *string // metered billing item for overage reporting
 }
 
 // Repository handles billing-related database operations.

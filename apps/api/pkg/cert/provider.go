@@ -20,6 +20,8 @@ import (
 
 // CertProvider is the interface for retrieving and storing A1 certificates.
 // Use Provider for AWS Secrets Manager; inject a mock in tests.
+//
+//nolint:revive // stutter is intentional — the full qualifier cert.CertProvider is unambiguous
 type CertProvider interface {
 	// GetCert retrieves the TLS certificate stored at the given ARN.
 	// The certificate is returned in memory and never written to disk.

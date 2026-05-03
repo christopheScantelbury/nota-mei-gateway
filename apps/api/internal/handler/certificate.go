@@ -106,7 +106,7 @@ func (h *CertificateHandler) Renew(c *fiber.Ctx) error {
 			"request_id": c.Locals("request_id"),
 		})
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	pfxData, err := io.ReadAll(f)
 	if err != nil {
