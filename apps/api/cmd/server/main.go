@@ -100,7 +100,12 @@ func main() {
 		apiBase = "http://localhost:" + cfg.Port
 	}
 
-	registerH := handler.NewRegisterHandler(authRepo)
+	cnpjValidator, err := auth.NewCNPJValidator(cfg.RedisURL)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to init CNPJ validator")
+	}
+
+	registerH := handler.NewRegisterHandler(authRepo).WithCNPJValidator(cnpjValidator)
 
 	nfseH := handler.NewNFSeHandler(
 		notaRepo, adapter, builder, signer, certProv,
