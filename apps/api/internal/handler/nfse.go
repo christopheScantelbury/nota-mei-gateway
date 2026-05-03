@@ -176,12 +176,9 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 		return validationError(c, "erro ao construir RPS: "+err.Error())
 	}
 
-	// ── 5. Load certificate ───────────────────────────────────────────────
-	if mei.ID == uuid.Nil {
-		return internalError(c, "MEI sem certificado configurado")
-	}
-	// cert_secret_arn is stored on the MEI — we'd pass it from the DB.
-	// For now we use a placeholder; wire the actual ARN via MEI.CertSecretARN.
+	// ── 5. Load certificate from AWS Secrets Manager ─────────────────────
+	// mei.CertSecretARN is populated by FindMEI from meis.cert_secret_arn;
+	// loadCert returns an error if no cert has been uploaded yet.
 	cert, err := h.loadCert(ctx, mei)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("mei_id", mei.ID.String()).Msg("certificate load failed")
