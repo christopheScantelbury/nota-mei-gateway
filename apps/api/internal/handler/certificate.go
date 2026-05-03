@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"io"
 
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/auth"
@@ -11,22 +12,32 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// certUpdater is the subset of cert.CertProvider used by CertificateHandler.
-// It is satisfied by *cert.Provider; inject a stub in tests.
-type certUpdater interface {
+// certManager is the subset of cert.CertProvider used by CertificateHandler.
+// StoreCert is called on first upload; UpdateCert is called on renewal.
+// Both are satisfied by *cert.Provider; inject a stub in tests.
+type certManager interface {
+	StoreCert(ctx context.Context, name string, pfxData []byte, password string) (string, error)
 	UpdateCert(ctx context.Context, secretARN string, pfxData []byte, password string) error
+}
+
+// arnSaver persists the cert_secret_arn back to the database.
+// Satisfied by *auth.Repository; inject a stub in tests.
+type arnSaver interface {
+	SaveCertSecretARN(ctx context.Context, meiID uuid.UUID, arn string) error
 }
 
 // CertificateHandler handles POST /v1/auth/certificate.
 type CertificateHandler struct {
-	certProvider certUpdater
+	certProvider certManager
+	arnSaver     arnSaver
 	db           *supabase.Client
 }
 
 // NewCertificateHandler creates a CertificateHandler.
-// cp may be any certUpdater (including *cert.Provider); use a stub in tests.
-func NewCertificateHandler(cp certUpdater, db *supabase.Client) *CertificateHandler {
-	return &CertificateHandler{certProvider: cp, db: db}
+// cp must implement both StoreCert and UpdateCert (e.g. *cert.Provider).
+// saver is used to persist the cert ARN on first upload (e.g. *auth.Repository).
+func NewCertificateHandler(cp certManager, saver arnSaver, db *supabase.Client) *CertificateHandler {
+	return &CertificateHandler{certProvider: cp, arnSaver: saver, db: db}
 }
 
 // Renew handles POST /v1/auth/certificate.
@@ -116,15 +127,49 @@ func (h *CertificateHandler) Renew(c *fiber.Ctx) error {
 			"request_id": c.Locals("request_id"),
 		})
 	}
+
+	// ── 3. Store or update the secret in AWS Secrets Manager ─────────────────
 	if secretARN == "" {
-		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
-			"error":      "NO_CERTIFICATE",
-			"message":    "este MEI ainda não possui um certificado registrado; use POST /v1/auth/register",
-			"request_id": c.Locals("request_id"),
+		// First upload: create a new secret and persist the ARN.
+		secretName := fmt.Sprintf("nota-mei-gateway/certs/%s", mei.ID)
+		newARN, storeErr := h.certProvider.StoreCert(c.Context(), secretName, pfxData, password)
+		if storeErr != nil {
+			log.Ctx(c.Context()).Error().Err(storeErr).Str("mei_id", mei.ID.String()).Msg("StoreCert failed")
+			if isCertParseError(storeErr) {
+				return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+					"error":      "INVALID_CERTIFICATE",
+					"message":    "certificado inválido ou senha incorreta: " + storeErr.Error(),
+					"request_id": c.Locals("request_id"),
+				})
+			}
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":      "INTERNAL_ERROR",
+				"message":    "não foi possível armazenar o certificado",
+				"request_id": c.Locals("request_id"),
+			})
+		}
+		if saveErr := h.arnSaver.SaveCertSecretARN(c.Context(), mei.ID, newARN); saveErr != nil {
+			// Secret was stored but ARN save failed — log the inconsistency.
+			log.Ctx(c.Context()).Error().Err(saveErr).
+				Str("mei_id", mei.ID.String()).
+				Str("arn", newARN).
+				Msg("cert stored but ARN save failed — manual remediation required")
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":      "INTERNAL_ERROR",
+				"message":    "certificado armazenado mas ARN não foi salvo; tente novamente",
+				"request_id": c.Locals("request_id"),
+			})
+		}
+		log.Ctx(c.Context()).Info().
+			Str("mei_id", mei.ID.String()).
+			Str("arn", newARN).
+			Msg("certificado A1 armazenado (primeiro upload)")
+		return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+			"mensagem": "Certificado cadastrado com sucesso",
 		})
 	}
 
-	// ── 3. Update the secret in AWS Secrets Manager ───────────────────────────
+	// Subsequent upload: replace the existing secret in-place.
 	if err := h.certProvider.UpdateCert(c.Context(), secretARN, pfxData, password); err != nil {
 		log.Ctx(c.Context()).Error().Err(err).Str("arn", secretARN).Msg("UpdateCert failed")
 		// Surface PFX parse errors as 422 so the client knows to send a valid cert.

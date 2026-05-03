@@ -569,13 +569,15 @@ func (h *NFSeHandler) reportOverageIfNeeded(
 	}
 }
 
-// loadCert loads the MEI's certificate from Secrets Manager.
-// The ARN is expected to be stored somewhere accessible from the MEI struct.
-// For now we use the MEI ID as a naming convention in Secrets Manager.
+// loadCert loads the MEI's A1 certificate from AWS Secrets Manager.
+// The ARN is stored in meis.cert_secret_arn and set when the MEI uploads
+// their certificate via POST /v1/auth/certificate (or during registration).
 func (h *NFSeHandler) loadCert(ctx context.Context, mei *auth.MEI) (*tls.Certificate, error) {
-	// Convention: secrets are named "nota-mei-gateway/certs/{mei_id}"
-	arn := fmt.Sprintf("nota-mei-gateway/certs/%s", mei.ID)
-	return h.certProv.GetCert(ctx, arn)
+	if mei.CertSecretARN == nil || *mei.CertSecretARN == "" {
+		return nil, fmt.Errorf("MEI %s não possui certificado A1 configurado; "+
+			"envie o certificado via POST /v1/auth/certificate", mei.ID)
+	}
+	return h.certProv.GetCert(ctx, *mei.CertSecretARN)
 }
 
 func (h *NFSeHandler) publishEvent(

@@ -14,40 +14,47 @@ import (
 	"github.com/google/uuid"
 )
 
-// stubCertUpdater simulates cert.Provider.UpdateCert.
-type stubCertUpdater struct {
-	called      bool
+// stubCertManager implements handler.certManager for tests.
+type stubCertManager struct {
+	storeCalled bool
+	updateCalled bool
 	returnError error
+	storeARN    string
 }
 
-func (s *stubCertUpdater) UpdateCert(_ context.Context, _ string, _ []byte, _ string) error {
-	s.called = true
+func (s *stubCertManager) StoreCert(_ context.Context, _ string, _ []byte, _ string) (string, error) {
+	s.storeCalled = true
+	if s.returnError != nil {
+		return "", s.returnError
+	}
+	arn := s.storeARN
+	if arn == "" {
+		arn = "arn:aws:secretsmanager:sa-east-1:123456789:secret:test-arn"
+	}
+	return arn, nil
+}
+
+func (s *stubCertManager) UpdateCert(_ context.Context, _ string, _ []byte, _ string) error {
+	s.updateCalled = true
 	return s.returnError
 }
 
-// buildCertRequest creates a multipart/form-data request with the given fields.
-func buildCertRequest(t *testing.T, pfxData []byte, password string) *bytes.Buffer {
-	t.Helper()
-	var buf bytes.Buffer
-	w := multipart.NewWriter(&buf)
+// stubARNSaver implements handler.arnSaver for tests.
+type stubARNSaver struct {
+	savedARN string
+	savedID  uuid.UUID
+	err      error
+}
 
-	_ = w.WriteField("senha_certificado", password)
-
-	fw, err := w.CreateFormFile("certificado", "cert.pfx")
-	if err != nil {
-		t.Fatal(err)
-	}
-	fw.Write(pfxData) //nolint:errcheck
-
-	w.Close()
-	// Store boundary in a way the caller can set Content-Type.
-	// We embed the boundary string inside buf headers by returning buf directly.
-	return &buf
+func (s *stubARNSaver) SaveCertSecretARN(_ context.Context, meiID uuid.UUID, arn string) error {
+	s.savedID = meiID
+	s.savedARN = arn
+	return s.err
 }
 
 func TestCertificateHandler_MissingPassword(t *testing.T) {
 	app := fiber.New()
-	certH := handler.NewCertificateHandler(&stubCertUpdater{}, (*supabase.Client)(nil))
+	certH := handler.NewCertificateHandler(&stubCertManager{}, &stubARNSaver{}, (*supabase.Client)(nil))
 
 	app.Post("/v1/auth/certificate", func(c *fiber.Ctx) error {
 		// Inject a fake MEI into context (bypass real auth middleware).
@@ -75,7 +82,7 @@ func TestCertificateHandler_MissingPassword(t *testing.T) {
 
 func TestCertificateHandler_MissingFile(t *testing.T) {
 	app := fiber.New()
-	certH := handler.NewCertificateHandler(&stubCertUpdater{}, (*supabase.Client)(nil))
+	certH := handler.NewCertificateHandler(&stubCertManager{}, &stubARNSaver{}, (*supabase.Client)(nil))
 
 	app.Post("/v1/auth/certificate", func(c *fiber.Ctx) error {
 		c.Locals("mei", &auth.MEI{ID: uuid.New()})

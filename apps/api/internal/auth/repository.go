@@ -39,6 +39,7 @@ type MEI struct {
 	RazaoSocial        string
 	Email              string
 	MunicipioIBGE      string
+	CertSecretARN      *string // AWS Secrets Manager ARN for the A1 certificate
 	StripeCustomerID   *string
 	StripeSubID        *string
 	StripeSubStatus    *string
@@ -82,6 +83,7 @@ func (r *Repository) FindMEI(ctx context.Context, meiID uuid.UUID) (*MEI, error)
 	row := r.db.Pool().QueryRow(ctx, `
 		SELECT
 			m.id, m.cnpj, m.razao_social, m.email, m.municipio_ibge,
+			m.cert_secret_arn,
 			m.stripe_customer_id,
 			em.stripe_subscription_id,
 			em.stripe_subscription_status,
@@ -100,6 +102,7 @@ func (r *Repository) FindMEI(ctx context.Context, meiID uuid.UUID) (*MEI, error)
 	var mei MEI
 	if err := row.Scan(
 		&mei.ID, &mei.CNPJ, &mei.RazaoSocial, &mei.Email, &mei.MunicipioIBGE,
+		&mei.CertSecretARN,
 		&mei.StripeCustomerID,
 		&mei.StripeSubID,
 		&mei.StripeSubStatus,
@@ -177,5 +180,16 @@ func (r *Repository) SaveStripeCustomerID(ctx context.Context, meiID uuid.UUID, 
 		SET stripe_customer_id = $1, updated_at = NOW()
 		WHERE id = $2
 	`, customerID, meiID)
+	return err
+}
+
+// SaveCertSecretARN persists the AWS Secrets Manager ARN for the MEI's A1 certificate.
+// Called after the first successful StoreCert invocation.
+func (r *Repository) SaveCertSecretARN(ctx context.Context, meiID uuid.UUID, arn string) error {
+	_, err := r.db.Pool().Exec(ctx, `
+		UPDATE meis
+		SET cert_secret_arn = $1, updated_at = NOW()
+		WHERE id = $2
+	`, arn, meiID)
 	return err
 }

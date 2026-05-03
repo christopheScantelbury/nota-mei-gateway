@@ -113,7 +113,7 @@ func main() {
 	}
 
 	registerH := handler.NewRegisterHandler(authRepo).WithCNPJValidator(cnpjValidator)
-	certH := handler.NewCertificateHandler(certProv, db)
+	certH := handler.NewCertificateHandler(certProv, authRepo, db)
 	seedH := handler.NewSeedHandler(auth.NewSeeder(db))
 
 	nfseH := handler.NewNFSeHandler(
