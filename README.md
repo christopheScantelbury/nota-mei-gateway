@@ -60,14 +60,17 @@ API REST em Go (Fiber) para emissão de NFS-e para MEI, com dashboard Next.js, S
 | `make dev-stack` | Só Redis + RabbitMQ (Docker) |
 | `make dev-supabase` | Só Supabase local |
 | `make dev` | Stack + Supabase + API + web |
-| `make test` | Testes API + web |
+| `make test` | Testes API + web (Go com -race) |
 | `make lint` | Lint API + web |
 | `make build` | Build API + web |
-| `make migrate` | `npx supabase db push` (remoto após `npm run db:link`) |
-| `make migrate-local` | `npx supabase db reset` (migrations + seed) |
-| `npm run db:login` | `npx supabase login` (browser) |
-| `npm run db:link` | `npx supabase link` (pede project ref e password DB) |
-| `npm run db:push` | `npx supabase db push` |
+| `make openapi-lint` | Valida `docs/openapi.yaml` |
+| `make openapi-types` | Gera `apps/web/lib/api-types.ts` |
+| `make migrate` | `supabase db push` (produção) |
+| `make migrate-local` | `supabase db reset` (migrations + seed local) |
+| `make deploy-staging` | Deploy manual → Railway staging + Vercel preview |
+| `make deploy-prod` | Deploy manual → Railway prod + Vercel produção |
+| `make rollback-api` | Rollback API no Railway |
+| `make help` | Lista todos os targets com descrição |
 
 ## Monorepo
 
@@ -91,6 +94,28 @@ O workflow `.github/workflows/deploy.yml` corre em **push** para `main` e `devel
 | Variáveis do repositório `RAILWAY_SERVICE_PROD` / `RAILWAY_SERVICE_STAGING` | Opcional: nomes dos serviços Railway (padrão `api` e `api-staging`) |
 
 Checklist manual (domínio, dois ambientes Railway, variáveis): issue **[PLAT-03](https://github.com/christopheScantelbury/nota-mei-gateway/issues/3)**.
+
+### Deploy manual e rollback
+
+```bash
+# Deploy staging (Railway staging + Vercel preview)
+make deploy-staging
+
+# Deploy produção (preferir merge em main para acionar CI/CD automático)
+make deploy-prod
+
+# Rollback Railway
+make rollback-api              # produção
+make rollback-api ENV=staging  # staging
+
+# Rollback Vercel — CLI
+vercel rollback --token=$VERCEL_TOKEN
+# Ou: dashboard Vercel → Deployments → "Promote to Production" (deploy anterior)
+```
+
+## Comandos Make disponíveis
+
+Execute `make help` para ver todos os targets com descrição.
 
 ## Documentação
 
