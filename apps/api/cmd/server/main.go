@@ -161,16 +161,18 @@ func main() {
 	app.Use(middleware.PrometheusMetrics())
 
 	// ── Public endpoints ───────────────────────────────────────────────────
+	// Health check always returns 200 so Railway's liveness probe passes.
+	// DB reachability is reported in the response body (not as HTTP status)
+	// so a temporary DB blip doesn't take the service offline unnecessarily.
 	app.Get("/v1/health", func(c *fiber.Ctx) error {
+		dbStatus := "ok"
 		if err := db.Pool().Ping(c.Context()); err != nil {
-			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
-				"status": "degraded",
-				"db":     "unhealthy",
-			})
+			dbStatus = "unreachable"
 		}
 		return c.JSON(fiber.Map{
 			"status": "ok",
 			"env":    cfg.AppEnv,
+			"db":     dbStatus,
 		})
 	})
 
