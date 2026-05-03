@@ -46,7 +46,7 @@ func main() {
 	}
 	defer db.Close()
 
-	certProv, err := cert.New(ctx, cfg.AWSRegion)
+	certProv, err := cert.New(ctx, cfg.AWSRegion, cfg.AWSKMSKeyARN)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to init cert provider")
 	}
@@ -113,6 +113,7 @@ func main() {
 	}
 
 	registerH := handler.NewRegisterHandler(authRepo).WithCNPJValidator(cnpjValidator)
+	certH := handler.NewCertificateHandler(certProv, db)
 	seedH := handler.NewSeedHandler(auth.NewSeeder(db))
 
 	nfseH := handler.NewNFSeHandler(
@@ -227,6 +228,9 @@ func main() {
 	v1.Delete("/nfse/:id", nfseH.CancelarNota)
 	v1.Get("/nfse/:id/xml", nfseH.DownloadXML)
 	v1.Get("/nfse/:id/pdf", nfseH.DownloadPDF)
+
+	// Auth (authenticated — certificate renewal)
+	v1.Post("/auth/certificate", certH.Renew)
 
 	// Billing
 	v1.Get("/billing/usage", billingH.GetUsage)

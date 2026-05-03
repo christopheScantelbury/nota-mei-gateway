@@ -4,20 +4,43 @@ package cert
 
 import (
 	"context"
+	"crypto/rsa"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+	"golang.org/x/crypto/pkcs12"
 )
 
-// Provider retrieves A1 certificates from AWS Secrets Manager and wraps KMS for decryption.
+// CertProvider is the interface for retrieving and storing A1 certificates.
+// Use Provider for AWS Secrets Manager; inject a mock in tests.
+type CertProvider interface {
+	// GetCert retrieves the TLS certificate stored at the given ARN.
+	// The certificate is returned in memory and never written to disk.
+	GetCert(ctx context.Context, secretARN string) (*tls.Certificate, error)
+
+	// StoreCert converts a PFX/P12 file to PEM, creates a new secret in AWS
+	// Secrets Manager and returns the ARN of the created secret.
+	// The name must be unique within the account+region.
+	StoreCert(ctx context.Context, name string, pfxData []byte, password string) (arn string, err error)
+
+	// UpdateCert replaces the certificate stored at secretARN with the new
+	// PFX/P12 file. The existing secret value is overwritten in-place.
+	UpdateCert(ctx context.Context, secretARN string, pfxData []byte, password string) error
+}
+
+// Provider retrieves and stores A1 certificates via AWS Secrets Manager,
+// using AWS KMS for envelope encryption at rest.
 type Provider struct {
-	secrets *secretsmanager.Client
-	kms     *kms.Client
+	secrets   *secretsmanager.Client
+	kms       *kms.Client
+	kmsKeyARN string // optional CMK ARN; if empty, AWS-managed key is used
 }
 
 // certSecret is the JSON structure stored in AWS Secrets Manager.
@@ -28,15 +51,20 @@ type certSecret struct {
 }
 
 // New loads AWS default configuration for the given region and returns a Provider.
-func New(ctx context.Context, region string) (*Provider, error) {
+// kmsKeyARN may be empty; if set, it is used as the KMS CMK for new secrets.
+func New(ctx context.Context, region string, kmsKeyARN ...string) (*Provider, error) {
 	cfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(region))
 	if err != nil {
 		return nil, err
 	}
-	return &Provider{
+	p := &Provider{
 		secrets: secretsmanager.NewFromConfig(cfg),
 		kms:     kms.NewFromConfig(cfg),
-	}, nil
+	}
+	if len(kmsKeyARN) > 0 {
+		p.kmsKeyARN = kmsKeyARN[0]
+	}
+	return p, nil
 }
 
 // GetCert retrieves and parses the TLS certificate stored at the given ARN.
@@ -64,4 +92,95 @@ func (p *Provider) GetCert(ctx context.Context, secretARN string) (*tls.Certific
 		return nil, fmt.Errorf("parse certificate: %w", err)
 	}
 	return &cert, nil
+}
+
+// StoreCert converts pfxData (PFX/P12 format) to PEM, creates a new secret
+// in AWS Secrets Manager, and returns the ARN of the created secret.
+// The certificate private key is never written to disk or logged.
+func (p *Provider) StoreCert(ctx context.Context, name string, pfxData []byte, password string) (string, error) {
+	secretVal, err := pfxToSecretJSON(pfxData, password)
+	if err != nil {
+		return "", fmt.Errorf("parse PFX: %w", err)
+	}
+
+	in := &secretsmanager.CreateSecretInput{
+		Name:         aws.String(name),
+		SecretString: aws.String(secretVal),
+	}
+	if p.kmsKeyARN != "" {
+		in.KmsKeyId = aws.String(p.kmsKeyARN)
+	}
+
+	out, err := p.secrets.CreateSecret(ctx, in)
+	if err != nil {
+		return "", fmt.Errorf("create secret %s: %w", name, err)
+	}
+	return aws.ToString(out.ARN), nil
+}
+
+// UpdateCert replaces the certificate stored at secretARN.
+// The existing secret value is overwritten in-place; the ARN remains unchanged.
+func (p *Provider) UpdateCert(ctx context.Context, secretARN string, pfxData []byte, password string) error {
+	secretVal, err := pfxToSecretJSON(pfxData, password)
+	if err != nil {
+		return fmt.Errorf("parse PFX: %w", err)
+	}
+
+	_, err = p.secrets.PutSecretValue(ctx, &secretsmanager.PutSecretValueInput{
+		SecretId:     aws.String(secretARN),
+		SecretString: aws.String(secretVal),
+	})
+	if err != nil {
+		return fmt.Errorf("put secret %s: %w", secretARN, err)
+	}
+	return nil
+}
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+// PfxToSecretJSON decodes a PFX/P12 file, validates it contains an RSA key,
+// and returns the JSON string suitable for storing in Secrets Manager.
+// The raw PFX bytes and password are NOT included in the returned value.
+// Exported so integration/unit tests can exercise PFX validation without AWS.
+func PfxToSecretJSON(pfxData []byte, password string) (string, error) {
+	return pfxToSecretJSON(pfxData, password)
+}
+
+func pfxToSecretJSON(pfxData []byte, password string) (string, error) {
+	// Decode the PKCS#12 bundle — returns private key + leaf certificate.
+	privateKey, certificate, err := pkcs12.Decode(pfxData, password)
+	if err != nil {
+		return "", fmt.Errorf("decode PKCS12: %w", err)
+	}
+
+	// Validate the private key is RSA (required by ABRASF NFS-e Nacional).
+	if _, ok := privateKey.(*rsa.PrivateKey); !ok {
+		return "", fmt.Errorf("certificate private key must be RSA (got %T)", privateKey)
+	}
+
+	// Encode certificate to PEM.
+	certPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certificate.Raw,
+	})
+
+	// Encode private key to PKCS#8 PEM.
+	keyDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
+	if err != nil {
+		return "", fmt.Errorf("marshal private key: %w", err)
+	}
+	keyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: keyDER,
+	})
+
+	cs := certSecret{
+		CertPEM: string(certPEM),
+		KeyPEM:  string(keyPEM),
+	}
+	b, err := json.Marshal(cs)
+	if err != nil {
+		return "", fmt.Errorf("marshal secret JSON: %w", err)
+	}
+	return string(b), nil
 }
