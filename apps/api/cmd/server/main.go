@@ -128,6 +128,9 @@ func main() {
 		billingRepo, billingGrd, publisher,
 		apiBase, cfg.WebhookHMACSecret,
 	).WithNBSValidator(nbsValidator).WithISSLookup(issLookup).WithStripeClient(sc)
+	if cfg.AppEnv == "development" {
+		nfseH = nfseH.WithDevMode()
+	}
 	billingH := handler.NewBillingHandler(
 		sc,
 		cfg.StripePriceStarter, cfg.StripePriceBasic,

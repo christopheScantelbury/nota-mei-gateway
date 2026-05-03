@@ -40,6 +40,7 @@ type NFSeHandler struct {
 	sc           *stripeClient.Client // optional — nil disables metered billing
 	apiBase      string
 	whSecret     string // HMAC secret used to sign webhook payloads
+	devMode      bool   // true in development — skips cert loading for NoopSigner
 }
 
 // NewNFSeHandler creates an NFSeHandler with all its dependencies.
@@ -66,6 +67,13 @@ func NewNFSeHandler(
 		apiBase:     apiBase,
 		whSecret:    whSecret,
 	}
+}
+
+// WithDevMode skips certificate loading, enabling E2E tests in development
+// where no real A1 certificate has been uploaded. The NoopSigner handles nil certs.
+func (h *NFSeHandler) WithDevMode() *NFSeHandler {
+	h.devMode = true
+	return h
 }
 
 // WithStripeClient sets the Stripe client for metered overage billing.
@@ -571,6 +579,10 @@ func (h *NFSeHandler) reportOverageIfNeeded(
 // their certificate via POST /v1/auth/certificate (or during registration).
 func (h *NFSeHandler) loadCert(ctx context.Context, mei *auth.MEI) (*tls.Certificate, error) {
 	if mei.CertSecretARN == nil || *mei.CertSecretARN == "" {
+		// In development (NoopSigner), skip cert loading — Sign() accepts nil cert.
+		if h.devMode {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("MEI %s não possui certificado A1 configurado; "+
 			"envie o certificado via POST /v1/auth/certificate", mei.ID)
 	}
