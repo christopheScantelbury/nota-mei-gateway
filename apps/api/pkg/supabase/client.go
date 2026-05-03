@@ -3,6 +3,7 @@ package supabase
 
 import (
 	"context"
+	"net"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -13,8 +14,22 @@ type Client struct {
 }
 
 // New creates a pgx connection pool using the given databaseURL and returns a Client.
+// It forces IPv4-only TCP dialing to ensure compatibility with Railway's network
+// environment, which does not support outbound IPv6 connections.
 func New(ctx context.Context, databaseURL string) (*Client, error) {
-	pool, err := pgxpool.New(ctx, databaseURL)
+	cfg, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	// Force IPv4 — Railway containers cannot reach IPv6 addresses.
+	// Supabase direct-connection hostnames (db.<ref>.supabase.co) resolve to
+	// IPv6 by default, causing "network is unreachable" without this override.
+	cfg.ConnConfig.DialFunc = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, "tcp4", addr)
+	}
+
+	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
