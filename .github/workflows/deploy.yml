@@ -28,14 +28,14 @@ jobs:
               exit 0
             fi
             export RAILWAY_TOKEN="$RAILWAY_TOKEN_MAIN"
-            railway up --service "$SPROD"
+            railway up --service "$SPROD" --detach
           else
             if [ -z "$RAILWAY_TOKEN_STAGING" ]; then
               echo "::notice title=Deploy API (staging)::RAILWAY_TOKEN_STAGING não definido — deploy develop ignorado."
               exit 0
             fi
             export RAILWAY_TOKEN="$RAILWAY_TOKEN_STAGING"
-            railway up --service "$SSTG"
+            railway up --service "$SSTG" --detach
           fi
 
   deploy-web:
