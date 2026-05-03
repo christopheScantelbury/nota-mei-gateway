@@ -256,6 +256,14 @@ func main() {
 	// Auth (authenticated — certificate renewal)
 	v1.Post("/auth/certificate", certH.Renew)
 
+	// API Key CRUD — authenticated via Supabase JWT (human users from the dashboard)
+	apiKeyH := auth.NewAPIKeyHandler(authRepo)
+	jwtMw := auth.JWTMiddleware(cfg.SupabaseURL, cfg.SupabaseServiceKey)
+	apiKeys := app.Group("/v1/auth/api-keys", jwtMw)
+	apiKeys.Get("/", apiKeyH.ListKeys)
+	apiKeys.Post("/", apiKeyH.CreateKey)
+	apiKeys.Delete("/:id", apiKeyH.RevokeKey)
+
 	// Billing
 	v1.Get("/billing/usage", billingH.GetUsage)
 	v1.Get("/billing/portal", billingH.GetPortal)
