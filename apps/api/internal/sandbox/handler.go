@@ -58,8 +58,12 @@ func IsSandboxKey(token string) bool {
 	return token == "Bearer "+DemoKey
 }
 
-// RateLimitMiddleware rejects IPs that exceed 20 req/hour.
+// RateLimitMiddleware rejects IPs that exceed 20 req/hour — sandbox keys only.
+// Non-sandbox requests pass through without consuming quota.
 func (h *Handler) RateLimitMiddleware(c *fiber.Ctx) error {
+	if !IsSandboxKey(c.Get("Authorization")) {
+		return c.Next()
+	}
 	ip := c.IP()
 	if !h.rl.Allow(ip) {
 		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
