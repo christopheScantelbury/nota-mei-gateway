@@ -222,6 +222,16 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 		Msg("nota criada, enviando para Receita Federal")
 
 	// ── 8. Send to Receita Federal ────────────────────────────────────────
+	// In dev mode (NoopSigner, no real cert) skip the mTLS call entirely
+	// and return PROCESSANDO immediately — the poller won't retry in devMode.
+	if h.devMode {
+		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+			"nota_id":  nota.ID,
+			"status":   "PROCESSANDO",
+			"mensagem": "Nota enviada para processamento [dev mode]",
+		})
+	}
+
 	envioResp, err := h.adapter.Enviar(ctx, signedXML, cert)
 	if err != nil {
 		// Transient error — keep status PROCESSANDO for later polling.
