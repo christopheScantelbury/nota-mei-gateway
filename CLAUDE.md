@@ -344,7 +344,10 @@ REDIS_URL=redis://...
 # RabbitMQ (CloudAMQP)
 RABBITMQ_URL=amqps://user:pass@broker.cloudamqp.com/vhost
 
-# AWS
+# Webhook
+WEBHOOK_HMAC_SECRET=<random-hex-64>   # openssl rand -hex 32
+
+# AWS (para cert provider — Secrets Manager + KMS)
 AWS_REGION=sa-east-1
 AWS_KMS_KEY_ARN=arn:aws:kms:sa-east-1:...
 AWS_ACCESS_KEY_ID=...
@@ -374,9 +377,11 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
 ```bash
 APP_ENV=development
 DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres  # Supabase local
+SUPABASE_SERVICE_ROLE_KEY=eyJ...                                       # supabase status
 REDIS_URL=redis://localhost:6379
 RABBITMQ_URL=amqp://guest:guest@localhost:5672/
 RECEITA_API_URL=https://homologacao.nfse.gov.br/m/app/api/recepcionar-lote-rps/v1
+WEBHOOK_HMAC_SECRET=dev-local-secret                                   # qualquer valor
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...  # gerado pelo stripe CLI
 ```
@@ -628,14 +633,43 @@ O próximo passo é provisionar a infraestrutura real (Supabase, Railway, Vercel
 ### Checklist de provisionamento (ordem de execução)
 
 ```
-1. PLAT-01  Criar projeto Supabase prod → rodar supabase db push
-2. PLAT-03  Configurar serviço Railway para a API Go + variáveis de ambiente
-3. PLAT-04  Adicionar Redis Plugin + CloudAMQP add-on no Railway
-4. PLAT-05  Criar serviço Railway separado para o worker (cmd/worker)
-5. PLAT-07  Criar projeto Vercel → conectar repositório → configurar env vars
-6. STR-01   No dashboard Stripe: criar 4 produtos (Starter/Basic/Pro/Business)
-            → copiar price IDs → adicionar STRIPE_PRICE_* no Railway
-7. QA-01    Rodar testes E2E contra o sandbox de homologação da Receita Federal
+1. PLAT-01  Criar projeto Supabase prod (região sa-east-1)
+            → supabase link --project-ref <ref>
+            → supabase db push
+            → copiar DATABASE_URL (pooler) + SERVICE_ROLE_KEY
+
+2. PLAT-03  Criar serviço "api" no Railway
+            → conectar repositório → Railway detecta railway.toml automaticamente
+            → configurar variáveis: DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+              WEBHOOK_HMAC_SECRET, RECEITA_API_URL, APP_ENV=production
+            → adicionar secret RAILWAY_TOKEN no GitHub para deploy automático
+
+3. PLAT-04  No painel Railway:
+            → Add Plugin → Redis (preenche REDIS_URL automaticamente)
+            → Adicionar CloudAMQP (free tier) → copiar RABBITMQ_URL
+
+4. PLAT-05  Criar serviço "worker" no Railway
+            → mesmo repositório → apontar para apps/api/railway.worker.toml
+            → startCommand = "./worker" (o Dockerfile já compila ambos os binários)
+            → mesmas variáveis do serviço api (exceto PORT)
+
+5. PLAT-07  Criar projeto Vercel → importar repositório
+            → Root directory: apps/web
+            → configurar env vars: NEXT_PUBLIC_API_URL, NEXT_PUBLIC_SUPABASE_URL,
+              NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+            → adicionar VERCEL_TOKEN + VERCEL_ORG_ID + VERCEL_PROJECT_ID no GitHub
+
+6. STR-01   No dashboard Stripe:
+            → Criar 4 produtos: Starter ($29), Basic ($79), Pro ($199), Business ($499)
+            → Cada produto com preço recorrente mensal em BRL
+            → Business: adicionar metered price para excedentes (por unidade)
+            → Copiar price IDs → STRIPE_PRICE_STARTER/BASIC/PRO/BUSINESS no Railway
+            → Criar webhook endpoint → copiar signing secret → STRIPE_WEBHOOK_SECRET
+            → Eventos necessários: checkout.session.completed,
+              customer.subscription.*, invoice.paid, invoice.payment_failed
+
+7. QA-01    Rodar testes E2E contra sandbox de homologação da Receita Federal
+            → usar chave de teste sk_test_ e o endpoint de homologação
 ```
 
 ### Pontos de atenção para o próximo dev

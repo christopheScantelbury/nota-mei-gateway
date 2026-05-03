@@ -1,9 +1,16 @@
 # Variáveis obrigatórias no painel Railway (não colocar valores aqui):
-# DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY, REDIS_URL, RABBITMQ_URL
-# AWS_REGION, AWS_KMS_KEY_ARN
+# DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+# WEBHOOK_HMAC_SECRET      — segredo HMAC para assinar payloads de webhook
+# RECEITA_API_URL          — URL da API Receita Federal (prod ou homologação)
+# APP_ENV=production       — define o ambiente
+#
+# Soft-required (API sobe sem, mas features ficam degradadas):
+# REDIS_URL, RABBITMQ_URL
+# AWS_REGION, AWS_KMS_KEY_ARN, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
 # STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
 # STRIPE_PRICE_STARTER, STRIPE_PRICE_BASIC, STRIPE_PRICE_PRO, STRIPE_PRICE_BUSINESS
-# RECEITA_API_URL, APP_ENV, LOG_LEVEL, PORT (opcional; Railway injeta PORT)
+#
+# LOG_LEVEL=info, PORT (opcional; Railway injeta PORT automaticamente)
 
 [build]
 builder = "DOCKERFILE"
