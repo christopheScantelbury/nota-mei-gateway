@@ -13,6 +13,7 @@ type Config struct {
 	LogLevel string
 
 	DatabaseURL        string
+	SupabaseURL        string
 	SupabaseServiceKey string
 
 	RedisURL    string
@@ -57,6 +58,7 @@ func Load() *Config {
 
 	// Soft-required: serviços externos opcionais. Log de aviso se ausentes.
 	softRequired := []string{
+		"SUPABASE_URL",
 		"REDIS_URL",
 		"RABBITMQ_URL",
 		"AWS_REGION",
@@ -84,6 +86,7 @@ func Load() *Config {
 		LogLevel: getEnv("LOG_LEVEL", "info"),
 
 		DatabaseURL:        os.Getenv("DATABASE_URL"),
+		SupabaseURL:        os.Getenv("SUPABASE_URL"),
 		SupabaseServiceKey: os.Getenv("SUPABASE_SERVICE_ROLE_KEY"),
 
 		RedisURL:    os.Getenv("REDIS_URL"),
