@@ -1,8 +1,12 @@
 package sandbox
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand/v2"
+	"net/http"
 	"sync"
 	"time"
 
@@ -131,7 +135,7 @@ func (h *Handler) EmitirNota(c *fiber.Ctx) error {
 		TomadorDoc:        tomadorDoc,
 		Competencia:       competencia,
 		WebhookURL:        webhookURL,
-		WebhookEntregue:   webhookURL != "",
+		WebhookEntregue:   false,
 		EmitidaEm:         now.Format(time.RFC3339),
 		CreatedAt:         now.Format(time.RFC3339),
 		UpdatedAt:         now.Format(time.RFC3339),
@@ -140,6 +144,11 @@ func (h *Handler) EmitirNota(c *fiber.Ctx) error {
 	h.mu.Lock()
 	h.notas[notaID] = nota
 	h.mu.Unlock()
+
+	// Deliver webhook asynchronously if a URL was provided.
+	if webhookURL != "" {
+		go h.deliverWebhook(nota)
+	}
 
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
 		"nota_id":  notaID,
@@ -181,6 +190,82 @@ func (h *Handler) ListarNotas(c *fiber.Ctx) error {
 		"limit":  20,
 		"offset": 0,
 	})
+}
+
+// CancelarNota cancels a sandbox nota (must be AUTORIZADA).
+func (h *Handler) CancelarNota(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	nota, ok := h.notas[id]
+	if !ok {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error":   "NOT_FOUND",
+			"message": "[SANDBOX] Nota não encontrada",
+		})
+	}
+	if nota.Status == "CANCELADA" {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+			"error":   "ALREADY_CANCELLED",
+			"message": "[SANDBOX] Nota já cancelada",
+		})
+	}
+	if nota.Status != "AUTORIZADA" {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error":   "VALIDATION_ERROR",
+			"message": "[SANDBOX] Só é possível cancelar notas com status AUTORIZADA",
+		})
+	}
+
+	nota.Status = "CANCELADA"
+	nota.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+
+	return c.JSON(fiber.Map{
+		"nota_id": id,
+		"status":  "CANCELADA",
+	})
+}
+
+// deliverWebhook posts the autorizada event to the nota's webhook_url (best-effort, 5s timeout).
+func (h *Handler) deliverWebhook(nota *fakeNota) {
+	payload, _ := json.Marshal(map[string]any{
+		"event":               "nfse.autorizada",
+		"nota_id":             nota.ID,
+		"status":              "AUTORIZADA",
+		"numero_nfse":         nota.NumeroNFSe,
+		"codigo_verificacao":  nota.CodigoVerificacao,
+		"protocolo_receita":   nota.ProtocoloReceita,
+		"valor_servico":       nota.ValorServico,
+		"tomador_nome":        nota.TomadorNome,
+		"tomador_doc":         nota.TomadorDoc,
+		"competencia":         nota.Competencia,
+		"emitida_em":          nota.EmitidaEm,
+		"sandbox":             true,
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, nota.WebhookURL, bytes.NewReader(payload))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return
+	}
+	resp.Body.Close()
+
+	// Mark as delivered if server responded (any 2xx or even 4xx — the POST was made).
+	h.mu.Lock()
+	if n, ok := h.notas[nota.ID]; ok {
+		n.WebhookEntregue = resp.StatusCode < 500
+	}
+	h.mu.Unlock()
 }
 
 // ReceiveWebhook stores incoming webhook payloads for inspection (last 20).
