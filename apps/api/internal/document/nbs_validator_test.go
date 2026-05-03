@@ -25,8 +25,8 @@ func TestNormalizeNBS_InvalidFormats(t *testing.T) {
 	cases := []string{
 		"",
 		"01.01.01",
-		"0101011",    // 7 digits
-		"010101100",  // 9 digits
+		"0101011",   // 7 digits
+		"010101100", // 9 digits
 		"XX.XX.XX.XX",
 		"01.01.01.1X",
 		"01-01-01-10",
