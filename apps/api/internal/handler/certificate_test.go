@@ -16,10 +16,10 @@ import (
 
 // stubCertManager implements handler.certManager for tests.
 type stubCertManager struct {
-	storeCalled bool
+	storeCalled  bool
 	updateCalled bool
-	returnError error
-	storeARN    string
+	returnError  error
+	storeARN     string
 }
 
 func (s *stubCertManager) StoreCert(_ context.Context, _ string, _ []byte, _ string) (string, error) {
@@ -65,8 +65,8 @@ func TestCertificateHandler_MissingPassword(t *testing.T) {
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
 	fw, _ := w.CreateFormFile("certificado", "cert.pfx")
-	fw.Write([]byte("data")) //nolint:errcheck
-	w.Close()
+	_, _ = fw.Write([]byte("data"))
+	_ = w.Close()
 
 	req := httptest.NewRequest("POST", "/v1/auth/certificate", &buf)
 	req.Header.Set("Content-Type", w.FormDataContentType())
@@ -75,6 +75,7 @@ func TestCertificateHandler_MissingPassword(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer resp.Body.Close() //nolint:errcheck
 	if resp.StatusCode != fiber.StatusUnprocessableEntity {
 		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
@@ -91,8 +92,8 @@ func TestCertificateHandler_MissingFile(t *testing.T) {
 
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
-	w.WriteField("senha_certificado", "secret") //nolint:errcheck
-	w.Close()
+	_ = w.WriteField("senha_certificado", "secret")
+	_ = w.Close()
 
 	req := httptest.NewRequest("POST", "/v1/auth/certificate", &buf)
 	req.Header.Set("Content-Type", w.FormDataContentType())
@@ -101,6 +102,7 @@ func TestCertificateHandler_MissingFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer resp.Body.Close() //nolint:errcheck
 	if resp.StatusCode != fiber.StatusUnprocessableEntity {
 		t.Fatalf("expected 422, got %d", resp.StatusCode)
 	}
