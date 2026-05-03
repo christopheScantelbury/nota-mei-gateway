@@ -1,5 +1,8 @@
 # Nota MEI Gateway
 
+[![CI](https://github.com/christopheScantelbury/nota-mei-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/christopheScantelbury/nota-mei-gateway/actions/workflows/ci.yml)
+[![Deploy](https://github.com/christopheScantelbury/nota-mei-gateway/actions/workflows/deploy.yml/badge.svg)](https://github.com/christopheScantelbury/nota-mei-gateway/actions/workflows/deploy.yml)
+
 API REST em Go (Fiber) para emissão de NFS-e para MEI, com dashboard Next.js, Supabase, Railway, Vercel e Stripe — [ScantelburyDevs](https://scantelburydevs.com.br).
 
 ## Pré-requisitos
