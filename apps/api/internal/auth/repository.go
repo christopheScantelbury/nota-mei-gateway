@@ -169,3 +169,13 @@ func (r *Repository) RegisterMEI(ctx context.Context, p RegisterMEIParams) (*Reg
 	}
 	return &RegisterMEIResult{MeiID: meiID, APIKey: rawKey}, nil
 }
+
+// SaveStripeCustomerID persists the Stripe Customer ID on the MEI row.
+func (r *Repository) SaveStripeCustomerID(ctx context.Context, meiID uuid.UUID, customerID string) error {
+	_, err := r.db.Pool().Exec(ctx, `
+		UPDATE meis
+		SET stripe_customer_id = $1, updated_at = NOW()
+		WHERE id = $2
+	`, customerID, meiID)
+	return err
+}
