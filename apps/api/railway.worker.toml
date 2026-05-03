@@ -19,7 +19,7 @@
 
 [build]
 builder = "DOCKERFILE"
-dockerfilePath = "apps/api/Dockerfile"
+dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = "./worker"
