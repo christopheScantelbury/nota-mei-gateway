@@ -219,6 +219,12 @@ func main() {
 		}
 		return sbx.ConsultarNota(c)
 	})
+	sbxGroup.Delete("/nfse/:id", func(c *fiber.Ctx) error {
+		if !sandbox.IsSandboxKey(c.Get("Authorization")) {
+			return c.Next()
+		}
+		return sbx.CancelarNota(c)
+	})
 	// Sandbox webhook receiver — public, no auth needed.
 	app.Post("/v1/sandbox/webhook", sbx.ReceiveWebhook)
 	app.Get("/v1/sandbox/webhook", sbx.ListWebhooks)
