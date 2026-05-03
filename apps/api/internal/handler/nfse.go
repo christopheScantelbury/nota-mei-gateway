@@ -14,6 +14,7 @@ import (
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/document"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/nfse"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/webhook"
+	stripeClient "github.com/christopheScantelbury/nota-mei-gateway/api/pkg/stripe"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
@@ -36,6 +37,7 @@ type NFSeHandler struct {
 	publisher    *webhook.Publisher
 	nbsValidator *document.NBSValidator
 	issLookup    *document.ISSLookup
+	sc           *stripeClient.Client // optional — nil disables metered billing
 	apiBase      string
 	whSecret     string // HMAC secret used to sign webhook payloads
 }
@@ -64,6 +66,14 @@ func NewNFSeHandler(
 		apiBase:     apiBase,
 		whSecret:    whSecret,
 	}
+}
+
+// WithStripeClient sets the Stripe client for metered overage billing.
+// When set, EmitirNota will call stripe.UsageRecords.New for every note
+// authorized beyond the plan's included emission limit.
+func (h *NFSeHandler) WithStripeClient(sc *stripeClient.Client) *NFSeHandler {
+	h.sc = sc
+	return h
 }
 
 // WithNBSValidator sets the NBS validator. When set, EmitirNota will reject
@@ -239,12 +249,15 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 	if envioResp.NumeroNFSe != "" {
 		// Synchronous authorisation.
 		_ = h.notaRepo.Autorizar(ctx, nota.ID, envioResp.NumeroNFSe, envioResp.CodVerificacao, "")
-		_, _ = h.billingRepo.IncrementEmitidas(ctx, mei.ID)
+		total, _ := h.billingRepo.IncrementEmitidas(ctx, mei.ID)
 		log.Ctx(ctx).Info().
 			Str("nota_id", nota.ID.String()).
 			Str("numero_nfse", envioResp.NumeroNFSe).
 			Msg("nota autorizada")
 		h.publishEvent(ctx, nota, webhook.EventAutorizada, envioResp.NumeroNFSe, envioResp.CodVerificacao, "", "")
+
+		// STR-05: report metered overage to Stripe when count exceeds plan limit.
+		h.reportOverageIfNeeded(ctx, nota.ID.String(), total, mei.PlanoLimite, em)
 	} else if envioResp.Protocolo != "" {
 		// Async — store protocol, worker will poll later.
 		_ = h.notaRepo.SetProtocolo(ctx, nota.ID, envioResp.Protocolo)
@@ -517,6 +530,43 @@ func (h *NFSeHandler) checkStripeSubscription(c *fiber.Ctx, meiID uuid.UUID, em 
 		"action_url": actionURL,
 		"request_id": c.Locals("request_id"),
 	})
+}
+
+// reportOverageIfNeeded calls stripe.UsageRecords.New when the monthly
+// emission count exceeds the plan limit and the MEI has a metered billing
+// subscription item configured.  Errors are logged but do not fail the request
+// — the note is already authorised; a billing correction can be applied manually.
+func (h *NFSeHandler) reportOverageIfNeeded(
+	ctx context.Context,
+	notaID string,
+	total, limit int,
+	em *billing.EmissaoMensal,
+) {
+	if h.sc == nil {
+		return // Stripe not configured (development / test)
+	}
+	if total <= limit {
+		return // within included quota — no overage
+	}
+	if em == nil || em.StripeSubItemID == nil {
+		return // no metered billing item on record
+	}
+
+	// Use the nota_id as the idempotency key so retries don't double-count.
+	if err := h.sc.ReportUsage(ctx, *em.StripeSubItemID, notaID); err != nil {
+		log.Ctx(ctx).Error().Err(err).
+			Str("nota_id", notaID).
+			Str("stripe_item_id", *em.StripeSubItemID).
+			Int("total", total).
+			Int("limit", limit).
+			Msg("stripe metered usage report failed")
+	} else {
+		log.Ctx(ctx).Info().
+			Str("nota_id", notaID).
+			Str("stripe_item_id", *em.StripeSubItemID).
+			Int("excedente_acumulado", total-limit).
+			Msg("overage reported to Stripe")
+	}
 }
 
 // loadCert loads the MEI's certificate from Secrets Manager.

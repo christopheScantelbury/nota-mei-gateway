@@ -119,7 +119,7 @@ func main() {
 		notaRepo, adapter, builder, signer, certProv,
 		billingRepo, billingGrd, publisher,
 		apiBase, cfg.WebhookHMACSecret,
-	).WithNBSValidator(nbsValidator).WithISSLookup(issLookup)
+	).WithNBSValidator(nbsValidator).WithISSLookup(issLookup).WithStripeClient(sc)
 	billingH := handler.NewBillingHandler(
 		sc,
 		cfg.StripePriceStarter, cfg.StripePriceBasic,

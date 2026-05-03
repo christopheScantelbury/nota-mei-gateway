@@ -22,13 +22,14 @@ type Plano struct {
 
 // EmissaoMensal holds the MEI's monthly emission record.
 type EmissaoMensal struct {
-	ID              uuid.UUID
-	MeiID           uuid.UUID
-	PlanoID         *uuid.UUID
-	Competencia     string
-	TotalEmitidas   int
-	StripeSubID     *string
-	StripeSubStatus *string
+	ID                 uuid.UUID
+	MeiID              uuid.UUID
+	PlanoID            *uuid.UUID
+	Competencia        string
+	TotalEmitidas      int
+	StripeSubID        *string
+	StripeSubStatus    *string
+	StripeSubItemID    *string // metered billing item for overage reporting
 }
 
 // Repository handles billing-related database operations.
@@ -55,7 +56,8 @@ func (r *Repository) GetOrCreateEmissaoMensal(ctx context.Context, meiID uuid.UU
 
 	row := r.db.Pool().QueryRow(ctx, `
 		SELECT id, mei_id, plano_id, competencia, total_emitidas,
-		       stripe_subscription_id, stripe_subscription_status
+		       stripe_subscription_id, stripe_subscription_status,
+		       stripe_subscription_item_id
 		FROM emissoes_mensais
 		WHERE mei_id = $1
 		  AND competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
@@ -64,7 +66,7 @@ func (r *Repository) GetOrCreateEmissaoMensal(ctx context.Context, meiID uuid.UU
 	var em EmissaoMensal
 	if err := row.Scan(
 		&em.ID, &em.MeiID, &em.PlanoID, &em.Competencia, &em.TotalEmitidas,
-		&em.StripeSubID, &em.StripeSubStatus,
+		&em.StripeSubID, &em.StripeSubStatus, &em.StripeSubItemID,
 	); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errors.New("emissao_mensal not found after upsert")
