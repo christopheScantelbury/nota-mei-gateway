@@ -18,14 +18,25 @@ type meiRegistrar interface {
 	RegisterMEI(ctx context.Context, p auth.RegisterMEIParams) (*auth.RegisterMEIResult, error)
 }
 
+type cnpjChecker interface {
+	Validate(ctx context.Context, cnpj string) error
+}
+
 // RegisterHandler handles POST /v1/auth/register.
 type RegisterHandler struct {
-	repo meiRegistrar
+	repo          meiRegistrar
+	cnpjValidator cnpjChecker
 }
 
 // NewRegisterHandler creates a RegisterHandler.
 func NewRegisterHandler(repo meiRegistrar) *RegisterHandler {
 	return &RegisterHandler{repo: repo}
+}
+
+// WithCNPJValidator adds CNPJ check-digit and MEI verification to the handler.
+func (h *RegisterHandler) WithCNPJValidator(v cnpjChecker) *RegisterHandler {
+	h.cnpjValidator = v
+	return h
 }
 
 type registerRequest struct {
@@ -74,6 +85,33 @@ func (h *RegisterHandler) Register(c *fiber.Ctx) error {
 			"fields":     fields,
 			"request_id": c.Locals("request_id"),
 		})
+	}
+
+	// CNPJ check-digit + MEI verification (with Redis cache + RF API).
+	if h.cnpjValidator != nil {
+		if err := h.cnpjValidator.Validate(c.Context(), req.CNPJ); err != nil {
+			switch {
+			case errors.Is(err, auth.ErrInvalidCNPJ):
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"error":      "INVALID_CNPJ",
+					"message":    "CNPJ inválido",
+					"request_id": c.Locals("request_id"),
+				})
+			case errors.Is(err, auth.ErrNotMEI):
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"error":      "NOT_MEI",
+					"message":    "CNPJ não pertence a um MEI",
+					"request_id": c.Locals("request_id"),
+				})
+			default:
+				log.Ctx(c.Context()).Error().Err(err).Str("cnpj", req.CNPJ).Msg("cnpj validation error")
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error":      "INTERNAL_ERROR",
+					"message":    "erro ao validar CNPJ",
+					"request_id": c.Locals("request_id"),
+				})
+			}
+		}
 	}
 
 	result, err := h.repo.RegisterMEI(c.Context(), auth.RegisterMEIParams{
