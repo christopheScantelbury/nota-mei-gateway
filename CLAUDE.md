@@ -596,6 +596,7 @@ vercel --prod               # deploy manual produção
 | **API** | API-01–06, API-08 | ✅ | `internal/handler/nfse.go`, `internal/handler/billing.go`, `internal/handler/stripe_webhook.go` |
 | **DASHBOARD** | DASH-01–03 | ✅ | `apps/web/app/(dashboard)/` (notas, billing, layout) |
 | **QA** | QA-02, QA-04, QA-05 | ✅ | `internal/*/\_test.go`, `docs/load-test.js`, `docs/deploy-checklist.md` |
+| **DOC-SIGNER** | DOC-03 | ✅ | `internal/document/xmldsig.go`, `internal/document/xmldsig_test.go` |
 | **SDK** | SDK-06, SDK-07, SDK-08 | ✅ | `docs/openapi.yaml`, `internal/sandbox/`, `apps/web/app/(landing)/sandbox/`, `packages/sdk-node/` |
 | **SDK Node.js** | SDK-01 | ✅ | `packages/sdk-node/src/` — `client.ts`, `http.ts`, `webhook.ts`, `errors.ts` |
 | **SDK Python** | SDK-02 | ✅ | `packages/sdk-python/src/notamei/` — `client.py`, `async_client.py`, `_webhook.py`, `_models.py` |
@@ -633,7 +634,7 @@ INF-08  (#21)  Prometheus metrics + Grafana Cloud
 AUTH-01 (#22)  POST /v1/auth/register (cadastro MEI + upload cert)
 AUTH-04 (#25)  AWS KMS + Secrets Manager (cert.go já tem interface)
 AUTH-05 (#26)  Validação CNPJ na Receita Federal
-DOC-03  (#31)  Assinatura XML xmlsec1 (NoopSigner atual é placeholder)
+DOC-03  (#31)  ✅ concluído  Assinatura XML (XMLDSigSigner — RSA-SHA1 + C14N)
 DOC-04  (#32)  Validação NBS + cache Redis
 DOC-05  (#33)  Lookup alíquota ISS por município
 NFS-06  (#40)  Retry backoff exponencial (1s, 4s, 16s)
@@ -664,7 +665,7 @@ STR-05  (#13)  Metered billing excedentes
 
 ### Pontos de atenção para o próximo dev
 
-1. **`document/signer.go`** usa `NoopSigner{}` — a assinatura XML real com `xmlsec1` (DOC-03) ainda não foi implementada. Sem ela, as NFS-e enviadas à Receita serão rejeitadas em produção.
+1. **`document/xmldsig.go`** — `XMLDSigSigner{}` implementado (RSA-SHA1 + inclusive C14N, puro Go). O `main.go` seleciona automaticamente: `NoopSigner` em `development`, `XMLDSigSigner` em `staging`/`production`. Para entrar em produção, AUTH-04 precisa estar completo (cert real via AWS Secrets Manager).
 
 2. **`pkg/cert/`** tem a interface `CertProvider` definida mas a implementação AWS Secrets Manager (AUTH-04) está pendente. Em desenvolvimento usa-se o `NoopSigner`.
 

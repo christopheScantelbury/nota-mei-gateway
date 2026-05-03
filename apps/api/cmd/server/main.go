@@ -77,7 +77,14 @@ func main() {
 	// ── Adapters & builders ────────────────────────────────────────────────
 	adapter := nfse.NewAdapter(cfg.ReceitaAPIURL)
 	builder := document.NewBuilder()
-	signer := document.NoopSigner{} // TODO: replace with XMLDSig implementation
+
+	// XMLDSigSigner is used in staging/production where a real A1 certificate
+	// is loaded from AWS Secrets Manager.  NoopSigner is kept for local
+	// development because no real certificate is available without AUTH-04.
+	var signer document.Signer = document.NoopSigner{}
+	if cfg.AppEnv != "development" {
+		signer = document.XMLDSigSigner{}
+	}
 
 	// ── NBS validator (Redis cache + DB fallback) ──────────────────────────
 	nbsValidator, err := document.NewNBSValidator(cfg.RedisURL, db.Pool())
