@@ -231,18 +231,18 @@ func (h *Handler) CancelarNota(c *fiber.Ctx) error {
 // deliverWebhook posts the autorizada event to the nota's webhook_url (best-effort, 5s timeout).
 func (h *Handler) deliverWebhook(nota *fakeNota) {
 	payload, _ := json.Marshal(map[string]any{
-		"event":               "nfse.autorizada",
-		"nota_id":             nota.ID,
-		"status":              "AUTORIZADA",
-		"numero_nfse":         nota.NumeroNFSe,
-		"codigo_verificacao":  nota.CodigoVerificacao,
-		"protocolo_receita":   nota.ProtocoloReceita,
-		"valor_servico":       nota.ValorServico,
-		"tomador_nome":        nota.TomadorNome,
-		"tomador_doc":         nota.TomadorDoc,
-		"competencia":         nota.Competencia,
-		"emitida_em":          nota.EmitidaEm,
-		"sandbox":             true,
+		"event":              "nfse.autorizada",
+		"nota_id":            nota.ID,
+		"status":             "AUTORIZADA",
+		"numero_nfse":        nota.NumeroNFSe,
+		"codigo_verificacao": nota.CodigoVerificacao,
+		"protocolo_receita":  nota.ProtocoloReceita,
+		"valor_servico":      nota.ValorServico,
+		"tomador_nome":       nota.TomadorNome,
+		"tomador_doc":        nota.TomadorDoc,
+		"competencia":        nota.Competencia,
+		"emitida_em":         nota.EmitidaEm,
+		"sandbox":            true,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -258,7 +258,7 @@ func (h *Handler) deliverWebhook(nota *fakeNota) {
 	if err != nil {
 		return
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 
 	// Mark as delivered if server responded (any 2xx or even 4xx — the POST was made).
 	h.mu.Lock()
