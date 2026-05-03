@@ -110,11 +110,13 @@ export default async function BillingPage() {
               Altere o plano, método de pagamento ou cancele a assinatura.
             </p>
           </div>
+          {/* Route handler /api/billing/portal authenticates via Supabase session,
+              creates a Stripe billing portal session, and issues a 302 redirect. */}
           <a
-            href={`${API_BASE}/v1/billing/portal`}
+            href="/api/billing/portal"
             className="shrink-0 ml-4 text-sm bg-navy-600 text-text-1 font-semibold px-4 py-2 rounded-lg hover:bg-navy-600/70 transition"
           >
-            Abrir portal →
+            Gerenciar Plano →
           </a>
         </div>
       )}
