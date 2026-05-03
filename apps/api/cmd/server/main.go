@@ -106,6 +106,7 @@ func main() {
 	}
 
 	registerH := handler.NewRegisterHandler(authRepo).WithCNPJValidator(cnpjValidator)
+	seedH := handler.NewSeedHandler(auth.NewSeeder(db))
 
 	nfseH := handler.NewNFSeHandler(
 		notaRepo, adapter, builder, signer, certProv,
@@ -200,6 +201,11 @@ func main() {
 	// Sandbox webhook receiver — public, no auth needed.
 	app.Post("/v1/sandbox/webhook", sbx.ReceiveWebhook)
 	app.Get("/v1/sandbox/webhook", sbx.ListWebhooks)
+
+	// Seed endpoint — only available outside production.
+	if cfg.AppEnv != "production" {
+		app.Post("/v1/sandbox/seed", seedH.Seed)
+	}
 
 	// ── Authenticated endpoints ────────────────────────────────────────────
 	authMw := auth.Middleware(authRepo)
