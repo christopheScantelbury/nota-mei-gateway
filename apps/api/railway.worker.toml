@@ -1,0 +1,29 @@
+# Railway config for the WORKER service (cmd/worker).
+# Create a separate Railway service pointing to this file:
+#   railway service create --name worker
+#   railway up --service worker --config apps/api/railway.worker.toml
+#
+# This service runs the webhook consumer, NFS-e status poller,
+# stuck-nota sweeper, and monthly billing renewer.
+#
+# Uses the same Dockerfile as the API — both binaries (server + worker)
+# are built in the same Docker image. Only the start command differs.
+#
+# Variáveis no painel Railway (mesmo set do serviço api, exceto PORT):
+# DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+# WEBHOOK_HMAC_SECRET
+# RECEITA_API_URL
+# REDIS_URL, RABBITMQ_URL
+# AWS_REGION, AWS_KMS_KEY_ARN, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+# APP_ENV=production, LOG_LEVEL=info
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "apps/api/Dockerfile"
+
+[deploy]
+startCommand = "./worker"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
+# Sem healthcheck — o worker não expõe uma porta HTTP.
+# Railway monitora pelo processo (exit code != 0 → reinicia).
