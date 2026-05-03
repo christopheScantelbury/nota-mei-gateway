@@ -168,8 +168,11 @@ func TestBillingUsage(t *testing.T) {
 	if _, ok := body["plano"]; !ok {
 		t.Fatalf("billing/usage missing 'plano' field: %v", body)
 	}
-	if _, ok := body["total_emitidas"]; !ok {
-		t.Fatalf("billing/usage missing 'total_emitidas' field: %v", body)
+	if _, ok := body["emissoes_utilizadas"]; !ok {
+		t.Fatalf("billing/usage missing 'emissoes_utilizadas' field: %v", body)
+	}
+	if _, ok := body["emissoes_limite"]; !ok {
+		t.Fatalf("billing/usage missing 'emissoes_limite' field: %v", body)
 	}
 }
 
@@ -331,8 +334,8 @@ func TestLimiteTrial(t *testing.T) {
 	var usageBody map[string]any
 	_ = json.NewDecoder(usageResp.Body).Decode(&usageBody)
 
-	total, _ := usageBody["total_emitidas"].(float64)
-	limit, _ := usageBody["limite"].(float64)
+	total, _ := usageBody["emissoes_utilizadas"].(float64)
+	limit, _ := usageBody["emissoes_limite"].(float64)
 	t.Logf("Current usage: %v/%v", total, limit)
 
 	if total >= limit {

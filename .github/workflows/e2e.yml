@@ -59,7 +59,7 @@ jobs:
           --health-retries=10
 
     env:
-      APP_ENV: staging
+      APP_ENV: development
       PORT: "8080"
       LOG_LEVEL: warn
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
@@ -135,7 +135,7 @@ jobs:
       - name: Start API server
         run: /tmp/api-server &
         env:
-          APP_ENV: staging
+          APP_ENV: development
           PORT: "8080"
           LOG_LEVEL: warn
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
