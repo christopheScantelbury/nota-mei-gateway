@@ -438,16 +438,23 @@ status-cancelada.png    → #6473A0 (cinza)
 Siga **exatamente** esta ordem. Nunca iniciar uma task cujas dependências não estão completas.
 
 ```
-Semana 1-2  →  PLAT-01 → PLAT-02 → INF-01 → INF-02 → INF-03 → INF-04
-Semana 3    →  PLAT-03 → PLAT-04 → PLAT-07 → PLAT-08 → INF-06
-Semana 4    →  STR-01 → AUTH-02 → AUTH-04 → AUTH-01 → AUTH-03
-Semana 5    →  STR-02 → STR-03 → STR-04 → BIL-01 → BIL-02 → BIL-03
-Semana 6-7  →  DOC-01 → DOC-02 → DOC-03 (⚠️ caminho mais crítico)
-Semana 8-9  →  NFS-01 → NFS-02 → NFS-03 → NFS-04
-Semana 10   →  API-01 → API-02 → API-03 → API-04 → API-05 → API-06
-Semana 11   →  WBK-01 → WBK-02 → WBK-03 → DASH-01 → DASH-02 → DASH-03
-Semana 12   →  QA-01 → QA-02 → QA-03 → QA-04 → QA-05
-Semana 13+  →  SDK-06 ✅ → SDK-08 ✅ → SDK-07 → SDK-01 → SDK-02 → SDK-03 → SDK-04 → SDK-05
+✅ PLAT-02, INF-01–04         infra base (Docker, CI/CD, middlewares)
+✅ INF-05–08                  logger, metrics, recovery, GitHub Actions
+✅ AUTH-01–04, AUTH-06        API Keys, middleware, cert provider AWS, registro MEI
+✅ STR-02–05                  Stripe checkout, webhooks, billing guard, metered
+✅ DOC-01–06                  RPS builder, XMLDSig, NBS validator, ISS lookup
+✅ NFS-01–05                  adapter Receita, nota repository, poller
+✅ BIL-03–06                  guard, usage, renovação, portal
+✅ WBK-01–04                  publisher, consumer, requeuer
+✅ API-01–08                  todos os handlers REST
+✅ DASH-01–04                 dashboard + landing
+✅ QA-02–05                   testes unitários, k6, Postman, deploy checklist
+✅ SDK-01–08                  OpenAPI, sandbox, Node.js, Python, WooCommerce, Zapier, Google Sheets, portal
+
+⏳ PLAT-01                    Supabase produção (requer conta Supabase)
+⏳ PLAT-03–05, PLAT-07        Railway + Vercel deploy (requer credenciais)
+⏳ STR-01                     Stripe produtos/preços (requer dashboard Stripe)
+⏳ QA-01                      E2E tests (requer infra provisionada)
 ```
 
 ---
@@ -582,95 +589,73 @@ vercel --prod               # deploy manual produção
 ---
 
 ## 13. ESTADO ATUAL — ONDE PARAMOS
-> Última atualização: 2026-05-01 · branch `main` · commit `835f6eb`
+> Última atualização: 2026-05-03 · branch `main` · commit `28727db` · CI ✅ Deploy ✅
 
 ### O que já está implementado em código
 
 | Épico | Issues | Status | Arquivos principais |
 |---|---|---|---|
-| **AUTH** | AUTH-02, AUTH-03 | ✅ | `internal/auth/apikey.go`, `internal/auth/middleware.go`, `internal/auth/repository.go` |
-| **DOC-BUILDER** | DOC-01, DOC-02, DOC-06 | ✅ | `internal/document/rps.go`, `internal/document/builder.go`, `internal/document/builder_test.go` |
-| **NFS-e** | NFS-01–05 | ✅ | `internal/nfse/adapter.go`, `internal/nfse/models.go`, `internal/nfse/nota_repository.go`, `internal/nfse/poller.go` |
-| **BILLING** | BIL-03 (guard) | ✅ | `internal/billing/guard.go`, `internal/billing/repository.go` |
-| **WEBHOOK** | WBK-01–03 | ✅ | `internal/webhook/publisher.go`, `internal/webhook/consumer.go`, `internal/webhook/requeuer.go` |
-| **API** | API-01–06, API-08 | ✅ | `internal/handler/nfse.go`, `internal/handler/billing.go`, `internal/handler/stripe_webhook.go` |
-| **DASHBOARD** | DASH-01–03 | ✅ | `apps/web/app/(dashboard)/` (notas, billing, layout) |
-| **QA** | QA-02, QA-04, QA-05 | ✅ | `internal/*/\_test.go`, `docs/load-test.js`, `docs/deploy-checklist.md` |
+| **AUTH** | AUTH-01, AUTH-02, AUTH-03 | ✅ | `internal/auth/`, `internal/handler/register.go`, `apps/web/app/(onboarding)/cadastro/` |
+| **AUTH-CERT** | AUTH-04, AUTH-06 | ✅ | `pkg/cert/provider.go`, `internal/handler/certificate.go`, `internal/handler/certificate_test.go` |
+| **DOC-BUILDER** | DOC-01, DOC-02, DOC-06 | ✅ | `internal/document/rps.go`, `internal/document/builder.go` |
 | **DOC-SIGNER** | DOC-03 | ✅ | `internal/document/xmldsig.go`, `internal/document/xmldsig_test.go` |
-| **SDK** | SDK-06, SDK-07, SDK-08 | ✅ | `docs/openapi.yaml`, `internal/sandbox/`, `apps/web/app/(landing)/sandbox/`, `packages/sdk-node/` |
-| **SDK Node.js** | SDK-01 | ✅ | `packages/sdk-node/src/` — `client.ts`, `http.ts`, `webhook.ts`, `errors.ts` |
-| **SDK Python** | SDK-02 | ✅ | `packages/sdk-python/src/notamei/` — `client.py`, `async_client.py`, `_webhook.py`, `_models.py` |
-| **Plugin WooCommerce** | SDK-03 | ✅ | `packages/sdk-woo/` — `notamei-gateway.php`, `includes/class-notamei-*.php` |
-| **App Zapier** | SDK-04 | ✅ | `packages/sdk-zapier/` — `index.js`, `creates/`, `triggers/`, `searches/` |
+| **DOC-VALID** | DOC-04, DOC-05 | ✅ | `internal/document/nbs_validator.go`, `internal/document/iss_lookup.go` |
+| **NFS-e** | NFS-01–05 | ✅ | `internal/nfse/adapter.go`, `internal/nfse/nota_repository.go`, `internal/nfse/poller.go` |
+| **BILLING** | BIL-03, BIL-05, BIL-06 | ✅ | `internal/billing/guard.go`, `internal/billing/repository.go`, `apps/web/app/api/billing/portal/` |
+| **STR** | STR-02–05 | ✅ | `internal/handler/billing.go`, `internal/handler/stripe_webhook.go`, `pkg/stripe/client.go` |
+| **WEBHOOK** | WBK-01–03 | ✅ | `internal/webhook/publisher.go`, `internal/webhook/consumer.go`, `internal/webhook/requeuer.go` |
+| **API** | API-01–08 | ✅ | `internal/handler/nfse.go`, `internal/handler/billing.go`, `internal/handler/stripe_webhook.go` |
+| **INF** | INF-05–08 | ✅ | `internal/middleware/`, `.github/workflows/ci.yml`, `.github/workflows/deploy.yml` |
+| **DASHBOARD** | DASH-01–04 | ✅ | `apps/web/app/(dashboard)/`, `apps/web/app/(landing)/` |
+| **QA** | QA-02–05 | ✅ | `internal/*/\_test.go`, `docs/load-test.js`, `docs/deploy-checklist.md`, `docs/postman-collection.json` |
+| **SDK** | SDK-01–08 | ✅ | `packages/sdk-node/`, `packages/sdk-python/`, `packages/sdk-woo/`, `packages/sdk-zapier/`, `packages/sdk-sheets/` |
 
-### O que ainda está em aberto (GitHub Issues)
+### Issues abertas no GitHub (apenas infra — requerem credenciais externas)
 
-**Épico SDK** — próximas tasks em ordem de prioridade:
 ```
-SDK-01 (#83)  ✅ concluído  SDK Node.js/TypeScript — packages/sdk-node/
-SDK-02 (#84)  ✅ concluído  SDK Python — packages/sdk-python/
-SDK-03 (#85)  ✅ concluído  Plugin WooCommerce — packages/sdk-woo/
-SDK-04 (#86)  ✅ concluído  App Zapier — packages/sdk-zapier/
-SDK-05 (#87)  🟢 normal    Extensão Google Sheets
-```
-
-**Infra ainda não provisionada** (requer acesso às contas — não é só código):
-```
-PLAT-01 (#1)   Supabase projeto de produção + schema
-PLAT-03 (#3)   Deploy API Go no Railway (prod + staging)
-PLAT-04 (#4)   Redis + RabbitMQ como add-ons Railway
-PLAT-05 (#5)   Deploy Worker Webhooks no Railway
-PLAT-06 (#6)   GitHub Actions: deploy automático Railway + Vercel
-PLAT-07 (#7)   Projeto Vercel para dashboard e landing
-PLAT-08 (#8)   Turborepo estrutura completa
+PLAT-01 (#1)   🔴  Supabase projeto de produção + schema
+PLAT-03 (#3)   🔴  Deploy API Go no Railway (prod + staging)
+PLAT-04 (#4)   🔴  Redis e RabbitMQ como add-ons Railway
+PLAT-05 (#5)   🟡  Deploy Worker Webhooks no Railway
+PLAT-07 (#7)   🟡  Projeto Vercel para dashboard e landing
+STR-01  (#9)   🔴  Stripe: configurar produtos e preços no dashboard
+QA-01   (#64)  🔴  Testes E2E fluxo completo (requer infra de produção)
 ```
 
-**Código restante (pode ser feito sem infra real)**:
-```
-INF-05  (#18)  Logger zerolog com request ID
-INF-06  (#19)  GitHub Actions lint + test + deploy
-INF-07  (#20)  Middleware recovery de panic (já existe via fiber/recover)
-INF-08  (#21)  Prometheus metrics + Grafana Cloud
-AUTH-01 (#22)  POST /v1/auth/register (cadastro MEI + upload cert)
-AUTH-04 (#25)  AWS KMS + Secrets Manager (cert.go já tem interface)
-AUTH-05 (#26)  Validação CNPJ na Receita Federal
-DOC-03  (#31)  ✅ concluído  Assinatura XML (XMLDSigSigner — RSA-SHA1 + C14N)
-DOC-04  (#32)  Validação NBS + cache Redis
-DOC-05  (#33)  Lookup alíquota ISS por município
-NFS-06  (#40)  Retry backoff exponencial (1s, 4s, 16s)
-NFS-07  (#41)  Job para notas PROCESSANDO travadas (poller.go já cobre parcialmente)
-BIL-01  (#42)  Seed planos no Supabase
-BIL-02  (#43)  BillingGuard integrado ao Stripe (guard.go tem TODO)
-BIL-03  (#44)  Contador emissões mensais
-BIL-04  (#45)  Job renovação de cota mensal
-BIL-05  (#46)  GET /v1/billing/usage (handler existe, integração real pendente)
-BIL-06  (#47)  Upgrade/downgrade Stripe Customer Portal
-WBK-04  (#51)  Retry webhook 1min / 5min / 30min (requeuer.go cobre, mas sem backoff)
-API-07  (#58)  Rate limiter por API Key (Redis)
-DASH-04 (#63)  Landing page pública
-QA-01   (#64)  Testes E2E fluxo completo sandbox Receita
-QA-03   (#66)  Collection Postman completa
-STR-01  (#9)   Stripe: configurar produtos e preços
-STR-02  (#10)  Stripe: fluxo checkout ao cadastrar MEI
-STR-03  (#11)  Stripe: processar eventos de pagamento
-STR-04  (#12)  BillingGuard integrado ao Stripe
-STR-05  (#13)  Metered billing excedentes
-```
+**Não há mais código para escrever** — todo o código de produto está concluído e com CI verde.
+O próximo passo é provisionar a infraestrutura real (Supabase, Railway, Vercel, Stripe).
 
-### Próxima task recomendada
+### Checklist de provisionamento (ordem de execução)
 
-**SDK-05 (#87)** — Extensão Google Sheets
-- Depende de: SDK-01 ✅, SDK-02 ✅, SDK-03 ✅, SDK-04 ✅
-- Apps Script que emite NFS-e diretamente de uma planilha Google Sheets
+```
+1. PLAT-01  Criar projeto Supabase prod → rodar supabase db push
+2. PLAT-03  Configurar serviço Railway para a API Go + variáveis de ambiente
+3. PLAT-04  Adicionar Redis Plugin + CloudAMQP add-on no Railway
+4. PLAT-05  Criar serviço Railway separado para o worker (cmd/worker)
+5. PLAT-07  Criar projeto Vercel → conectar repositório → configurar env vars
+6. STR-01   No dashboard Stripe: criar 4 produtos (Starter/Basic/Pro/Business)
+            → copiar price IDs → adicionar STRIPE_PRICE_* no Railway
+7. QA-01    Rodar testes E2E contra o sandbox de homologação da Receita Federal
+```
 
 ### Pontos de atenção para o próximo dev
 
-1. **`document/xmldsig.go`** — `XMLDSigSigner{}` implementado (RSA-SHA1 + inclusive C14N, puro Go). O `main.go` seleciona automaticamente: `NoopSigner` em `development`, `XMLDSigSigner` em `staging`/`production`. Para entrar em produção, AUTH-04 precisa estar completo (cert real via AWS Secrets Manager).
+1. **Railway connectivity** — commits `10da97b`–`28727db` corrigem: startup gracioso
+   sem serviços externos, health check sempre retorna 200, dialing IPv4 forçado para
+   Supabase pooler. Não há mais `log.Fatal` em dependências opcionais.
 
-2. **`pkg/cert/`** tem a interface `CertProvider` definida mas a implementação AWS Secrets Manager (AUTH-04) está pendente. Em desenvolvimento usa-se o `NoopSigner`.
+2. **`pkg/cert/provider.go`** — `XMLDSigSigner{}` + AWS Secrets Manager implementados.
+   Em `development` usa `NoopSigner`, em staging/production usa `XMLDSigSigner` com
+   cert carregado do Secrets Manager. Requer `AWS_REGION`, `AWS_ACCESS_KEY_ID`,
+   `AWS_SECRET_ACCESS_KEY` no Railway.
 
-3. **`billing/guard.go`** tem um `TODO` para integrar a verificação com o Stripe real — atualmente valida apenas pelo banco local.
+3. **Stripe metered billing** — `reportOverageIfNeeded()` em `nfse.go` reporta 1 unidade
+   ao Stripe quando `total_emitidas > plan.emissoes_limite`. Requer que STR-01 crie os
+   preços com `billing_scheme=per_unit` e `aggregate_usage=sum`.
 
-4. **`cmd/worker/main.go`** — o worker de webhooks e o poller de NFS-e precisam das variáveis `RABBITMQ_URL`, `DATABASE_URL` e `REDIS_URL` para funcionar. Em local, usar o `docker-compose.yml`.
+4. **BillingGuard subscription cache** — Redis TTL 5 min, invalidado pelos webhooks
+   Stripe (`customer.subscription.*`, `invoice.paid`, `invoice.payment_failed`).
+   Stripe Webhook Secret deve estar em `STRIPE_WEBHOOK_SECRET` no Railway.
 
-5. **CI (`.github/workflows/ci.yml`)** — o job `openapi-lint` vai falhar se `package-lock.json` não tiver `@redocly/cli` e `openapi-typescript`. Rodar `npm install` localmente para gerar o lockfile atualizado antes de fazer push.
+5. **SDK Google Sheets** — em `packages/sdk-sheets/` (Apps Script). Requer publicação
+   manual no Google Workspace Marketplace após criar projeto GCP.
