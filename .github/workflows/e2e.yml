@@ -1,29 +1,81 @@
-name: E2E — Staging
+name: E2E — Integration
 
-# Runs after every successful deploy to main (staging env re-deploys via deploy.yml).
-# Can also be triggered manually for a quick sanity check.
+# Runs on every push to main and on pull requests to main.
+# Spins up a full stack (postgres, redis, rabbitmq) locally in CI,
+# builds the API binary, and runs the E2E test suite.
 on:
-  workflow_run:
-    workflows: ["Deploy"]
-    types: [completed]
+  push:
+    branches: [main]
+  pull_request:
     branches: [main]
   workflow_dispatch:
     inputs:
       api_url:
-        description: "API URL to test against"
+        description: "Override API URL (leave blank to run local stack)"
         required: false
-        default: "https://api-staging-staging-8d1e.up.railway.app"
+        default: ""
 
 jobs:
   e2e:
     name: E2E integration tests
-    # Only run if the triggering deploy succeeded (or if manually triggered).
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+      rabbitmq:
+        image: rabbitmq:3.13-alpine
+        ports:
+          - 5672:5672
+        env:
+          RABBITMQ_DEFAULT_USER: guest
+          RABBITMQ_DEFAULT_PASS: guest
+        options: >-
+          --health-cmd="rabbitmq-diagnostics -q ping"
+          --health-interval=10s
+          --health-timeout=10s
+          --health-retries=10
+
     env:
-      E2E_API_URL: ${{ github.event.inputs.api_url || 'https://api-staging-staging-8d1e.up.railway.app' }}
+      APP_ENV: staging
+      PORT: "8080"
+      LOG_LEVEL: warn
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvY2FsaG9zdCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUifQ.local_dev_only
+      REDIS_URL: redis://localhost:6379
+      RABBITMQ_URL: amqp://guest:guest@localhost:5672/
+      WEBHOOK_HMAC_SECRET: e2e-test-secret-local
+      RECEITA_API_URL: https://homologacao.nfse.gov.br/m/app/api/recepcionar-lote-rps/v1
+      API_BASE_URL: http://localhost:8080
+      AWS_REGION: sa-east-1
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY_TEST }}
+      STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET_TEST }}
+      STRIPE_PRICE_STARTER: price_1TT2gTHImHeWw3exWO3O5V4m
+      STRIPE_PRICE_BASIC: price_1TT2gUHImHeWw3exmsVBCE8F
+      STRIPE_PRICE_PRO: price_1TT2gVHImHeWw3exmF1hu0Qt
+      STRIPE_PRICE_BUSINESS: price_1TT2gWHImHeWw3exu1jsb1Ag
 
     steps:
       - uses: actions/checkout@v4
@@ -34,23 +86,84 @@ jobs:
           cache: true
           cache-dependency-path: apps/api/go.sum
 
-      - name: Wait for staging to be healthy
+      # ── Database setup ────────────────────────────────────────────────────
+      - name: Instalar postgresql-client
+        run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+
+      - name: Stub auth schema (paridade Supabase)
+        env:
+          PGPASSWORD: postgres
+          PGHOST: localhost
+          PGUSER: postgres
+          PGDATABASE: postgres
+          PGPORT: 5432
         run: |
-          echo "Aguardando staging ficar saudável em $E2E_API_URL ..."
-          for i in $(seq 1 24); do
-            status=$(curl -s -o /dev/null -w "%{http_code}" "$E2E_API_URL/v1/health" || echo "000")
-            echo "  tentativa $i: HTTP $status"
-            if [ "$status" = "200" ]; then
-              echo "Staging saudável ✅"
-              break
-            fi
-            if [ "$i" = "24" ]; then
-              echo "❌ Staging não respondeu após 2 minutos"
-              exit 1
-            fi
-            sleep 5
+          psql -v ON_ERROR_STOP=1 <<'EOSQL'
+          CREATE SCHEMA IF NOT EXISTS auth;
+          CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid
+            LANGUAGE sql STABLE AS $$ SELECT NULL::uuid $$;
+          DO $$
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
+              CREATE ROLE anon NOLOGIN; END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
+              CREATE ROLE authenticated NOLOGIN; END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+              CREATE ROLE service_role NOLOGIN; END IF;
+          END $$;
+          EOSQL
+
+      - name: Aplicar migrations
+        env:
+          PGPASSWORD: postgres
+          PGHOST: localhost
+          PGUSER: postgres
+          PGDATABASE: postgres
+          PGPORT: 5432
+        run: |
+          set -euo pipefail
+          for f in supabase/migrations/*.sql; do
+            psql -v ON_ERROR_STOP=1 -f "$f"
+          done
+          psql -v ON_ERROR_STOP=1 -f supabase/seed.sql
+
+      # ── Build & start API ─────────────────────────────────────────────────
+      - name: Build API server
+        working-directory: apps/api
+        run: go build -o /tmp/api-server ./cmd/server
+
+      - name: Start API server
+        run: /tmp/api-server &
+        env:
+          APP_ENV: staging
+          PORT: "8080"
+          LOG_LEVEL: warn
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          SUPABASE_SERVICE_ROLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxvY2FsaG9zdCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUifQ.local_dev_only
+          REDIS_URL: redis://localhost:6379
+          RABBITMQ_URL: amqp://guest:guest@localhost:5672/
+          WEBHOOK_HMAC_SECRET: e2e-test-secret-local
+          RECEITA_API_URL: https://homologacao.nfse.gov.br/m/app/api/recepcionar-lote-rps/v1
+          API_BASE_URL: http://localhost:8080
+          AWS_REGION: sa-east-1
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY_TEST }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET_TEST }}
+          STRIPE_PRICE_STARTER: price_1TT2gTHImHeWw3exWO3O5V4m
+          STRIPE_PRICE_BASIC: price_1TT2gUHImHeWw3exmsVBCE8F
+          STRIPE_PRICE_PRO: price_1TT2gVHImHeWw3exmF1hu0Qt
+          STRIPE_PRICE_BUSINESS: price_1TT2gWHImHeWw3exu1jsb1Ag
+
+      - name: Aguardar API inicializar
+        run: |
+          for i in $(seq 1 20); do
+            status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/v1/health || echo "000")
+            echo "tentativa $i: HTTP $status"
+            if [ "$status" = "200" ]; then echo "API pronta ✅"; break; fi
+            if [ "$i" = "20" ]; then echo "❌ API não iniciou" && exit 1; fi
+            sleep 2
           done
 
+      # ── Run E2E tests ─────────────────────────────────────────────────────
       - name: Run E2E tests
         working-directory: apps/api
         run: |
@@ -58,7 +171,7 @@ jobs:
             ../../tests/e2e/ \
             2>&1 | tee /tmp/e2e-report.txt
         env:
-          E2E_API_URL: ${{ env.E2E_API_URL }}
+          E2E_API_URL: http://localhost:8080
 
       - name: Upload E2E report
         if: always()
@@ -73,5 +186,5 @@ jobs:
         run: |
           echo "## E2E Test Results" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          cat /tmp/e2e-report.txt >> $GITHUB_STEP_SUMMARY
+          tail -50 /tmp/e2e-report.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
