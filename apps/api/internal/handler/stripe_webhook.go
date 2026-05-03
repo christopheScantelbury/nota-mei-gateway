@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/supabase"
 	"github.com/gofiber/fiber/v2"
@@ -45,16 +46,27 @@ func (h *StripeWebhookHandler) Handle(c *fiber.Ctx) error {
 		return c.SendStatus(fiber.StatusOK)
 	}
 
+	var processingErr error
 	switch event.Type {
+	case "checkout.session.completed":
+		processingErr = h.handleCheckoutCompleted(ctx, event)
 	case "customer.subscription.created",
 		"customer.subscription.updated",
 		"customer.subscription.deleted":
-		if err := h.handleSubscription(ctx, event); err != nil {
-			log.Ctx(ctx).Error().Err(err).Str("event_id", event.ID).Msg("subscription event processing failed")
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "processing error"})
-		}
+		processingErr = h.handleSubscription(ctx, event)
+	case "invoice.paid":
+		processingErr = h.handleInvoicePaid(ctx, event)
+	case "invoice.payment_failed":
+		processingErr = h.handleInvoicePaymentFailed(ctx, event)
 	default:
 		// Acknowledge unhandled events — Stripe will not retry.
+	}
+
+	if processingErr != nil {
+		log.Ctx(ctx).Error().Err(processingErr).
+			Str("event_id", event.ID).Str("type", string(event.Type)).
+			Msg("stripe webhook processing failed")
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "processing error"})
 	}
 
 	_ = h.markProcessed(ctx, event.ID, string(event.Type))
@@ -86,6 +98,77 @@ func (h *StripeWebhookHandler) handleSubscription(ctx context.Context, event str
 		WHERE mei_id     = $3
 		  AND competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
 	`, sub.ID, string(sub.Status), meiID)
+	return err
+}
+
+// handleCheckoutCompleted fires when a Stripe Checkout Session completes.
+// It saves the stripe_customer_id on the MEI so future portal/checkout calls
+// can reference the customer without creating a duplicate.
+func (h *StripeWebhookHandler) handleCheckoutCompleted(ctx context.Context, event stripelib.Event) error {
+	var session stripelib.CheckoutSession
+	if err := json.Unmarshal(event.Data.Raw, &session); err != nil {
+		return err
+	}
+
+	meiIDStr, ok := session.Metadata["mei_id"]
+	if !ok {
+		log.Ctx(ctx).Warn().Str("session_id", session.ID).Msg("checkout.session.completed missing mei_id metadata")
+		return nil
+	}
+	meiID, err := uuid.Parse(meiIDStr)
+	if err != nil {
+		return fmt.Errorf("invalid mei_id in checkout metadata: %w", err)
+	}
+
+	if session.Customer == nil {
+		return nil
+	}
+
+	_, err = h.db.Pool().Exec(ctx, `
+		UPDATE meis
+		SET stripe_customer_id = $1, updated_at = NOW()
+		WHERE id = $2
+	`, session.Customer.ID, meiID)
+	return err
+}
+
+// handleInvoicePaid ensures the subscription status is active when an
+// invoice is paid (covers initial payment and renewals).
+func (h *StripeWebhookHandler) handleInvoicePaid(ctx context.Context, event stripelib.Event) error {
+	var inv stripelib.Invoice
+	if err := json.Unmarshal(event.Data.Raw, &inv); err != nil {
+		return err
+	}
+	if inv.Subscription == nil {
+		return nil
+	}
+	_, err := h.db.Pool().Exec(ctx, `
+		UPDATE emissoes_mensais
+		SET stripe_subscription_status = 'active',
+		    updated_at                  = NOW()
+		WHERE stripe_subscription_id = $1
+		  AND competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
+	`, inv.Subscription.ID)
+	return err
+}
+
+// handleInvoicePaymentFailed marks the subscription as past_due so the
+// BillingGuard can block new emissions until payment is resolved.
+func (h *StripeWebhookHandler) handleInvoicePaymentFailed(ctx context.Context, event stripelib.Event) error {
+	var inv stripelib.Invoice
+	if err := json.Unmarshal(event.Data.Raw, &inv); err != nil {
+		return err
+	}
+	if inv.Subscription == nil {
+		return nil
+	}
+	_, err := h.db.Pool().Exec(ctx, `
+		UPDATE emissoes_mensais
+		SET stripe_subscription_status = 'past_due',
+		    updated_at                  = NOW()
+		WHERE stripe_subscription_id = $1
+		  AND competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
+	`, inv.Subscription.ID)
 	return err
 }
 
