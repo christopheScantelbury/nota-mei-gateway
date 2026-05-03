@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/billing"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/supabase"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -15,14 +16,24 @@ import (
 
 // StripeWebhookHandler handles POST /v1/webhooks/stripe.
 type StripeWebhookHandler struct {
-	secret string
-	db     *supabase.Client
+	secret     string
+	db         *supabase.Client
+	billingGrd *billing.Guard // optional — invalidates subscription cache on events
 }
 
 // NewStripeWebhookHandler creates a handler that validates Stripe events
 // using the given webhook signing secret.
 func NewStripeWebhookHandler(secret string, db *supabase.Client) *StripeWebhookHandler {
 	return &StripeWebhookHandler{secret: secret, db: db}
+}
+
+// WithBillingGuard sets the BillingGuard so the webhook handler can invalidate
+// the Stripe subscription-status cache whenever a subscription event fires.
+// This ensures NFSe requests always see fresh subscription state within one
+// request cycle after a Stripe event arrives.
+func (h *StripeWebhookHandler) WithBillingGuard(g *billing.Guard) *StripeWebhookHandler {
+	h.billingGrd = g
+	return h
 }
 
 // Handle validates the Stripe signature, deduplicates the event,
@@ -98,7 +109,19 @@ func (h *StripeWebhookHandler) handleSubscription(ctx context.Context, event str
 		WHERE mei_id     = $3
 		  AND competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
 	`, sub.ID, string(sub.Status), meiID)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Invalidate Redis cache so the next NFSe request sees the new status
+	// without waiting for the 5-minute TTL to expire.
+	if h.billingGrd != nil {
+		if cerr := h.billingGrd.InvalidateSubscriptionCache(ctx, meiID); cerr != nil {
+			log.Ctx(ctx).Warn().Err(cerr).Str("mei_id", meiID.String()).
+				Msg("failed to invalidate billing stripe-status cache")
+		}
+	}
+	return nil
 }
 
 // handleCheckoutCompleted fires when a Stripe Checkout Session completes.
@@ -149,7 +172,11 @@ func (h *StripeWebhookHandler) handleInvoicePaid(ctx context.Context, event stri
 		WHERE stripe_subscription_id = $1
 		  AND competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
 	`, inv.Subscription.ID)
-	return err
+	if err != nil {
+		return err
+	}
+	h.invalidateCacheBySubscriptionID(ctx, inv.Subscription.ID)
+	return nil
 }
 
 // handleInvoicePaymentFailed marks the subscription as past_due so the
@@ -169,7 +196,33 @@ func (h *StripeWebhookHandler) handleInvoicePaymentFailed(ctx context.Context, e
 		WHERE stripe_subscription_id = $1
 		  AND competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
 	`, inv.Subscription.ID)
-	return err
+	if err != nil {
+		return err
+	}
+	h.invalidateCacheBySubscriptionID(ctx, inv.Subscription.ID)
+	return nil
+}
+
+// invalidateCacheBySubscriptionID looks up the MEI for a given Stripe
+// subscription ID and invalidates their subscription status cache.
+// Errors are logged but do not fail the webhook — the cache TTL is the fallback.
+func (h *StripeWebhookHandler) invalidateCacheBySubscriptionID(ctx context.Context, subID string) {
+	if h.billingGrd == nil {
+		return
+	}
+	row := h.db.Pool().QueryRow(ctx, `
+		SELECT mei_id FROM emissoes_mensais
+		WHERE stripe_subscription_id = $1
+		LIMIT 1
+	`, subID)
+	var meiID uuid.UUID
+	if err := row.Scan(&meiID); err != nil {
+		return // subscription not yet in DB or already cleaned up
+	}
+	if err := h.billingGrd.InvalidateSubscriptionCache(ctx, meiID); err != nil {
+		log.Ctx(ctx).Warn().Err(err).Str("sub_id", subID).
+			Msg("failed to invalidate billing stripe-status cache")
+	}
 }
 
 func (h *StripeWebhookHandler) isProcessed(ctx context.Context, eventID string) (bool, error) {

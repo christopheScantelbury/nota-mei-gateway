@@ -126,7 +126,8 @@ func main() {
 		cfg.StripePricePro, cfg.StripePriceBusiness,
 		apiBase,
 	)
-	stripeWH := handler.NewStripeWebhookHandler(cfg.StripeWebhookSecret, db)
+	stripeWH := handler.NewStripeWebhookHandler(cfg.StripeWebhookSecret, db).
+		WithBillingGuard(billingGrd)
 
 	// ── Fiber app ──────────────────────────────────────────────────────────
 	app := fiber.New(fiber.Config{
