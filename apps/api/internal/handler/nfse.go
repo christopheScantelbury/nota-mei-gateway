@@ -129,6 +129,13 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 		return internalError(c, "erro ao verificar limite de emissões")
 	}
 
+	// ── 1a. Stripe subscription status ───────────────────────────────────
+	// Check Redis cache first; on miss, fall back to the value stored in DB
+	// (set by the Stripe webhook handler) and repopulate the cache.
+	if denied, resp := h.checkStripeSubscription(c, mei.ID, em); denied {
+		return resp
+	}
+
 	allowed, err := h.billingGrd.Allow(ctx, mei.ID, mei.PlanoLimite)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("mei_id", mei.ID.String()).Msg("billing guard error")
@@ -141,7 +148,6 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 			"request_id": c.Locals("request_id"),
 		})
 	}
-	_ = em // emissao_mensal available if needed for metered billing later
 
 	// ── 2. Allocate RPS number ────────────────────────────────────────────
 	numeroRPS, err := h.notaRepo.NextNumeroRPS(ctx, mei.ID)
@@ -462,6 +468,56 @@ func (h *NFSeHandler) DownloadPDF(c *fiber.Ctx) error {
 }
 
 // ─── helpers ───────────────────────────────────────────────────────────────
+
+// checkStripeSubscription verifies the MEI's Stripe subscription status.
+// It reads from the Redis cache (populated by the webhook handler); on a cache
+// miss it falls back to the value stored in em.StripeSubStatus and repopulates
+// the cache.
+//
+// Returns (true, errorResponse) when the request must be blocked, or
+// (false, nil) when the subscription is valid and the request may proceed.
+func (h *NFSeHandler) checkStripeSubscription(c *fiber.Ctx, meiID uuid.UUID, em *billing.EmissaoMensal) (bool, error) {
+	ctx := c.Context()
+
+	// 1. Try the Redis cache.
+	status, hit := h.billingGrd.GetCachedSubscriptionStatus(ctx, meiID)
+	if !hit {
+		// 2. Cache miss — use DB value and backfill the cache.
+		if em.StripeSubStatus != nil {
+			status = *em.StripeSubStatus
+		}
+		// Repopulate the cache (best-effort; ignore errors).
+		_ = h.billingGrd.CacheSubscriptionStatus(ctx, meiID, status)
+	}
+
+	// 3. No subscription (trial or new user) → allow.
+	if status == "" {
+		return false, nil
+	}
+
+	// 4. Check against blocked statuses.
+	if !billing.BlockedSubscriptionStatuses[status] {
+		return false, nil
+	}
+
+	// 5. Blocked — return 402 with contextual action link.
+	portalURL := h.apiBase + "/v1/billing/portal"
+	checkoutURL := h.apiBase + "/v1/billing/checkout"
+	actionURL := portalURL
+	message := "assinatura inativa: acesse o portal de pagamentos para resolver"
+	if status == "canceled" {
+		actionURL = checkoutURL
+		message = "assinatura cancelada: faça uma nova assinatura para continuar emitindo"
+	}
+
+	return true, c.Status(fiber.StatusPaymentRequired).JSON(fiber.Map{
+		"error":      "SUBSCRIPTION_INACTIVE",
+		"message":    message,
+		"status":     status,
+		"action_url": actionURL,
+		"request_id": c.Locals("request_id"),
+	})
+}
 
 // loadCert loads the MEI's certificate from Secrets Manager.
 // The ARN is expected to be stored somewhere accessible from the MEI struct.
