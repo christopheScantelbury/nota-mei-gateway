@@ -39,6 +39,12 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
               Sandbox
             </Link>
             <Link
+              href="/status"
+              className="text-sm text-text-2 hover:text-brand-cyan transition-colors"
+            >
+              Status
+            </Link>
+            <Link
               href="https://notameigateway.com.br/cadastro"
               className="text-sm px-4 py-1.5 bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/30 text-brand-cyan rounded-lg transition-colors"
             >
