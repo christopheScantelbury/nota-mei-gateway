@@ -68,14 +68,7 @@ export const metadata: Metadata = {
     images: ['/twitter-image'],
     creator: '@scantelburydevs',
   },
-  icons: {
-    icon: [
-      { url: '/brand/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
-    ],
-    apple: [
-      { url: '/brand/apple-touch-icon-180.png', sizes: '180x180', type: 'image/png' },
-    ],
-  },
+  // icon.tsx + apple-icon.tsx in app/ are auto-detected by Next.js 14
   manifest: '/site.webmanifest',
 }
 

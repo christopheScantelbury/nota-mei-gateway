@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import MunicipioAutocomplete from '@/components/ui/MunicipioAutocomplete'
+import { MunicipioAutocomplete } from '@/components/ui/MunicipioAutocomplete'
 import { validarCNPJ } from '@/lib/cnpj'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -377,7 +377,7 @@ export default function NovaNota() {
           <Field label="Município do tomador" error={errors.municipioIbge}>
             <MunicipioAutocomplete
               value={municipioIbge}
-              onChange={code => setMunicipioIbge(code)}
+              onChange={(code: string) => setMunicipioIbge(code)}
               error={errors.municipioIbge}
             />
           </Field>
