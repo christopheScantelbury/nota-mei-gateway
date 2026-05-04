@@ -92,7 +92,7 @@ func TestCreateRecorrencia_MissingNome(t *testing.T) {
 		"tomador":{"documento":"12345678000190"},
 		"proxima_emissao":"2026-06-05"
 	}`
-	resp := mustTest(t, app, recorrenciaReq(http.MethodPost, "/v1/recorrencias", body))
+	resp := mustTest(t, app, recorrenciaReq(http.MethodPost, "/v1/recorrencias", body)) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 422", resp.StatusCode)
@@ -111,7 +111,7 @@ func TestCreateRecorrencia_DiaVencimentoOutOfRange(t *testing.T) {
 		"tomador":{"documento":"12345678000190"},
 		"proxima_emissao":"2026-06-29"
 	}`
-	resp := mustTest(t, app, recorrenciaReq(http.MethodPost, "/v1/recorrencias", body))
+	resp := mustTest(t, app, recorrenciaReq(http.MethodPost, "/v1/recorrencias", body)) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 422", resp.StatusCode)
@@ -130,7 +130,7 @@ func TestCreateRecorrencia_DiaVencimentoZero(t *testing.T) {
 		"tomador":{"documento":"12345678000190"},
 		"proxima_emissao":"2026-06-01"
 	}`
-	resp := mustTest(t, app, recorrenciaReq(http.MethodPost, "/v1/recorrencias", body))
+	resp := mustTest(t, app, recorrenciaReq(http.MethodPost, "/v1/recorrencias", body)) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 422", resp.StatusCode)
