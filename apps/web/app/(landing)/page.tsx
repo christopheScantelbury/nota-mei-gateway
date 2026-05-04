@@ -4,24 +4,25 @@ import Navbar from '@/components/landing/Navbar'
 import HeroSection from '@/components/landing/HeroSection'
 import SocialProof from '@/components/landing/SocialProof'
 import AnimatedSection from '@/components/landing/AnimatedSection'
+import UrgencyBanner from '@/components/landing/UrgencyBanner'
 
 export const metadata: Metadata = {
-  title: 'Nota MEI Gateway — Emissão de NFS-e para MEI',
+  title: 'Emissão de NFS-e para MEI — Nota Fácil MEI & Nota MEI Gateway',
   description:
-    'API REST para emissão automatizada de NFS-e para MEI via Receita Federal Nacional. Trial gratuito de 30 dias, sem cartão de crédito.',
+    'Emita NFS-e do seu MEI em segundos. Para MEI: app simples sem burocracia. Para devs: API REST integrada à Receita Federal Nacional. ScantelburyDevs.',
   openGraph: {
-    title: 'Nota MEI Gateway',
-    description: 'Emita NFS-e para o seu MEI em segundos via API.',
+    title: 'Emissão de NFS-e para MEI — ScantelburyDevs',
+    description: 'Emita NFS-e do seu MEI em segundos. Simples para o MEI, poderoso para o dev.',
     url: 'https://emitirnotafacil.com.br',
-    siteName: 'Nota MEI Gateway',
+    siteName: 'Nota Fácil MEI',
     images: [{ url: '/brand/og-image.png', width: 1200, height: 630 }],
     locale: 'pt_BR',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Nota MEI Gateway',
-    description: 'Emita NFS-e para o seu MEI em segundos via API.',
+    title: 'Emissão de NFS-e para MEI — ScantelburyDevs',
+    description: 'Emita NFS-e do seu MEI em segundos. Simples para o MEI, poderoso para o dev.',
     images: ['/brand/og-image.png'],
   },
   alternates: { canonical: 'https://emitirnotafacil.com.br' },
@@ -127,10 +128,13 @@ export default function LandingPage() {
       {/* Navbar — scroll-aware, glass blur */}
       <Navbar />
 
-      {/* Hero — staggered entrance animations */}
+      {/* Hero — product bifurcation (MEI vs API) */}
       <HeroSection />
 
-      {/* Social proof — counters, infra logos, security / LGPD */}
+      {/* Urgency banner — NFS-e obligation, dismissible */}
+      <UrgencyBanner />
+
+      {/* Social proof — counters, security / LGPD */}
       <SocialProof />
 
       {/* Como funciona */}
