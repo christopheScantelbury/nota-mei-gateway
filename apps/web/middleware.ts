@@ -7,7 +7,28 @@ const PROTECTED_PREFIXES = ['/home', '/notas', '/billing', '/configuracoes', '/t
 // Routes that should redirect to /home if already authenticated.
 const AUTH_ROUTES = ['/login', '/recuperar-senha']
 
+// Hostname → path rewrite for multi-domain setup.
+// Each product domain rewrites its root to the dedicated landing page.
+// All other paths (cadastro, dashboard, etc.) are served normally regardless of domain.
+const DOMAIN_REWRITES: Record<string, string> = {
+  'notafacilmei.com.br':        '/mei',
+  'www.notafacilmei.com.br':    '/mei',
+  'notameigateway.com.br':      '/gateway',
+  'www.notameigateway.com.br':  '/gateway',
+}
+
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+  const hostname = request.headers.get('host') ?? ''
+
+  // Domain-based rewrite: serve product landing at the root of each domain.
+  const rewriteTo = DOMAIN_REWRITES[hostname]
+  if (rewriteTo && pathname === '/') {
+    const url = request.nextUrl.clone()
+    url.pathname = rewriteTo
+    return NextResponse.rewrite(url)
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -32,8 +53,6 @@ export async function middleware(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-
-  const { pathname } = request.nextUrl
 
   // Redirect unauthenticated users away from protected routes.
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p))
