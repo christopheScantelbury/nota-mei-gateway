@@ -92,6 +92,13 @@ export default function RootLayout({
       className={`${outfit.variable} ${inter.variable} ${dmMono.variable}`}
     >
       <body className="font-body antialiased">
+        {/* Skip-to-main for keyboard / screen-reader users (WCAG 2.1 AA 2.4.1) */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:bg-brand-cyan focus:text-navy-900 focus:font-semibold focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm"
+        >
+          Ir para o conteúdo principal
+        </a>
         {children}
         <Toaster
           theme="dark"

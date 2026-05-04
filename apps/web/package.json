@@ -7,7 +7,12 @@
     "build": "node -e \"require('fs').copyFileSync('../../docs/openapi.yaml','public/openapi.yaml')\" && cross-env NEXT_IGNORE_INCORRECT_LOCKFILE=1 next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "echo \"No tests yet\""
+    "analyze": "cross-env ANALYZE=true npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -35,12 +40,27 @@
     "zod": "^4.4.2"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^14.2.35",
+    "@storybook/addon-essentials": "^8.6.12",
+    "@storybook/addon-interactions": "^8.6.12",
+    "@storybook/addon-a11y": "^8.6.12",
+    "@storybook/nextjs": "^8.6.12",
+    "@storybook/react": "^8.6.12",
+    "@storybook/test": "^8.6.12",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.5.2",
     "@types/node": "^22.10.7",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.4.1",
+    "@vitest/coverage-v8": "^3.2.4",
     "cross-env": "^7.0.3",
     "eslint": "8.57.1",
     "eslint-config-next": "14.2.35",
-    "typescript": "^5.7.3"
+    "jsdom": "^26.1.0",
+    "storybook": "^8.6.12",
+    "typescript": "^5.7.3",
+    "vitest": "^3.2.4"
   }
 }

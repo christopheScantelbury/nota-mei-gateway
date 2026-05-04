@@ -27,9 +27,15 @@ export default async function DashboardLayout({
   const razaoSocial = mei?.razao_social ?? session.user.email ?? 'Meu painel'
 
   return (
-    <div className="min-h-screen bg-navy-900 text-text-1 font-body flex">
+    <div className="min-h-screen bg-navy-900 text-text-1 font-body lg:flex">
       <Sidebar razaoSocial={razaoSocial} />
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main
+        id="main-content"
+        className="flex-1 overflow-auto pt-14 lg:pt-0"
+        tabIndex={-1}
+      >
+        {children}
+      </main>
     </div>
   )
 }
