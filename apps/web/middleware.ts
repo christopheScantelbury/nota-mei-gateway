@@ -2,7 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Routes that require an authenticated Supabase session.
-const PROTECTED_PREFIXES = ['/home', '/notas', '/billing', '/configuracoes', '/templates']
+const PROTECTED_PREFIXES = ['/home', '/notas', '/billing', '/configuracoes', '/templates', '/recorrencias']
 
 // Routes that should redirect to /home if already authenticated.
 const AUTH_ROUTES = ['/login', '/recuperar-senha']
