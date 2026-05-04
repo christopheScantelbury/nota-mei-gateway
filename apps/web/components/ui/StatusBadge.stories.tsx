@@ -34,6 +34,7 @@ export const ErroTemporario: Story = {
 }
 
 export const AllStatuses: Story = {
+  args: { status: 'AUTORIZADA' },
   render: () => (
     <div className="flex flex-col gap-3">
       <StatusBadge status="AUTORIZADA" />
