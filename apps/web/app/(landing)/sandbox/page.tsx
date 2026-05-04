@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 
 const DEMO_KEY = 'sk_test_sandbox_demo'
@@ -96,7 +96,6 @@ interface WebhookPayload { received_at: string; body: Record<string, unknown> }
 
 export default function SandboxPage() {
   const [rawBody, setRawBody]       = useState(JSON.stringify(DEFAULT_BODY, null, 2))
-  const [bodyError, setBodyError]   = useState<string | null>(null)
   const [activeTab, setActiveTab]   = useState<Tab>('curl')
   const [response, setResponse]     = useState<{ status: number; data: Record<string, unknown> } | null>(null)
   const [loading, setLoading]       = useState(false)
@@ -109,19 +108,24 @@ export default function SandboxPage() {
 
   useEffect(() => { setHistory(loadHistory()) }, [])
 
-  const parsedBody = useCallback((): Record<string, unknown> | null => {
-    try { setBodyError(null); return JSON.parse(rawBody) }
-    catch (e) { setBodyError((e as Error).message); return null }
+  const parsedBody = useMemo((): Record<string, unknown> | null => {
+    try { return JSON.parse(rawBody) }
+    catch { return null }
   }, [rawBody])
 
-  const snippets: Record<Tab, string> = {
-    curl:   buildCurl(parsedBody() ?? DEFAULT_BODY),
-    node:   buildNode(parsedBody() ?? DEFAULT_BODY),
-    python: buildPython(parsedBody() ?? DEFAULT_BODY),
-  }
+  const bodyError = useMemo((): string | null => {
+    try { JSON.parse(rawBody); return null }
+    catch (e) { return (e as Error).message }
+  }, [rawBody])
+
+  const snippets = useMemo((): Record<Tab, string> => ({
+    curl:   buildCurl(parsedBody ?? DEFAULT_BODY),
+    node:   buildNode(parsedBody ?? DEFAULT_BODY),
+    python: buildPython(parsedBody ?? DEFAULT_BODY),
+  }), [parsedBody])
 
   async function runDemo() {
-    const body = parsedBody()
+    const body = parsedBody
     if (!body) return
     setLoading(true)
     setResponse(null)
