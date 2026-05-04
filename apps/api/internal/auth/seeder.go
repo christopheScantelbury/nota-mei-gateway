@@ -1,4 +1,4 @@
-package auth
+﻿package auth
 
 import (
 	"context"
@@ -53,7 +53,7 @@ func (s *Seeder) Seed(ctx context.Context) (*SeedResult, error) {
 	`,
 		SeedCNPJ,
 		"MEI de Teste — NotaMEI Gateway",
-		"sandbox@notameigateway.com.br",
+		"sandbox@emitirnotafacil.com.br",
 		"3550308", // São Paulo
 	).Scan(&meiID)
 	if err != nil {

@@ -1,4 +1,4 @@
-package webhook
+﻿package webhook
 
 import (
 	"testing"
@@ -46,7 +46,7 @@ func TestBuildPayload_Autorizada(t *testing.T) {
 		EmitidaEm:      ts,
 	}
 
-	p := buildPayload(msg, "https://api.notameigateway.com.br")
+	p := buildPayload(msg, "https://api.emitirnotafacil.com.br")
 
 	if p.Event != "nfse.autorizada" {
 		t.Errorf("Event = %q, want nfse.autorizada", p.Event)
@@ -54,10 +54,10 @@ func TestBuildPayload_Autorizada(t *testing.T) {
 	if p.NumeroNFSe != "000123" {
 		t.Errorf("NumeroNFSe = %q, want 000123", p.NumeroNFSe)
 	}
-	if p.PDFURL != "https://api.notameigateway.com.br/v1/nfse/nota-uuid/pdf" {
+	if p.PDFURL != "https://api.emitirnotafacil.com.br/v1/nfse/nota-uuid/pdf" {
 		t.Errorf("PDFURL = %q", p.PDFURL)
 	}
-	if p.XMLURL != "https://api.notameigateway.com.br/v1/nfse/nota-uuid/xml" {
+	if p.XMLURL != "https://api.emitirnotafacil.com.br/v1/nfse/nota-uuid/xml" {
 		t.Errorf("XMLURL = %q", p.XMLURL)
 	}
 	if p.EmitidaEm != "2026-04-26T14:00:00Z" {
@@ -75,7 +75,7 @@ func TestBuildPayload_Rejeitada(t *testing.T) {
 		WebhookURL:    "https://example.com/hook",
 	}
 
-	p := buildPayload(msg, "https://api.notameigateway.com.br")
+	p := buildPayload(msg, "https://api.emitirnotafacil.com.br")
 
 	if p.Event != "nfse.rejeitada" {
 		t.Errorf("Event = %q, want nfse.rejeitada", p.Event)

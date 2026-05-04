@@ -1,4 +1,4 @@
-// Types derived from the Nota MEI Gateway OpenAPI 3.1 spec (docs/openapi.yaml).
+﻿// Types derived from the Nota MEI Gateway OpenAPI 3.1 spec (docs/openapi.yaml).
 // Keep in sync with any breaking changes to the API contracts.
 
 export type NotaStatus =
@@ -146,8 +146,8 @@ export interface WebhookPayload {
 export interface ClientOptions {
   /**
    * Base URL da API.
-   * Padrão: "https://api.notameigateway.com.br"
-   * Sandbox público: "https://sandbox.notameigateway.com.br"
+   * Padrão: "https://api.emitirnotafacil.com.br"
+   * Sandbox público: "https://sandbox.emitirnotafacil.com.br"
    */
   baseUrl?: string
   /** Timeout em ms por requisição (padrão: 30_000) */

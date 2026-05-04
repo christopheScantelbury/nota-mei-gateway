@@ -1,4 +1,4 @@
-package email
+﻿package email
 
 import "fmt"
 
@@ -116,7 +116,7 @@ func BoasVindasHTML(p BoasVindasParams) string {
   <div class="code">%s</div>
   <hr class="divider"/>
   <p>Use o header <code style="color:#00E8FF;">Authorization: Bearer &lt;sua-api-key&gt;</code> em todas as requisições.</p>
-  <p>Consulte a documentação em <a style="color:#00E8FF;" href="https://api.notameigateway.com.br/docs">api.notameigateway.com.br/docs</a>.</p>
+  <p>Consulte a documentação em <a style="color:#00E8FF;" href="https://api.emitirnotafacil.com.br/docs">api.emitirnotafacil.com.br/docs</a>.</p>
 </div>
 `, p.RazaoSocial, p.CNPJ, p.APIKey) +
 		htmlClose()

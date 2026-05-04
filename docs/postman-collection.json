@@ -1,4 +1,4 @@
-{
+﻿{
   "info": {
     "_postman_id": "nota-mei-gateway-v1",
     "name": "Nota MEI Gateway",
@@ -15,7 +15,7 @@
       "key": "base_url",
       "value": "http://localhost:8080",
       "type": "string",
-      "description": "URL base da API. Altere para https://api.notameigateway.com.br em produção."
+      "description": "URL base da API. Altere para https://api.emitirnotafacil.com.br em produção."
     },
     {
       "key": "api_key",
@@ -651,7 +651,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"price_id\": \"price_1RAbcdefXXXstarter\",\n  \"success_url\": \"https://app.notameigateway.com.br/billing?success=1\",\n  \"cancel_url\": \"https://app.notameigateway.com.br/billing\"\n}",
+              "raw": "{\n  \"price_id\": \"price_1RAbcdefXXXstarter\",\n  \"success_url\": \"https://app.emitirnotafacil.com.br/billing?success=1\",\n  \"cancel_url\": \"https://app.emitirnotafacil.com.br/billing\"\n}",
               "options": {
                 "raw": { "language": "json" }
               }

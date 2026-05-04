@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from 'next'
+﻿import type { Metadata, Viewport } from 'next'
 import { Outfit, Inter, DM_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { ThemeProvider } from 'next-themes'
@@ -26,7 +26,7 @@ const dmMono = DM_Mono({
 })
 
 // ── Metadata ───────────────────────────────────────────────────────────────
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://notameigateway.com.br'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://emitirnotafacil.com.br'
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),

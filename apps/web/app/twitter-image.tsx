@@ -1,4 +1,4 @@
-import { ImageResponse } from 'next/og'
+﻿import { ImageResponse } from 'next/og'
 
 export const runtime = 'edge'
 export const alt = 'Nota MEI Gateway'
@@ -102,7 +102,7 @@ export default async function TwitterImage() {
           }}
         >
           <span style={{ color: '#00E8FF', fontSize: 15, fontWeight: 500 }}>
-            notameigateway.com.br
+            emitirnotafacil.com.br
           </span>
         </div>
       </div>

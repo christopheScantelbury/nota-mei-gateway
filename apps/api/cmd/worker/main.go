@@ -58,7 +58,7 @@ func main() {
 	adapter := nfse.NewAdapter(cfg.ReceitaAPIURL)
 
 	// ── API base URL ───────────────────────────────────────────────────────
-	apiBase := "https://api.notameigateway.com.br"
+	apiBase := cfg.APIBaseURL
 	if cfg.AppEnv == "development" {
 		apiBase = "http://localhost:8080"
 	}

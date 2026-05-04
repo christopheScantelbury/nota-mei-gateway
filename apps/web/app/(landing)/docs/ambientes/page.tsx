@@ -1,4 +1,4 @@
-import Link from 'next/link'
+﻿import Link from 'next/link'
 
 export default function AmbientesPage() {
   return (
@@ -30,8 +30,8 @@ export default function AmbientesPage() {
                 },
                 {
                   feature: 'Base URL',
-                  sandbox: 'sandbox.notameigateway.com.br',
-                  prod: 'api.notameigateway.com.br',
+                  sandbox: 'sandbox.emitirnotafacil.com.br',
+                  prod: 'api.emitirnotafacil.com.br',
                 },
                 {
                   feature: 'Sandbox público (sem conta)',
@@ -124,7 +124,7 @@ export default function AmbientesPage() {
           {[
             'Troque o certificado A1 de homologação pelo certificado de produção em POST /v1/auth/certificate',
             'Substitua todas as ocorrências de sk_test_ por sk_live_ no seu sistema',
-            'Atualize a base URL para api.notameigateway.com.br',
+            'Atualize a base URL para api.emitirnotafacil.com.br',
             'Ative uma assinatura Stripe (Trial, Starter, Basic, Pro ou Business)',
             'Teste o fluxo completo com uma nota de valor baixo antes de escalar',
           ].map((step, i) => (

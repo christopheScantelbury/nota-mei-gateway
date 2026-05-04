@@ -40,15 +40,15 @@ info:
     | `INTERNAL_ERROR` | 500 |
   contact:
     name: ScantelburyDevs
-    url: https://notameigateway.com.br
+    url: https://emitirnotafacil.com.br
     email: dev@scantelburydevs.com.br
   license:
     name: Proprietário
 
 servers:
-  - url: https://api.notameigateway.com.br
+  - url: https://api.emitirnotafacil.com.br
     description: Produção
-  - url: https://staging-api.notameigateway.com.br
+  - url: https://staging-api.emitirnotafacil.com.br
     description: Staging
   - url: http://localhost:8080
     description: Local
@@ -415,12 +415,12 @@ paths:
                   type: string
                   format: uri
                   description: URL de redirecionamento após checkout bem-sucedido
-                  example: "https://app.notameigateway.com.br/billing?success=1"
+                  example: "https://app.emitirnotafacil.com.br/billing?success=1"
                 cancel_url:
                   type: string
                   format: uri
                   description: URL de redirecionamento se o usuário cancelar
-                  example: "https://app.notameigateway.com.br/billing"
+                  example: "https://app.emitirnotafacil.com.br/billing"
       responses:
         "200":
           description: Sessão de checkout criada
@@ -643,8 +643,8 @@ webhooks:
               status: AUTORIZADA
               numero_nfse: "000123"
               codigo_verificacao: "ABC12345"
-              pdf_url: "https://api.notameigateway.com.br/v1/nfse/550e8400.../pdf"
-              xml_url: "https://api.notameigateway.com.br/v1/nfse/550e8400.../xml"
+              pdf_url: "https://api.emitirnotafacil.com.br/v1/nfse/550e8400.../pdf"
+              xml_url: "https://api.emitirnotafacil.com.br/v1/nfse/550e8400.../xml"
               emitida_em: "2026-04-26T14:30:00Z"
               signature: "sha256=a1b2c3d4e5f6..."
       responses:

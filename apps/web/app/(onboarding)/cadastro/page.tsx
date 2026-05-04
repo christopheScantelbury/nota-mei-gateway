@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useRef, FormEvent } from 'react'
 import { Button } from '@/components/ui/Button'
@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/Input'
 import { MunicipioAutocomplete } from '@/components/ui/MunicipioAutocomplete'
 import { validarCNPJ } from '@/lib/cnpj'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.notameigateway.com.br'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

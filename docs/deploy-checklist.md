@@ -1,4 +1,4 @@
-# Deploy Checklist — Nota MEI Gateway
+﻿# Deploy Checklist — Nota MEI Gateway
 
 > Execute este checklist **antes de cada deploy para produção**.  
 > Todos os itens devem estar ✅ para o deploy avançar.
@@ -57,7 +57,7 @@
 
 - [ ] **AWS Secrets Manager** — certificado de teste carregado e acessível
 - [ ] **Stripe** — produto e preços criados em modo live; IDs copiados para env vars
-- [ ] **Stripe webhook** — endpoint `https://api.notameigateway.com.br/v1/webhooks/stripe` registrado; eventos: `customer.subscription.*`
+- [ ] **Stripe webhook** — endpoint `https://api.emitirnotafacil.com.br/v1/webhooks/stripe` registrado; eventos: `customer.subscription.*`
 - [ ] **CloudAMQP** — fila `nfse.webhook.delivery` declarada e acessível
 - [ ] **Receita Federal** — URL de produção configurada (`RECEITA_API_URL`)
 
@@ -65,7 +65,7 @@
 
 ```bash
 # API health
-curl https://api.notameigateway.com.br/v1/health
+curl https://api.emitirnotafacil.com.br/v1/health
 # Esperado: {"status":"ok","env":"production"}
 
 # Worker logs (Railway)
@@ -82,7 +82,7 @@ railway logs --service worker --tail
 
 ```bash
 # Substitua <API_KEY> por uma chave sk_live_ válida
-curl -X POST https://api.notameigateway.com.br/v1/nfse \
+curl -X POST https://api.emitirnotafacil.com.br/v1/nfse \
   -H "Authorization: Bearer <API_KEY>" \
   -H "Content-Type: application/json" \
   -d '{

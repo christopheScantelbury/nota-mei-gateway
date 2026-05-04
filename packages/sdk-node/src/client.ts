@@ -1,4 +1,4 @@
-import { HttpClient } from './http.js'
+﻿import { HttpClient } from './http.js'
 import { NotaMEIError } from './errors.js'
 import { verifySignature } from './webhook.js'
 import type {
@@ -214,7 +214,7 @@ export class BillingClient {
 
 // ── NotaMEI ───────────────────────────────────────────────────────────────────
 
-const DEFAULT_BASE_URL = 'https://api.notameigateway.com.br'
+const DEFAULT_BASE_URL = 'https://api.emitirnotafacil.com.br'
 
 export class NotaMEI {
   private readonly http: HttpClient
