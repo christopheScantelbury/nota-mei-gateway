@@ -31,7 +31,7 @@ func (s *Service) SendNotaAutorizada(
 		CodigoVerific: codigoVerific,
 		ValorServico:  valorServico,
 		PdfURL:        pdfURL,
-		XmlURL:        xmlURL,
+		XMLURL:        xmlURL,
 	})
 	id, err := s.client.Send(ctx, SendRequest{
 		To:      []string{toEmail},
