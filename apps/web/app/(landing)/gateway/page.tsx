@@ -12,11 +12,17 @@ export const metadata: Metadata = {
     description: 'Emita NFS-e de MEI via API REST. Um POST, webhook, PDF e XML automáticos.',
     url: 'https://notameigateway.com.br',
     siteName: 'Nota MEI Gateway',
-    images: [{ url: '/brand/og-image.png', width: 1200, height: 630 }],
+    images: [{ url: '/og/og-gateway-1200x630.png', width: 1200, height: 630, alt: 'Nota MEI Gateway — API de NFS-e para MEI' }],
     locale: 'pt_BR',
     type: 'website',
   },
-  alternates: { canonical: 'https://notameigateway.com.br' },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Nota MEI Gateway — A API de NFS-e para seu produto',
+    description: 'Emita NFS-e de MEI via API REST. Um POST, webhook, PDF e XML automáticos.',
+    images: ['/og/og-gateway-1200x630.png'],
+  },
+  alternates: { canonical: 'https://emitirnotafacil.com.br/gateway' },
 }
 
 const curlSnippet = `curl -X POST https://api.notameigateway.com.br/v1/nfse \\

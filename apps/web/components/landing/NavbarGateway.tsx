@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 
 export default function NavbarGateway() {
@@ -22,9 +23,27 @@ export default function NavbarGateway() {
       }`}
     >
       <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
-        <Link href="/gateway" className="font-display font-extrabold text-brand-cyan text-lg">
-          Nota MEI Gateway
+        <Link href="/gateway" className="flex items-center shrink-0">
+          <Image
+            src="/logos/gateway-logo-navbar-light.svg"
+            alt="Nota MEI Gateway"
+            width={200}
+            height={43}
+            priority
+            unoptimized
+            className="block dark:hidden"
+          />
+          <Image
+            src="/logos/gateway-logo-navbar-dark.svg"
+            alt="Nota MEI Gateway"
+            width={200}
+            height={43}
+            priority
+            unoptimized
+            className="hidden dark:block"
+          />
         </Link>
+
         <div className="flex gap-4 items-center">
           <a href="#como-funciona" className="text-sm text-text-2 hover:text-text-1 transition hidden sm:block">Como funciona</a>
           <a href="#precos"        className="text-sm text-text-2 hover:text-text-1 transition">Preços</a>

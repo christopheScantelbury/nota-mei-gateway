@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 
 export default function NavbarMei() {
@@ -22,13 +23,31 @@ export default function NavbarMei() {
       }`}
     >
       <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
-        <Link href="/mei" className="font-display font-extrabold text-brand-cyan text-lg">
-          Nota Fácil MEI
+        <Link href="/mei" className="flex items-center shrink-0">
+          <Image
+            src="/logos/nfm-logo-navbar-light.svg"
+            alt="Nota Fácil MEI"
+            width={180}
+            height={50}
+            priority
+            unoptimized
+            className="block dark:hidden"
+          />
+          <Image
+            src="/logos/nfm-logo-navbar-dark-clean.svg"
+            alt="Nota Fácil MEI"
+            width={180}
+            height={50}
+            priority
+            unoptimized
+            className="hidden dark:block"
+          />
         </Link>
+
         <div className="flex gap-4 items-center">
           <a href="#como-funciona" className="text-sm text-text-2 hover:text-text-1 transition hidden sm:block">Como funciona</a>
           <a href="#precos"        className="text-sm text-text-2 hover:text-text-1 transition">Preços</a>
-          <a href="#faq"          className="text-sm text-text-2 hover:text-text-1 transition hidden sm:block">Dúvidas</a>
+          <a href="#faq"           className="text-sm text-text-2 hover:text-text-1 transition hidden sm:block">Dúvidas</a>
           <ThemeToggle />
           <Link
             href="/cadastro?produto=mei"

@@ -13,11 +13,17 @@ export const metadata: Metadata = {
     description: 'Nota fiscal de MEI sem complicação. Você preenche 3 campos, a gente cuida do resto.',
     url: 'https://notafacilmei.com.br',
     siteName: 'Nota Fácil MEI',
-    images: [{ url: '/brand/og-image.png', width: 1200, height: 630 }],
+    images: [{ url: '/og/og-nfm-1200x630.png', width: 1200, height: 630, alt: 'Nota Fácil MEI — Emita sua NFS-e em 30 segundos' }],
     locale: 'pt_BR',
     type: 'website',
   },
-  alternates: { canonical: 'https://notafacilmei.com.br' },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Nota Fácil MEI — Emita sua NFS-e em 30 segundos',
+    description: 'Nota fiscal de MEI sem complicação. Você preenche 3 campos, a gente cuida do resto.',
+    images: ['/og/og-nfm-1200x630.png'],
+  },
+  alternates: { canonical: 'https://emitirnotafacil.com.br/mei' },
 }
 
 const meiPlans = [
