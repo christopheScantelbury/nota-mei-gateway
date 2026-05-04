@@ -60,7 +60,7 @@ func JWTMiddleware(supabaseURL, serviceRoleKey string) fiber.Handler {
 				"error": "INVALID_JWT", "message": "token inválido ou expirado",
 			})
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode != http.StatusOK {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -289,7 +289,7 @@ func validateJWT(ctx context.Context, supabaseURL, serviceRoleKey, jwt string) (
 	if err != nil {
 		return uuid.Nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return uuid.Nil, fmt.Errorf("supabase auth returned %d", resp.StatusCode)
