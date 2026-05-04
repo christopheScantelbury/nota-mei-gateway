@@ -220,7 +220,7 @@ func (h *StripeWebhookHandler) handleInvoicePaymentFailed(ctx context.Context, e
 		}
 		emailSvc := h.emailSvc
 		db := h.db
-		go func(baseCtx context.Context) {
+		go func(baseCtx context.Context) { //nolint:contextcheck
 			ctx2, cancel := context.WithTimeout(baseCtx, 10*time.Second)
 			defer cancel()
 
@@ -249,7 +249,7 @@ func (h *StripeWebhookHandler) handleInvoicePaymentFailed(ctx context.Context, e
 			if err := emailSvc.SendPagamentoFalhou(ctx2, mei.Email, mei.RazaoSocial, "", valorBRL, portalURL); err != nil {
 				log.Ctx(ctx2).Warn().Err(err).Msg("email pagamento-falhou falhou")
 			}
-		}(context.Background())
+		}(context.WithoutCancel(ctx))
 	}
 
 	return nil

@@ -25,5 +25,19 @@ formatters:
     - gofmt
     - goimports
 
+issues:
+  exclude-rules:
+    # mustTest in test files uses t.Cleanup to close response bodies;
+    # the linter cannot trace through t.Cleanup boundaries.
+    - path: _test\.go
+      linters:
+        - bodyclose
+    # Defer-close pattern in tests: _ = resp.Body.Close() not required
+    # in test helpers that use t.Cleanup.
+    - path: _test\.go
+      text: "Error return value of .*(Body\\.Close)"
+      linters:
+        - errcheck
+
 run:
   timeout: 5m

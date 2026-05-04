@@ -17,7 +17,7 @@ export default function Sidebar({ razaoSocial }: { razaoSocial: string }) {
     <aside className="w-60 shrink-0 bg-navy-700 min-h-screen flex flex-col border-r border-navy-600">
       {/* Logo */}
       <div className="px-6 py-5 border-b border-navy-600">
-        <Link href="/" className="block">
+        <Link href="/home" className="block">
           <span className="font-display font-extrabold text-xl text-brand-cyan tracking-tight">
             Nota MEI
           </span>
