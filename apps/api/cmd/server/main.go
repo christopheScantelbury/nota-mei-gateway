@@ -14,7 +14,9 @@ import (
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/handler"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/middleware"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/nfse"
+	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/recorrencia"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/sandbox"
+	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/template"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/webhook"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/cert"
 	stripeClient "github.com/christopheScantelbury/nota-mei-gateway/api/pkg/stripe"
@@ -268,6 +270,26 @@ func main() {
 	v1.Get("/billing/usage", billingH.GetUsage)
 	v1.Get("/billing/portal", billingH.GetPortal)
 	v1.Post("/billing/checkout", billingH.CreateCheckout)
+
+	// Nota templates (Pro+ feature)
+	templateRepo := template.NewRepository(db.Pool())
+	templateH := handler.NewTemplateHandler(templateRepo)
+	v1.Get("/templates", templateH.ListTemplates)
+	v1.Post("/templates", templateH.CreateTemplate)
+	v1.Get("/templates/:id", templateH.GetTemplate)
+	v1.Put("/templates/:id", templateH.UpdateTemplate)
+	v1.Delete("/templates/:id", templateH.DeleteTemplate)
+
+	// Nota recorrências (BE-03)
+	recRepo := recorrencia.NewRepository(db.Pool())
+	sched := recorrencia.NewScheduler(recRepo, &recorrencia.NoopEmissor{}, time.Hour)
+	go sched.Run(ctx)
+	recH := handler.NewRecorrenciaHandler(recRepo)
+	v1.Get("/recorrencias", recH.ListRecorrencias)
+	v1.Post("/recorrencias", recH.CreateRecorrencia)
+	v1.Get("/recorrencias/:id", recH.GetRecorrencia)
+	v1.Put("/recorrencias/:id", recH.UpdateRecorrencia)
+	v1.Delete("/recorrencias/:id", recH.DeleteRecorrencia)
 
 	// ── Start server ───────────────────────────────────────────────────────
 	addr := "0.0.0.0:" + cfg.Port
