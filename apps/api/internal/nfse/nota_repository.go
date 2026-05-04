@@ -22,6 +22,12 @@ type Nota struct {
 	XMLEnviado        *string
 	XMLRetorno        *string
 	PDFPath           *string
+	// XMLS3Key is the S3 object key for the nota XML (STOR-01).
+	// For notas created after 2026-05-04 this replaces XMLEnviado/XMLRetorno in DB.
+	XMLS3Key *string
+	// PDFS3Key is the S3 object key for the nota PDF (STOR-01).
+	// For notas created after 2026-05-04 this replaces PDFPath in DB.
+	PDFS3Key          *string
 	WebhookURL        *string
 	WebhookEntregue   bool
 	WebhookTentativas int
@@ -108,7 +114,7 @@ func (r *NotaRepository) FindByID(ctx context.Context, notaID, meiID uuid.UUID) 
 	row := r.db.Pool().QueryRow(ctx, `
 		SELECT id, mei_id, numero_rps, status,
 		       protocolo_receita, numero_nfse, codigo_verificacao,
-		       xml_enviado, xml_retorno, pdf_path,
+		       xml_enviado, xml_retorno, pdf_path, xml_s3_key, pdf_s3_key,
 		       webhook_url, webhook_entregue, webhook_tentativas,
 		       idempotency_key, tomador_doc, tomador_nome,
 		       valor_servico, competencia,
@@ -126,7 +132,7 @@ func (r *NotaRepository) ListByMEI(ctx context.Context, meiID uuid.UUID, limit, 
 	rows, err := r.db.Pool().Query(ctx, `
 		SELECT id, mei_id, numero_rps, status,
 		       protocolo_receita, numero_nfse, codigo_verificacao,
-		       xml_enviado, xml_retorno, pdf_path,
+		       xml_enviado, xml_retorno, pdf_path, xml_s3_key, pdf_s3_key,
 		       webhook_url, webhook_entregue, webhook_tentativas,
 		       idempotency_key, tomador_doc, tomador_nome,
 		       valor_servico, competencia,
@@ -172,7 +178,7 @@ func (r *NotaRepository) FindProcessandoSemProtocolo(ctx context.Context, olderT
 	rows, err := r.db.Pool().Query(ctx, `
 		SELECT id, mei_id, numero_rps, status,
 		       protocolo_receita, numero_nfse, codigo_verificacao,
-		       xml_enviado, xml_retorno, pdf_path,
+		       xml_enviado, xml_retorno, pdf_path, xml_s3_key, pdf_s3_key,
 		       webhook_url, webhook_entregue, webhook_tentativas,
 		       idempotency_key, tomador_doc, tomador_nome,
 		       valor_servico, competencia,
@@ -274,10 +280,38 @@ func (r *NotaRepository) Cancelar(ctx context.Context, notaID, meiID uuid.UUID) 
 }
 
 // SetPDFPath updates the Supabase Storage path for the generated PDF.
+// Deprecated: prefer SetPDFS3Key for new notas (STOR-01).
 func (r *NotaRepository) SetPDFPath(ctx context.Context, notaID uuid.UUID, path string) error {
 	_, err := r.db.Pool().Exec(ctx, `
 		UPDATE notas_fiscais SET pdf_path = $1, updated_at = NOW() WHERE id = $2
 	`, path, notaID)
+	return err
+}
+
+// SetXMLS3Key stores the S3 object key for the nota's XML document (STOR-01).
+// For notas in PROCESSANDO this is the signed RPS key; after authorisation it
+// should be called again with the NFS-e retorno key.
+func (r *NotaRepository) SetXMLS3Key(ctx context.Context, notaID uuid.UUID, key string) error {
+	_, err := r.db.Pool().Exec(ctx, `
+		UPDATE notas_fiscais
+		SET xml_s3_key  = $1,
+		    xml_enviado = NULL,
+		    xml_retorno = NULL,
+		    updated_at  = NOW()
+		WHERE id = $2
+	`, key, notaID)
+	return err
+}
+
+// SetPDFS3Key stores the S3 object key for the nota's PDF document (STOR-01).
+func (r *NotaRepository) SetPDFS3Key(ctx context.Context, notaID uuid.UUID, key string) error {
+	_, err := r.db.Pool().Exec(ctx, `
+		UPDATE notas_fiscais
+		SET pdf_s3_key = $1,
+		    pdf_path   = NULL,
+		    updated_at = NOW()
+		WHERE id = $2
+	`, key, notaID)
 	return err
 }
 
@@ -309,7 +343,7 @@ func (r *NotaRepository) FindPendingWebhooks(ctx context.Context, limit int) ([]
 	rows, err := r.db.Pool().Query(ctx, `
 		SELECT id, mei_id, numero_rps, status,
 		       protocolo_receita, numero_nfse, codigo_verificacao,
-		       xml_enviado, xml_retorno, pdf_path,
+		       xml_enviado, xml_retorno, pdf_path, xml_s3_key, pdf_s3_key,
 		       webhook_url, webhook_entregue, webhook_tentativas,
 		       idempotency_key, tomador_doc, tomador_nome,
 		       valor_servico, competencia,
@@ -355,7 +389,7 @@ func (r *NotaRepository) FindProcessandoComProtocolo(ctx context.Context, limit 
 	rows, err := r.db.Pool().Query(ctx, `
 		SELECT n.id, n.mei_id, n.numero_rps, n.status,
 		       n.protocolo_receita, n.numero_nfse, n.codigo_verificacao,
-		       n.xml_enviado, n.xml_retorno, n.pdf_path,
+		       n.xml_enviado, n.xml_retorno, n.pdf_path, n.xml_s3_key, n.pdf_s3_key,
 		       n.webhook_url, n.webhook_entregue, n.webhook_tentativas,
 		       n.idempotency_key, n.tomador_doc, n.tomador_nome,
 		       n.valor_servico, n.competencia,
@@ -381,7 +415,7 @@ func (r *NotaRepository) FindProcessandoComProtocolo(ctx context.Context, limit 
 		err := rows.Scan(
 			&nc.ID, &nc.MeiID, &nc.NumeroRPS, &nc.Status,
 			&nc.ProtocoloReceita, &nc.NumeroNFSe, &nc.CodVerificacao,
-			&nc.XMLEnviado, &nc.XMLRetorno, &nc.PDFPath,
+			&nc.XMLEnviado, &nc.XMLRetorno, &nc.PDFPath, &nc.XMLS3Key, &nc.PDFS3Key,
 			&nc.WebhookURL, &nc.WebhookEntregue, &nc.WebhookTentativas,
 			&nc.IdempotencyKey, &nc.TomadorDoc, &nc.TomadorNome,
 			&nc.ValorServico, &nc.Competencia,
@@ -410,7 +444,7 @@ func scanNota(row scanner) (*Nota, error) {
 	err := row.Scan(
 		&n.ID, &n.MeiID, &n.NumeroRPS, &n.Status,
 		&n.ProtocoloReceita, &n.NumeroNFSe, &n.CodVerificacao,
-		&n.XMLEnviado, &n.XMLRetorno, &n.PDFPath,
+		&n.XMLEnviado, &n.XMLRetorno, &n.PDFPath, &n.XMLS3Key, &n.PDFS3Key,
 		&n.WebhookURL, &n.WebhookEntregue, &n.WebhookTentativas,
 		&n.IdempotencyKey, &n.TomadorDoc, &n.TomadorNome,
 		&n.ValorServico, &n.Competencia,

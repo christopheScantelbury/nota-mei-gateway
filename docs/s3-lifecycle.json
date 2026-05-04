@@ -1,0 +1,36 @@
+{
+  "Rules": [
+    {
+      "ID": "fiscal-docs-lifecycle",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": "notas/"
+      },
+      "Transitions": [
+        {
+          "Days": 30,
+          "StorageClass": "STANDARD_IA",
+          "_comment": "Após 30 dias: custo ~60% menor que Standard. Notas raramente acessadas após o mês de competência."
+        },
+        {
+          "Days": 365,
+          "StorageClass": "GLACIER_IR",
+          "_comment": "Após 1 ano: Glacier Instant Retrieval. Obrigação fiscal começa — precisa ser acessível rapidamente se houver auditoria."
+        },
+        {
+          "Days": 1095,
+          "StorageClass": "DEEP_ARCHIVE",
+          "_comment": "Após 3 anos: Glacier Deep Archive. Custo mínimo (~$0.00099/GB/mês). Recuperação em 12h aceita para auditoria fiscal."
+        }
+      ],
+      "Expiration": {
+        "Days": 1825,
+        "_comment": "Após 5 anos (1825 dias): deleção automática. Prazo legal de guarda de documentos fiscais para MEI: 5 anos."
+      },
+      "NoncurrentVersionExpiration": {
+        "NoncurrentDays": 90,
+        "_comment": "Versões antigas de objetos (se bucket com versionamento) expiram em 90 dias."
+      }
+    }
+  ]
+}

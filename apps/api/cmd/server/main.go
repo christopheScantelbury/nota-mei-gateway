@@ -21,6 +21,7 @@ import (
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/cert"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/email"
 	stripeClient "github.com/christopheScantelbury/nota-mei-gateway/api/pkg/stripe"
+	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/storage"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/supabase"
 	"github.com/gofiber/fiber/v2"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -54,6 +55,25 @@ func main() {
 	if err != nil {
 		log.Warn().Err(err).Msg("cert provider unavailable — certificate features disabled")
 		certProv = nil
+	}
+
+	// ── Object storage (STOR-01) ───────────────────────────────────────────
+	// S3Store is used in staging/production; NoopStore is used in development
+	// or when S3_BUCKET_NOTAS is not configured.
+	var objectStore storage.ObjectStore
+	if cfg.S3BucketNotas != "" {
+		s3Store, err := storage.NewS3Store(ctx, cfg.AWSRegion, cfg.S3BucketNotas)
+		if err != nil {
+			log.Warn().Err(err).Str("bucket", cfg.S3BucketNotas).
+				Msg("S3 storage unavailable — falling back to NoopStore (XMLs stored in DB)")
+			objectStore = storage.NewNoopStore()
+		} else {
+			objectStore = s3Store
+			log.Info().Str("bucket", cfg.S3BucketNotas).Msg("S3 object storage configurado")
+		}
+	} else {
+		log.Warn().Msg("S3_BUCKET_NOTAS não configurado — XMLs/PDFs armazenados em memória (NoopStore)")
+		objectStore = storage.NewNoopStore()
 	}
 
 	billingGrd, err := billing.NewGuard(cfg.RedisURL)
@@ -134,7 +154,7 @@ func main() {
 		notaRepo, adapter, builder, signer, certProv,
 		billingRepo, billingGrd, publisher,
 		apiBase, cfg.WebhookHMACSecret,
-	).WithNBSValidator(nbsValidator).WithISSLookup(issLookup).WithStripeClient(sc)
+	).WithNBSValidator(nbsValidator).WithISSLookup(issLookup).WithStripeClient(sc).WithStorage(objectStore)
 	if cfg.AppEnv == "development" {
 		nfseH = nfseH.WithDevMode()
 	}
