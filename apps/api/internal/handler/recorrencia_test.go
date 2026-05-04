@@ -148,7 +148,7 @@ func TestCreateRecorrencia_MissingServico(t *testing.T) {
 		"tomador":{"documento":"12345678000190"},
 		"proxima_emissao":"2026-06-05"
 	}`
-	resp := mustTest(t, app, recorrenciaReq(http.MethodPost, "/v1/recorrencias", body))
+	resp := mustTest(t, app, recorrenciaReq(http.MethodPost, "/v1/recorrencias", body)) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 422", resp.StatusCode)
@@ -166,7 +166,7 @@ func TestCreateRecorrencia_MissingTomador(t *testing.T) {
 		"servico":{"codigo_nbs":"01.01","valor":1000},
 		"proxima_emissao":"2026-06-05"
 	}`
-	resp := mustTest(t, app, recorrenciaReq(http.MethodPost, "/v1/recorrencias", body))
+	resp := mustTest(t, app, recorrenciaReq(http.MethodPost, "/v1/recorrencias", body)) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 422", resp.StatusCode)
@@ -185,7 +185,7 @@ func TestCreateRecorrencia_InvalidProximaEmissao(t *testing.T) {
 		"tomador":{"documento":"12345678000190"},
 		"proxima_emissao":"not-a-date"
 	}`
-	resp := mustTest(t, app, recorrenciaReq(http.MethodPost, "/v1/recorrencias", body))
+	resp := mustTest(t, app, recorrenciaReq(http.MethodPost, "/v1/recorrencias", body)) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 422", resp.StatusCode)
