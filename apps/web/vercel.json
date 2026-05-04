@@ -1,5 +1,5 @@
 {
   "installCommand": "cd ../.. && npm ci",
-  "buildCommand": "cd ../.. && npx turbo run build --filter=nota-mei-gateway-web",
+  "buildCommand": "node -e \"require('fs').copyFileSync('../../docs/openapi.yaml','public/openapi.yaml')\" && NEXT_IGNORE_INCORRECT_LOCKFILE=1 npx next build",
   "framework": "nextjs"
 }
