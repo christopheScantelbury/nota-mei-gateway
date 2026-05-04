@@ -4,18 +4,20 @@ import { useEffect, useRef, useState } from 'react'
 import { useInView, useReducedMotion } from 'framer-motion'
 
 // ── Animated counter ─────────────────────────────────────────────────────────
+// Initial state = target so SSR renders the correct value.
+// Animation resets to 0 after mount (useEffect runs client-only).
 function Counter({ target, suffix = '' }: { target: number; suffix?: string }) {
-  const [value, setValue] = useState(0)
+  const [value, setValue] = useState(target)
   const ref = useRef<HTMLSpanElement>(null)
   const inView = useInView(ref, { once: true, margin: '-40px' })
   const reduced = useReducedMotion()
+  const animated = useRef(false)
 
   useEffect(() => {
-    if (!inView || reduced) {
-      setValue(target)
-      return
-    }
+    if (!inView || reduced || animated.current) return
+    animated.current = true
     let start = 0
+    setValue(0)
     const duration = 1200
     const step = 16
     const increment = target / (duration / step)
@@ -39,28 +41,6 @@ function Counter({ target, suffix = '' }: { target: number; suffix?: string }) {
   )
 }
 
-// ── Infra logo pill ──────────────────────────────────────────────────────────
-function InfraPill({ name, color }: { name: string; color: string }) {
-  return (
-    <span
-      className="inline-flex items-center gap-2 bg-navy-700 border border-navy-600 rounded-full px-4 py-2 text-sm font-semibold text-text-2"
-    >
-      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-      {name}
-    </span>
-  )
-}
-
-const infraStack = [
-  { name: 'Supabase',   color: '#3ECF8E' },
-  { name: 'Railway',    color: '#7C3AED' },
-  { name: 'AWS KMS',    color: '#FF9900' },
-  { name: 'Stripe',     color: '#635BFF' },
-  { name: 'RabbitMQ',   color: '#FF6600' },
-  { name: 'Vercel',     color: '#FFFFFF' },
-  { name: 'Prometheus', color: '#E6522C' },
-]
-
 const securityItems = [
   { icon: '🔒', label: 'Certificado A1 nunca em disco', desc: 'Armazenado e decriptado em memória via AWS Secrets Manager' },
   { icon: '🛡️', label: 'API Keys hasheadas (SHA-256)',  desc: 'A chave real nunca é armazenada no banco de dados' },
@@ -76,7 +56,7 @@ export default function SocialProof() {
         {/* Métricas */}
         <div className="grid grid-cols-3 gap-6 text-center">
           {[
-            { value: 2,    suffix: 's',  label: 'tempo médio de emissão',  prefix: '< ' },
+            { value: 3,    suffix: 's',  label: 'tempo médio de emissão',  prefix: '< ' },
             { value: 99,   suffix: '.9%', label: 'uptime SLA',              prefix: ''   },
             { value: 5000, suffix: '+',  label: 'municípios suportados',   prefix: ''   },
           ].map(({ value, suffix, label, prefix }) => (
@@ -88,18 +68,6 @@ export default function SocialProof() {
               <span className="text-text-2 text-sm">{label}</span>
             </div>
           ))}
-        </div>
-
-        {/* Logos de infraestrutura */}
-        <div className="flex flex-col items-center gap-4">
-          <p className="text-text-2 text-xs font-semibold uppercase tracking-widest">
-            Infraestrutura de nível enterprise
-          </p>
-          <div className="flex flex-wrap justify-center gap-3">
-            {infraStack.map((s) => (
-              <InfraPill key={s.name} {...s} />
-            ))}
-          </div>
         </div>
 
         {/* Segurança / LGPD */}
