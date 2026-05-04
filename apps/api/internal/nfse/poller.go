@@ -4,6 +4,7 @@ package nfse
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"time"
 
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/webhook"
@@ -21,6 +22,21 @@ type EmissaoCounter interface {
 	IncrementEmitidas(ctx context.Context, meiID uuid.UUID) (int, error)
 }
 
+// PollerLocker acquires a distributed lock per nota so that concurrent Poller
+// instances (running in multiple Worker pods) do not process the same nota twice.
+// Returns (true, nil) when the lock was acquired; (false, nil) when another
+// instance already holds it.
+type PollerLocker interface {
+	Acquire(ctx context.Context, key string, ttl time.Duration) (bool, error)
+}
+
+const (
+	// pollerLockTTL matches the Worker sweep interval (30s) plus generous overhead.
+	// A nota whose lock has expired is safe to re-process — the Autorizar/Rejeitar
+	// calls are guarded by a WHERE status = 'PROCESSANDO' clause.
+	pollerLockTTL = 2 * time.Minute
+)
+
 // Poller periodically queries the Receita Federal API for PROCESSANDO notas
 // that already have a protocolo_receita, and finalises their status.
 type Poller struct {
@@ -30,6 +46,7 @@ type Poller struct {
 	publisher      *webhook.Publisher
 	interval       time.Duration
 	billingCounter EmissaoCounter // optional; nil disables DB counter increment
+	locker         PollerLocker  // optional; nil disables per-nota distributed lock
 }
 
 // NewPoller creates a Poller with the given interval between sweeps.
@@ -53,6 +70,13 @@ func NewPoller(
 // total_emitidas in the DB whenever a nota is authorised.
 func (p *Poller) WithBillingCounter(c EmissaoCounter) *Poller {
 	p.billingCounter = c
+	return p
+}
+
+// WithLocker attaches a distributed locker so concurrent Poller instances
+// (across multiple Worker pods) never process the same nota in parallel (SCALE-01).
+func (p *Poller) WithLocker(l PollerLocker) *Poller {
+	p.locker = l
 	return p
 }
 
@@ -104,6 +128,24 @@ func (p *Poller) consultaNota(ctx context.Context, nc NotaParaConsulta) {
 		Str("protocolo", derefStr(nc.ProtocoloReceita)).
 		Logger()
 
+	// ── Distributed lock (SCALE-01) ─────────────────────────────────────────
+	// When multiple Worker instances are running, two pods can fetch the same
+	// nota in their sweep windows.  The per-nota Redis lock (TTL = 2 min)
+	// ensures only one instance processes it; the Autorizar/Rejeitar DB guard
+	// (AND status = 'PROCESSANDO') is a belt-and-suspenders second defence.
+	if p.locker != nil {
+		lockKey := fmt.Sprintf("nfs:poll:%s", nc.ID.String())
+		acquired, err := p.locker.Acquire(ctx, lockKey, pollerLockTTL)
+		if err != nil {
+			l.Error().Err(err).Msg("poller: failed to acquire redis lock — skipping nota")
+			return
+		}
+		if !acquired {
+			l.Debug().Msg("poller: nota already locked by another instance — skipping")
+			return
+		}
+	}
+
 	if nc.CertSecretARN == nil {
 		l.Warn().Msg("poller: nota has no cert_secret_arn — skipping")
 		return
@@ -123,8 +165,13 @@ func (p *Poller) consultaNota(ctx context.Context, nc NotaParaConsulta) {
 
 	switch resp.Status {
 	case "AUTORIZADA":
-		if err := p.repo.Autorizar(ctx, nc.ID, resp.NumeroNFSe, resp.CodVerificacao, resp.XMLRetorno); err != nil {
+		updated, err := p.repo.Autorizar(ctx, nc.ID, resp.NumeroNFSe, resp.CodVerificacao, resp.XMLRetorno)
+		if err != nil {
 			l.Error().Err(err).Msg("poller: failed to autorizar nota in DB")
+			return
+		}
+		if !updated {
+			l.Debug().Msg("poller: nota already finalised by another instance — skipping counter/webhook")
 			return
 		}
 		l.Info().Str("numero_nfse", resp.NumeroNFSe).Msg("poller: nota autorizada")
@@ -138,8 +185,13 @@ func (p *Poller) consultaNota(ctx context.Context, nc NotaParaConsulta) {
 			errCodigo = resp.Erros[0].Codigo
 			errDescricao = resp.Erros[0].Descricao
 		}
-		if err := p.repo.Rejeitar(ctx, nc.ID, errCodigo, errDescricao); err != nil {
+		updated, err := p.repo.Rejeitar(ctx, nc.ID, errCodigo, errDescricao)
+		if err != nil {
 			l.Error().Err(err).Msg("poller: failed to rejeitar nota in DB")
+			return
+		}
+		if !updated {
+			l.Debug().Msg("poller: nota already finalised by another instance — skipping webhook")
 			return
 		}
 		l.Warn().Str("erro", errCodigo).Msg("poller: nota rejeitada")
