@@ -5,8 +5,10 @@ import (
 	"errors"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/auth"
+	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/email"
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/rs/zerolog/log"
@@ -26,6 +28,7 @@ type cnpjChecker interface {
 type RegisterHandler struct {
 	repo          meiRegistrar
 	cnpjValidator cnpjChecker
+	emailSvc      *email.Service
 }
 
 // NewRegisterHandler creates a RegisterHandler.
@@ -36,6 +39,13 @@ func NewRegisterHandler(repo meiRegistrar) *RegisterHandler {
 // WithCNPJValidator adds CNPJ check-digit and MEI verification to the handler.
 func (h *RegisterHandler) WithCNPJValidator(v cnpjChecker) *RegisterHandler {
 	h.cnpjValidator = v
+	return h
+}
+
+// WithEmailService attaches an email.Service so a welcome email is sent after
+// successful registration.
+func (h *RegisterHandler) WithEmailService(svc *email.Service) *RegisterHandler {
+	h.emailSvc = svc
 	return h
 }
 
@@ -135,6 +145,21 @@ func (h *RegisterHandler) Register(c *fiber.Ctx) error {
 			"message":    "erro ao cadastrar MEI",
 			"request_id": c.Locals("request_id"),
 		})
+	}
+
+	// Fire welcome email in background — failure must not block the response.
+	if h.emailSvc != nil {
+		reqEmail := strings.TrimSpace(strings.ToLower(req.Email))
+		razaoSocial := strings.TrimSpace(req.RazaoSocial)
+		rawAPIKey := result.APIKey
+		cnpj := req.CNPJ
+		go func() {
+			ctx2, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if err := h.emailSvc.SendBoasVindas(ctx2, reqEmail, razaoSocial, cnpj, rawAPIKey); err != nil {
+				log.Ctx(c.Context()).Warn().Err(err).Msg("email boas-vindas falhou")
+			}
+		}()
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
