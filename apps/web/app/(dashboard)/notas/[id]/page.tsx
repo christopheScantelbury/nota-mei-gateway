@@ -5,6 +5,8 @@ import StatusBadge from '@/components/ui/StatusBadge'
 import NotaStatusPoller from '@/components/dashboard/NotaStatusPoller'
 import NotaTimeline from '@/components/dashboard/NotaTimeline'
 import CancelarNotaButton from '@/components/dashboard/CancelarNotaButton'
+import WebhookDeliveryLog from '@/components/dashboard/WebhookDeliveryLog'
+import EnviarNotaEmail from '@/components/dashboard/EnviarNotaEmail'
 import type { Nota } from '@/lib/types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.notameigateway.com.br'
@@ -120,34 +122,14 @@ export default async function NotaDetailPage({ params }: { params: { id: string 
         </dl>
       </div>
 
-      {/* Webhook info */}
+      {/* Webhook delivery log */}
       {nota.webhook_url && (
-        <div className="rounded-xl border border-navy-600 overflow-hidden mb-6">
-          <div className="bg-navy-700 px-5 py-3 border-b border-navy-600">
-            <h2 className="text-sm font-semibold text-text-2 uppercase tracking-wider">
-              Webhook
-            </h2>
-          </div>
-          <dl className="divide-y divide-navy-600">
-            <div className="flex px-5 py-3 gap-4">
-              <dt className="w-44 shrink-0 text-sm text-text-2">URL</dt>
-              <dd className="text-sm font-mono truncate">{nota.webhook_url}</dd>
-            </div>
-            <div className="flex px-5 py-3 gap-4">
-              <dt className="w-44 shrink-0 text-sm text-text-2">Entregue</dt>
-              <dd className="text-sm">
-                {nota.webhook_entregue ? (
-                  <span className="text-nota-autorizada">✓ Sim</span>
-                ) : (
-                  <span className="text-nota-processando">
-                    Pendente ({nota.webhook_tentativas} tentativa
-                    {nota.webhook_tentativas !== 1 ? 's' : ''})
-                  </span>
-                )}
-              </dd>
-            </div>
-          </dl>
-        </div>
+        <WebhookDeliveryLog
+          notaId={nota.id}
+          webhookUrl={nota.webhook_url}
+          entregue={nota.webhook_entregue}
+          tentativas={nota.webhook_tentativas}
+        />
       )}
 
       {/* Actions */}
@@ -171,6 +153,12 @@ export default async function NotaDetailPage({ params }: { params: { id: string 
           >
             ⬇ Download PDF
           </a>
+        )}
+        {hasPDF && (
+          <EnviarNotaEmail
+            notaId={nota.id}
+            defaultEmail={nota.tomador_doc ? '' : ''}
+          />
         )}
         {canCancel && (
           <CancelarNotaButton
