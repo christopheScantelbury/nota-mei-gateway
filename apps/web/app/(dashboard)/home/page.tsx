@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import StatusBadge from '@/components/ui/StatusBadge'
+import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist'
+import PrimeiraNotaCelebration from '@/components/dashboard/PrimeiraNotaCelebration'
 import type { Nota, NotaStatus, EmissaoMensal } from '@/lib/types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -86,7 +88,7 @@ export default async function DashboardHome() {
   const competencia = currentCompetencia()
 
   // Parallel fetches
-  const [meiResult, emissaoResult, notasResult, keyResult] = await Promise.all([
+  const [meiResult, emissaoResult, notasResult, keyResult, firstAutorizadaResult] = await Promise.all([
     supabase
       .from('meis')
       .select('razao_social, cert_valid_until')
@@ -115,12 +117,22 @@ export default async function DashboardHome() {
       .is('revoked_at', null)
       .limit(1)
       .single<{ key_prefix: string; label: string | null; created_at: string }>(),
+
+    supabase
+      .from('notas_fiscais')
+      .select('id')
+      .eq('mei_id', session.user.id)
+      .eq('status', 'AUTORIZADA')
+      .order('emitida_em', { ascending: true })
+      .limit(1)
+      .single<{ id: string }>(),
   ])
 
   const mei = meiResult.data
   const emissao = emissaoResult.data
   const notas = notasResult.data ?? []
   const apiKey = keyResult.data
+  const firstAutorizada = firstAutorizadaResult.data
 
   const razaoSocial = mei?.razao_social ?? 'MEI'
   const displayName = razaoSocial.length > 25 ? razaoSocial.split(' ')[0] : razaoSocial
@@ -131,9 +143,17 @@ export default async function DashboardHome() {
   const usagePct = Math.min(100, Math.round((totalEmitidas / limite) * 100))
 
   const certDays = daysUntil(mei?.cert_valid_until ?? null)
+  const hasCert = !!mei?.cert_valid_until
+  const hasNota = notas.length > 0 || totalEmitidas > 0
+  const hasApiKey = !!apiKey
+  const hasAuthorizedNota = !!firstAutorizada
+  // Show celebration only on first authorized nota (total === 1 means it just happened)
+  const isFirstAutorized = hasAuthorizedNota && totalEmitidas === 1
 
   return (
     <div className="p-8 max-w-5xl">
+      {/* First nota celebration (confetti) */}
+      {isFirstAutorized && <PrimeiraNotaCelebration />}
 
       {/* Greeting */}
       <div className="mb-8">
@@ -144,6 +164,14 @@ export default async function DashboardHome() {
           {formatCompetencia(competencia)} · Plano <span className="text-text-1 font-medium">{planoNome}</span>
         </p>
       </div>
+
+      {/* Onboarding checklist — hidden once all steps are complete */}
+      <OnboardingChecklist
+        hasCert={hasCert}
+        hasNota={hasNota}
+        hasApiKey={hasApiKey}
+        hasAuthorizedNota={hasAuthorizedNota}
+      />
 
       {/* Certificate alert */}
       {certDays !== null && certDays <= 30 && (
