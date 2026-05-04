@@ -477,6 +477,8 @@ status-cancelada.png    → #6473A0 (cinza)
 ✅ Vercel env vars            NEXT_PUBLIC_SUPABASE_ANON_KEY + NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY configurados
 ✅ supabase db push           4 migrations aplicadas em prod (templates, recorrências, STOR-01, SCALE-01)
 ✅ Light theme (PR #145)      light-first + dark mode toggle — mergeado em main (2026-05-04)
+✅ API Keys dashboard (#146)  página /api-keys com create/revoke modal, quota progress, sk_live_/sk_test_
+✅ Frontend tasks (#147)      status page, webhooks config, notification bell, SEO/schema.org, sandbox rewrite
 ⏳ Stripe live keys           sk_live_ / pk_live_ ainda não criadas (somente test mode ativo)
 ⏳ QA-01                      E2E tests (depende de DNS)
 ```
@@ -614,7 +616,7 @@ vercel --prod               # deploy manual produção
 ---
 
 ## 13. ESTADO ATUAL
-> Última atualização: 2026-05-04 · branch `main` · commit `3b00a59` · CI ✅ Deploy ✅ Issues: 111 fechadas / 7 abertas
+> Última atualização: 2026-05-04 · branch `main` · commit `78c5333` · CI ✅ Deploy ✅ Issues: 116 fechadas / 2 abertas
 
 ### Código — 100% concluído
 
