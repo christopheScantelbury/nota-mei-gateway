@@ -73,6 +73,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     },
     {
+      url: `${BASE_URL}/status`,
+      lastModified: now,
+      changeFrequency: 'always',
+      priority: 0.6,
+    },
+    {
       url: `${BASE_URL}/termos`,
       lastModified: now,
       changeFrequency: 'yearly',
