@@ -2,9 +2,9 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Routes that require an authenticated Supabase session.
-const PROTECTED_PREFIXES = ['/notas', '/billing', '/configuracoes']
+const PROTECTED_PREFIXES = ['/home', '/notas', '/billing', '/configuracoes', '/templates']
 
-// Routes that should redirect to /notas if already authenticated.
+// Routes that should redirect to /home if already authenticated.
 const AUTH_ROUTES = ['/login', '/recuperar-senha']
 
 export async function middleware(request: NextRequest) {
@@ -48,7 +48,7 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = AUTH_ROUTES.some((p) => pathname.startsWith(p))
   if (isAuthRoute && user) {
     const nextParam = request.nextUrl.searchParams.get('next')
-    const target = nextParam && nextParam.startsWith('/') ? nextParam : '/notas'
+    const target = nextParam && nextParam.startsWith('/') ? nextParam : '/home'
     const dest = request.nextUrl.clone()
     dest.pathname = target
     dest.search = ''
