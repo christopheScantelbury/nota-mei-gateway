@@ -440,26 +440,29 @@ status-cancelada.png    → #6473A0 (cinza)
 
 ## 8. ORDEM DE EXECUÇÃO (caminho crítico)
 
-Siga **exatamente** esta ordem. Nunca iniciar uma task cujas dependências não estão completas.
-
 ```
+✅ PLAT-01                    Supabase produção · ref pzjvgtwnstfyangfwdom (sa-east-1)
 ✅ PLAT-02, INF-01–04         infra base (Docker, CI/CD, middlewares)
+✅ PLAT-03–05                 Railway: API prod + staging + Worker + Redis + RabbitMQ
+✅ PLAT-07                    Vercel: projeto nota-mei-gateway-web ativo
 ✅ INF-05–08                  logger, metrics, recovery, GitHub Actions
 ✅ AUTH-01–04, AUTH-06        API Keys, middleware, cert provider AWS, registro MEI
+✅ STR-01                     Stripe produtos/preços configurados (modo test)
 ✅ STR-02–05                  Stripe checkout, webhooks, billing guard, metered
 ✅ DOC-01–06                  RPS builder, XMLDSig, NBS validator, ISS lookup
 ✅ NFS-01–05                  adapter Receita, nota repository, poller
 ✅ BIL-03–06                  guard, usage, renovação, portal
 ✅ WBK-01–04                  publisher, consumer, requeuer
 ✅ API-01–08                  todos os handlers REST
-✅ DASH-01–04                 dashboard + landing
+✅ DASH-01–08                 dashboard, landing, ondas FE completas, WCAG, mobile
 ✅ QA-02–05                   testes unitários, k6, Postman, deploy checklist
 ✅ SDK-01–08                  OpenAPI, sandbox, Node.js, Python, WooCommerce, Zapier, Google Sheets, portal
 
-⏳ PLAT-01                    Supabase produção (requer conta Supabase)
-⏳ PLAT-03–05, PLAT-07        Railway + Vercel deploy (requer credenciais)
-⏳ STR-01                     Stripe produtos/preços (requer dashboard Stripe)
-⏳ QA-01                      E2E tests (requer infra provisionada)
+⏳ DNS                        CNAME api.notameigateway.com.br → api-production-73b1.up.railway.app
+⏳ Vercel env vars            NEXT_PUBLIC_SUPABASE_ANON_KEY e NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY em branco
+⏳ supabase db push           Aplicar migrations no projeto de produção
+⏳ Stripe live keys           sk_live_ / pk_live_ ainda não criadas (somente test mode ativo)
+⏳ QA-01                      E2E tests (depende de DNS + Vercel vars completos)
 ```
 
 ---
@@ -582,114 +585,86 @@ vercel --prod               # deploy manual produção
 | Recurso | URL |
 |---|---|
 | Repositório | https://github.com/christopheScantelbury/nota-mei-gateway |
-| Supabase Dashboard | https://app.supabase.com |
-| Railway Dashboard | https://railway.app/dashboard |
+| **API produção (Railway)** | https://api-production-73b1.up.railway.app |
+| **Dashboard (Vercel)** | https://nota-mei-gateway-web.vercel.app |
+| **API domínio custom** | https://api.notameigateway.com.br *(CNAME pendente)* |
+| Supabase Dashboard | https://supabase.com/dashboard/project/pzjvgtwnstfyangfwdom |
+| Railway Dashboard | https://railway.app/project/25988fa0-9393-462f-b57e-8780f2ca138e |
 | Vercel Dashboard | https://vercel.com/dashboard |
 | Stripe Dashboard | https://dashboard.stripe.com |
 | NFS-e Nacional Docs | https://www.nfse.gov.br/m/app/api |
 | Schema ABRASF | https://www.nfse.gov.br/downloads/schemas |
-| CloudAMQP | https://www.cloudamqp.com |
-| Grafana Cloud | https://grafana.com/auth/sign-up |
 
 ---
 
-## 13. ESTADO ATUAL — ONDE PARAMOS
-> Última atualização: 2026-05-03 · branch `main` · commit `28727db` · CI ✅ Deploy ✅
+## 13. ESTADO ATUAL
+> Última atualização: 2026-05-04 · branch `main` · commit `7f83ab1` · CI ✅ Deploy ✅ Issues: 111 fechadas / 0 abertas
 
-### O que já está implementado em código
+### Código — 100% concluído
 
-| Épico | Issues | Status | Arquivos principais |
-|---|---|---|---|
-| **AUTH** | AUTH-01, AUTH-02, AUTH-03 | ✅ | `internal/auth/`, `internal/handler/register.go`, `apps/web/app/(onboarding)/cadastro/` |
-| **AUTH-CERT** | AUTH-04, AUTH-06 | ✅ | `pkg/cert/provider.go`, `internal/handler/certificate.go`, `internal/handler/certificate_test.go` |
-| **DOC-BUILDER** | DOC-01, DOC-02, DOC-06 | ✅ | `internal/document/rps.go`, `internal/document/builder.go` |
-| **DOC-SIGNER** | DOC-03 | ✅ | `internal/document/xmldsig.go`, `internal/document/xmldsig_test.go` |
-| **DOC-VALID** | DOC-04, DOC-05 | ✅ | `internal/document/nbs_validator.go`, `internal/document/iss_lookup.go` |
-| **NFS-e** | NFS-01–05 | ✅ | `internal/nfse/adapter.go`, `internal/nfse/nota_repository.go`, `internal/nfse/poller.go` |
-| **BILLING** | BIL-03, BIL-05, BIL-06 | ✅ | `internal/billing/guard.go`, `internal/billing/repository.go`, `apps/web/app/api/billing/portal/` |
-| **STR** | STR-02–05 | ✅ | `internal/handler/billing.go`, `internal/handler/stripe_webhook.go`, `pkg/stripe/client.go` |
-| **WEBHOOK** | WBK-01–03 | ✅ | `internal/webhook/publisher.go`, `internal/webhook/consumer.go`, `internal/webhook/requeuer.go` |
-| **API** | API-01–08 | ✅ | `internal/handler/nfse.go`, `internal/handler/billing.go`, `internal/handler/stripe_webhook.go` |
-| **INF** | INF-05–08 | ✅ | `internal/middleware/`, `.github/workflows/ci.yml`, `.github/workflows/deploy.yml` |
-| **DASHBOARD** | DASH-01–04 | ✅ | `apps/web/app/(dashboard)/`, `apps/web/app/(landing)/` |
-| **QA** | QA-02–05 | ✅ | `internal/*/\_test.go`, `docs/load-test.js`, `docs/deploy-checklist.md`, `docs/postman-collection.json` |
-| **SDK** | SDK-01–08 | ✅ | `packages/sdk-node/`, `packages/sdk-python/`, `packages/sdk-woo/`, `packages/sdk-zapier/`, `packages/sdk-sheets/` |
+| Épico | Status | Arquivos principais |
+|---|---|---|
+| **AUTH** | ✅ | `internal/auth/`, `internal/handler/register.go`, `apps/web/app/(onboarding)/` |
+| **DOC** | ✅ | `internal/document/rps.go`, `xmldsig.go`, `nbs_validator.go`, `iss_lookup.go` |
+| **NFS-e** | ✅ | `internal/nfse/adapter.go`, `nota_repository.go`, `poller.go` |
+| **BILLING** | ✅ | `internal/billing/guard.go`, `repository.go` |
+| **STRIPE** | ✅ | `internal/handler/billing.go`, `stripe_webhook.go`, `pkg/stripe/client.go` |
+| **WEBHOOK** | ✅ | `internal/webhook/publisher.go`, `consumer.go`, `requeuer.go` |
+| **API** | ✅ | `internal/handler/nfse.go`, `billing.go`, `template.go`, `recorrencia.go` |
+| **DASHBOARD** | ✅ | `apps/web/app/(dashboard)/` — ondas 1–8 completas |
+| **LANDING** | ✅ | `apps/web/app/(landing)/` |
+| **QA** | ✅ | `internal/**/*_test.go`, `docs/load-test.js`, `docs/postman-collection.json` |
+| **SDK** | ✅ | `packages/sdk-node/`, `sdk-python/`, `sdk-woo/`, `sdk-zapier/`, `sdk-sheets/` |
 
-### Issues abertas no GitHub (apenas infra — requerem credenciais externas)
+### Infraestrutura — provisionada
 
-```
-PLAT-01 (#1)   🔴  Supabase projeto de produção + schema
-PLAT-03 (#3)   🔴  Deploy API Go no Railway (prod + staging)
-PLAT-04 (#4)   🔴  Redis e RabbitMQ como add-ons Railway
-PLAT-05 (#5)   🟡  Deploy Worker Webhooks no Railway
-PLAT-07 (#7)   🟡  Projeto Vercel para dashboard e landing
-STR-01  (#9)   🔴  Stripe: configurar produtos e preços no dashboard
-QA-01   (#64)  🔴  Testes E2E fluxo completo (requer infra de produção)
-```
+| Serviço | Status | Referência |
+|---|---|---|
+| **Supabase** (prod) | ✅ | `pzjvgtwnstfyangfwdom` · sa-east-1 |
+| **Railway — API prod** | ✅ | `fc34b8ba` · `api-production-73b1.up.railway.app` |
+| **Railway — API staging** | ✅ | `38dfefba` |
+| **Railway — Worker** | ✅ | `33e66172` |
+| **Railway — Redis** | ✅ | `a8d1d6bb` |
+| **Railway — RabbitMQ** | ✅ | `15f5b32f` |
+| **Vercel** | ✅ | `prj_je9YLMwvbwGoZe6a4mbDvfV2f4ts` · `nota-mei-gateway-web.vercel.app` |
+| **AWS KMS** | ✅ | `arn:aws:kms:sa-east-1:394072826336:key/c5587f17-…` |
+| **AWS Secrets Manager** | ✅ | prefix `nota-mei-gateway/*` pronto para certs A1 |
+| **Stripe (test mode)** | ✅ | 4 produtos + webhook `we_1TT2gXHImHeWw3ex19ytZ8gs` |
+| **GitHub Secrets** | ✅ | `RAILWAY_TOKEN`, `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, `STRIPE_*` (7 secrets) |
 
-**Não há mais código para escrever** — todo o código de produto está concluído e com CI verde.
-O próximo passo é provisionar a infraestrutura real (Supabase, Railway, Vercel, Stripe).
-
-### Checklist de provisionamento (ordem de execução)
+### Pendências operacionais (sem código — apenas configuração)
 
 ```
-1. PLAT-01  Criar projeto Supabase prod (região sa-east-1)
-            → supabase link --project-ref <ref>
-            → supabase db push
-            → copiar DATABASE_URL (pooler) + SERVICE_ROLE_KEY
+⏳ DNS          Apontar CNAME api.notameigateway.com.br
+                → api-production-73b1.up.railway.app
 
-2. PLAT-03  Criar serviço "api" no Railway
-            → conectar repositório → Railway detecta railway.toml automaticamente
-            → configurar variáveis: DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
-              WEBHOOK_HMAC_SECRET, RECEITA_API_URL, APP_ENV=production
-            → adicionar secret RAILWAY_TOKEN no GitHub para deploy automático
+⏳ Supabase     supabase link --project-ref pzjvgtwnstfyangfwdom
+                supabase db push   (aplicar migrations em produção)
 
-3. PLAT-04  No painel Railway:
-            → Add Plugin → Redis (preenche REDIS_URL automaticamente)
-            → Adicionar CloudAMQP (free tier) → copiar RABBITMQ_URL
+⏳ Vercel       Adicionar no projeto as env vars que faltam:
+                  NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...   (do ACESSOS.local.md)
+                  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 
-4. PLAT-05  Criar serviço "worker" no Railway
-            → mesmo repositório → apontar para apps/api/railway.worker.toml
-            → startCommand = "./worker" (o Dockerfile já compila ambos os binários)
-            → mesmas variáveis do serviço api (exceto PORT)
+⏳ Stripe       Criar chaves live (sk_live_ / pk_live_) quando pronto para produção
+                Atualizar STRIPE_SECRET_KEY + STRIPE_PUBLISHABLE_KEY no Railway/Vercel
 
-5. PLAT-07  Criar projeto Vercel → importar repositório
-            → Root directory: apps/web
-            → configurar env vars: NEXT_PUBLIC_API_URL, NEXT_PUBLIC_SUPABASE_URL,
-              NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-            → adicionar VERCEL_TOKEN + VERCEL_ORG_ID + VERCEL_PROJECT_ID no GitHub
-
-6. STR-01   No dashboard Stripe:
-            → Criar 4 produtos: Starter ($29), Basic ($79), Pro ($199), Business ($499)
-            → Cada produto com preço recorrente mensal em BRL
-            → Business: adicionar metered price para excedentes (por unidade)
-            → Copiar price IDs → STRIPE_PRICE_STARTER/BASIC/PRO/BUSINESS no Railway
-            → Criar webhook endpoint → copiar signing secret → STRIPE_WEBHOOK_SECRET
-            → Eventos necessários: checkout.session.completed,
-              customer.subscription.*, invoice.paid, invoice.payment_failed
-
-7. QA-01    Rodar testes E2E contra sandbox de homologação da Receita Federal
-            → usar chave de teste sk_test_ e o endpoint de homologação
+⏳ QA-01        Rodar E2E contra homologação da Receita Federal (depende de DNS + Vercel vars)
 ```
 
-### Pontos de atenção para o próximo dev
+### Pontos de atenção
 
-1. **Railway connectivity** — commits `10da97b`–`28727db` corrigem: startup gracioso
-   sem serviços externos, health check sempre retorna 200, dialing IPv4 forçado para
-   Supabase pooler. Não há mais `log.Fatal` em dependências opcionais.
+1. **Domínio Railway** — URL atual é `api-production-73b1.up.railway.app`. O `NEXT_PUBLIC_API_URL`
+   no Vercel aponta para `api.notameigateway.com.br` (custom domain). Enquanto o CNAME não
+   estiver configurado, o dashboard não consegue chamar a API em produção.
 
-2. **`pkg/cert/provider.go`** — `XMLDSigSigner{}` + AWS Secrets Manager implementados.
-   Em `development` usa `NoopSigner`, em staging/production usa `XMLDSigSigner` com
-   cert carregado do Secrets Manager. Requer `AWS_REGION`, `AWS_ACCESS_KEY_ID`,
-   `AWS_SECRET_ACCESS_KEY` no Railway.
+2. **Supabase anon key** — está disponível em `ACESSOS.local.md`. Após `supabase db push`,
+   configurar `NEXT_PUBLIC_SUPABASE_ANON_KEY` no Vercel e `SUPABASE_SERVICE_ROLE_KEY` no Railway.
 
-3. **Stripe metered billing** — `reportOverageIfNeeded()` em `nfse.go` reporta 1 unidade
-   ao Stripe quando `total_emitidas > plan.emissoes_limite`. Requer que STR-01 crie os
-   preços com `billing_scheme=per_unit` e `aggregate_usage=sum`.
+3. **Stripe metered billing** — `reportOverageIfNeeded()` em `nfse.go` usa os price IDs de test
+   (`price_1TT2g*`). Ao criar live prices, atualizar `STRIPE_PRICE_STARTER/BASIC/PRO/BUSINESS` no Railway.
 
-4. **BillingGuard subscription cache** — Redis TTL 5 min, invalidado pelos webhooks
-   Stripe (`customer.subscription.*`, `invoice.paid`, `invoice.payment_failed`).
-   Stripe Webhook Secret deve estar em `STRIPE_WEBHOOK_SECRET` no Railway.
+4. **Cert A1** — `pkg/cert/provider.go` usa `NoopSigner` em `development`, `XMLDSigSigner` em
+   `production` (carrega do Secrets Manager). IAM user `nota-mei-gateway-api` já tem permissão.
 
-5. **SDK Google Sheets** — em `packages/sdk-sheets/` (Apps Script). Requer publicação
-   manual no Google Workspace Marketplace após criar projeto GCP.
+5. **BillingGuard cache** — Redis TTL 5 min, invalidado pelos webhooks Stripe. O webhook secret
+   `whsec_POMNcuX33M8DRZxDFybMUdIeBdj2ahwM` já está configurado no Railway.
