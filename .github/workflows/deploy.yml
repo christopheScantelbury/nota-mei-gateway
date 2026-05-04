@@ -38,29 +38,6 @@ jobs:
             railway up --service "$SSTG" --detach
           fi
 
-  deploy-web:
-    name: Deploy Web → Vercel
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-      - name: Deploy
-        env:
-          REF_NAME: ${{ github.ref_name }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-        run: |
-          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_ORG_ID" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
-            echo "::notice title=Deploy Web::Secrets VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID incompletos — deploy ignorado."
-            exit 0
-          fi
-          if [ "$REF_NAME" = "main" ]; then
-            vercel --prod --token="$VERCEL_TOKEN" --yes
-          else
-            vercel --token="$VERCEL_TOKEN" --yes
-          fi
+  # deploy-web removido: Vercel Git integration já faz deploy automático no push.
+  # Rodar vercel --prod via CLI em paralelo causava dois builds simultâneos com
+  # cache conflict — o CLI restaurava cache antigo e sobrescrevia o build correto.
