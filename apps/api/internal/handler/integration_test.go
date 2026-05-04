@@ -114,7 +114,7 @@ func TestAuthMiddleware_MalformedBearer(t *testing.T) {
 	app := newTestApp()
 	req := httptest.NewRequest(http.MethodPost, "/v1/nfse", nil)
 	req.Header.Set("Authorization", "Token abc123") // not "Bearer"
-	resp := mustTest(t, app, req) //nolint:bodyclose
+	resp := mustTest(t, app, req)                   //nolint:bodyclose
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", resp.StatusCode)
