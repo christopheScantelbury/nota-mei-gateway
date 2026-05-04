@@ -464,13 +464,14 @@ status-cancelada.png    → #6473A0 (cinza)
 ✅ SDK-01–08                  OpenAPI, sandbox, Node.js, Python, WooCommerce, Zapier, Google Sheets, portal
 
 ✅ STOR-01 (#126)             Arquivamento fiscal 5 anos — pkg/storage S3Store+NoopStore, migration, lifecycle
-⏳ S3 bucket                  aws configure (admin) → bash _secrets_setup/s3_provision.sh
-                              (cria nota-mei-gateway-fiscal, lifecycle 5a, IAM policy S3)
+✅ S3 bucket                  nota-mei-gateway-fiscal criado (sa-east-1), SSE-AES256,
+                              lifecycle 5a aplicado, IAM S3 policy no user nota-mei-gateway-api
 ⏳ DNS                        CNAME api.notameigateway.com.br → api-production-73b1.up.railway.app
-⏳ Vercel env vars            NEXT_PUBLIC_SUPABASE_ANON_KEY e NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY em branco
+✅ Vercel env vars            NEXT_PUBLIC_SUPABASE_ANON_KEY + NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY configurados
 ✅ supabase db push           3 migrations aplicadas em prod (templates, recorrências, STOR-01)
+✅ Light theme (PR #145)      light-first + dark mode toggle — mergeado em main (2026-05-04)
 ⏳ Stripe live keys           sk_live_ / pk_live_ ainda não criadas (somente test mode ativo)
-⏳ QA-01                      E2E tests (depende de DNS + Vercel vars completos)
+⏳ QA-01                      E2E tests (depende de DNS)
 ```
 
 ---
@@ -606,7 +607,7 @@ vercel --prod               # deploy manual produção
 ---
 
 ## 13. ESTADO ATUAL
-> Última atualização: 2026-05-04 · branch `main` · commit `b6550eb` · CI ✅ Deploy ✅ Issues: 111 fechadas / 0 abertas
+> Última atualização: 2026-05-04 · branch `main` · commit `3b00a59` · CI ✅ Deploy ✅ Issues: 111 fechadas / 7 abertas
 
 ### Código — 100% concluído
 
