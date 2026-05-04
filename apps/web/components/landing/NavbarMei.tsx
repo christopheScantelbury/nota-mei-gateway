@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import ThemeToggle from '@/components/ui/ThemeToggle'
+import LogoAdaptive from '@/components/ui/LogoAdaptive'
 
 export default function NavbarMei() {
   const [scrolled, setScrolled] = useState(false)
@@ -24,23 +24,13 @@ export default function NavbarMei() {
     >
       <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
         <Link href="/mei" className="flex items-center shrink-0">
-          <Image
-            src="/logos/nfm-logo-navbar-light.svg"
+          <LogoAdaptive
+            lightSrc="/logos/nfm-logo-navbar-light.svg"
+            darkSrc="/logos/nfm-logo-navbar-dark-clean.svg"
             alt="Nota Fácil MEI"
             width={180}
             height={50}
             priority
-            unoptimized
-            className="block dark:hidden"
-          />
-          <Image
-            src="/logos/nfm-logo-navbar-dark-clean.svg"
-            alt="Nota Fácil MEI"
-            width={180}
-            height={50}
-            priority
-            unoptimized
-            className="hidden dark:block"
           />
         </Link>
 

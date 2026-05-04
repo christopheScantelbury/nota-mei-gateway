@@ -1,7 +1,7 @@
 ﻿import type { Metadata } from 'next'
 import Link from 'next/link'
-import Image from 'next/image'
 import Navbar from '@/components/landing/Navbar'
+import LogoAdaptive from '@/components/ui/LogoAdaptive'
 import HeroSection from '@/components/landing/HeroSection'
 import SocialProof from '@/components/landing/SocialProof'
 import AnimatedSection from '@/components/landing/AnimatedSection'
@@ -268,21 +268,12 @@ export default function LandingPage() {
           <div className="flex flex-col gap-2">
             {/* Logo — light/dark adaptive */}
             <Link href="/" className="inline-flex items-center">
-              <Image
-                src="/logos/gateway-logo-navbar-light.svg"
+              <LogoAdaptive
+                lightSrc="/logos/gateway-logo-navbar-light.svg"
+                darkSrc="/logos/gateway-logo-navbar-dark.svg"
                 alt="Nota MEI Gateway"
                 width={160}
                 height={34}
-                unoptimized
-                className="block dark:hidden"
-              />
-              <Image
-                src="/logos/gateway-logo-navbar-dark.svg"
-                alt="Nota MEI Gateway"
-                width={160}
-                height={34}
-                unoptimized
-                className="hidden dark:block"
               />
             </Link>
             <p className="text-text-2 text-xs">

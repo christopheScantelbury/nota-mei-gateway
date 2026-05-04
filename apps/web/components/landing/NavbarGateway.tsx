@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import ThemeToggle from '@/components/ui/ThemeToggle'
+import LogoAdaptive from '@/components/ui/LogoAdaptive'
 
 export default function NavbarGateway() {
   const [scrolled, setScrolled] = useState(false)
@@ -24,23 +24,13 @@ export default function NavbarGateway() {
     >
       <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
         <Link href="/gateway" className="flex items-center shrink-0">
-          <Image
-            src="/logos/gateway-logo-navbar-light.svg"
+          <LogoAdaptive
+            lightSrc="/logos/gateway-logo-navbar-light.svg"
+            darkSrc="/logos/gateway-logo-navbar-dark.svg"
             alt="Nota MEI Gateway"
             width={200}
             height={43}
             priority
-            unoptimized
-            className="block dark:hidden"
-          />
-          <Image
-            src="/logos/gateway-logo-navbar-dark.svg"
-            alt="Nota MEI Gateway"
-            width={200}
-            height={43}
-            priority
-            unoptimized
-            className="hidden dark:block"
           />
         </Link>
 
