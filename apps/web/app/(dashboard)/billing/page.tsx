@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { EmissaoMensal } from '@/lib/types'
 import UsageChart from '@/components/dashboard/UsageChart'
 import InvoiceList from '@/components/dashboard/InvoiceList'
+import CheckoutModal from '@/components/dashboard/CheckoutModal'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.notameigateway.com.br'
 
@@ -256,12 +257,12 @@ export default async function BillingPage() {
               <p className="text-2xl font-display font-extrabold">{p.price}</p>
               <p className="text-sm text-text-2">Até {p.limit.toLocaleString('pt-BR')} notas / mês</p>
               {!isCurrent && (
-                <a
-                  href={`${API_BASE}/v1/billing/checkout?plano=${p.key}`}
-                  className="mt-auto text-center text-sm bg-nota-upgrade/10 text-nota-upgrade border border-nota-upgrade/30 font-semibold px-4 py-2 rounded-lg hover:bg-nota-upgrade/20 transition"
-                >
-                  Assinar {p.name}
-                </a>
+                <CheckoutModal
+                  planName={p.name}
+                  planPrice={p.price}
+                  planLimit={p.limit}
+                  checkoutUrl={`${API_BASE}/v1/billing/checkout?plano=${p.key}`}
+                />
               )}
             </div>
           )

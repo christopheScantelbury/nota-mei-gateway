@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { MunicipioAutocomplete } from '@/components/ui/MunicipioAutocomplete'
 import { validarCNPJ } from '@/lib/cnpj'
+import type { NotaTemplate } from '@/app/api/templates/route'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function currentMonth() {
@@ -77,6 +79,8 @@ interface FormErrors {
 }
 
 export default function NovaNota() {
+  const searchParams = useSearchParams()
+
   // Serviço
   const [codigoNbs, setCodigoNbs] = useState('')
   const [discriminacao, setDiscriminacao] = useState('')
@@ -95,6 +99,10 @@ export default function NovaNota() {
   const [webhookUrl, setWebhookUrl] = useState('')
   const [idempotencyKey, setIdempotencyKey] = useState('')
 
+  // Template selector state
+  const [templates, setTemplates] = useState<NotaTemplate[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('')
+
   // UI state
   const [errors, setErrors] = useState<FormErrors>({})
   const [submitting, setSubmitting] = useState(false)
@@ -105,6 +113,45 @@ export default function NovaNota() {
   useEffect(() => {
     setIdempotencyKey(crypto.randomUUID())
   }, [])
+
+  // Load templates (silently — feature only for Pro/Business)
+  useEffect(() => {
+    fetch('/api/templates')
+      .then(r => r.ok ? r.json() : { templates: [] })
+      .then((d: { templates: NotaTemplate[] }) => {
+        setTemplates(d.templates ?? [])
+        // If ?template=<id> was passed (from Templates page "Usar →" link), auto-apply
+        const preselect = searchParams.get('template')
+        if (preselect) {
+          const tpl = d.templates.find(t => t.id === preselect)
+          if (tpl) applyTemplate(tpl)
+        }
+      })
+      .catch(() => {/* silent */})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function applyTemplate(tpl: NotaTemplate) {
+    setSelectedTemplate(tpl.id)
+    setCodigoNbs(tpl.servico.codigo_nbs)
+    setDiscriminacao(tpl.servico.discriminacao)
+    setValorServico(String(tpl.servico.valor))
+    setAliquotaIss(String(tpl.servico.aliquota_iss))
+    if (tpl.webhook_url) setWebhookUrl(tpl.webhook_url)
+    if (tpl.tomador) {
+      setTipoPessoa(tpl.tomador.tipo)
+      setDocumento(tpl.tomador.documento)
+      setRazaoSocial(tpl.tomador.razao_social)
+      setEmailTomador(tpl.tomador.email)
+      setMunicipioIbge(tpl.tomador.municipio_ibge)
+    }
+  }
+
+  function handleTemplateChange(id: string) {
+    if (!id) { setSelectedTemplate(''); return }
+    const tpl = templates.find(t => t.id === id)
+    if (tpl) applyTemplate(tpl)
+  }
 
   // ISS preview
   const issEstimado = (() => {
@@ -236,6 +283,37 @@ export default function NovaNota() {
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+
+        {/* Template selector — only rendered when user has Pro/Business templates */}
+        {templates.length > 0 && (
+          <div className="flex items-center gap-3 rounded-xl border border-navy-600 bg-navy-700/50 px-4 py-3">
+            <span className="text-sm text-text-2 shrink-0">📄 Usar template:</span>
+            <select
+              value={selectedTemplate}
+              onChange={e => handleTemplateChange(e.target.value)}
+              className="flex-1 bg-navy-900 border border-navy-600 rounded-lg px-3 py-1.5 text-sm text-text-1 focus:outline-none focus:border-brand-cyan transition"
+            >
+              <option value="">— Selecionar template —</option>
+              {templates.map(t => (
+                <option key={t.id} value={t.id}>
+                  {t.nome}
+                </option>
+              ))}
+            </select>
+            {selectedTemplate && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedTemplate('')
+                }}
+                className="text-xs text-text-2 hover:text-text-1 transition shrink-0"
+                title="Limpar template"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        )}
 
         {/* API error banner */}
         {apiError && (
