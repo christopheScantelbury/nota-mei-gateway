@@ -15,6 +15,7 @@ import (
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/nfse"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/webhook"
 	stripeClient "github.com/christopheScantelbury/nota-mei-gateway/api/pkg/stripe"
+	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/storage"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
@@ -37,7 +38,8 @@ type NFSeHandler struct {
 	publisher    *webhook.Publisher
 	nbsValidator *document.NBSValidator
 	issLookup    *document.ISSLookup
-	sc           *stripeClient.Client // optional — nil disables metered billing
+	sc           *stripeClient.Client  // optional — nil disables metered billing
+	store        storage.ObjectStore   // optional — nil disables S3 upload (STOR-01)
 	apiBase      string
 	whSecret     string // HMAC secret used to sign webhook payloads
 	devMode      bool   // true in development — skips cert loading for NoopSigner
@@ -96,6 +98,13 @@ func (h *NFSeHandler) WithNBSValidator(v *document.NBSValidator) *NFSeHandler {
 // does not supply one explicitly.
 func (h *NFSeHandler) WithISSLookup(l *document.ISSLookup) *NFSeHandler {
 	h.issLookup = l
+	return h
+}
+
+// WithStorage sets the ObjectStore used to persist fiscal documents (STOR-01).
+// When set, XMLs and PDFs are uploaded to S3 instead of being stored in the DB.
+func (h *NFSeHandler) WithStorage(s storage.ObjectStore) *NFSeHandler {
+	h.store = s
 	return h
 }
 
@@ -200,10 +209,17 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 	}
 
 	// ── 7. Persist nota with PROCESSANDO status ───────────────────────────
+	// When S3 storage is configured we do NOT write the XML into the DB
+	// (xml_enviado stays NULL); it will be uploaded to S3 right after insert.
+	xmlEnviadoForDB := string(signedXML)
+	if h.store != nil {
+		xmlEnviadoForDB = "" // will be stored in S3 instead
+	}
+
 	nota, err := h.notaRepo.Create(ctx, nfse.CreateNotaInput{
 		MeiID:          mei.ID,
 		NumeroRPS:      numeroRPS,
-		XMLEnviado:     string(signedXML),
+		XMLEnviado:     xmlEnviadoForDB,
 		WebhookURL:     req.WebhookURL,
 		TomadorDoc:     req.Tomador.Documento,
 		TomadorNome:    req.Tomador.RazaoSocial,
@@ -213,6 +229,25 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 	})
 	if err != nil {
 		return internalError(c, "erro ao salvar nota")
+	}
+
+	// ── 7a. Upload signed RPS XML to S3 (STOR-01) ────────────────────────
+	if h.store != nil {
+		s3Key := storage.S3KeyForRPS(mei.ID.String(), nota.ID.String())
+		if uploadErr := h.store.Put(ctx, s3Key, "application/xml", signedXML); uploadErr != nil {
+			// Non-fatal: log the error but continue — the nota is already persisted.
+			// The backfill job will pick it up later.
+			log.Ctx(ctx).Error().Err(uploadErr).
+				Str("nota_id", nota.ID.String()).
+				Str("s3_key", s3Key).
+				Msg("falha ao fazer upload do RPS XML para S3 (non-fatal)")
+		} else {
+			if setErr := h.notaRepo.SetXMLS3Key(ctx, nota.ID, s3Key); setErr != nil {
+				log.Ctx(ctx).Warn().Err(setErr).
+					Str("nota_id", nota.ID.String()).
+					Msg("falha ao registrar xml_s3_key no banco (non-fatal)")
+			}
+		}
 	}
 
 	log.Ctx(ctx).Info().
@@ -446,6 +481,19 @@ func (h *NFSeHandler) DownloadXML(c *fiber.Ctx) error {
 		return internalError(c, "erro ao consultar nota")
 	}
 
+	// ── S3 path (STOR-01): redirect to a 15-minute presigned URL ─────────
+	if nota.XMLS3Key != nil && h.store != nil {
+		url, presignErr := h.store.PresignedURL(c.Context(), *nota.XMLS3Key, 15*time.Minute)
+		if presignErr != nil {
+			log.Ctx(c.Context()).Error().Err(presignErr).
+				Str("nota_id", notaID.String()).
+				Msg("falha ao gerar presigned URL para XML")
+			return internalError(c, "erro ao gerar URL de download")
+		}
+		return c.Redirect(url, fiber.StatusTemporaryRedirect)
+	}
+
+	// ── Legacy path: serve XML text stored in the DB ──────────────────────
 	var xmlData string
 	if nota.XMLRetorno != nil && *nota.XMLRetorno != "" {
 		xmlData = *nota.XMLRetorno
@@ -484,6 +532,19 @@ func (h *NFSeHandler) DownloadPDF(c *fiber.Ctx) error {
 		return internalError(c, "erro ao consultar nota")
 	}
 
+	// ── S3 path (STOR-01): redirect to a 15-minute presigned URL ─────────
+	if nota.PDFS3Key != nil && h.store != nil {
+		url, presignErr := h.store.PresignedURL(c.Context(), *nota.PDFS3Key, 15*time.Minute)
+		if presignErr != nil {
+			log.Ctx(c.Context()).Error().Err(presignErr).
+				Str("nota_id", notaID.String()).
+				Msg("falha ao gerar presigned URL para PDF")
+			return internalError(c, "erro ao gerar URL de download")
+		}
+		return c.Redirect(url, fiber.StatusTemporaryRedirect)
+	}
+
+	// ── Legacy path: redirect to Supabase Storage URL ─────────────────────
 	if nota.PDFPath == nil || *nota.PDFPath == "" {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error":   "NOT_FOUND",
@@ -491,7 +552,6 @@ func (h *NFSeHandler) DownloadPDF(c *fiber.Ctx) error {
 		})
 	}
 
-	// Redirect to Supabase Storage URL (signed URL would be generated here).
 	return c.Redirect(*nota.PDFPath, fiber.StatusTemporaryRedirect)
 }
 

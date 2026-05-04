@@ -33,6 +33,10 @@ type Config struct {
 
 	ReceitaAPIURL string
 
+	// S3BucketNotas is the AWS S3 bucket name for fiscal document storage (STOR-01).
+	// When empty the API falls back to NoopStore (in-memory, dev/test only).
+	S3BucketNotas string
+
 	ResendAPIKey string
 	EmailFrom    string
 }
@@ -66,6 +70,7 @@ func Load() *Config {
 		"RABBITMQ_URL",
 		"AWS_REGION",
 		"AWS_KMS_KEY_ARN",
+		"S3_BUCKET_NOTAS",
 		"STRIPE_SECRET_KEY",
 		"STRIPE_WEBHOOK_SECRET",
 		"STRIPE_PRICE_STARTER",
@@ -108,6 +113,8 @@ func Load() *Config {
 		WebhookHMACSecret: os.Getenv("WEBHOOK_HMAC_SECRET"),
 
 		ReceitaAPIURL: os.Getenv("RECEITA_API_URL"),
+
+		S3BucketNotas: os.Getenv("S3_BUCKET_NOTAS"),
 
 		ResendAPIKey: os.Getenv("RESEND_API_KEY"),
 		EmailFrom:    getEnv("EMAIL_FROM", "Nota MEI Gateway <noreply@notameigateway.com.br>"),
