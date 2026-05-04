@@ -9,6 +9,7 @@ const navItems = [
   { href: '/notas',         label: 'Notas Fiscais',   icon: '🧾', badge: null         },
   { href: '/templates',     label: 'Templates',       icon: '📄', badge: 'PRO'        },
   { href: '/recorrencias',  label: 'Automação',       icon: '🔄', badge: 'BUSINESS'   },
+  { href: '/api-keys',      label: 'API Keys',        icon: '🔑', badge: null         },
   { href: '/billing',       label: 'Plano & Billing', icon: '💳', badge: null         },
   { href: '/configuracoes', label: 'Configurações',   icon: '⚙️', badge: null        },
 ]

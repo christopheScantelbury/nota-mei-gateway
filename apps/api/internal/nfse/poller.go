@@ -46,7 +46,7 @@ type Poller struct {
 	publisher      *webhook.Publisher
 	interval       time.Duration
 	billingCounter EmissaoCounter // optional; nil disables DB counter increment
-	locker         PollerLocker  // optional; nil disables per-nota distributed lock
+	locker         PollerLocker   // optional; nil disables per-nota distributed lock
 }
 
 // NewPoller creates a Poller with the given interval between sweeps.
