@@ -79,8 +79,11 @@ func main() {
 
 	// ── NFS-e status poller ────────────────────────────────────────────────
 	// Polls the Receita Federal every 30s for PROCESSANDO notas with a protocol.
+	// WithLocker ensures that concurrent Worker instances never process the same
+	// nota in parallel (SCALE-01: per-nota Redis lock + DB status guard).
 	poller := nfse.NewPoller(notaRepo, adapter, certProv, publisher, 30*time.Second).
-		WithBillingCounter(billingRepo)
+		WithBillingCounter(billingRepo).
+		WithLocker(redisLocker)
 
 	// ── Stuck nota poller ─────────────────────────────────────────────────────
 	// Marks PROCESSANDO notas that never received a protocol as ERRO_TEMPORARIO
@@ -89,8 +92,10 @@ func main() {
 
 	// ── Webhook requeuer ───────────────────────────────────────────────────
 	// Sweeps the DB every 5 minutes for undelivered webhooks and re-publishes them.
+	// WithLocker prevents duplicate deliveries when multiple Worker pods run (SCALE-01).
 	sweepFn := buildSweepFn(notaRepo, cfg.WebhookHMACSecret)
-	requeuer := webhook.NewRequeuer(sweepFn, publisher, 5*time.Minute)
+	requeuer := webhook.NewRequeuer(sweepFn, publisher, 5*time.Minute).
+		WithLocker(redisLocker)
 
 	log.Info().Str("env", cfg.AppEnv).Msg("webhook worker iniciado")
 

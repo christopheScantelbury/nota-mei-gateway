@@ -60,15 +60,19 @@ func NewNotaRepository(db *supabase.Client) *NotaRepository {
 }
 
 // NextNumeroRPS atomically allocates the next RPS sequence number for a MEI.
-// Uses a Postgres sequence-per-MEI strategy via a RETURNING clause.
+// Uses a dedicated rps_sequences table with INSERT … ON CONFLICT DO UPDATE so
+// that concurrent callers always receive a unique, monotonically-increasing
+// number — even across multiple API instances (SCALE-01).
 func (r *NotaRepository) NextNumeroRPS(ctx context.Context, meiID uuid.UUID) (int64, error) {
-	row := r.db.Pool().QueryRow(ctx, `
-		SELECT COALESCE(MAX(numero_rps), 0) + 1
-		FROM notas_fiscais
-		WHERE mei_id = $1
-	`, meiID)
 	var n int64
-	if err := row.Scan(&n); err != nil {
+	err := r.db.Pool().QueryRow(ctx, `
+		INSERT INTO rps_sequences (mei_id, ultimo_rps)
+		VALUES ($1, 1)
+		ON CONFLICT (mei_id) DO UPDATE
+		    SET ultimo_rps = rps_sequences.ultimo_rps + 1
+		RETURNING ultimo_rps
+	`, meiID).Scan(&n)
+	if err != nil {
 		return 0, err
 	}
 	return n, nil
@@ -234,8 +238,12 @@ func (r *NotaRepository) SetProtocolo(ctx context.Context, notaID uuid.UUID, pro
 }
 
 // Autorizar marks a nota as AUTORIZADA with the official NFS-e number.
-func (r *NotaRepository) Autorizar(ctx context.Context, notaID uuid.UUID, numeroNFSe, codVerificacao, xmlRetorno string) error {
-	_, err := r.db.Pool().Exec(ctx, `
+// The WHERE clause guards on status = 'PROCESSANDO' so that concurrent Poller
+// instances cannot double-count or double-publish the same nota (SCALE-01).
+// Returns (true, nil) when the row was updated; (false, nil) when another
+// instance already finalised it first.
+func (r *NotaRepository) Autorizar(ctx context.Context, notaID uuid.UUID, numeroNFSe, codVerificacao, xmlRetorno string) (bool, error) {
+	tag, err := r.db.Pool().Exec(ctx, `
 		UPDATE notas_fiscais
 		SET status = 'AUTORIZADA',
 		    numero_nfse = $1,
@@ -244,21 +252,33 @@ func (r *NotaRepository) Autorizar(ctx context.Context, notaID uuid.UUID, numero
 		    emitida_em = NOW(),
 		    updated_at = NOW()
 		WHERE id = $4
+		  AND status = 'PROCESSANDO'
 	`, numeroNFSe, codVerificacao, xmlRetorno, notaID)
-	return err
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
 }
 
 // Rejeitar marks a nota as REJEITADA with error details.
-func (r *NotaRepository) Rejeitar(ctx context.Context, notaID uuid.UUID, erroCodigo, erroDescricao string) error {
-	_, err := r.db.Pool().Exec(ctx, `
+// The WHERE clause guards on status = 'PROCESSANDO' for the same reason as
+// Autorizar — prevents duplicate processing across concurrent Worker instances.
+// Returns (true, nil) when the row was updated; (false, nil) when it was
+// already finalised.
+func (r *NotaRepository) Rejeitar(ctx context.Context, notaID uuid.UUID, erroCodigo, erroDescricao string) (bool, error) {
+	tag, err := r.db.Pool().Exec(ctx, `
 		UPDATE notas_fiscais
 		SET status = 'REJEITADA',
 		    erro_codigo = $1,
 		    erro_descricao = $2,
 		    updated_at = NOW()
 		WHERE id = $3
+		  AND status = 'PROCESSANDO'
 	`, erroCodigo, erroDescricao, notaID)
-	return err
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
 }
 
 // Cancelar marks a nota as CANCELADA.
