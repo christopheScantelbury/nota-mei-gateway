@@ -12,9 +12,17 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, hint, leftIcon, rightIcon, disabled, id, ...props }, ref) => {
+  ({ className, label, error, hint, leftIcon, rightIcon, disabled, id, 'aria-describedby': ariaDescribedby, ...props }, ref) => {
     const generatedId = React.useId()
-    const inputId = id ?? generatedId
+    const inputId     = id ?? generatedId
+    const errorId     = `${inputId}-error`
+    const hintId      = `${inputId}-hint`
+
+    const describedBy = [
+      ariaDescribedby,
+      error ? errorId : null,
+      hint && !error ? hintId : null,
+    ].filter(Boolean).join(' ') || undefined
 
     return (
       <div className="flex flex-col gap-1.5">
@@ -28,7 +36,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         )}
         <div className="relative flex items-center">
           {leftIcon && (
-            <span className="pointer-events-none absolute left-3 text-text-2">
+            <span className="pointer-events-none absolute left-3 text-text-2" aria-hidden="true">
               {leftIcon}
             </span>
           )}
@@ -36,6 +44,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             disabled={disabled}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={describedBy}
             className={cn(
               'w-full rounded-lg border bg-navy-700 px-3 py-2 text-sm text-text-1 placeholder:text-text-2/60',
               'transition-colors',
@@ -51,16 +61,18 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
             {...props}
           />
           {rightIcon && (
-            <span className="pointer-events-none absolute right-3 text-text-2">
+            <span className="pointer-events-none absolute right-3 text-text-2" aria-hidden="true">
               {rightIcon}
             </span>
           )}
         </div>
         {error && (
-          <p className="text-xs text-nota-rejeitada">{error}</p>
+          <p id={errorId} role="alert" className="text-xs text-nota-rejeitada">
+            {error}
+          </p>
         )}
         {hint && !error && (
-          <p className="text-xs text-text-2">{hint}</p>
+          <p id={hintId} className="text-xs text-text-2">{hint}</p>
         )}
       </div>
     )

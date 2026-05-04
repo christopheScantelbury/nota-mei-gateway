@@ -1,0 +1,1123 @@
+﻿openapi: 3.1.0
+
+info:
+  title: Nota MEI Gateway
+  version: 1.0.0
+  description: |
+    API REST para emissão automatizada de NFS-e para MEI via Receita Federal Nacional (NFS-e Nacional v1.2 / ABRASF).
+
+    ## Autenticação
+
+    Todas as rotas marcadas com 🔒 requerem um Bearer token no header `Authorization`:
+
+    ```
+    Authorization: Bearer sk_live_<hex64>
+    ```
+
+    Use chaves `sk_live_` em produção e `sk_test_` no sandbox.
+
+    ## Erros
+
+    Todos os erros seguem o formato:
+
+    ```json
+    {
+      "error": "VALIDATION_ERROR",
+      "message": "descrição legível",
+      "request_id": "uuid"
+    }
+    ```
+
+    | Código | HTTP |
+    |--------|------|
+    | `INVALID_API_KEY` | 401 |
+    | `PLAN_LIMIT_REACHED` | 402 |
+    | `FORBIDDEN` | 403 |
+    | `NOT_FOUND` | 404 |
+    | `ALREADY_CANCELLED` | 409 |
+    | `VALIDATION_ERROR` | 422 |
+    | `RECEITA_REJECTION` | 422 |
+    | `INTERNAL_ERROR` | 500 |
+  contact:
+    name: ScantelburyDevs
+    url: https://notameigateway.com.br
+    email: dev@scantelburydevs.com.br
+  license:
+    name: Proprietário
+
+servers:
+  - url: https://api.notameigateway.com.br
+    description: Produção
+  - url: https://staging-api.notameigateway.com.br
+    description: Staging
+  - url: http://localhost:8080
+    description: Local
+
+security: []
+
+tags:
+  - name: NFS-e
+    description: Emissão, consulta e cancelamento de notas fiscais de serviço
+  - name: Billing
+    description: Consumo, planos e assinatura Stripe
+  - name: Auth
+    description: Cadastro de MEI e gestão de certificados A1
+  - name: Webhooks
+    description: Eventos Stripe recebidos pela API
+  - name: Health
+    description: Health check e status dos serviços
+
+paths:
+
+  # ─── NFS-e ────────────────────────────────────────────────────────────────
+
+  /v1/nfse:
+    post:
+      operationId: emitirNota
+      summary: Emitir nota fiscal
+      description: |
+        Envia uma NFS-e para a Receita Federal Nacional. O processamento é assíncrono:
+        a API responde com `202 Accepted` e o status final é entregue via webhook.
+      tags: [NFS-e]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmissaoRequest'
+            examples:
+              pj:
+                summary: Tomador Pessoa Jurídica
+                value:
+                  servico:
+                    codigo_nbs: "01.01.01.10"
+                    discriminacao: "Desenvolvimento de software conforme contrato"
+                    valor: 3500.00
+                    aliquota_iss: 2.0
+                  tomador:
+                    tipo: PJ
+                    documento: "12345678000190"
+                    razao_social: "Empresa Cliente LTDA"
+                    email: "financeiro@empresa.com"
+                    municipio_ibge: "3550308"
+                  competencia: "2026-04"
+                  webhook_url: "https://erp.empresa.com/webhooks/nfse"
+              pf:
+                summary: Tomador Pessoa Física
+                value:
+                  servico:
+                    codigo_nbs: "01.01.01.10"
+                    discriminacao: "Consultoria avulsa"
+                    valor: 800.00
+                    aliquota_iss: 2.0
+                  tomador:
+                    tipo: PF
+                    documento: "12345678900"
+                    razao_social: "João da Silva"
+                    email: "joao@email.com"
+                  competencia: "2026-04"
+      responses:
+        "202":
+          description: Nota aceita para processamento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmissaoResponse'
+              example:
+                nota_id: "550e8400-e29b-41d4-a716-446655440000"
+                status: PROCESSANDO
+                mensagem: "Nota enviada para processamento"
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "402":
+          $ref: '#/components/responses/PlanLimitReached'
+        "422":
+          $ref: '#/components/responses/ValidationError'
+        "500":
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      operationId: listarNotas
+      summary: Listar notas fiscais
+      description: Retorna a lista paginada de notas do MEI autenticado.
+      tags: [NFS-e]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: Itens por página
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+          description: Deslocamento para paginação
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/NotaStatus'
+          description: Filtrar por status
+        - name: competencia
+          in: query
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+          description: Filtrar por competência (AAAA-MM)
+      responses:
+        "200":
+          description: Lista de notas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListaNotasResponse'
+              example:
+                data:
+                  - id: "550e8400-e29b-41d4-a716-446655440000"
+                    status: AUTORIZADA
+                    numero_nfse: "000123"
+                    valor_servico: 3500.00
+                    tomador_nome: "Empresa Cliente LTDA"
+                    competencia: "2026-04"
+                    emitida_em: "2026-04-26T14:30:00Z"
+                    created_at: "2026-04-26T14:00:00Z"
+                total: 42
+                limit: 20
+                offset: 0
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "500":
+          $ref: '#/components/responses/InternalError'
+
+  /v1/nfse/{nota_id}:
+    get:
+      operationId: consultarNota
+      summary: Consultar status da nota
+      description: Retorna todos os detalhes de uma nota fiscal, incluindo protocolo, número NFS-e e status de entrega do webhook.
+      tags: [NFS-e]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/NotaId'
+      responses:
+        "200":
+          description: Detalhes da nota
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotaDetalhe'
+              example:
+                id: "550e8400-e29b-41d4-a716-446655440000"
+                status: AUTORIZADA
+                protocolo_receita: "202604011234567"
+                numero_nfse: "000123"
+                codigo_verificacao: "ABC12345"
+                valor_servico: 3500.00
+                tomador_doc: "12345678000190"
+                tomador_nome: "Empresa Cliente LTDA"
+                competencia: "2026-04"
+                webhook_entregue: true
+                webhook_tentativas: 1
+                emitida_em: "2026-04-26T14:30:00Z"
+                created_at: "2026-04-26T14:00:00Z"
+                updated_at: "2026-04-26T14:30:00Z"
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "404":
+          $ref: '#/components/responses/NotFound'
+        "500":
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      operationId: cancelarNota
+      summary: Cancelar nota autorizada
+      description: |
+        Solicita o cancelamento de uma NFS-e já autorizada pela Receita Federal.
+        Só é possível cancelar notas com status `AUTORIZADA`.
+      tags: [NFS-e]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/NotaId'
+      responses:
+        "202":
+          description: Cancelamento aceito
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nota_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    example: CANCELADA
+                  mensagem:
+                    type: string
+                    example: "Nota cancelada com sucesso"
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "404":
+          $ref: '#/components/responses/NotFound'
+        "409":
+          description: Nota já cancelada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: ALREADY_CANCELLED
+                message: "Esta nota já foi cancelada"
+                request_id: "req-uuid"
+        "500":
+          $ref: '#/components/responses/InternalError'
+
+  /v1/nfse/{nota_id}/pdf:
+    get:
+      operationId: downloadPdf
+      summary: Download do PDF da nota
+      description: Retorna o PDF da NFS-e autorizada via redirect para URL assinada do Supabase Storage.
+      tags: [NFS-e]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/NotaId'
+      responses:
+        "302":
+          description: Redirect para URL assinada do PDF (válida por 60s)
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "404":
+          $ref: '#/components/responses/NotFound'
+        "422":
+          description: Nota ainda não foi autorizada (PDF não disponível)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/nfse/{nota_id}/xml:
+    get:
+      operationId: downloadXml
+      summary: Download do XML da nota
+      description: Retorna o XML canônico da NFS-e com assinatura digital.
+      tags: [NFS-e]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/NotaId'
+      responses:
+        "200":
+          description: XML da nota fiscal
+          content:
+            application/xml:
+              schema:
+                type: string
+                description: XML NFS-e Nacional v1.2 assinado digitalmente
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  # ─── Billing ──────────────────────────────────────────────────────────────
+
+  /v1/billing/usage:
+    get:
+      operationId: getUsage
+      summary: Consumo do mês atual
+      description: Retorna o total de notas emitidas no mês corrente, limite do plano e status da assinatura Stripe.
+      tags: [Billing]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dados de consumo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsageResponse'
+              example:
+                competencia: "2026-04"
+                total_emitidas: 37
+                limite: 50
+                excedentes: 0
+                plano: Starter
+                stripe_status: active
+                renovacao_em: "2026-05-01T00:00:00Z"
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "500":
+          $ref: '#/components/responses/InternalError'
+
+  /v1/billing/portal:
+    get:
+      operationId: getBillingPortal
+      summary: URL do Customer Portal Stripe
+      description: Gera e retorna uma URL de sessão do Stripe Customer Portal para gerenciar assinatura, método de pagamento e faturas.
+      tags: [Billing]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: URL do portal (válida por 5 minutos)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [url]
+                properties:
+                  url:
+                    type: string
+                    format: uri
+                    example: "https://billing.stripe.com/session/live_xxx"
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "500":
+          $ref: '#/components/responses/InternalError'
+
+  /v1/billing/checkout:
+    post:
+      operationId: createCheckout
+      summary: Criar sessão de checkout Stripe
+      description: Cria uma Stripe Checkout Session para assinar ou mudar de plano.
+      tags: [Billing]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [price_id]
+              properties:
+                price_id:
+                  type: string
+                  description: ID do preço Stripe (price_xxx)
+                  example: "price_1RAbcdefXXX"
+                success_url:
+                  type: string
+                  format: uri
+                  description: URL de redirecionamento após checkout bem-sucedido
+                  example: "https://app.notameigateway.com.br/billing?success=1"
+                cancel_url:
+                  type: string
+                  format: uri
+                  description: URL de redirecionamento se o usuário cancelar
+                  example: "https://app.notameigateway.com.br/billing"
+      responses:
+        "200":
+          description: Sessão de checkout criada
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [checkout_url]
+                properties:
+                  checkout_url:
+                    type: string
+                    format: uri
+                    example: "https://checkout.stripe.com/pay/cs_live_xxx"
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "422":
+          $ref: '#/components/responses/ValidationError'
+        "500":
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Auth ─────────────────────────────────────────────────────────────────
+
+  /v1/auth/register:
+    post:
+      operationId: registerMei
+      summary: Cadastrar MEI
+      description: |
+        Registra um novo MEI na plataforma. O certificado A1 deve ser enviado como
+        `multipart/form-data`. O certificado é armazenado no AWS Secrets Manager —
+        **nunca em disco ou banco**.
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [cnpj, razao_social, email, municipio_ibge, certificado, senha_certificado]
+              properties:
+                cnpj:
+                  type: string
+                  pattern: '^\d{14}$'
+                  description: CNPJ sem pontuação (14 dígitos)
+                  example: "12345678000190"
+                razao_social:
+                  type: string
+                  maxLength: 255
+                  example: "João Silva MEI"
+                email:
+                  type: string
+                  format: email
+                  example: "joao@email.com"
+                municipio_ibge:
+                  type: string
+                  pattern: '^\d{7}$'
+                  description: Código IBGE do município (7 dígitos)
+                  example: "3550308"
+                certificado:
+                  type: string
+                  format: binary
+                  description: Arquivo do certificado A1 (.pfx ou .p12)
+                senha_certificado:
+                  type: string
+                  description: Senha do certificado A1
+      responses:
+        "201":
+          description: MEI cadastrado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mei_id:
+                    type: string
+                    format: uuid
+                  api_key:
+                    type: string
+                    description: API Key gerada (mostrada apenas uma vez)
+                    example: "sk_live_a1b2c3d4e5f6..."
+                  checkout_url:
+                    type: string
+                    format: uri
+                    description: URL Stripe Checkout para ativar assinatura
+        "422":
+          $ref: '#/components/responses/ValidationError'
+        "500":
+          $ref: '#/components/responses/InternalError'
+
+  /v1/auth/certificate:
+    post:
+      operationId: renewCertificate
+      summary: Renovar certificado A1
+      description: Substitui o certificado A1 armazenado no AWS Secrets Manager.
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [certificado, senha_certificado]
+              properties:
+                certificado:
+                  type: string
+                  format: binary
+                senha_certificado:
+                  type: string
+      responses:
+        "200":
+          description: Certificado atualizado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  mensagem:
+                    type: string
+                    example: "Certificado atualizado com sucesso"
+                  validade:
+                    type: string
+                    format: date-time
+                    description: Data de expiração do novo certificado
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+        "422":
+          $ref: '#/components/responses/ValidationError'
+
+  # ─── Webhooks ─────────────────────────────────────────────────────────────
+
+  /v1/webhooks/stripe:
+    post:
+      operationId: stripeWebhook
+      summary: Receber eventos Stripe
+      description: |
+        Endpoint para receber webhooks do Stripe. A assinatura é validada com
+        `stripe.ConstructEvent` usando `STRIPE_WEBHOOK_SECRET`.
+
+        Eventos processados:
+        - `invoice.paid` — ativa assinatura
+        - `invoice.payment_failed` — suspende acesso
+        - `customer.subscription.deleted` — cancela assinatura
+        - `customer.subscription.updated` — atualiza plano
+      tags: [Webhooks]
+      parameters:
+        - name: Stripe-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Assinatura HMAC do Stripe para validação
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Payload bruto do evento Stripe
+      responses:
+        "200":
+          description: Evento processado
+        "400":
+          description: Assinatura inválida ou evento malformado
+
+  # ─── Health ───────────────────────────────────────────────────────────────
+
+  /v1/health:
+    get:
+      operationId: healthCheck
+      summary: Health check
+      description: Verifica o status de todos os serviços dependentes (DB, Redis, RabbitMQ, Receita Federal).
+      tags: [Health]
+      responses:
+        "200":
+          description: Todos os serviços operacionais
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+                env: production
+                services:
+                  database: ok
+                  redis: ok
+                  rabbitmq: ok
+                  receita: ok
+        "503":
+          description: Um ou mais serviços com falha
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: degraded
+                env: production
+                services:
+                  database: ok
+                  redis: ok
+                  rabbitmq: error
+                  receita: ok
+
+# ─── Webhooks entregues ao cliente ────────────────────────────────────────
+
+webhooks:
+  nfse.autorizada:
+    post:
+      summary: Nota autorizada pela Receita Federal
+      description: Disparado quando uma NFS-e recebe número e código de verificação.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+            example:
+              event: nfse.autorizada
+              nota_id: "550e8400-e29b-41d4-a716-446655440000"
+              status: AUTORIZADA
+              numero_nfse: "000123"
+              codigo_verificacao: "ABC12345"
+              pdf_url: "https://api.notameigateway.com.br/v1/nfse/550e8400.../pdf"
+              xml_url: "https://api.notameigateway.com.br/v1/nfse/550e8400.../xml"
+              emitida_em: "2026-04-26T14:30:00Z"
+              signature: "sha256=a1b2c3d4e5f6..."
+      responses:
+        "200":
+          description: Webhook recebido com sucesso
+
+  nfse.rejeitada:
+    post:
+      summary: Nota rejeitada pela Receita Federal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+            example:
+              event: nfse.rejeitada
+              nota_id: "550e8400-e29b-41d4-a716-446655440000"
+              status: REJEITADA
+              erro_codigo: "E10"
+              erro_descricao: "CNPJ do tomador inválido"
+              signature: "sha256=a1b2c3d4e5f6..."
+      responses:
+        "200":
+          description: Webhook recebido com sucesso
+
+  nfse.cancelada:
+    post:
+      summary: Nota cancelada
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookPayload'
+            example:
+              event: nfse.cancelada
+              nota_id: "550e8400-e29b-41d4-a716-446655440000"
+              status: CANCELADA
+              signature: "sha256=a1b2c3d4e5f6..."
+      responses:
+        "200":
+          description: Webhook recebido com sucesso
+
+# ─── Components ───────────────────────────────────────────────────────────
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key (sk_live_<hex64> ou sk_test_<hex64>)
+      description: |
+        API Key gerada no cadastro do MEI.
+        - `sk_live_` — produção (processa notas reais)
+        - `sk_test_` — sandbox (homologação Receita Federal)
+
+  parameters:
+    NotaId:
+      name: nota_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: UUID da nota fiscal
+      example: "550e8400-e29b-41d4-a716-446655440000"
+
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+        maxLength: 255
+      description: |
+        Chave de idempotência para evitar emissão duplicada.
+        Recomendado em retentativas. O mesmo valor retorna o resultado original
+        sem re-processar.
+      example: "pedido-12345-tentativa-1"
+
+  schemas:
+
+    # ── Enums ──────────────────────────────────────────────────────────────
+
+    NotaStatus:
+      type: string
+      enum: [PROCESSANDO, AUTORIZADA, REJEITADA, CANCELADA, ERRO_TEMPORARIO]
+      description: |
+        - `PROCESSANDO` — aguardando resposta da Receita Federal
+        - `AUTORIZADA` — NFS-e emitida com número e código de verificação
+        - `REJEITADA` — rejeitada pela Receita (ver `erro_codigo`)
+        - `CANCELADA` — cancelada após autorização
+        - `ERRO_TEMPORARIO` — erro temporário, será reprocessada automaticamente
+
+    TomadorTipo:
+      type: string
+      enum: [PJ, PF]
+      description: Tipo de pessoa do tomador do serviço
+
+    # ── Request schemas ────────────────────────────────────────────────────
+
+    ServicoRequest:
+      type: object
+      required: [codigo_nbs, discriminacao, valor, aliquota_iss]
+      properties:
+        codigo_nbs:
+          type: string
+          pattern: '^\d{2}\.\d{2}((\.\d{2}){0,3})?$'
+          description: Código NBS (Nomenclatura Brasileira de Serviços) conforme tabela Receita Federal
+          example: "01.01.01.10"
+        discriminacao:
+          type: string
+          minLength: 10
+          maxLength: 2000
+          description: Descrição do serviço prestado
+          example: "Desenvolvimento de software conforme contrato"
+        valor:
+          type: number
+          format: double
+          minimum: 0.01
+          description: Valor do serviço em BRL
+          example: 3500.00
+        aliquota_iss:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 10
+          description: "Alíquota ISS em percentual (ex.: 2.0 = 2%)"
+          example: 2.0
+
+    TomadorRequest:
+      type: object
+      required: [tipo, documento, razao_social]
+      properties:
+        tipo:
+          $ref: '#/components/schemas/TomadorTipo'
+        documento:
+          type: string
+          description: CPF (11 dígitos) ou CNPJ (14 dígitos) sem pontuação
+          example: "12345678000190"
+        razao_social:
+          type: string
+          maxLength: 255
+          description: Nome ou razão social do tomador
+          example: "Empresa Cliente LTDA"
+        email:
+          type: string
+          format: email
+          description: E-mail do tomador (opcional, para envio da nota)
+          example: "financeiro@empresa.com"
+        municipio_ibge:
+          type: string
+          pattern: '^\d{7}$'
+          description: Código IBGE do município do tomador (obrigatório para PJ de outro município)
+          example: "3550308"
+
+    EmissaoRequest:
+      type: object
+      required: [servico, tomador, competencia]
+      properties:
+        servico:
+          $ref: '#/components/schemas/ServicoRequest'
+        tomador:
+          $ref: '#/components/schemas/TomadorRequest'
+        competencia:
+          type: string
+          pattern: '^\d{4}-\d{2}$'
+          description: Mês de competência da nota (AAAA-MM)
+          example: "2026-04"
+        webhook_url:
+          type: string
+          format: uri
+          maxLength: 500
+          description: URL para receber o resultado assíncrono da emissão
+          example: "https://erp.empresa.com/webhooks/nfse"
+
+    # ── Response schemas ───────────────────────────────────────────────────
+
+    EmissaoResponse:
+      type: object
+      required: [nota_id, status, mensagem]
+      properties:
+        nota_id:
+          type: string
+          format: uuid
+          description: Identificador único da nota
+        status:
+          $ref: '#/components/schemas/NotaStatus'
+        mensagem:
+          type: string
+          example: "Nota enviada para processamento"
+
+    NotaResumo:
+      type: object
+      required: [id, status, competencia, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/NotaStatus'
+        numero_nfse:
+          type: [string, 'null']
+          example: "000123"
+        valor_servico:
+          type: number
+          format: double
+          example: 3500.00
+        tomador_nome:
+          type: string
+          example: "Empresa Cliente LTDA"
+        competencia:
+          type: string
+          pattern: '^\d{4}-\d{2}$'
+          example: "2026-04"
+        emitida_em:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    NotaDetalhe:
+      allOf:
+        - $ref: '#/components/schemas/NotaResumo'
+        - type: object
+          properties:
+            protocolo_receita:
+              type: [string, 'null']
+              example: "202604011234567"
+            codigo_verificacao:
+              type: [string, 'null']
+              example: "ABC12345"
+            tomador_doc:
+              type: string
+              example: "12345678000190"
+            erro_codigo:
+              type: [string, 'null']
+              example: "E10"
+            erro_descricao:
+              type: [string, 'null']
+              example: "CNPJ inválido"
+            webhook_url:
+              type: string
+              format: uri
+            webhook_entregue:
+              type: boolean
+              example: true
+            webhook_tentativas:
+              type: integer
+              example: 1
+            cancelada_em:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+
+    ListaNotasResponse:
+      type: object
+      required: [data, total, limit, offset]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotaResumo'
+        total:
+          type: integer
+          description: Total de notas (para paginação)
+          example: 42
+        limit:
+          type: integer
+          example: 20
+        offset:
+          type: integer
+          example: 0
+
+    UsageResponse:
+      type: object
+      required: [competencia, total_emitidas, limite, plano]
+      properties:
+        competencia:
+          type: string
+          pattern: '^\d{4}-\d{2}$'
+          example: "2026-04"
+        total_emitidas:
+          type: integer
+          example: 37
+        limite:
+          type: integer
+          description: Limite de emissões do plano atual
+          example: 50
+        excedentes:
+          type: integer
+          description: Emissões acima do limite (cobradas por Metered Billing)
+          example: 0
+        plano:
+          type: string
+          enum: [Trial, Starter, Basic, Pro, Business]
+          example: Starter
+        stripe_status:
+          type: string
+          enum: [active, past_due, canceled, trialing, incomplete]
+          example: active
+        renovacao_em:
+          type: string
+          format: date-time
+          description: Data de renovação da assinatura
+
+    WebhookPayload:
+      type: object
+      required: [event, nota_id, status, signature]
+      properties:
+        event:
+          type: string
+          enum: [nfse.autorizada, nfse.rejeitada, nfse.cancelada]
+        nota_id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/NotaStatus'
+        numero_nfse:
+          type: [string, 'null']
+          description: Número NFS-e (apenas em nfse.autorizada)
+        codigo_verificacao:
+          type: [string, 'null']
+          description: Código de verificação (apenas em nfse.autorizada)
+        pdf_url:
+          type: string
+          format: uri
+          description: URL do PDF (apenas em nfse.autorizada)
+        xml_url:
+          type: string
+          format: uri
+          description: URL do XML (apenas em nfse.autorizada)
+        emitida_em:
+          type: string
+          format: date-time
+          description: Timestamp de autorização (apenas em nfse.autorizada)
+        erro_codigo:
+          type: [string, 'null']
+          description: Código de erro da Receita (apenas em nfse.rejeitada)
+        erro_descricao:
+          type: [string, 'null']
+          description: Descrição do erro (apenas em nfse.rejeitada)
+        signature:
+          type: string
+          description: |
+            Assinatura HMAC-SHA256 do payload para verificação de autenticidade.
+            Formato: `sha256=<hex>`.
+            Calcule com `HMAC-SHA256(webhook_secret, raw_body)` e compare com tempo constante.
+          example: "sha256=a1b2c3d4e5f6789..."
+
+    HealthResponse:
+      type: object
+      required: [status, env]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        env:
+          type: string
+          enum: [development, staging, production]
+        services:
+          type: object
+          properties:
+            database:
+              type: string
+              enum: [ok, error]
+            redis:
+              type: string
+              enum: [ok, error]
+            rabbitmq:
+              type: string
+              enum: [ok, error]
+            receita:
+              type: string
+              enum: [ok, error]
+
+    ErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          enum:
+            - INVALID_API_KEY
+            - PLAN_LIMIT_REACHED
+            - FORBIDDEN
+            - NOT_FOUND
+            - ALREADY_CANCELLED
+            - VALIDATION_ERROR
+            - RECEITA_REJECTION
+            - INTERNAL_ERROR
+        message:
+          type: string
+          description: Mensagem legível em português
+        fields:
+          type: array
+          description: Erros de validação por campo (apenas em VALIDATION_ERROR)
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: "tomador.documento"
+              message:
+                type: string
+                example: "CNPJ inválido"
+        request_id:
+          type: string
+          format: uuid
+          description: ID da requisição para rastreabilidade
+
+  responses:
+    Unauthorized:
+      description: API Key ausente, inválida ou revogada
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: INVALID_API_KEY
+            message: "Authorization header missing or malformed"
+            request_id: "req-uuid"
+
+    PlanLimitReached:
+      description: Limite de emissões do plano atingido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: PLAN_LIMIT_REACHED
+            message: "Limite de 50 emissões do plano Starter atingido. Faça upgrade para continuar."
+            request_id: "req-uuid"
+
+    NotFound:
+      description: Recurso não encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: NOT_FOUND
+            message: "Nota fiscal não encontrada"
+            request_id: "req-uuid"
+
+    ValidationError:
+      description: Erro de validação nos dados da requisição
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: VALIDATION_ERROR
+            message: "campos inválidos"
+            fields:
+              - field: "tomador.documento"
+                message: "CNPJ deve ter 14 dígitos"
+              - field: "servico.valor"
+                message: "valor deve ser maior que zero"
+            request_id: "req-uuid"
+
+    InternalError:
+      description: Erro interno do servidor
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: INTERNAL_ERROR
+            message: "Erro interno. Tente novamente em instantes."
+            request_id: "req-uuid"
