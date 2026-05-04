@@ -363,6 +363,10 @@ STRIPE_PRICE_BUSINESS=price_...
 
 # Receita Federal
 RECEITA_API_URL=https://www.nfse.gov.br/m/app/api/recepcionar-lote-rps/v1
+
+# Armazenamento fiscal (STOR-01)
+S3_BUCKET_NOTAS=nota-mei-gateway-fiscal   # bucket S3 dedicado para XMLs/PDFs (lifecycle 5 anos)
+# AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY já definidos acima
 ```
 
 ### Dashboard Next.js (Vercel)
@@ -381,6 +385,7 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...                                       # supabas
 REDIS_URL=redis://localhost:6379
 RABBITMQ_URL=amqp://guest:guest@localhost:5672/
 RECEITA_API_URL=https://homologacao.nfse.gov.br/m/app/api/recepcionar-lote-rps/v1
+S3_BUCKET_NOTAS=nota-mei-gateway-fiscal-dev                            # bucket local/dev (ou usar NoopStore)
 WEBHOOK_HMAC_SECRET=dev-local-secret                                   # qualquer valor
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...  # gerado pelo stripe CLI
@@ -458,6 +463,7 @@ status-cancelada.png    → #6473A0 (cinza)
 ✅ QA-02–05                   testes unitários, k6, Postman, deploy checklist
 ✅ SDK-01–08                  OpenAPI, sandbox, Node.js, Python, WooCommerce, Zapier, Google Sheets, portal
 
+⏳ STOR-01 (#126)             Arquivamento fiscal 5 anos — XMLs/PDFs para AWS S3 com lifecycle policy
 ⏳ DNS                        CNAME api.notameigateway.com.br → api-production-73b1.up.railway.app
 ⏳ Vercel env vars            NEXT_PUBLIC_SUPABASE_ANON_KEY e NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY em branco
 ⏳ supabase db push           Aplicar migrations no projeto de produção
@@ -668,3 +674,9 @@ vercel --prod               # deploy manual produção
 
 5. **BillingGuard cache** — Redis TTL 5 min, invalidado pelos webhooks Stripe. O webhook secret
    `whsec_REDACTED` já está configurado no Railway.
+
+6. **STOR-01 (#126) — armazenamento fiscal** — `xml_enviado`/`xml_retorno` ainda ficam no
+   PostgreSQL. Antes de entrar em produção com volume real, implementar `pkg/storage/` (S3)
+   e migrar para guardar apenas `xml_s3_key`/`pdf_s3_key` no banco. Lifecycle S3:
+   Standard (0–30d) → Standard-IA (30–365d) → Glacier Instant (1–3 anos) → Deep Archive (3–5 anos).
+   Bucket dedicado: `nota-mei-gateway-fiscal`. Custo estimado a 500 MEIs: **< $0.25/mês**.
