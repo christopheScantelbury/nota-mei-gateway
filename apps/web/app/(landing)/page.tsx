@@ -1,5 +1,9 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import Navbar from '@/components/landing/Navbar'
+import HeroSection from '@/components/landing/HeroSection'
+import SocialProof from '@/components/landing/SocialProof'
+import AnimatedSection from '@/components/landing/AnimatedSection'
 
 export const metadata: Metadata = {
   title: 'Nota MEI Gateway — Emissão de NFS-e para MEI',
@@ -102,62 +106,17 @@ export default function LandingPage() {
   return (
     <main className="min-h-screen bg-navy-900 text-text-1 font-body">
 
-      {/* Nav */}
-      <nav className="fixed top-0 inset-x-0 z-50 border-b border-navy-600 bg-navy-900/90 backdrop-blur">
-        <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
-          <span className="font-display font-extrabold text-brand-cyan text-lg">
-            Nota MEI Gateway
-          </span>
-          <div className="flex gap-4 items-center">
-            <a href="#planos" className="text-sm text-text-2 hover:text-text-1 transition">Planos</a>
-            <a href="#faq"    className="text-sm text-text-2 hover:text-text-1 transition">FAQ</a>
-            <a href="/docs"   className="text-sm text-text-2 hover:text-text-1 transition">Docs</a>
-            <Link
-              href="/cadastro"
-              className="bg-brand-cyan text-navy-900 text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition"
-            >
-              Começar grátis
-            </Link>
-          </div>
-        </div>
-      </nav>
+      {/* Navbar — scroll-aware, glass blur */}
+      <Navbar />
 
-      {/* Hero */}
-      <section className="pt-32 pb-24 px-4 text-center">
-        <div className="mx-auto max-w-3xl">
-          <span className="inline-block bg-navy-700 border border-navy-600 text-brand-cyan text-xs font-semibold px-3 py-1 rounded-full mb-6">
-            NFS-e Nacional · ABRASF · Receita Federal
-          </span>
-          <h1 className="font-display text-5xl md:text-6xl font-extrabold leading-tight mb-6">
-            Emita NFS-e do seu{' '}
-            <span className="text-brand-cyan">MEI</span>{' '}
-            em segundos via API
-          </h1>
-          <p className="text-text-2 text-xl mb-10 max-w-2xl mx-auto">
-            Integre a emissão de notas fiscais ao seu ERP, SaaS ou app com uma
-            única chamada REST. Sem burocracia, sem sistema municipal, direto
-            na Receita Federal Nacional.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/cadastro"
-              className="bg-brand-cyan text-navy-900 font-semibold px-8 py-4 rounded-xl text-lg hover:opacity-90 transition"
-            >
-              Começar grátis por 30 dias
-            </Link>
-            <a
-              href="/docs"
-              className="border border-navy-600 text-text-1 font-semibold px-8 py-4 rounded-xl text-lg hover:border-brand-cyan transition"
-            >
-              Ver documentação
-            </a>
-          </div>
-          <p className="text-text-2 text-sm mt-4">Sem cartão de crédito · Cancele quando quiser</p>
-        </div>
-      </section>
+      {/* Hero — staggered entrance animations */}
+      <HeroSection />
+
+      {/* Social proof — counters, infra logos, security / LGPD */}
+      <SocialProof />
 
       {/* Como funciona */}
-      <section className="py-24 px-4 bg-navy-700/40" id="como-funciona">
+      <AnimatedSection className="py-24 px-4 bg-navy-700/40" id="como-funciona">
         <div className="mx-auto max-w-4xl">
           <h2 className="font-display text-3xl font-extrabold text-center mb-16">
             Como funciona
@@ -188,10 +147,10 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
+      </AnimatedSection>
 
       {/* Planos */}
-      <section className="py-24 px-4" id="planos">
+      <AnimatedSection className="py-24 px-4" id="planos" delay={0.1}>
         <div className="mx-auto max-w-6xl">
           <h2 className="font-display text-3xl font-extrabold text-center mb-4">
             Planos e preços
@@ -237,10 +196,10 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
+      </AnimatedSection>
 
       {/* FAQ */}
-      <section className="py-24 px-4 bg-navy-700/40" id="faq">
+      <AnimatedSection className="py-24 px-4 bg-navy-700/40" id="faq" delay={0.05}>
         <div className="mx-auto max-w-3xl">
           <h2 className="font-display text-3xl font-extrabold text-center mb-16">
             Perguntas frequentes
@@ -260,10 +219,10 @@ export default function LandingPage() {
             ))}
           </div>
         </div>
-      </section>
+      </AnimatedSection>
 
       {/* CTA final */}
-      <section className="py-24 px-4 text-center">
+      <AnimatedSection className="py-24 px-4 text-center" delay={0.1}>
         <div className="mx-auto max-w-2xl">
           <h2 className="font-display text-4xl font-extrabold mb-6">
             Pronto para automatizar suas notas?
@@ -278,7 +237,7 @@ export default function LandingPage() {
             Criar conta gratuita
           </Link>
         </div>
-      </section>
+      </AnimatedSection>
 
       {/* Footer */}
       <footer className="border-t border-navy-600 py-10 px-4">
@@ -288,9 +247,9 @@ export default function LandingPage() {
             <p>© {new Date().getFullYear()} ScantelburyDevs. Todos os direitos reservados.</p>
           </div>
           <div className="flex gap-6 items-center flex-wrap">
-            <a href="/docs"                              className="hover:text-text-1 transition">Documentação</a>
-            <a href="/privacidade"                       className="hover:text-text-1 transition">Privacidade</a>
-            <a href="/termos"                            className="hover:text-text-1 transition">Termos de uso</a>
+            <a href="/docs"                                className="hover:text-text-1 transition">Documentação</a>
+            <a href="/privacidade"                         className="hover:text-text-1 transition">Privacidade</a>
+            <a href="/termos"                              className="hover:text-text-1 transition">Termos de uso</a>
             <a href="mailto:suporte@notameigateway.com.br" className="hover:text-text-1 transition">Suporte</a>
           </div>
         </div>
