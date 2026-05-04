@@ -1,0 +1,9 @@
+<svg width="300" height="64" viewBox="0 0 300 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="300" height="64" fill="#FFFFFF"/>
+<rect x="0" y="6" width="52" height="52" rx="11" fill="#1A3A6B"/>
+<path d="M14 42V26l11 16V26" stroke="#00C896" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M25 26h13" stroke="#00C896" stroke-width="3" stroke-linecap="round"/>
+<path d="M33 42l6-10h-5l4-8" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="64" y="28" font-family="Sora,sans-serif" font-weight="700" font-size="18" fill="#0B1628" letter-spacing="-.3">Nota MEI</text>
+<text x="64" y="50" font-family="Sora,sans-serif" font-weight="300" font-size="16" fill="#1A3A6B" letter-spacing="3.5">GATEWAY</text>
+</svg>

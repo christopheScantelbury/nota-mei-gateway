@@ -1,5 +1,6 @@
 ﻿import type { Metadata } from 'next'
 import Link from 'next/link'
+import Image from 'next/image'
 import Navbar from '@/components/landing/Navbar'
 import HeroSection from '@/components/landing/HeroSection'
 import SocialProof from '@/components/landing/SocialProof'
@@ -14,8 +15,8 @@ export const metadata: Metadata = {
     title: 'Emissão de NFS-e para MEI — ScantelburyDevs',
     description: 'Emita NFS-e do seu MEI em segundos. Simples para o MEI, poderoso para o dev.',
     url: 'https://emitirnotafacil.com.br',
-    siteName: 'Nota Fácil MEI',
-    images: [{ url: '/brand/og-image.png', width: 1200, height: 630 }],
+    siteName: 'Nota MEI Gateway',
+    images: [{ url: '/og/og-gateway-1200x630.png', width: 1200, height: 630, alt: 'Nota MEI Gateway — Emissão de NFS-e para MEI' }],
     locale: 'pt_BR',
     type: 'website',
   },
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Emissão de NFS-e para MEI — ScantelburyDevs',
     description: 'Emita NFS-e do seu MEI em segundos. Simples para o MEI, poderoso para o dev.',
-    images: ['/brand/og-image.png'],
+    images: ['/og/og-gateway-1200x630.png'],
   },
   alternates: { canonical: 'https://emitirnotafacil.com.br' },
 }
@@ -264,9 +265,29 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-navy-600 py-10 px-4">
         <div className="mx-auto max-w-6xl flex flex-col md:flex-row justify-between gap-6 text-text-2 text-sm">
-          <div>
-            <p className="font-display font-bold text-text-1 mb-1">Nota MEI Gateway</p>
-            <p>© {new Date().getFullYear()} ScantelburyDevs. Todos os direitos reservados.</p>
+          <div className="flex flex-col gap-2">
+            {/* Logo — light/dark adaptive */}
+            <Link href="/" className="inline-flex items-center">
+              <Image
+                src="/logos/gateway-logo-navbar-light.svg"
+                alt="Nota MEI Gateway"
+                width={160}
+                height={34}
+                unoptimized
+                className="block dark:hidden"
+              />
+              <Image
+                src="/logos/gateway-logo-navbar-dark.svg"
+                alt="Nota MEI Gateway"
+                width={160}
+                height={34}
+                unoptimized
+                className="hidden dark:block"
+              />
+            </Link>
+            <p className="text-text-2 text-xs">
+              © {new Date().getFullYear()} ScantelburyDevs. Todos os direitos reservados.
+            </p>
           </div>
           <div className="flex gap-6 items-center flex-wrap">
             <a href="/docs"                                className="hover:text-text-1 transition">Documentação</a>

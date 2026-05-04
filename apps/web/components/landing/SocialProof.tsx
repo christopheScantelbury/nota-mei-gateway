@@ -1,43 +1,76 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useInView, useReducedMotion } from 'framer-motion'
+import { useReducedMotion } from 'framer-motion'
 
-// ── Animated counter ─────────────────────────────────────────────────────────
-// Initial state = target so SSR renders the correct value.
-// Animation resets to 0 after mount (useEffect runs client-only).
-function Counter({ target, suffix = '' }: { target: number; suffix?: string }) {
-  const [value, setValue] = useState(target)
-  const ref = useRef<HTMLSpanElement>(null)
-  const inView = useInView(ref, { once: true, margin: '-40px' })
+// ── Métricas ─────────────────────────────────────────────────────────────────
+// Cada stat tem um rótulo inteiro (display) e um valor numérico para animação.
+// A animação substitui apenas a parte numérica — prefix/suffix ficam fixos,
+// garantindo que nunca apareça "0.9%" em vez de "99.9%".
+const stats = [
+  {
+    prefix: '< ',
+    value: 3,
+    suffix: 's',
+    display: '< 3s',
+    label: 'tempo médio de emissão',
+  },
+  {
+    prefix: '',
+    value: 99,
+    suffix: '.9%',
+    display: '99.9%',
+    label: 'uptime SLA',
+  },
+  {
+    prefix: '',
+    value: 5000,
+    suffix: '+',
+    display: '5.000+',
+    label: 'municípios suportados',
+  },
+]
+
+// StatCard renderiza o valor correto no SSR e anima no cliente
+// usando fade+slide em vez de countup — evita flashes de valores incorretos
+function StatCard({
+  prefix,
+  suffix,
+  display,
+  label,
+}: {
+  prefix: string
+  suffix: string
+  display: string
+  label: string
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [visible, setVisible] = useState(false)
   const reduced = useReducedMotion()
-  const animated = useRef(false)
 
   useEffect(() => {
-    if (!inView || reduced || animated.current) return
-    animated.current = true
-    let start = 0
-    setValue(0)
-    const duration = 1200
-    const step = 16
-    const increment = target / (duration / step)
-    const timer = setInterval(() => {
-      start += increment
-      if (start >= target) {
-        setValue(target)
-        clearInterval(timer)
-      } else {
-        setValue(Math.floor(start))
-      }
-    }, step)
-    return () => clearInterval(timer)
-  }, [inView, target, reduced])
+    if (reduced) { setVisible(true); return }
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setVisible(true) },
+      { threshold: 0.3 },
+    )
+    if (ref.current) obs.observe(ref.current)
+    return () => obs.disconnect()
+  }, [reduced])
 
   return (
-    <span ref={ref}>
-      {value}
-      {suffix}
-    </span>
+    <div
+      ref={ref}
+      className={`flex flex-col gap-1 transition-all duration-700 ${
+        visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
+      }`}
+    >
+      {/* Valor sempre correto — sem animação de contagem que gera valores intermediários errados */}
+      <span className="font-display text-4xl font-extrabold text-brand-cyan">
+        {display}
+      </span>
+      <span className="text-text-2 text-sm">{label}</span>
+    </div>
   )
 }
 
@@ -55,18 +88,8 @@ export default function SocialProof() {
 
         {/* Métricas */}
         <div className="grid grid-cols-3 gap-6 text-center">
-          {[
-            { value: 3,    suffix: 's',  label: 'tempo médio de emissão',  prefix: '< ' },
-            { value: 99,   suffix: '.9%', label: 'uptime SLA',              prefix: ''   },
-            { value: 5000, suffix: '+',  label: 'municípios suportados',   prefix: ''   },
-          ].map(({ value, suffix, label, prefix }) => (
-            <div key={label} className="flex flex-col gap-1">
-              <span className="font-display text-4xl font-extrabold text-brand-cyan">
-                {prefix}
-                <Counter target={value} suffix={suffix} />
-              </span>
-              <span className="text-text-2 text-sm">{label}</span>
-            </div>
+          {stats.map((s) => (
+            <StatCard key={s.label} {...s} />
           ))}
         </div>
 

@@ -1,0 +1,19 @@
+<svg width="420" height="200" viewBox="0 0 420 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="docG" x1="14" y1="18" x2="154" y2="186" gradientUnits="userSpaceOnUse">
+  <stop stop-color="#1A5FA8"/><stop offset="1" stop-color="#0D3568"/>
+</linearGradient><linearGradient id="arrG" x1="30" y1="158" x2="148" y2="46" gradientUnits="userSpaceOnUse">
+  <stop stop-color="#00B87A"/><stop offset="1" stop-color="#00E8A0"/>
+</linearGradient><linearGradient id="meiG" x1="174" y1="155" x2="320" y2="185" gradientUnits="userSpaceOnUse">
+  <stop stop-color="#00A86B"/><stop offset="1" stop-color="#00CC85"/>
+</linearGradient></defs>
+  <rect width="420" height="200" fill="white"/>
+  <rect x="18" y="22" width="140" height="168" rx="16" fill="#CBD5E8" opacity=".3"/>
+<rect x="14" y="18" width="140" height="168" rx="16" fill="url(#docG)"/>
+<path d="M116 18L154 18L154 56Z" fill="white" opacity=".18"/>
+<path d="M116 18L154 56L116 56Z" fill="white" opacity=".1"/>
+<rect x="34" y="118" width="22" height="44" rx="4" fill="white" opacity="0.25"/><rect x="62" y="98" width="22" height="64" rx="4" fill="white" opacity="0.35"/><rect x="90" y="74" width="22" height="88" rx="4" fill="white" opacity="0.5"/><rect x="118" y="52" width="22" height="110" rx="4" fill="white" opacity="0.7"/>
+<line x1="30" y1="158" x2="148" y2="46" stroke="url(#arrG)" stroke-width="10" stroke-linecap="round"/>
+<path d="M148 46L126 44M148 46L146 68" stroke="url(#arrG)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/><text x="174" y="76" font-family="Nunito,sans-serif" font-weight="900" font-size="52" fill="#0F2744">Nota</text>
+<text x="174" y="130" font-family="Nunito,sans-serif" font-weight="900" font-size="52" fill="#0F2744">Fácil</text>
+<text x="174" y="182" font-family="Nunito,sans-serif" font-weight="900" font-size="52" fill="url(#meiG)">MEI</text>
+</svg>
