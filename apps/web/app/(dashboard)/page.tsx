@@ -106,7 +106,7 @@ export default async function DashboardHome() {
       .eq('mei_id', session.user.id)
       .order('created_at', { ascending: false })
       .limit(5)
-      .returns<Pick<Nota, 'id' | 'numero_rps' | 'status' | 'tomador_nome' | 'valor_servico' | 'competencia' | 'emitida_em' | 'created_at'>>(),
+      .overrideTypes<Pick<Nota, 'id' | 'numero_rps' | 'status' | 'tomador_nome' | 'valor_servico' | 'competencia' | 'emitida_em' | 'created_at'>[]>(),
 
     supabase
       .from('api_keys')
