@@ -12,16 +12,16 @@ import (
 
 // Nota represents a row in the notas_fiscais table.
 type Nota struct {
-	ID                uuid.UUID
-	MeiID             uuid.UUID
-	NumeroRPS         int64
-	Status            string // PROCESSANDO | AUTORIZADA | REJEITADA | CANCELADA | ERRO_TEMPORARIO
-	ProtocoloReceita  *string
-	NumeroNFSe        *string
-	CodVerificacao    *string
-	XMLEnviado        *string
-	XMLRetorno        *string
-	PDFPath           *string
+	ID               uuid.UUID
+	MeiID            uuid.UUID
+	NumeroRPS        int64
+	Status           string // PROCESSANDO | AUTORIZADA | REJEITADA | CANCELADA | ERRO_TEMPORARIO
+	ProtocoloReceita *string
+	NumeroNFSe       *string
+	CodVerificacao   *string
+	XMLEnviado       *string
+	XMLRetorno       *string
+	PDFPath          *string
 	// XMLS3Key is the S3 object key for the nota XML (STOR-01).
 	// For notas created after 2026-05-04 this replaces XMLEnviado/XMLRetorno in DB.
 	XMLS3Key *string

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
@@ -28,6 +29,7 @@ export default function Navbar() {
           <a href="#planos" className="text-sm text-text-2 hover:text-text-1 transition">Planos</a>
           <a href="#faq"    className="text-sm text-text-2 hover:text-text-1 transition">FAQ</a>
           <a href="/docs"   className="text-sm text-text-2 hover:text-text-1 transition">Docs</a>
+          <ThemeToggle />
           <Link
             href="/cadastro"
             className="bg-brand-cyan text-navy-900 text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition"

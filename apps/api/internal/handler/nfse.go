@@ -14,8 +14,8 @@ import (
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/document"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/nfse"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/webhook"
-	stripeClient "github.com/christopheScantelbury/nota-mei-gateway/api/pkg/stripe"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/storage"
+	stripeClient "github.com/christopheScantelbury/nota-mei-gateway/api/pkg/stripe"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
@@ -38,8 +38,8 @@ type NFSeHandler struct {
 	publisher    *webhook.Publisher
 	nbsValidator *document.NBSValidator
 	issLookup    *document.ISSLookup
-	sc           *stripeClient.Client  // optional — nil disables metered billing
-	store        storage.ObjectStore   // optional — nil disables S3 upload (STOR-01)
+	sc           *stripeClient.Client // optional — nil disables metered billing
+	store        storage.ObjectStore  // optional — nil disables S3 upload (STOR-01)
 	apiBase      string
 	whSecret     string // HMAC secret used to sign webhook payloads
 	devMode      bool   // true in development — skips cert loading for NoopSigner

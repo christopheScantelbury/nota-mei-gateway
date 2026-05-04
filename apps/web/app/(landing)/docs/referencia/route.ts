@@ -23,8 +23,8 @@ export async function GET() {
       id="api-reference"
       data-url="/openapi.yaml"
       data-configuration='${JSON.stringify({
-        theme: 'saturn',
-        darkMode: true,
+        theme: 'default',
+        darkMode: false,
         layout: 'modern',
         defaultHttpClient: { targetKey: 'javascript', clientKey: 'fetch' },
         servers: [
