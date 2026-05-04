@@ -3,6 +3,8 @@ import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import StatusBadge from '@/components/ui/StatusBadge'
 import NotaStatusPoller from '@/components/dashboard/NotaStatusPoller'
+import NotaTimeline from '@/components/dashboard/NotaTimeline'
+import CancelarNotaButton from '@/components/dashboard/CancelarNotaButton'
 import type { Nota } from '@/lib/types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.notameigateway.com.br'
@@ -37,13 +39,16 @@ export default async function NotaDetailPage({ params }: { params: { id: string 
   if (!nota) notFound()
 
   const canCancel = nota.status === 'AUTORIZADA'
-  const hasXML = nota.status === 'AUTORIZADA' || nota.status === 'CANCELADA'
-  const hasPDF = nota.status === 'AUTORIZADA'
+  const hasXML    = nota.status === 'AUTORIZADA' || nota.status === 'CANCELADA'
+  const hasPDF    = nota.status === 'AUTORIZADA'
 
   return (
     <div className="p-8 max-w-3xl">
       {/* Back */}
-      <Link href="/notas" className="text-sm text-text-2 hover:text-brand-cyan transition mb-6 inline-block">
+      <Link
+        href="/notas"
+        className="text-sm text-text-2 hover:text-brand-cyan transition mb-6 inline-block"
+      >
         ← Voltar para lista
       </Link>
 
@@ -55,7 +60,8 @@ export default async function NotaDetailPage({ params }: { params: { id: string 
           </h1>
           {nota.numero_nfse && (
             <p className="text-text-2 mt-1 text-sm">
-              NFS-e nº <span className="font-mono text-text-1">{nota.numero_nfse}</span>
+              NFS-e nº{' '}
+              <span className="font-mono text-text-1">{nota.numero_nfse}</span>
             </p>
           )}
         </div>
@@ -75,6 +81,9 @@ export default async function NotaDetailPage({ params }: { params: { id: string 
             <p className="text-sm text-text-2">{nota.erro_descricao}</p>
           </div>
         )}
+
+      {/* Event timeline */}
+      <NotaTimeline nota={nota} />
 
       {/* Details grid */}
       <div className="rounded-xl border border-navy-600 overflow-hidden mb-6">
@@ -96,15 +105,12 @@ export default async function NotaDetailPage({ params }: { params: { id: string 
                 <span className="text-text-2">Aguardando...</span>
               ),
             },
-            {
-              label: 'Código verificação',
-              value: nota.codigo_verificacao ?? '—',
-            },
-            { label: 'Criada em',   value: formatDateFull(nota.created_at) },
-            { label: 'Emitida em',  value: formatDateFull(nota.emitida_em) },
-            { label: 'Cancelada em',value: formatDateFull(nota.cancelada_em) },
+            { label: 'Código verificação', value: nota.codigo_verificacao ?? '—' },
+            { label: 'Criada em',          value: formatDateFull(nota.created_at) },
+            { label: 'Emitida em',         value: formatDateFull(nota.emitida_em) },
+            { label: 'Cancelada em',       value: formatDateFull(nota.cancelada_em) },
           ]
-            .filter(({ value }) => value !== '—' && value !== null)
+            .filter(({ value }) => value !== '—')
             .map(({ label, value }) => (
               <div key={label} className="flex px-5 py-3 gap-4">
                 <dt className="w-44 shrink-0 text-sm text-text-2">{label}</dt>
@@ -118,7 +124,9 @@ export default async function NotaDetailPage({ params }: { params: { id: string 
       {nota.webhook_url && (
         <div className="rounded-xl border border-navy-600 overflow-hidden mb-6">
           <div className="bg-navy-700 px-5 py-3 border-b border-navy-600">
-            <h2 className="text-sm font-semibold text-text-2 uppercase tracking-wider">Webhook</h2>
+            <h2 className="text-sm font-semibold text-text-2 uppercase tracking-wider">
+              Webhook
+            </h2>
           </div>
           <dl className="divide-y divide-navy-600">
             <div className="flex px-5 py-3 gap-4">
@@ -165,14 +173,10 @@ export default async function NotaDetailPage({ params }: { params: { id: string 
           </a>
         )}
         {canCancel && (
-          <a
-            href={`https://docs.notameigateway.com.br/cancelamento`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm px-4 py-2 rounded-lg border border-nota-rejeitada/40 text-nota-rejeitada hover:bg-nota-rejeitada/10 transition"
-          >
-            Cancelar nota (via API)
-          </a>
+          <CancelarNotaButton
+            notaId={nota.id}
+            numeroRps={nota.numero_rps}
+          />
         )}
       </div>
     </div>

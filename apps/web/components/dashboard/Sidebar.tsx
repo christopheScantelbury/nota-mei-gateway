@@ -4,10 +4,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const navItems = [
-  { href: '/notas',      label: 'Notas Fiscais', icon: '🧾', badge: null        },
-  { href: '/templates',  label: 'Templates',     icon: '📄', badge: 'PRO'       },
-  { href: '/billing',    label: 'Plano & Billing', icon: '💳', badge: null       },
-  { href: '/configuracoes', label: 'Configurações', icon: '⚙️', badge: null     },
+  { href: '/notas',         label: 'Notas Fiscais',   icon: '🧾', badge: null         },
+  { href: '/templates',     label: 'Templates',       icon: '📄', badge: 'PRO'        },
+  { href: '/recorrencias',  label: 'Automação',       icon: '🔄', badge: 'BUSINESS'   },
+  { href: '/billing',       label: 'Plano & Billing', icon: '💳', badge: null         },
+  { href: '/configuracoes', label: 'Configurações',   icon: '⚙️', badge: null        },
 ]
 
 export default function Sidebar({ razaoSocial }: { razaoSocial: string }) {
