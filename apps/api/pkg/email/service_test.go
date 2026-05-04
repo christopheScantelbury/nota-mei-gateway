@@ -11,42 +11,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// capturingServer records the last request body and returns a synthetic
-// Resend-like 200 response with a generated email ID.
-func capturingServer(t *testing.T) (srv *httptest.Server, getBody func() map[string]any) {
-	t.Helper()
-	var lastBody []byte
-	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/emails" || r.Method != http.MethodPost {
-			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
-		}
-		if auth := r.Header.Get("Authorization"); auth == "" {
-			t.Error("missing Authorization header")
-		}
-		if ct := r.Header.Get("Content-Type"); ct != "application/json" {
-			t.Errorf("unexpected Content-Type: %s", ct)
-		}
-		dec := json.NewDecoder(r.Body)
-		if err := dec.Decode(&lastBody); err != nil {
-			// Store raw bytes on decode failure
-		}
-		// Re-read raw body
-		lastBody = nil
-		r.Body.Close()
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"id":"test-email-id-123"}`))
-	}))
-
-	getBody = func() map[string]any {
-		return nil // raw capture done below
-	}
-	_ = getBody
-	return srv, getBody
-}
-
-// captureServer is a simpler version that saves the raw JSON payload.
+// captureServer saves the raw JSON payload of the last request.
 func captureServer(t *testing.T) (srv *httptest.Server, payload *map[string]any) {
 	t.Helper()
 	var captured map[string]any

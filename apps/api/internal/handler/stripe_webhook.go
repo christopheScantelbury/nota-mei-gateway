@@ -20,8 +20,8 @@ import (
 type StripeWebhookHandler struct {
 	secret     string
 	db         *supabase.Client
-	billingGrd *billing.Guard  // optional — invalidates subscription cache on events
-	emailSvc   *email.Service  // optional — sends transactional emails
+	billingGrd *billing.Guard // optional — invalidates subscription cache on events
+	emailSvc   *email.Service // optional — sends transactional emails
 }
 
 // NewStripeWebhookHandler creates a handler that validates Stripe events
@@ -220,8 +220,8 @@ func (h *StripeWebhookHandler) handleInvoicePaymentFailed(ctx context.Context, e
 		}
 		emailSvc := h.emailSvc
 		db := h.db
-		go func() {
-			ctx2, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		go func(baseCtx context.Context) {
+			ctx2, cancel := context.WithTimeout(baseCtx, 10*time.Second)
 			defer cancel()
 
 			type meiRow struct {
@@ -249,7 +249,7 @@ func (h *StripeWebhookHandler) handleInvoicePaymentFailed(ctx context.Context, e
 			if err := emailSvc.SendPagamentoFalhou(ctx2, mei.Email, mei.RazaoSocial, "", valorBRL, portalURL); err != nil {
 				log.Ctx(ctx2).Warn().Err(err).Msg("email pagamento-falhou falhou")
 			}
-		}()
+		}(context.Background())
 	}
 
 	return nil

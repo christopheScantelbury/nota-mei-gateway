@@ -42,7 +42,7 @@ type NotaAutorizadaParams struct {
 	CodigoVerific string
 	ValorServico  string
 	PdfURL        string
-	XmlURL        string
+	XMLURL        string
 }
 
 // NotaAutorizadaHTML returns the HTML body for a nota-autorizada notification.
@@ -65,7 +65,7 @@ func NotaAutorizadaHTML(p NotaAutorizadaParams) string {
     <a class="btn" style="background:#1E3050;color:#00E8FF;" href="%s">Baixar XML</a>
   </p>
 </div>
-`, p.RazaoSocial, p.NumeroNFSe, p.CodigoVerific, p.ValorServico, p.PdfURL, p.XmlURL) +
+`, p.RazaoSocial, p.NumeroNFSe, p.CodigoVerific, p.ValorServico, p.PdfURL, p.XMLURL) +
 		htmlClose()
 }
 
