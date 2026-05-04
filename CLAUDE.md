@@ -483,6 +483,11 @@ status-cancelada.png    → #6473A0 (cinza)
                               Causa: webpack cache do Vercel preservava CSS de 9KB sem classes
                               Fix: absolute paths com path.join(__dirname) no tailwind.config.ts
                               burstou o cache — CSS agora ~230KB com todas as utilities
+✅ P0 roadmap (a401410)       Landing bifurcada em dois produtos (Nota Fácil MEI + Nota MEI Gateway)
+                              · Hero: dois cards com escolha de público (MEI → /mei, Dev → /api)
+                              · Contadores corrigidos: SSR renderiza valor final (< 3s, 99.9%, 5000+)
+                              · UrgencyBanner: faixa âmbar sobre obrigatoriedade NFS-e 2026, dismissível
+                              · Stack técnica removida da home root (Supabase/Railway/AWS/etc.)
 ⏳ Stripe live keys           sk_live_ / pk_live_ ainda não criadas (somente test mode ativo)
 ⏳ QA-01                      E2E tests (depende de DNS)
 ```
@@ -620,7 +625,7 @@ vercel --prod               # deploy manual produção
 ---
 
 ## 13. ESTADO ATUAL
-> Última atualização: 2026-05-04 · branch `main` · commit `9abb6c9` · CI ✅ Deploy ✅ Issues: 116 fechadas / 2 abertas
+> Última atualização: 2026-05-04 · branch `main` · commit `a401410` · CI ✅ Deploy ✅ Issues: 116 fechadas / 2 abertas
 
 ### Código — 100% concluído
 
