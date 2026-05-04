@@ -55,7 +55,7 @@ export default function HeroSection() {
             name="Nota MEI Gateway"
             desc="Sou desenvolvedor e quero integrar emissão de NFS-e ao meu produto via API."
             cta="Ver a API →"
-            href="/api"
+            href="/gateway"
             primary={false}
           />
         </motion.div>
@@ -140,7 +140,7 @@ function HeroContent() {
             name="Nota MEI Gateway"
             desc="Sou desenvolvedor e quero integrar emissão de NFS-e ao meu produto via API."
             cta="Ver a API →"
-            href="/api"
+            href="/gateway"
             primary={false}
           />
         </div>
