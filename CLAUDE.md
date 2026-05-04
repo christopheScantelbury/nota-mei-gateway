@@ -479,6 +479,10 @@ status-cancelada.png    → #6473A0 (cinza)
 ✅ Light theme (PR #145)      light-first + dark mode toggle — mergeado em main (2026-05-04)
 ✅ API Keys dashboard (#146)  página /api-keys com create/revoke modal, quota progress, sk_live_/sk_test_
 ✅ Frontend tasks (#147)      status page, webhooks config, notification bell, SEO/schema.org, sandbox rewrite
+✅ CSS fix (9abb6c9)          Tailwind utility classes agora geradas corretamente no Vercel
+                              Causa: webpack cache do Vercel preservava CSS de 9KB sem classes
+                              Fix: absolute paths com path.join(__dirname) no tailwind.config.ts
+                              burstou o cache — CSS agora ~230KB com todas as utilities
 ⏳ Stripe live keys           sk_live_ / pk_live_ ainda não criadas (somente test mode ativo)
 ⏳ QA-01                      E2E tests (depende de DNS)
 ```
@@ -616,7 +620,7 @@ vercel --prod               # deploy manual produção
 ---
 
 ## 13. ESTADO ATUAL
-> Última atualização: 2026-05-04 · branch `main` · commit `78c5333` · CI ✅ Deploy ✅ Issues: 116 fechadas / 2 abertas
+> Última atualização: 2026-05-04 · branch `main` · commit `9abb6c9` · CI ✅ Deploy ✅ Issues: 116 fechadas / 2 abertas
 
 ### Código — 100% concluído
 
