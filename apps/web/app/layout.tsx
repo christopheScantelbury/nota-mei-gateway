@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Outfit, Inter, DM_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
+import { ThemeProvider } from 'next-themes'
 import './globals.css'
 
 // ── Fonts ──────────────────────────────────────────────────────────────────
@@ -39,78 +40,73 @@ export const metadata: Metadata = {
   authors: [{ name: 'ScantelburyDevs', url: 'https://scantelburydevs.com.br' }],
   creator: 'ScantelburyDevs',
   publisher: 'ScantelburyDevs',
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: { index: true, follow: true },
-  },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
   openGraph: {
     type: 'website',
     locale: 'pt_BR',
     url: APP_URL,
     siteName: 'Nota MEI Gateway',
     title: 'Nota MEI Gateway — Emissão de NFS-e para MEI',
-    description:
-      'API REST para emissão automatizada de NFS-e para MEI via Receita Federal Nacional.',
-    images: [
-      {
-        url: '/opengraph-image',
-        width: 1200,
-        height: 630,
-        alt: 'Nota MEI Gateway',
-      },
-    ],
+    description: 'API REST para emissão automatizada de NFS-e para MEI via Receita Federal Nacional.',
+    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'Nota MEI Gateway' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Nota MEI Gateway — Emissão de NFS-e para MEI',
-    description:
-      'API REST para emissão automatizada de NFS-e para MEI via Receita Federal Nacional.',
+    description: 'API REST para emissão automatizada de NFS-e para MEI via Receita Federal Nacional.',
     images: ['/twitter-image'],
     creator: '@scantelburydevs',
   },
-  // icon.tsx + apple-icon.tsx in app/ are auto-detected by Next.js 14
   manifest: '/site.webmanifest',
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0A0F1E',
-  colorScheme: 'dark',
   width: 'device-width',
   initialScale: 1,
+  // themeColor adapts per scheme — browsers use the matching entry
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#F8FAFC' },
+    { media: '(prefers-color-scheme: dark)',  color: '#0A0F1E' },
+  ],
 }
 
 // ── Root Layout ────────────────────────────────────────────────────────────
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="pt-BR"
+      // suppressHydrationWarning evita mismatch entre SSR (sem classe) e
+      // client (next-themes adiciona "light" ou "dark" antes de pintar)
+      suppressHydrationWarning
       className={`${outfit.variable} ${inter.variable} ${dmMono.variable}`}
     >
       <body className="font-body antialiased">
-        {/* Skip-to-main for keyboard / screen-reader users (WCAG 2.1 AA 2.4.1) */}
-        <a
-          href="#main-content"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:bg-brand-cyan focus:text-navy-900 focus:font-semibold focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm"
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem
+          disableTransitionOnChange={false}
         >
-          Ir para o conteúdo principal
-        </a>
-        {children}
-        <Toaster
-          theme="dark"
-          position="bottom-right"
-          toastOptions={{
-            style: {
-              background: '#142035',
-              border: '1px solid #1E3050',
-              color: '#EEF4FF',
-            },
-          }}
-        />
+          {/* Skip-to-main para teclado / leitores de tela (WCAG 2.1 AA 2.4.1) */}
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] focus:bg-brand-cyan focus:text-navy-900 focus:font-semibold focus:px-4 focus:py-2 focus:rounded-lg focus:text-sm"
+          >
+            Ir para o conteúdo principal
+          </a>
+
+          {children}
+
+          <Toaster
+            theme="system"
+            position="bottom-right"
+            toastOptions={{
+              classNames: {
+                toast: 'bg-navy-700 border border-navy-600 text-text-1 font-body text-sm',
+              },
+            }}
+          />
+        </ThemeProvider>
       </body>
     </html>
   )

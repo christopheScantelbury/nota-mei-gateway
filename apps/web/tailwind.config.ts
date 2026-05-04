@@ -6,29 +6,33 @@ const config: Config = {
     './components/**/*.{ts,tsx}',
     './lib/**/*.{ts,tsx}',
   ],
+  // CSS-class strategy: ThemeProvider adds class="dark" on <html>
+  darkMode: 'class',
   theme: {
     extend: {
+      // All themed colors route through CSS custom properties (globals.css).
+      // The `rgb(var(...) / <alpha-value>)` syntax enables Tailwind opacity
+      // modifiers (bg-navy-700/50, text-brand-cyan/80, etc.) in both themes.
       colors: {
         brand: {
-          cyan: '#00E8FF',
+          cyan: 'rgb(var(--brand-cyan) / <alpha-value>)',
         },
         navy: {
-          600: '#1E3050',
-          700: '#142035',
-          900: '#0A0F1E',
+          600: 'rgb(var(--navy-600) / <alpha-value>)',
+          700: 'rgb(var(--navy-700) / <alpha-value>)',
+          900: 'rgb(var(--navy-900) / <alpha-value>)',
         },
         nota: {
-          autorizada:  '#00C85A',
-          processando: '#F0B414',
-          rejeitada:   '#FF3232',
-          cancelada:   '#6473A0',
-          upgrade:     '#7C6FFF',
+          autorizada:  'rgb(var(--nota-autorizada) / <alpha-value>)',
+          processando: 'rgb(var(--nota-processando) / <alpha-value>)',
+          rejeitada:   'rgb(var(--nota-rejeitada) / <alpha-value>)',
+          cancelada:   'rgb(var(--nota-cancelada) / <alpha-value>)',
+          upgrade:     'rgb(var(--nota-upgrade) / <alpha-value>)',
         },
-        'text-1': '#EEF4FF',
-        'text-2': '#8AA0B8',
+        'text-1': 'rgb(var(--text-1) / <alpha-value>)',
+        'text-2': 'rgb(var(--text-2) / <alpha-value>)',
       },
       fontFamily: {
-        // References CSS variables injected by next/font in layout.tsx
         display: ['var(--font-outfit)', 'Outfit', 'sans-serif'],
         body:    ['var(--font-inter)',   'Inter',  'sans-serif'],
         mono:    ['var(--font-dm-mono)', 'DM Mono', 'monospace'],
@@ -43,12 +47,14 @@ const config: Config = {
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
       boxShadow: {
-        'glow-cyan': '0 0 20px rgba(0, 232, 255, 0.15)',
-        'glow-cyan-lg': '0 0 40px rgba(0, 232, 255, 0.2)',
+        'glow-cyan': '0 0 20px rgb(var(--brand-cyan) / 0.15)',
+        'glow-cyan-lg': '0 0 40px rgb(var(--brand-cyan) / 0.2)',
+        'card': '0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.06)',
+        'card-hover': '0 4px 6px -1px rgb(0 0 0 / 0.08), 0 2px 4px -2px rgb(0 0 0 / 0.06)',
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-        'gradient-brand':  'linear-gradient(135deg, #00E8FF 0%, #7C6FFF 100%)',
+        'gradient-brand':  'linear-gradient(135deg, rgb(var(--brand-cyan)) 0%, rgb(var(--nota-upgrade)) 100%)',
       },
     },
   },

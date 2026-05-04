@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import ThemeToggle from '@/components/ui/ThemeToggle'
 
 const navItems = [
   { href: '/notas',         label: 'Notas Fiscais',   icon: '🧾', badge: null         },
@@ -63,7 +64,7 @@ function NavContent({
       </nav>
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-navy-600">
+      <div className="px-4 py-4 border-t border-navy-600 flex items-center justify-between">
         <form action="/auth/signout" method="post">
           <button
             type="submit"
@@ -72,6 +73,7 @@ function NavContent({
             Sair
           </button>
         </form>
+        <ThemeToggle />
       </div>
     </div>
   )
