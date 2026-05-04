@@ -2,31 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Brand design tokens ──────────────────────────────────────────────────── */
+/* ── Design tokens — RGB channels para suporte a Tailwind opacity modifiers ──
+   Exemplo: bg-navy-700/50 → rgb(var(--navy-700) / 0.5)
+   ThemeProvider (next-themes) adiciona class="dark" em <html> para dark mode. */
+
 :root {
-  /* Brand */
-  --cyan-500:  #00E8FF;
-  --navy-900:  #0A0F1E;
-  --navy-700:  #142035;
-  --navy-600:  #1E3050;
+  /* Light theme (padrão) */
 
-  /* Text */
-  --text-1:    #EEF4FF;
-  --text-2:    #8AA0B8;
+  /* Superfícies */
+  --navy-900: 248 250 252;    /* #F8FAFC — page background */
+  --navy-700: 255 255 255;    /* #FFFFFF — card */
+  --navy-600: 226 232 240;    /* #E2E8F0 — border */
 
-  /* Nota status */
-  --nota-autorizada:  #00C85A;
-  --nota-processando: #F0B414;
-  --nota-rejeitada:   #FF3232;
-  --nota-cancelada:   #6473A0;
-  --nota-upgrade:     #7C6FFF;
+  /* Texto */
+  --text-1: 15 23 42;         /* #0F172A — primary */
+  --text-2: 100 116 139;      /* #64748B — secondary */
+
+  /* Brand — versão escura para contraste sobre fundo claro (AA ≥ 4.5:1) */
+  --brand-cyan: 0 118 163;    /* #0076A3 — teal escuro */
+
+  /* Status de nota — tons escuros para contraste WCAG AA sobre fundo claro */
+  --nota-autorizada:  22 101 52;    /* #166534 */
+  --nota-processando: 146 64 14;    /* #92400E */
+  --nota-rejeitada:   153 27 27;    /* #991B1B */
+  --nota-cancelada:   71 85 105;    /* #475569 */
+  --nota-upgrade:     109 40 217;   /* #6D28D9 */
 }
 
-/* ── Font CSS variables (injected by next/font in layout.tsx) ───────────────
-   Tailwind fontFamily tokens reference these vars.
-   Fallbacks are defined in tailwind.config.ts.                               */
+.dark {
+  /* Dark theme */
 
-/* ── Base layer ──────────────────────────────────────────────────────────── */
+  --navy-900: 10 15 30;       /* #0A0F1E */
+  --navy-700: 20 32 53;       /* #142035 */
+  --navy-600: 30 48 80;       /* #1E3050 */
+
+  --text-1: 238 244 255;      /* #EEF4FF */
+  --text-2: 138 160 184;      /* #8AA0B8 */
+
+  --brand-cyan: 0 232 255;    /* #00E8FF */
+
+  --nota-autorizada:  0 200 90;     /* #00C85A */
+  --nota-processando: 240 180 20;   /* #F0B414 */
+  --nota-rejeitada:   255 50 50;    /* #FF3232 */
+  --nota-cancelada:   100 115 160;  /* #6473A0 */
+  --nota-upgrade:     124 111 255;  /* #7C6FFF */
+}
+
+/* ── Base ─────────────────────────────────────────────────────────────────── */
 @layer base {
   *, *::before, *::after {
     @apply box-border;
@@ -39,49 +61,45 @@
   }
 
   body {
-    background-color: var(--navy-900);
-    color: var(--text-1);
+    background-color: rgb(var(--navy-900));
+    color: rgb(var(--text-1));
     font-family: var(--font-inter, 'Inter', sans-serif);
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
   /* Scrollbar */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: var(--navy-700);
-  }
+  ::-webkit-scrollbar       { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: rgb(var(--navy-700)); }
   ::-webkit-scrollbar-thumb {
-    background: var(--navy-600);
+    background: rgb(var(--navy-600));
     border-radius: 3px;
   }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #2a4060;
-  }
+  ::-webkit-scrollbar-thumb:hover { background: rgb(var(--navy-600) / 0.8); }
 }
 
-/* ── Utilities ───────────────────────────────────────────────────────────── */
+/* ── Utilities ────────────────────────────────────────────────────────────── */
 @layer utilities {
-  .text-gradient-cyan {
-    background: linear-gradient(135deg, #00E8FF 0%, #7C6FFF 100%);
+  .text-gradient-brand {
+    background: linear-gradient(135deg, rgb(var(--brand-cyan)) 0%, rgb(var(--nota-upgrade)) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  .border-gradient-cyan {
-    border-image: linear-gradient(135deg, #00E8FF33, #7C6FFF33) 1;
-  }
-
+  /* Grid de fundo — adapta cor por tema */
   .bg-grid {
     background-image:
-      linear-gradient(rgba(30, 48, 80, 0.4) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(30, 48, 80, 0.4) 1px, transparent 1px);
+      linear-gradient(rgb(var(--navy-600) / 0.4) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(var(--navy-600) / 0.4) 1px, transparent 1px);
     background-size: 40px 40px;
   }
 
   .glow-cyan {
-    box-shadow: 0 0 20px rgba(0, 232, 255, 0.15);
+    box-shadow: 0 0 20px rgb(var(--brand-cyan) / 0.15);
+  }
+
+  /* Transição suave ao trocar tema — evita flash nos elementos com shadow/border */
+  .theme-transition {
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
   }
 }
