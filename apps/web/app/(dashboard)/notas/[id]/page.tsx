@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import StatusBadge from '@/components/ui/StatusBadge'
+import NotaStatusPoller from '@/components/dashboard/NotaStatusPoller'
 import type { Nota } from '@/lib/types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.notameigateway.com.br'
@@ -58,7 +59,10 @@ export default async function NotaDetailPage({ params }: { params: { id: string 
             </p>
           )}
         </div>
-        <StatusBadge status={nota.status} />
+        <div className="flex flex-col items-end gap-1">
+          <StatusBadge status={nota.status} />
+          <NotaStatusPoller notaId={nota.id} status={nota.status} />
+        </div>
       </div>
 
       {/* Error banner */}

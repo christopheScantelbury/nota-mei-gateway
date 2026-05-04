@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Outfit, Inter, DM_Mono } from 'next/font/google'
+import { Toaster } from 'sonner'
 import './globals.css'
 
 // ── Fonts ──────────────────────────────────────────────────────────────────
@@ -90,7 +91,20 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${outfit.variable} ${inter.variable} ${dmMono.variable}`}
     >
-      <body className="font-body antialiased">{children}</body>
+      <body className="font-body antialiased">
+        {children}
+        <Toaster
+          theme="dark"
+          position="bottom-right"
+          toastOptions={{
+            style: {
+              background: '#142035',
+              border: '1px solid #1E3050',
+              color: '#EEF4FF',
+            },
+          }}
+        />
+      </body>
     </html>
   )
 }

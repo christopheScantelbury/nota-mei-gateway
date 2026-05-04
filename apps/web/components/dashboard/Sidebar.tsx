@@ -4,8 +4,10 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 const navItems = [
-  { href: '/notas',   label: 'Notas Fiscais', icon: '🧾' },
-  { href: '/billing', label: 'Plano & Billing', icon: '💳' },
+  { href: '/notas',      label: 'Notas Fiscais', icon: '🧾', badge: null        },
+  { href: '/templates',  label: 'Templates',     icon: '📄', badge: 'PRO'       },
+  { href: '/billing',    label: 'Plano & Billing', icon: '💳', badge: null       },
+  { href: '/configuracoes', label: 'Configurações', icon: '⚙️', badge: null     },
 ]
 
 export default function Sidebar({ razaoSocial }: { razaoSocial: string }) {
@@ -15,15 +17,17 @@ export default function Sidebar({ razaoSocial }: { razaoSocial: string }) {
     <aside className="w-60 shrink-0 bg-navy-700 min-h-screen flex flex-col border-r border-navy-600">
       {/* Logo */}
       <div className="px-6 py-5 border-b border-navy-600">
-        <span className="font-display font-extrabold text-xl text-brand-cyan tracking-tight">
-          Nota MEI
-        </span>
+        <Link href="/" className="block">
+          <span className="font-display font-extrabold text-xl text-brand-cyan tracking-tight">
+            Nota MEI
+          </span>
+        </Link>
         <p className="text-xs text-text-2 mt-0.5 truncate">{razaoSocial}</p>
       </div>
 
       {/* Nav */}
       <nav className="flex-1 py-4 px-3 space-y-1">
-        {navItems.map(({ href, label, icon }) => {
+        {navItems.map(({ href, label, icon, badge }) => {
           const active = pathname.startsWith(href)
           return (
             <Link
@@ -36,8 +40,13 @@ export default function Sidebar({ razaoSocial }: { razaoSocial: string }) {
                   : 'text-text-2 hover:text-text-1 hover:bg-navy-600',
               ].join(' ')}
             >
-              <span>{icon}</span>
-              {label}
+              <span className="shrink-0">{icon}</span>
+              <span className="flex-1">{label}</span>
+              {badge && (
+                <span className="text-[10px] font-bold tracking-wide text-nota-upgrade border border-nota-upgrade/40 rounded-full px-1.5 py-px leading-none">
+                  {badge}
+                </span>
+              )}
             </Link>
           )
         })}
