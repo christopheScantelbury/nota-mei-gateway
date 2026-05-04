@@ -56,6 +56,9 @@ func (p *Poller) WithBillingCounter(c EmissaoCounter) *Poller {
 	return p
 }
 
+// TODO(BE-04): call emailSvc.SendNotaAutorizada / SendNotaRejeitada here
+// Requires fetching the MEI's email from the meis table.
+
 // Run starts the polling loop. It blocks until ctx is cancelled.
 func (p *Poller) Run(ctx context.Context) {
 	log.Ctx(ctx).Info().Dur("interval", p.interval).Msg("nfse poller started")

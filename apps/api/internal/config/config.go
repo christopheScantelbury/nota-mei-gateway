@@ -32,6 +32,9 @@ type Config struct {
 	WebhookHMACSecret string
 
 	ReceitaAPIURL string
+
+	ResendAPIKey string
+	EmailFrom    string
 }
 
 // Load lê variáveis de ambiente, valida as obrigatórias e devolve a configuração.
@@ -105,6 +108,9 @@ func Load() *Config {
 		WebhookHMACSecret: os.Getenv("WEBHOOK_HMAC_SECRET"),
 
 		ReceitaAPIURL: os.Getenv("RECEITA_API_URL"),
+
+		ResendAPIKey: os.Getenv("RESEND_API_KEY"),
+		EmailFrom:    getEnv("EMAIL_FROM", "Nota MEI Gateway <noreply@notameigateway.com.br>"),
 	}
 }
 

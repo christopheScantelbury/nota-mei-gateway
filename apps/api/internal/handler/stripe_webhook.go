@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/billing"
+	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/email"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/supabase"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -18,7 +20,8 @@ import (
 type StripeWebhookHandler struct {
 	secret     string
 	db         *supabase.Client
-	billingGrd *billing.Guard // optional — invalidates subscription cache on events
+	billingGrd *billing.Guard  // optional — invalidates subscription cache on events
+	emailSvc   *email.Service  // optional — sends transactional emails
 }
 
 // NewStripeWebhookHandler creates a handler that validates Stripe events
@@ -33,6 +36,13 @@ func NewStripeWebhookHandler(secret string, db *supabase.Client) *StripeWebhookH
 // request cycle after a Stripe event arrives.
 func (h *StripeWebhookHandler) WithBillingGuard(g *billing.Guard) *StripeWebhookHandler {
 	h.billingGrd = g
+	return h
+}
+
+// WithEmailService attaches an email.Service so transactional emails are sent
+// on billing events (e.g. invoice.payment_failed).
+func (h *StripeWebhookHandler) WithEmailService(svc *email.Service) *StripeWebhookHandler {
+	h.emailSvc = svc
 	return h
 }
 
@@ -200,6 +210,48 @@ func (h *StripeWebhookHandler) handleInvoicePaymentFailed(ctx context.Context, e
 		return err
 	}
 	h.invalidateCacheBySubscriptionID(ctx, inv.Subscription.ID)
+
+	// Send payment-failed email asynchronously — fetch MEI details from DB.
+	if h.emailSvc != nil {
+		subID := inv.Subscription.ID
+		var amountDue int64
+		if inv.AmountDue != 0 {
+			amountDue = inv.AmountDue
+		}
+		emailSvc := h.emailSvc
+		db := h.db
+		go func() {
+			ctx2, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+
+			type meiRow struct {
+				Email       string
+				RazaoSocial string
+			}
+			row := db.Pool().QueryRow(ctx2, `
+				SELECT m.email, m.razao_social
+				FROM meis m
+				JOIN emissoes_mensais em ON em.mei_id = m.id
+				WHERE em.stripe_subscription_id = $1
+				LIMIT 1
+			`, subID)
+			var mei meiRow
+			if err := row.Scan(&mei.Email, &mei.RazaoSocial); err != nil {
+				log.Ctx(ctx2).Warn().Err(err).Str("sub_id", subID).
+					Msg("stripe webhook: could not fetch MEI for payment-failed email")
+				return
+			}
+
+			// Format amount: Stripe stores in centavos (BRL).
+			valorBRL := fmt.Sprintf("%.2f", float64(amountDue)/100.0)
+			portalURL := "https://billing.stripe.com/p/login/"
+
+			if err := emailSvc.SendPagamentoFalhou(ctx2, mei.Email, mei.RazaoSocial, "", valorBRL, portalURL); err != nil {
+				log.Ctx(ctx2).Warn().Err(err).Msg("email pagamento-falhou falhou")
+			}
+		}()
+	}
+
 	return nil
 }
 

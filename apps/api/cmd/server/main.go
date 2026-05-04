@@ -19,6 +19,7 @@ import (
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/template"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/webhook"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/cert"
+	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/email"
 	stripeClient "github.com/christopheScantelbury/nota-mei-gateway/api/pkg/stripe"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/supabase"
 	"github.com/gofiber/fiber/v2"
@@ -121,7 +122,11 @@ func main() {
 		log.Warn().Err(err).Msg("CNPJ validator unavailable — CNPJ dedup cache disabled")
 	}
 
-	registerH := handler.NewRegisterHandler(authRepo).WithCNPJValidator(cnpjValidator)
+	// ── Email service ──────────────────────────────────────────────────────
+	emailClient := email.New(cfg.ResendAPIKey, cfg.EmailFrom)
+	emailSvc := email.NewService(emailClient, log.Logger)
+
+	registerH := handler.NewRegisterHandler(authRepo).WithCNPJValidator(cnpjValidator).WithEmailService(emailSvc)
 	certH := handler.NewCertificateHandler(certProv, authRepo, db)
 	seedH := handler.NewSeedHandler(auth.NewSeeder(db))
 
@@ -140,7 +145,8 @@ func main() {
 		apiBase,
 	)
 	stripeWH := handler.NewStripeWebhookHandler(cfg.StripeWebhookSecret, db).
-		WithBillingGuard(billingGrd)
+		WithBillingGuard(billingGrd).
+		WithEmailService(emailSvc)
 
 	// ── Fiber app ──────────────────────────────────────────────────────────
 	app := fiber.New(fiber.Config{
