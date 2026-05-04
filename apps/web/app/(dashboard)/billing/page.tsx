@@ -1,11 +1,11 @@
-import { redirect } from 'next/navigation'
+﻿import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { EmissaoMensal } from '@/lib/types'
 import UsageChart from '@/components/dashboard/UsageChart'
 import InvoiceList from '@/components/dashboard/InvoiceList'
 import CheckoutModal from '@/components/dashboard/CheckoutModal'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.notameigateway.com.br'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
 
 function currentCompetencia() {
   const now = new Date()

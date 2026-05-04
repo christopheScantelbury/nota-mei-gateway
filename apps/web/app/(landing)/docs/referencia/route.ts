@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+﻿import { NextResponse } from 'next/server'
 
 /**
  * Serves the Scalar API Reference UI for the Nota MEI Gateway OpenAPI spec.
@@ -6,8 +6,8 @@ import { NextResponse } from 'next/server'
  * The spec is served from /openapi.yaml (copied to public/ at build time).
  */
 export async function GET() {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.notameigateway.com.br'
-  const sandboxUrl = process.env.NEXT_PUBLIC_API_URL ?? 'https://sandbox.notameigateway.com.br'
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
+  const sandboxUrl = process.env.NEXT_PUBLIC_API_URL ?? 'https://sandbox.emitirnotafacil.com.br'
 
   const html = `<!doctype html>
 <html lang="pt-BR">

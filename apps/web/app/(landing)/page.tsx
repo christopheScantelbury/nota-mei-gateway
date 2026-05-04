@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+﻿import type { Metadata } from 'next'
 import Link from 'next/link'
 import Navbar from '@/components/landing/Navbar'
 import HeroSection from '@/components/landing/HeroSection'
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Nota MEI Gateway',
     description: 'Emita NFS-e para o seu MEI em segundos via API.',
-    url: 'https://notameigateway.com.br',
+    url: 'https://emitirnotafacil.com.br',
     siteName: 'Nota MEI Gateway',
     images: [{ url: '/brand/og-image.png', width: 1200, height: 630 }],
     locale: 'pt_BR',
@@ -24,10 +24,10 @@ export const metadata: Metadata = {
     description: 'Emita NFS-e para o seu MEI em segundos via API.',
     images: ['/brand/og-image.png'],
   },
-  alternates: { canonical: 'https://notameigateway.com.br' },
+  alternates: { canonical: 'https://emitirnotafacil.com.br' },
 }
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://notameigateway.com.br'
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://emitirnotafacil.com.br'
 
 const jsonLd = {
   '@context': 'https://schema.org',
@@ -269,7 +269,7 @@ export default function LandingPage() {
             <a href="/status"                              className="hover:text-text-1 transition">Status da API</a>
             <a href="/privacidade"                         className="hover:text-text-1 transition">Privacidade</a>
             <a href="/termos"                              className="hover:text-text-1 transition">Termos de uso</a>
-            <a href="mailto:suporte@notameigateway.com.br" className="hover:text-text-1 transition">Suporte</a>
+            <a href="mailto:suporte@emitirnotafacil.com.br" className="hover:text-text-1 transition">Suporte</a>
           </div>
         </div>
       </footer>

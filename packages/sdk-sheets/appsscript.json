@@ -1,4 +1,4 @@
-{
+﻿{
   "timeZone": "America/Sao_Paulo",
   "exceptionLogging": "STACKDRIVER",
   "runtimeVersion": "V8",
@@ -12,7 +12,7 @@
   "addOns": {
     "common": {
       "name": "Nota MEI Gateway",
-      "logoUrl": "https://notameigateway.com.br/assets/logo-32x32.png",
+      "logoUrl": "https://emitirnotafacil.com.br/assets/logo-32x32.png",
       "homepageTrigger": { "runFunction": "onHomepage" }
     },
     "sheets": {

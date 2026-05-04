@@ -1,10 +1,10 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.notameigateway.com.br'
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
 
 type ServiceStatus = 'operational' | 'degraded' | 'down' | 'unknown'
 
@@ -194,7 +194,7 @@ export default function StatusPage() {
         <div className="text-center text-xs text-text-2 pt-4 border-t border-navy-600 flex gap-6 justify-center">
           <Link href="/"    className="hover:text-text-1 transition">Home</Link>
           <Link href="/docs" className="hover:text-text-1 transition">Docs</Link>
-          <a href="mailto:suporte@notameigateway.com.br" className="hover:text-text-1 transition">Suporte</a>
+          <a href="mailto:suporte@emitirnotafacil.com.br" className="hover:text-text-1 transition">Suporte</a>
         </div>
       </div>
     </div>

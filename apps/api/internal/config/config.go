@@ -37,6 +37,11 @@ type Config struct {
 	// When empty the API falls back to NoopStore (in-memory, dev/test only).
 	S3BucketNotas string
 
+	// APIBaseURL is the public base URL of the API, used in webhook payloads and
+	// presigned URL responses.  Override via API_BASE_URL env var; defaults to
+	// https://api.emitirnotafacil.com.br in production.
+	APIBaseURL string
+
 	ResendAPIKey string
 	EmailFrom    string
 }
@@ -116,8 +121,10 @@ func Load() *Config {
 
 		S3BucketNotas: os.Getenv("S3_BUCKET_NOTAS"),
 
+		APIBaseURL: getEnv("API_BASE_URL", "https://api.emitirnotafacil.com.br"),
+
 		ResendAPIKey: os.Getenv("RESEND_API_KEY"),
-		EmailFrom:    getEnv("EMAIL_FROM", "Nota MEI Gateway <noreply@notameigateway.com.br>"),
+		EmailFrom:    getEnv("EMAIL_FROM", "Nota MEI Gateway <noreply@emitirnotafacil.com.br>"),
 	}
 }
 

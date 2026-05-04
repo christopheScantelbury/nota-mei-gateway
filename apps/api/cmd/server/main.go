@@ -132,7 +132,10 @@ func main() {
 	}
 
 	// ── Handlers ───────────────────────────────────────────────────────────
-	apiBase := "https://api.notameigateway.com.br"
+	// apiBase is used in webhook payloads and presigned URL redirects.
+	// In development it points to localhost; in all other envs it uses the
+	// API_BASE_URL env var (default: https://api.emitirnotafacil.com.br).
+	apiBase := cfg.APIBaseURL
 	if cfg.AppEnv == "development" {
 		apiBase = "http://localhost:" + cfg.Port
 	}

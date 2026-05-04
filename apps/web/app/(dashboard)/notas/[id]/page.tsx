@@ -9,7 +9,7 @@ import WebhookDeliveryLog from '@/components/dashboard/WebhookDeliveryLog'
 import EnviarNotaEmail from '@/components/dashboard/EnviarNotaEmail'
 import type { Nota } from '@/lib/types'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.notameigateway.com.br'
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
 
 function formatBRL(value: number | null) {
   if (value == null) return '—'

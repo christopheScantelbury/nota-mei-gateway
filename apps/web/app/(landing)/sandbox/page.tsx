@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useMemo } from 'react'
 import ThemeToggle from '@/components/ui/ThemeToggle'
@@ -197,7 +197,7 @@ export default function SandboxPage() {
           <div className="flex items-center gap-3">
             <ThemeToggle />
             <a href="/docs" className="text-sm text-text-2 hover:text-text-1 transition">Docs</a>
-            <a href="https://notameigateway.com.br/cadastro" className="text-sm font-semibold bg-brand-cyan text-navy-900 px-4 py-2 rounded-lg hover:opacity-90 transition">
+            <a href="https://emitirnotafacil.com.br/cadastro" className="text-sm font-semibold bg-brand-cyan text-navy-900 px-4 py-2 rounded-lg hover:opacity-90 transition">
               Criar conta →
             </a>
           </div>
@@ -403,7 +403,7 @@ export default function SandboxPage() {
         {/* CTA */}
         <div className="text-center py-6">
           <p className="text-text-2 mb-4">Pronto para emitir notas reais?</p>
-          <a href="https://notameigateway.com.br/cadastro" className="inline-block px-8 py-3 bg-brand-cyan hover:opacity-90 text-navy-900 font-bold rounded-xl transition">
+          <a href="https://emitirnotafacil.com.br/cadastro" className="inline-block px-8 py-3 bg-brand-cyan hover:opacity-90 text-navy-900 font-bold rounded-xl transition">
             Criar conta grátis →
           </a>
         </div>

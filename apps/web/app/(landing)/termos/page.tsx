@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+﻿import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
@@ -9,8 +9,8 @@ export const metadata: Metadata = {
 
 const LAST_UPDATE = '03 de maio de 2026'
 const COMPANY = 'ScantelburyDevs'
-const EMAIL   = 'legal@notameigateway.com.br'
-const SITE    = 'notameigateway.com.br'
+const EMAIL   = 'legal@emitirnotafacil.com.br'
+const SITE    = 'emitirnotafacil.com.br'
 
 export default function TermosPage() {
   return (

@@ -1,4 +1,4 @@
-# CLAUDE.md — Nota MEI Gateway
+﻿# CLAUDE.md — Nota MEI Gateway
 > Manifesto de desenvolvimento para Claude Code · ScantelburyDevs
 
 ---
@@ -316,8 +316,8 @@ Authorization: Bearer sk_live_<hex64>
   "status": "AUTORIZADA",
   "numero_nfse": "000123",
   "codigo_verificacao": "ABC12345",
-  "pdf_url": "https://api.notameigateway.com.br/v1/nfse/uuid/pdf",
-  "xml_url": "https://api.notameigateway.com.br/v1/nfse/uuid/xml",
+  "pdf_url": "https://api.emitirnotafacil.com.br/v1/nfse/uuid/pdf",
+  "xml_url": "https://api.emitirnotafacil.com.br/v1/nfse/uuid/xml",
   "emitida_em": "2026-04-26T14:30:00Z",
   "signature": "sha256=<hmac-hex>"
 }
@@ -371,7 +371,7 @@ S3_BUCKET_NOTAS=nota-mei-gateway-fiscal   # bucket S3 dedicado para XMLs/PDFs (l
 
 ### Dashboard Next.js (Vercel)
 ```bash
-NEXT_PUBLIC_API_URL=https://api.notameigateway.com.br
+NEXT_PUBLIC_API_URL=https://api.emitirnotafacil.com.br
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
@@ -473,7 +473,7 @@ status-cancelada.png    → #6473A0 (cinza)
                               · GetOrCreateEmissaoMensal: upsert single round-trip
                               · Autorizar/Rejeitar: WHERE status='PROCESSANDO' guard
                               migration 20260504000002_rps_sequences.sql aplicada em prod
-⏳ DNS                        CNAME api.notameigateway.com.br → api-production-73b1.up.railway.app
+⏳ DNS                        CNAME api.emitirnotafacil.com.br → api-production-73b1.up.railway.app
 ✅ Vercel env vars            NEXT_PUBLIC_SUPABASE_ANON_KEY + NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY configurados
 ✅ supabase db push           4 migrations aplicadas em prod (templates, recorrências, STOR-01, SCALE-01)
 ✅ Light theme (PR #145)      light-first + dark mode toggle — mergeado em main (2026-05-04)
@@ -605,7 +605,7 @@ vercel --prod               # deploy manual produção
 | Repositório | https://github.com/christopheScantelbury/nota-mei-gateway |
 | **API produção (Railway)** | https://api-production-73b1.up.railway.app |
 | **Dashboard (Vercel)** | https://nota-mei-gateway-web.vercel.app |
-| **API domínio custom** | https://api.notameigateway.com.br *(CNAME pendente)* |
+| **API domínio custom** | https://api.emitirnotafacil.com.br *(CNAME pendente)* |
 | Supabase Dashboard | https://supabase.com/dashboard/project/pzjvgtwnstfyangfwdom |
 | Railway Dashboard | https://railway.app/project/25988fa0-9393-462f-b57e-8780f2ca138e |
 | Vercel Dashboard | https://vercel.com/dashboard |
@@ -653,7 +653,7 @@ vercel --prod               # deploy manual produção
 ### Pendências operacionais (sem código — apenas configuração)
 
 ```
-⏳ DNS          Apontar CNAME api.notameigateway.com.br
+⏳ DNS          Apontar CNAME api.emitirnotafacil.com.br
                 → api-production-73b1.up.railway.app
 
 ⏳ Supabase     supabase link --project-ref pzjvgtwnstfyangfwdom
@@ -672,7 +672,7 @@ vercel --prod               # deploy manual produção
 ### Pontos de atenção
 
 1. **Domínio Railway** — URL atual é `api-production-73b1.up.railway.app`. O `NEXT_PUBLIC_API_URL`
-   no Vercel aponta para `api.notameigateway.com.br` (custom domain). Enquanto o CNAME não
+   no Vercel aponta para `api.emitirnotafacil.com.br` (custom domain). Enquanto o CNAME não
    estiver configurado, o dashboard não consegue chamar a API em produção.
 
 2. **Supabase anon key** — está disponível em `ACESSOS.local.md`. Após `supabase db push`,

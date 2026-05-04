@@ -1,6 +1,6 @@
-import Link from 'next/link'
+﻿import Link from 'next/link'
 
-const STEP_CURL = `curl -X POST https://api.notameigateway.com.br/v1/nfse \\
+const STEP_CURL = `curl -X POST https://api.emitirnotafacil.com.br/v1/nfse \\
   -H "Authorization: Bearer sk_live_SUA_CHAVE" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -20,7 +20,7 @@ const STEP_CURL = `curl -X POST https://api.notameigateway.com.br/v1/nfse \\
     "webhook_url": "https://seu-erp.com/webhooks/nfse"
   }'`
 
-const STATUS_CURL = `curl https://api.notameigateway.com.br/v1/nfse/NOTA_ID \\
+const STATUS_CURL = `curl https://api.emitirnotafacil.com.br/v1/nfse/NOTA_ID \\
   -H "Authorization: Bearer sk_live_SUA_CHAVE"`
 
 const WEBHOOK_VERIFY = `import crypto from 'crypto'
@@ -79,7 +79,7 @@ export default function QuickstartPage() {
 
       <Step n={1} title="Crie sua conta e obtenha a API Key">
         <p className="text-sm text-[#8AA0B8]">
-          Acesse o <a href="https://notameigateway.com.br/cadastro" className="text-[#00E8FF] hover:underline">cadastro</a>,
+          Acesse o <a href="https://emitirnotafacil.com.br/cadastro" className="text-[#00E8FF] hover:underline">cadastro</a>,
           envie seu certificado A1 e copie a API Key gerada — ela é exibida <strong className="text-[#EEF4FF]">apenas uma vez</strong>.
         </p>
         <div className="bg-[#142035] border border-[#F0B414]/20 rounded-lg p-3 text-sm text-[#F0B414]">

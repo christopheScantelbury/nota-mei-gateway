@@ -1,4 +1,4 @@
-package webhook
+﻿package webhook
 
 import (
 	"bytes"
@@ -28,7 +28,7 @@ type Consumer struct {
 	ch      *amqp.Channel
 	repo    NotaUpdater
 	client  *http.Client
-	apiBase string // e.g. https://api.notameigateway.com.br
+	apiBase string // e.g. https://api.emitirnotafacil.com.br
 }
 
 // NewConsumer dials AMQP and returns a Consumer ready to Start.

@@ -1,4 +1,4 @@
-import Link from 'next/link'
+﻿import Link from 'next/link'
 
 function Code({ lang, children }: { lang: string; children: string }) {
   return (
@@ -67,8 +67,8 @@ export default function WebhooksPage() {
   "status": "AUTORIZADA",
   "numero_nfse": "000123",
   "codigo_verificacao": "ABC12345",
-  "pdf_url": "https://api.notameigateway.com.br/v1/nfse/550e.../pdf",
-  "xml_url": "https://api.notameigateway.com.br/v1/nfse/550e.../xml",
+  "pdf_url": "https://api.emitirnotafacil.com.br/v1/nfse/550e.../pdf",
+  "xml_url": "https://api.emitirnotafacil.com.br/v1/nfse/550e.../xml",
   "emitida_em": "2026-04-26T14:30:00Z",
   "signature": "sha256=a1b2c3d4e5f6..."
 }`}</Code>
@@ -166,7 +166,7 @@ def webhook(request: Request):
           Use o endpoint de webhook do próprio sandbox para inspecionar payloads sem infraestrutura:
         </p>
         <pre className="bg-[#0A0F1E] border border-[#1E3050] rounded-xl p-4 text-sm font-mono text-[#00E8FF] overflow-x-auto">
-          {`"webhook_url": "https://api.notameigateway.com.br/v1/sandbox/webhook"`}
+          {`"webhook_url": "https://api.emitirnotafacil.com.br/v1/sandbox/webhook"`}
         </pre>
         <p className="text-sm text-[#8AA0B8]">
           Veja os últimos 20 payloads recebidos com{' '}

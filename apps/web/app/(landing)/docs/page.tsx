@@ -1,4 +1,4 @@
-import Link from 'next/link'
+﻿import Link from 'next/link'
 
 const CARDS = [
   {
@@ -68,8 +68,8 @@ export default function DocsPage() {
         <p className="text-sm font-medium text-[#8AA0B8] uppercase tracking-wider">Base URL</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
-            { label: 'Produção', url: 'https://api.notameigateway.com.br', color: 'text-[#00C85A]' },
-            { label: 'Sandbox', url: 'https://sandbox.notameigateway.com.br', color: 'text-[#F0B414]' },
+            { label: 'Produção', url: 'https://api.emitirnotafacil.com.br', color: 'text-[#00C85A]' },
+            { label: 'Sandbox', url: 'https://sandbox.emitirnotafacil.com.br', color: 'text-[#F0B414]' },
           ].map((env) => (
             <div key={env.label} className="bg-[#0A0F1E] border border-[#1E3050] rounded-lg p-3">
               <p className={`text-xs font-medium mb-1 ${env.color}`}>{env.label}</p>
