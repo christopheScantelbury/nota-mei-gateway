@@ -3,11 +3,9 @@ package billing
 
 import (
 	"context"
-	"errors"
 
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/supabase"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 )
 
 // Plano holds the billing plan data for a MEI.
@@ -42,25 +40,22 @@ func NewRepository(db *supabase.Client) *Repository {
 	return &Repository{db: db}
 }
 
-// GetOrCreateEmissaoMensal returns the MEI's emissao_mensal row for the current month,
-// creating it if it does not exist.
+// GetOrCreateEmissaoMensal returns the MEI's emissao_mensal row for the current
+// month, creating it if it does not exist.
+//
+// Uses a single atomic INSERT … ON CONFLICT DO UPDATE … RETURNING to avoid a
+// separate SELECT round-trip and to remain safe under concurrent callers
+// (SCALE-01). The DO UPDATE touches no meaningful columns — it just forces
+// Postgres to return the existing row via RETURNING.
 func (r *Repository) GetOrCreateEmissaoMensal(ctx context.Context, meiID uuid.UUID) (*EmissaoMensal, error) {
-	_, err := r.db.Pool().Exec(ctx, `
+	row := r.db.Pool().QueryRow(ctx, `
 		INSERT INTO emissoes_mensais (mei_id, competencia, total_emitidas)
 		VALUES ($1, to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM'), 0)
-		ON CONFLICT (mei_id, competencia) DO NOTHING
-	`, meiID)
-	if err != nil {
-		return nil, err
-	}
-
-	row := r.db.Pool().QueryRow(ctx, `
-		SELECT id, mei_id, plano_id, competencia, total_emitidas,
-		       stripe_subscription_id, stripe_subscription_status,
-		       stripe_subscription_item_id
-		FROM emissoes_mensais
-		WHERE mei_id = $1
-		  AND competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
+		ON CONFLICT (mei_id, competencia) DO UPDATE
+		    SET mei_id = EXCLUDED.mei_id   -- no-op; forces RETURNING to fire
+		RETURNING id, mei_id, plano_id, competencia, total_emitidas,
+		          stripe_subscription_id, stripe_subscription_status,
+		          stripe_subscription_item_id
 	`, meiID)
 
 	var em EmissaoMensal
@@ -68,9 +63,6 @@ func (r *Repository) GetOrCreateEmissaoMensal(ctx context.Context, meiID uuid.UU
 		&em.ID, &em.MeiID, &em.PlanoID, &em.Competencia, &em.TotalEmitidas,
 		&em.StripeSubID, &em.StripeSubStatus, &em.StripeSubItemID,
 	); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("emissao_mensal not found after upsert")
-		}
 		return nil, err
 	}
 	return &em, nil

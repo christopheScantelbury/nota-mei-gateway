@@ -279,7 +279,7 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 	if len(envioResp.Erros) > 0 {
 		codigo := envioResp.Erros[0].Codigo
 		descricao := envioResp.Erros[0].Descricao
-		_ = h.notaRepo.Rejeitar(ctx, nota.ID, codigo, descricao)
+		_, _ = h.notaRepo.Rejeitar(ctx, nota.ID, codigo, descricao)
 		log.Ctx(ctx).Warn().
 			Str("nota_id", nota.ID.String()).
 			Str("erro_codigo", codigo).
@@ -295,7 +295,7 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 
 	if envioResp.NumeroNFSe != "" {
 		// Synchronous authorisation.
-		_ = h.notaRepo.Autorizar(ctx, nota.ID, envioResp.NumeroNFSe, envioResp.CodVerificacao, "")
+		_, _ = h.notaRepo.Autorizar(ctx, nota.ID, envioResp.NumeroNFSe, envioResp.CodVerificacao, "")
 		total, _ := h.billingRepo.IncrementEmitidas(ctx, mei.ID)
 		log.Ctx(ctx).Info().
 			Str("nota_id", nota.ID.String()).
