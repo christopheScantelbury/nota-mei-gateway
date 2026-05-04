@@ -209,17 +209,12 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 	}
 
 	// ── 7. Persist nota with PROCESSANDO status ───────────────────────────
-	// When S3 storage is configured we do NOT write the XML into the DB
-	// (xml_enviado stays NULL); it will be uploaded to S3 right after insert.
-	xmlEnviadoForDB := string(signedXML)
-	if h.store != nil {
-		xmlEnviadoForDB = "" // will be stored in S3 instead
-	}
-
+	// Always store the full XML in xml_enviado first (safe default).
+	// If S3 upload succeeds in step 7a, SetXMLS3Key will null out xml_enviado.
 	nota, err := h.notaRepo.Create(ctx, nfse.CreateNotaInput{
 		MeiID:          mei.ID,
 		NumeroRPS:      numeroRPS,
-		XMLEnviado:     xmlEnviadoForDB,
+		XMLEnviado:     string(signedXML),
 		WebhookURL:     req.WebhookURL,
 		TomadorDoc:     req.Tomador.Documento,
 		TomadorNome:    req.Tomador.RazaoSocial,
@@ -232,16 +227,18 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 	}
 
 	// ── 7a. Upload signed RPS XML to S3 (STOR-01) ────────────────────────
+	// Only nulls out xml_enviado from DB after a confirmed successful upload.
+	// On failure, xml_enviado stays intact in the DB — no data loss.
 	if h.store != nil {
 		s3Key := storage.S3KeyForRPS(mei.ID.String(), nota.ID.String())
 		if uploadErr := h.store.Put(ctx, s3Key, "application/xml", signedXML); uploadErr != nil {
-			// Non-fatal: log the error but continue — the nota is already persisted.
-			// The backfill job will pick it up later.
+			// Non-fatal: log the error but continue — xml_enviado is still in the DB.
 			log.Ctx(ctx).Error().Err(uploadErr).
 				Str("nota_id", nota.ID.String()).
 				Str("s3_key", s3Key).
-				Msg("falha ao fazer upload do RPS XML para S3 (non-fatal)")
+				Msg("falha ao fazer upload do RPS XML para S3 (non-fatal, xml salvo no banco)")
 		} else {
+			// Success: set the S3 key and clear the DB text column to save space.
 			if setErr := h.notaRepo.SetXMLS3Key(ctx, nota.ID, s3Key); setErr != nil {
 				log.Ctx(ctx).Warn().Err(setErr).
 					Str("nota_id", nota.ID.String()).
