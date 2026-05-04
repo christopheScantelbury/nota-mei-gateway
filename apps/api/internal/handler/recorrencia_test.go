@@ -217,7 +217,7 @@ func TestCreateRecorrencia_Valid(t *testing.T) {
 		"tomador":{"documento":"12345678000190","razao_social":"Empresa LTDA"},
 		"proxima_emissao":"2026-06-05"
 	}`
-	resp := mustTest(t, app, recorrenciaReq(http.MethodPost, "/v1/recorrencias", body))
+	resp := mustTest(t, app, recorrenciaReq(http.MethodPost, "/v1/recorrencias", body)) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusCreated {
 		t.Errorf("status = %d, want 201", resp.StatusCode)
@@ -241,7 +241,7 @@ func TestListRecorrencias_EmptyList(t *testing.T) {
 	stub := &stubRecorrenciaRepo{listResult: nil}
 	app := newRecorrenciaApp(stub)
 
-	resp := mustTest(t, app, recorrenciaReq(http.MethodGet, "/v1/recorrencias", ""))
+	resp := mustTest(t, app, recorrenciaReq(http.MethodGet, "/v1/recorrencias", "")) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("status = %d, want 200", resp.StatusCode)
@@ -269,7 +269,7 @@ func TestGetRecorrencia_NotFound(t *testing.T) {
 	stub := &stubRecorrenciaRepo{getErr: recorrencia.ErrNotFound}
 	app := newRecorrenciaApp(stub)
 
-	resp := mustTest(t, app, recorrenciaReq(http.MethodGet, "/v1/recorrencias/nonexistent-id", ""))
+	resp := mustTest(t, app, recorrenciaReq(http.MethodGet, "/v1/recorrencias/nonexistent-id", "")) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("status = %d, want 404", resp.StatusCode)
@@ -282,7 +282,7 @@ func TestDeleteRecorrencia_NotFound(t *testing.T) {
 	stub := &stubRecorrenciaRepo{deleteErr: recorrencia.ErrNotFound}
 	app := newRecorrenciaApp(stub)
 
-	resp := mustTest(t, app, recorrenciaReq(http.MethodDelete, "/v1/recorrencias/nonexistent-id", ""))
+	resp := mustTest(t, app, recorrenciaReq(http.MethodDelete, "/v1/recorrencias/nonexistent-id", "")) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("status = %d, want 404", resp.StatusCode)
@@ -293,7 +293,7 @@ func TestDeleteRecorrencia_Success(t *testing.T) {
 	stub := &stubRecorrenciaRepo{}
 	app := newRecorrenciaApp(stub)
 
-	resp := mustTest(t, app, recorrenciaReq(http.MethodDelete, "/v1/recorrencias/some-id", ""))
+	resp := mustTest(t, app, recorrenciaReq(http.MethodDelete, "/v1/recorrencias/some-id", "")) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusNoContent {
 		t.Errorf("status = %d, want 204", resp.StatusCode)
