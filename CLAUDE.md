@@ -464,9 +464,11 @@ status-cancelada.png    → #6473A0 (cinza)
 ✅ SDK-01–08                  OpenAPI, sandbox, Node.js, Python, WooCommerce, Zapier, Google Sheets, portal
 
 ✅ STOR-01 (#126)             Arquivamento fiscal 5 anos — pkg/storage S3Store+NoopStore, migration, lifecycle
+⏳ S3 bucket                  aws configure (admin) → bash _secrets_setup/s3_provision.sh
+                              (cria nota-mei-gateway-fiscal, lifecycle 5a, IAM policy S3)
 ⏳ DNS                        CNAME api.notameigateway.com.br → api-production-73b1.up.railway.app
 ⏳ Vercel env vars            NEXT_PUBLIC_SUPABASE_ANON_KEY e NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY em branco
-⏳ supabase db push           Aplicar migrations no projeto de produção
+✅ supabase db push           3 migrations aplicadas em prod (templates, recorrências, STOR-01)
 ⏳ Stripe live keys           sk_live_ / pk_live_ ainda não criadas (somente test mode ativo)
 ⏳ QA-01                      E2E tests (depende de DNS + Vercel vars completos)
 ```
@@ -604,7 +606,7 @@ vercel --prod               # deploy manual produção
 ---
 
 ## 13. ESTADO ATUAL
-> Última atualização: 2026-05-04 · branch `main` · commit `b3bd648` · CI ✅ Deploy ✅ Issues: 111 fechadas / 0 abertas
+> Última atualização: 2026-05-04 · branch `main` · commit `b6550eb` · CI ✅ Deploy ✅ Issues: 111 fechadas / 0 abertas
 
 ### Código — 100% concluído
 
@@ -675,10 +677,9 @@ vercel --prod               # deploy manual produção
 5. **BillingGuard cache** — Redis TTL 5 min, invalidado pelos webhooks Stripe. O webhook secret
    `whsec_POMNcuX33M8DRZxDFybMUdIeBdj2ahwM` já está configurado no Railway.
 
-6. **STOR-01 (#126) — ✅ implementado** — `pkg/storage/` com `S3Store` (aws-sdk-go-v2) e
-   `NoopStore` (dev/test). XMLs não são mais armazenados como TEXT no PostgreSQL; são
-   carregados para `nota-mei-gateway-fiscal` S3 com lifecycle 5 anos. `DownloadXML` e
-   `DownloadPDF` redirecionam via presigned URL (15 min). Notas antigas têm fallback.
-   **Pendente pós-deploy**: criar bucket S3 `nota-mei-gateway-fiscal` em `sa-east-1`,
-   aplicar `docs/s3-lifecycle.json`, adicionar `S3_BUCKET_NOTAS` no Railway,
-   e rodar `supabase db push` para aplicar migration `20260504000001_stor01_xml_s3_keys.sql`.
+6. **STOR-01 (#126) — ✅ implementado e parcialmente ativo** — Migration aplicada em prod,
+   `S3_BUCKET_NOTAS=nota-mei-gateway-fiscal` configurado no Railway (API + Worker), redeploy feito.
+   **Falta 1 passo**: criar o bucket S3 e adicionar permissão IAM ao user `nota-mei-gateway-api`.
+   Enquanto isso a API opera em modo degradado: XMLs ficam no PostgreSQL (seguro — fallback
+   implementado) e os logs mostram `"falha ao fazer upload do RPS XML para S3 (non-fatal)"`.
+   Para completar: `aws configure` (credenciais admin) → `bash _secrets_setup/s3_provision.sh`.
