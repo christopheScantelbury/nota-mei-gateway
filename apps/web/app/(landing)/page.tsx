@@ -27,6 +27,20 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://notameigateway.com.br' },
 }
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://notameigateway.com.br'
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Nota MEI Gateway',
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web',
+  url: APP_URL,
+  description: 'API REST para emissão automatizada de NFS-e para MEI via Receita Federal Nacional.',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'BRL', description: 'Trial gratuito de 30 dias' },
+  author: { '@type': 'Organization', name: 'ScantelburyDevs', url: 'https://scantelburydevs.com.br' },
+}
+
 const plans = [
   {
     name: 'Trial',
@@ -105,6 +119,10 @@ const faqs = [
 export default function LandingPage() {
   return (
     <main className="min-h-screen bg-navy-900 text-text-1 font-body">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
 
       {/* Navbar — scroll-aware, glass blur */}
       <Navbar />
@@ -248,6 +266,7 @@ export default function LandingPage() {
           </div>
           <div className="flex gap-6 items-center flex-wrap">
             <a href="/docs"                                className="hover:text-text-1 transition">Documentação</a>
+            <a href="/status"                              className="hover:text-text-1 transition">Status da API</a>
             <a href="/privacidade"                         className="hover:text-text-1 transition">Privacidade</a>
             <a href="/termos"                              className="hover:text-text-1 transition">Termos de uso</a>
             <a href="mailto:suporte@notameigateway.com.br" className="hover:text-text-1 transition">Suporte</a>

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/dashboard/Sidebar'
+import NotificationBell from '@/components/dashboard/NotificationBell'
 import type { MEI } from '@/lib/types'
 
 export default async function DashboardLayout({
@@ -28,7 +29,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-navy-900 text-text-1 font-body lg:flex">
-      <Sidebar razaoSocial={razaoSocial} />
+      <Sidebar razaoSocial={razaoSocial} notificationBell={<NotificationBell />} />
       <main
         id="main-content"
         className="flex-1 overflow-auto pt-14 lg:pt-0"

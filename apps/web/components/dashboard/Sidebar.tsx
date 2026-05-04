@@ -10,6 +10,7 @@ const navItems = [
   { href: '/templates',     label: 'Templates',       icon: '📄', badge: 'PRO'        },
   { href: '/recorrencias',  label: 'Automação',       icon: '🔄', badge: 'BUSINESS'   },
   { href: '/api-keys',      label: 'API Keys',        icon: '🔑', badge: null         },
+  { href: '/webhooks',      label: 'Webhooks',        icon: '🔗', badge: null         },
   { href: '/billing',       label: 'Plano & Billing', icon: '💳', badge: null         },
   { href: '/configuracoes', label: 'Configurações',   icon: '⚙️', badge: null        },
 ]
@@ -17,9 +18,11 @@ const navItems = [
 function NavContent({
   razaoSocial,
   onNavClick,
+  notificationBell,
 }: {
   razaoSocial: string
   onNavClick?: () => void
+  notificationBell?: React.ReactNode
 }) {
   const pathname = usePathname()
 
@@ -65,7 +68,7 @@ function NavContent({
       </nav>
 
       {/* Footer */}
-      <div className="px-4 py-4 border-t border-navy-600 flex items-center justify-between">
+      <div className="px-4 py-4 border-t border-navy-600 flex items-center justify-between gap-2">
         <form action="/auth/signout" method="post">
           <button
             type="submit"
@@ -74,13 +77,16 @@ function NavContent({
             Sair
           </button>
         </form>
-        <ThemeToggle />
+        <div className="flex items-center gap-1">
+          {notificationBell}
+          <ThemeToggle />
+        </div>
       </div>
     </div>
   )
 }
 
-export default function Sidebar({ razaoSocial }: { razaoSocial: string }) {
+export default function Sidebar({ razaoSocial, notificationBell }: { razaoSocial: string; notificationBell?: React.ReactNode }) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
@@ -97,7 +103,7 @@ export default function Sidebar({ razaoSocial }: { razaoSocial: string }) {
     <>
       {/* ── Desktop sidebar (lg+) ── */}
       <aside className="hidden lg:flex w-60 shrink-0 bg-navy-700 min-h-screen flex-col border-r border-navy-600">
-        <NavContent razaoSocial={razaoSocial} />
+        <NavContent razaoSocial={razaoSocial} notificationBell={notificationBell} />
       </aside>
 
       {/* ── Mobile top bar ── */}
@@ -146,7 +152,7 @@ export default function Sidebar({ razaoSocial }: { razaoSocial: string }) {
                 </svg>
               </button>
             </div>
-            <NavContent razaoSocial={razaoSocial} onNavClick={() => setOpen(false)} />
+            <NavContent razaoSocial={razaoSocial} onNavClick={() => setOpen(false)} notificationBell={notificationBell} />
           </aside>
         </>
       )}
