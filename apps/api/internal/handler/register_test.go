@@ -47,7 +47,7 @@ func TestRegister_Success(t *testing.T) {
 	app := newRegisterApp(stub)
 
 	body := `{"cnpj":"12345678000190","razao_social":"Empresa Teste","email":"a@b.com","municipio_ibge":"3550308"}`
-	resp := mustTest(t, app, registerReq(body))
+	resp := mustTest(t, app, registerReq(body)) //nolint:bodyclose
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated {
@@ -75,7 +75,7 @@ func TestRegister_FormattedCNPJ(t *testing.T) {
 
 	// Formatted CNPJ should be accepted and normalised.
 	body := `{"cnpj":"12.345.678/0001-90","razao_social":"Teste","email":"x@y.com","municipio_ibge":"3550308"}`
-	resp := mustTest(t, app, registerReq(body))
+	resp := mustTest(t, app, registerReq(body)) //nolint:bodyclose
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusCreated {
@@ -89,7 +89,7 @@ func TestRegister_InvalidCNPJ(t *testing.T) {
 	app := newRegisterApp(stub)
 
 	body := `{"cnpj":"123","razao_social":"Teste","email":"x@y.com","municipio_ibge":"3550308"}`
-	resp := mustTest(t, app, registerReq(body))
+	resp := mustTest(t, app, registerReq(body)) //nolint:bodyclose
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
@@ -103,7 +103,7 @@ func TestRegister_MissingRazaoSocial(t *testing.T) {
 	app := newRegisterApp(stub)
 
 	body := `{"cnpj":"12345678000190","razao_social":"","email":"x@y.com","municipio_ibge":"3550308"}`
-	resp := mustTest(t, app, registerReq(body))
+	resp := mustTest(t, app, registerReq(body)) //nolint:bodyclose
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
@@ -117,7 +117,7 @@ func TestRegister_MissingEmail(t *testing.T) {
 	app := newRegisterApp(stub)
 
 	body := `{"cnpj":"12345678000190","razao_social":"Teste","email":"","municipio_ibge":"3550308"}`
-	resp := mustTest(t, app, registerReq(body))
+	resp := mustTest(t, app, registerReq(body)) //nolint:bodyclose
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
@@ -131,7 +131,7 @@ func TestRegister_InvalidMunicipio(t *testing.T) {
 	app := newRegisterApp(stub)
 
 	body := `{"cnpj":"12345678000190","razao_social":"Teste","email":"x@y.com","municipio_ibge":"123"}`
-	resp := mustTest(t, app, registerReq(body))
+	resp := mustTest(t, app, registerReq(body)) //nolint:bodyclose
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
@@ -145,7 +145,7 @@ func TestRegister_MultipleValidationErrors(t *testing.T) {
 	app := newRegisterApp(stub)
 
 	body := `{"cnpj":"","razao_social":"","email":"","municipio_ibge":""}`
-	resp := mustTest(t, app, registerReq(body))
+	resp := mustTest(t, app, registerReq(body)) //nolint:bodyclose
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
@@ -166,7 +166,7 @@ func TestRegister_InternalError(t *testing.T) {
 	app := newRegisterApp(stub)
 
 	body := `{"cnpj":"12345678000190","razao_social":"Teste","email":"x@y.com","municipio_ibge":"3550308"}`
-	resp := mustTest(t, app, registerReq(body))
+	resp := mustTest(t, app, registerReq(body)) //nolint:bodyclose
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusInternalServerError {
@@ -187,7 +187,7 @@ func TestRegister_InvalidJSON(t *testing.T) {
 
 	r := httptest.NewRequest(http.MethodPost, "/v1/auth/register", bytes.NewBufferString("{bad json"))
 	r.Header.Set("Content-Type", "application/json")
-	resp := mustTest(t, app, r)
+	resp := mustTest(t, app, r) //nolint:bodyclose
 	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.Copy(io.Discard, resp.Body)
 
