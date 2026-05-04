@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { EmissaoMensal } from '@/lib/types'
 import UsageChart from '@/components/dashboard/UsageChart'
+import InvoiceList from '@/components/dashboard/InvoiceList'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.notameigateway.com.br'
 
@@ -224,6 +225,9 @@ export default async function BillingPage() {
           </table>
         </div>
       )}
+
+      {/* Stripe invoices — client component, loads async */}
+      {emissao?.stripe_subscription_id && <InvoiceList />}
 
       {/* Plan cards */}
       <h2 className="font-display text-xl font-bold mb-4" id="planos">
