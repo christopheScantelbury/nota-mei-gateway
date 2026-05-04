@@ -466,9 +466,16 @@ status-cancelada.png    → #6473A0 (cinza)
 ✅ STOR-01 (#126)             Arquivamento fiscal 5 anos — pkg/storage S3Store+NoopStore, migration, lifecycle
 ✅ S3 bucket                  nota-mei-gateway-fiscal criado (sa-east-1), SSE-AES256,
                               lifecycle 5a aplicado, IAM S3 policy no user nota-mei-gateway-api
+✅ SCALE-01                   Concorrência para milhares de requisições simultâneas:
+                              · RPS atômico via rps_sequences (INSERT ON CONFLICT DO UPDATE)
+                              · Poller: lock Redis por nota "nfs:poll:{id}" TTL 2min + guard DB
+                              · Requeuer: lock Redis global "wbk:requeue:lock" TTL 10min
+                              · GetOrCreateEmissaoMensal: upsert single round-trip
+                              · Autorizar/Rejeitar: WHERE status='PROCESSANDO' guard
+                              migration 20260504000002_rps_sequences.sql aplicada em prod
 ⏳ DNS                        CNAME api.notameigateway.com.br → api-production-73b1.up.railway.app
 ✅ Vercel env vars            NEXT_PUBLIC_SUPABASE_ANON_KEY + NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY configurados
-✅ supabase db push           3 migrations aplicadas em prod (templates, recorrências, STOR-01)
+✅ supabase db push           4 migrations aplicadas em prod (templates, recorrências, STOR-01, SCALE-01)
 ✅ Light theme (PR #145)      light-first + dark mode toggle — mergeado em main (2026-05-04)
 ⏳ Stripe live keys           sk_live_ / pk_live_ ainda não criadas (somente test mode ativo)
 ⏳ QA-01                      E2E tests (depende de DNS)
@@ -678,9 +685,10 @@ vercel --prod               # deploy manual produção
 5. **BillingGuard cache** — Redis TTL 5 min, invalidado pelos webhooks Stripe. O webhook secret
    `whsec_REDACTED` já está configurado no Railway.
 
-6. **STOR-01 (#126) — ✅ implementado e parcialmente ativo** — Migration aplicada em prod,
-   `S3_BUCKET_NOTAS=nota-mei-gateway-fiscal` configurado no Railway (API + Worker), redeploy feito.
-   **Falta 1 passo**: criar o bucket S3 e adicionar permissão IAM ao user `nota-mei-gateway-api`.
-   Enquanto isso a API opera em modo degradado: XMLs ficam no PostgreSQL (seguro — fallback
-   implementado) e os logs mostram `"falha ao fazer upload do RPS XML para S3 (non-fatal)"`.
-   Para completar: `aws configure` (credenciais admin) → `bash _secrets_setup/s3_provision.sh`.
+6. **STOR-01 (#126) — ✅ totalmente ativo** — S3 bucket criado, lifecycle 5a aplicado,
+   IAM policy no user `nota-mei-gateway-api`, migration aplicada em prod, Railway redeployado.
+   XMLs/PDFs vão direto para S3; fallback para PostgreSQL ativo se S3 falhar.
+
+7. **SCALE-01 — ✅ implementado** — Aplicação segura para múltiplas instâncias horizontais:
+   RPS atômico (`rps_sequences`), per-nota Redis lock no Poller, global lock no Requeuer,
+   guards de status no DB. Migration aplicada em prod, deploy via CI/CD (push main).
