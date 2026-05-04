@@ -88,7 +88,7 @@ func TestCreateTemplate_MissingNome(t *testing.T) {
 	app := newTemplateApp(stub)
 
 	body := `{"servico":{"codigo_nbs":"01.01","valor":1000}}`
-	resp := mustTest(t, app, templateReq(http.MethodPost, "/v1/templates", body))
+	resp := mustTest(t, app, templateReq(http.MethodPost, "/v1/templates", body)) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 422", resp.StatusCode)
@@ -101,7 +101,7 @@ func TestCreateTemplate_MissingServico(t *testing.T) {
 	app := newTemplateApp(stub)
 
 	body := `{"nome":"Meu template"}`
-	resp := mustTest(t, app, templateReq(http.MethodPost, "/v1/templates", body))
+	resp := mustTest(t, app, templateReq(http.MethodPost, "/v1/templates", body)) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 422", resp.StatusCode)
@@ -114,7 +114,7 @@ func TestCreateTemplate_ServicoNotObject(t *testing.T) {
 	app := newTemplateApp(stub)
 
 	body := `{"nome":"Meu template","servico":[1,2,3]}`
-	resp := mustTest(t, app, templateReq(http.MethodPost, "/v1/templates", body))
+	resp := mustTest(t, app, templateReq(http.MethodPost, "/v1/templates", body)) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 422", resp.StatusCode)
@@ -131,7 +131,7 @@ func TestCreateTemplate_NomeTooLong(t *testing.T) {
 		longNome = longNome[:i] + "a" + longNome[i+1:]
 	}
 	body := `{"nome":"` + longNome + `","servico":{"valor":1000}}`
-	resp := mustTest(t, app, templateReq(http.MethodPost, "/v1/templates", body))
+	resp := mustTest(t, app, templateReq(http.MethodPost, "/v1/templates", body)) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 422", resp.StatusCode)
@@ -153,7 +153,7 @@ func TestCreateTemplate_Valid(t *testing.T) {
 	app := newTemplateApp(stub)
 
 	body := `{"nome":"Desenvolvimento","servico":{"codigo_nbs":"01.01","valor":3500}}`
-	resp := mustTest(t, app, templateReq(http.MethodPost, "/v1/templates", body))
+	resp := mustTest(t, app, templateReq(http.MethodPost, "/v1/templates", body)) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusCreated {
 		t.Errorf("status = %d, want 201", resp.StatusCode)
@@ -176,7 +176,7 @@ func TestCreateTemplate_BothFieldsMissing(t *testing.T) {
 	app := newTemplateApp(stub)
 
 	body := `{}`
-	resp := mustTest(t, app, templateReq(http.MethodPost, "/v1/templates", body))
+	resp := mustTest(t, app, templateReq(http.MethodPost, "/v1/templates", body)) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusUnprocessableEntity {
 		t.Errorf("status = %d, want 422", resp.StatusCode)
@@ -198,7 +198,7 @@ func TestListTemplates_EmptyList(t *testing.T) {
 	stub := &stubTemplateRepo{listResult: nil}
 	app := newTemplateApp(stub)
 
-	resp := mustTest(t, app, templateReq(http.MethodGet, "/v1/templates", ""))
+	resp := mustTest(t, app, templateReq(http.MethodGet, "/v1/templates", "")) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("status = %d, want 200", resp.StatusCode)
@@ -223,7 +223,7 @@ func TestGetTemplate_NotFound(t *testing.T) {
 	stub := &stubTemplateRepo{getErr: template.ErrNotFound}
 	app := newTemplateApp(stub)
 
-	resp := mustTest(t, app, templateReq(http.MethodGet, "/v1/templates/nonexistent-id", ""))
+	resp := mustTest(t, app, templateReq(http.MethodGet, "/v1/templates/nonexistent-id", "")) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("status = %d, want 404", resp.StatusCode)
@@ -243,7 +243,7 @@ func TestGetTemplate_Found(t *testing.T) {
 	}
 	app := newTemplateApp(stub)
 
-	resp := mustTest(t, app, templateReq(http.MethodGet, "/v1/templates/some-id", ""))
+	resp := mustTest(t, app, templateReq(http.MethodGet, "/v1/templates/some-id", "")) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("status = %d, want 200", resp.StatusCode)
@@ -256,7 +256,7 @@ func TestDeleteTemplate_NotFound(t *testing.T) {
 	stub := &stubTemplateRepo{deleteErr: template.ErrNotFound}
 	app := newTemplateApp(stub)
 
-	resp := mustTest(t, app, templateReq(http.MethodDelete, "/v1/templates/nonexistent-id", ""))
+	resp := mustTest(t, app, templateReq(http.MethodDelete, "/v1/templates/nonexistent-id", "")) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("status = %d, want 404", resp.StatusCode)
@@ -267,7 +267,7 @@ func TestDeleteTemplate_Success(t *testing.T) {
 	stub := &stubTemplateRepo{}
 	app := newTemplateApp(stub)
 
-	resp := mustTest(t, app, templateReq(http.MethodDelete, "/v1/templates/some-id", ""))
+	resp := mustTest(t, app, templateReq(http.MethodDelete, "/v1/templates/some-id", "")) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusNoContent {
 		t.Errorf("status = %d, want 204", resp.StatusCode)
@@ -281,7 +281,7 @@ func TestUpdateTemplate_NotFound(t *testing.T) {
 	app := newTemplateApp(stub)
 
 	body := `{"nome":"Novo nome","servico":{"valor":500}}`
-	resp := mustTest(t, app, templateReq(http.MethodPut, "/v1/templates/bad-id", body))
+	resp := mustTest(t, app, templateReq(http.MethodPut, "/v1/templates/bad-id", body)) //nolint:bodyclose
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("status = %d, want 404", resp.StatusCode)

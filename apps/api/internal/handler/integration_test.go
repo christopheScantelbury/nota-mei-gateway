@@ -86,7 +86,7 @@ func mustTest(t *testing.T, app *fiber.App, req *http.Request) *http.Response {
 func TestHealthEndpoint_OK(t *testing.T) {
 	app := newTestApp()
 	req := httptest.NewRequest(http.MethodGet, "/v1/health", nil)
-	resp := mustTest(t, app, req)
+	resp := mustTest(t, app, req) //nolint:bodyclose
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
@@ -103,7 +103,7 @@ func TestHealthEndpoint_OK(t *testing.T) {
 func TestAuthMiddleware_MissingBearer(t *testing.T) {
 	app := newTestApp()
 	req := httptest.NewRequest(http.MethodPost, "/v1/nfse", nil)
-	resp := mustTest(t, app, req)
+	resp := mustTest(t, app, req) //nolint:bodyclose
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", resp.StatusCode)
@@ -114,7 +114,7 @@ func TestAuthMiddleware_MalformedBearer(t *testing.T) {
 	app := newTestApp()
 	req := httptest.NewRequest(http.MethodPost, "/v1/nfse", nil)
 	req.Header.Set("Authorization", "Token abc123") // not "Bearer"
-	resp := mustTest(t, app, req)
+	resp := mustTest(t, app, req) //nolint:bodyclose
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", resp.StatusCode)
@@ -127,7 +127,7 @@ func TestAuthMiddleware_ValidBearer(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/v1/nfse", body)
 	req.Header.Set("Authorization", "Bearer sk_test_abc123")
 	req.Header.Set("Content-Type", "application/json")
-	resp := mustTest(t, app, req)
+	resp := mustTest(t, app, req) //nolint:bodyclose
 	defer func() { _ = resp.Body.Close() }()
 	// Should reach the handler (202) not auth block (401).
 	if resp.StatusCode == http.StatusUnauthorized {
@@ -153,7 +153,7 @@ func TestEmitirNota_MissingFields(t *testing.T) {
 			req := httptest.NewRequest(http.MethodPost, "/v1/nfse", strings.NewReader(c.body))
 			req.Header.Set("Authorization", "Bearer sk_test_abc123")
 			req.Header.Set("Content-Type", "application/json")
-			resp := mustTest(t, app, req)
+			resp := mustTest(t, app, req) //nolint:bodyclose
 			defer func() { _ = resp.Body.Close() }()
 			if resp.StatusCode != http.StatusUnprocessableEntity {
 				t.Errorf("status = %d, want 422", resp.StatusCode)
@@ -172,7 +172,7 @@ func TestEmitirNota_ValidRequest_Accepted(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/v1/nfse", strings.NewReader(body))
 	req.Header.Set("Authorization", "Bearer sk_test_abc123")
 	req.Header.Set("Content-Type", "application/json")
-	resp := mustTest(t, app, req)
+	resp := mustTest(t, app, req) //nolint:bodyclose
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusAccepted {
 		t.Errorf("status = %d, want 202", resp.StatusCode)
@@ -185,7 +185,7 @@ func TestUnknownRoute_404(t *testing.T) {
 	app := newTestApp()
 	// Test a path outside the /v1 group so auth middleware doesn't intercept.
 	req := httptest.NewRequest(http.MethodGet, "/nonexistent", nil)
-	resp := mustTest(t, app, req)
+	resp := mustTest(t, app, req) //nolint:bodyclose
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("unknown route: status = %d, want 404", resp.StatusCode)
