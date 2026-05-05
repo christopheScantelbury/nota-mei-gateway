@@ -31,7 +31,7 @@ const meiPlans = [
     name: 'Trial',
     price: 'Grátis',
     period: '30 dias',
-    limit: '5 notas',
+    limit: '5 notas no trial',
     desc: 'Para experimentar sem compromisso.',
     extra: null,
     cta: 'Começar grátis',
@@ -138,8 +138,12 @@ export default function MeiLandingPage() {
           </div>
 
           {/* Mockup de celular */}
-          <div className="flex-shrink-0">
-            <div className="w-64 bg-navy-700 border border-navy-600 rounded-3xl p-5 shadow-glow-cyan">
+          <div className="flex-shrink-0 w-full max-w-xs mx-auto lg:mx-0">
+            <div className="relative bg-navy-700 border border-navy-600 rounded-3xl p-5 shadow-glow-cyan">
+              {/* Prévia badge */}
+              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-navy-600 border border-navy-600 text-text-2 text-[10px] font-semibold px-3 py-0.5 rounded-full uppercase tracking-widest whitespace-nowrap">
+                Prévia do app
+              </span>
               <div className="w-16 h-1.5 bg-navy-600 rounded-full mx-auto mb-5" />
               <p className="text-brand-cyan text-xs font-semibold mb-4 text-center uppercase tracking-widest">
                 Nova Nota Fiscal
@@ -158,9 +162,12 @@ export default function MeiLandingPage() {
                   </div>
                 ))}
               </div>
-              <button className="mt-5 w-full bg-brand-cyan text-navy-900 text-sm font-bold py-3 rounded-xl">
+              <Link
+                href="/cadastro?produto=mei"
+                className="mt-5 block w-full bg-brand-cyan text-navy-900 text-sm font-bold py-3 rounded-xl text-center hover:opacity-90 transition"
+              >
                 Emitir nota →
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -230,7 +237,7 @@ export default function MeiLandingPage() {
                 desc: 'Conexão direta com o sistema oficial da NFS-e Nacional. Cada nota é assinada digitalmente conforme a lei.',
               },
               {
-                icon: '🇧🇷',
+                icon: '🌎',
                 title: '100% brasileiro',
                 desc: 'Seus dados nunca saem do território nacional. Operamos em conformidade com a LGPD.',
               },
@@ -331,18 +338,18 @@ export default function MeiLandingPage() {
             Pronto pra parar de perder tempo com nota fiscal?
           </h2>
           <p className="text-text-2 text-lg mb-8">
-            Trial grátis por 30 dias — 5 notas sem custo. Sem cartão. Cancele quando quiser.
+            Trial grátis por 30 dias — 5 notas no trial, sem custo. Sem cartão. Cancele quando quiser.
           </p>
           <Link
             href="/cadastro?produto=mei"
             className="bg-brand-cyan text-navy-900 font-semibold px-10 py-4 rounded-xl text-lg hover:opacity-90 transition"
           >
-            Começar grátis — 5 notas no primeiro mês
+            Começar grátis — trial de 30 dias
           </Link>
           <p className="text-text-2 text-sm mt-6">
             Tem dúvida?{' '}
-            <a href="https://wa.me/5511999999999" className="underline hover:text-text-1 transition">
-              Fale com a gente no WhatsApp
+            <a href="mailto:suporte@notafacilmei.com.br" className="underline hover:text-text-1 transition">
+              Fale com a gente por e-mail
             </a>
           </p>
         </div>

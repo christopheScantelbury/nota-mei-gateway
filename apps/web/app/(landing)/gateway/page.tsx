@@ -151,7 +151,7 @@ export default function GatewayLandingPage() {
               de prefeituras.
             </p>
             <p className="text-text-2 text-base mb-8 italic">
-              "Construa em uma tarde o que levaria 3 meses lendo manual da ABRASF."
+              &ldquo;Construa em uma tarde o que levaria 3 meses lendo manual da ABRASF.&rdquo;
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link
