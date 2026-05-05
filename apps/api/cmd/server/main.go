@@ -24,6 +24,7 @@ import (
 	stripeClient "github.com/christopheScantelbury/nota-mei-gateway/api/pkg/stripe"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/supabase"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -190,6 +191,11 @@ func main() {
 		},
 	})
 
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "https://emitirnotafacil.com.br,https://www.emitirnotafacil.com.br,https://nota-mei-gateway-web.vercel.app",
+		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders: "Origin,Content-Type,Accept,Authorization,X-Request-ID,X-Idempotency-Key",
+	}))
 	app.Use(middleware.PanicRecovery())
 	app.Use(middleware.RequestLogger())
 	app.Use(middleware.PrometheusMetrics())
@@ -199,14 +205,38 @@ func main() {
 	// DB reachability is reported in the response body (not as HTTP status)
 	// so a temporary DB blip doesn't take the service offline unnecessarily.
 	app.Get("/v1/health", func(c *fiber.Ctx) error {
+		// DB
 		dbStatus := "ok"
 		if err := db.Pool().Ping(c.Context()); err != nil {
 			dbStatus = "unreachable"
 		}
+
+		// Redis (via billing guard — shares the same connection pool)
+		redisStatus := "ok"
+		if billingGrd == nil {
+			redisStatus = "unreachable"
+		} else if err := billingGrd.Ping(c.Context()); err != nil {
+			redisStatus = "unreachable"
+		}
+
+		// RabbitMQ (via webhook publisher)
+		rabbitmqStatus := "ok"
+		if publisher == nil {
+			rabbitmqStatus = "unreachable"
+		} else if err := publisher.Ping(); err != nil {
+			rabbitmqStatus = "unreachable"
+		}
+
 		return c.JSON(fiber.Map{
 			"status": "ok",
 			"env":    cfg.AppEnv,
-			"db":     dbStatus,
+			"services": fiber.Map{
+				"db":       fiber.Map{"status": dbStatus},
+				"redis":    fiber.Map{"status": redisStatus},
+				"receita":  fiber.Map{"status": "ok"},
+				"stripe":   fiber.Map{"status": "ok"},
+				"rabbitmq": fiber.Map{"status": rabbitmqStatus},
+			},
 		})
 	})
 

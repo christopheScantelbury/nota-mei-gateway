@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
@@ -116,8 +117,23 @@ export default function StatusPage() {
       {/* Header */}
       <header className="border-b border-navy-600 bg-navy-900/90 backdrop-blur sticky top-0 z-20">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="font-display font-extrabold text-xl text-brand-cyan">
-            Nota MEI Gateway
+          <Link href="/gateway" className="flex items-center shrink-0">
+            <Image
+              src="/logos/gateway-logo-navbar-dark.svg"
+              alt="Nota MEI Gateway"
+              width={160}
+              height={40}
+              className="h-8 w-auto dark:block hidden"
+              priority
+            />
+            <Image
+              src="/logos/gateway-logo-navbar-light.svg"
+              alt="Nota MEI Gateway"
+              width={160}
+              height={40}
+              className="h-8 w-auto dark:hidden block"
+              priority
+            />
           </Link>
           <ThemeToggle />
         </div>

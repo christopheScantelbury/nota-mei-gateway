@@ -47,6 +47,11 @@ func NewGuard(redisURL string) (*Guard, error) {
 	return &Guard{rdb: redis.NewClient(opt)}, nil
 }
 
+// Ping sends a PING command to Redis and returns an error if unreachable.
+func (g *Guard) Ping(ctx context.Context) error {
+	return g.rdb.Ping(ctx).Err()
+}
+
 // Allow atomically increments the MEI's emission counter for the current month
 // and returns true if the new count is within the given limit.
 // The Redis key expires automatically after keyTTL to avoid accumulation.
