@@ -1,10 +1,26 @@
 name: CI
 
+# Roda apenas em PRs — nunca em push direto ao main/develop.
+# O código já foi validado pelo CI do PR antes do merge; rodar de novo
+# no push ao main desperdiça minutos sem benefício.
+#
+# Jobs especializados com path filters:
+#   ci-api.yml  — Go lint + test   (só quando apps/api/** muda)
+#   ci-web.yml  — Next.js build    (só quando apps/web/** muda)
+#   ci-db.yml   — Supabase schema  (só quando supabase/** muda)
+
 on:
   pull_request:
     branches: [main, develop]
-  push:
-    branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/load-test-report.md'
+      - 'docs/architecture.md'
+
+# Cancel in-progress runs for the same PR when new commits push
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   compose-validate:
