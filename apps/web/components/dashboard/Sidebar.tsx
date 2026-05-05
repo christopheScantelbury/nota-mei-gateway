@@ -6,21 +6,25 @@ import { useState, useEffect } from 'react'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 
 const navItems = [
-  { href: '/notas',         label: 'Notas Fiscais',   icon: '🧾', badge: null         },
-  { href: '/templates',     label: 'Templates',       icon: '📄', badge: 'PRO'        },
-  { href: '/recorrencias',  label: 'Automação',       icon: '🔄', badge: 'BUSINESS'   },
-  { href: '/api-keys',      label: 'API Keys',        icon: '🔑', badge: null         },
-  { href: '/webhooks',      label: 'Webhooks',        icon: '🔗', badge: null         },
-  { href: '/billing',       label: 'Plano & Faturamento', icon: '💳', badge: null     },
-  { href: '/configuracoes', label: 'Configurações',   icon: '⚙️', badge: null        },
+  { href: '/notas',         label: 'Notas Fiscais',       icon: '🧾', badge: null         },
+  { href: '/templates',     label: 'Templates',           icon: '📄', badge: 'PRO'        },
+  { href: '/recorrencias',  label: 'Automação',           icon: '🔄', badge: 'BUSINESS'   },
+  { href: '/api-keys',      label: 'API Keys',            icon: '🔑', badge: null         },
+  { href: '/webhooks',      label: 'Webhooks',            icon: '🔗', badge: null         },
+  { href: '/billing',       label: 'Plano & Faturamento', icon: '💳', badge: null         },
+  { href: '/configuracoes', label: 'Configurações',       icon: '⚙️', badge: null        },
 ]
+
+const adminItem = { href: '/admin', label: 'Painel Admin', icon: '🛡️' }
 
 function NavContent({
   razaoSocial,
+  isAdmin,
   onNavClick,
   notificationBell,
 }: {
   razaoSocial: string
+  isAdmin: boolean
   onNavClick?: () => void
   notificationBell?: React.ReactNode
 }) {
@@ -38,7 +42,7 @@ function NavContent({
         <p className="text-xs text-text-2 mt-0.5 truncate">{razaoSocial}</p>
       </div>
 
-      {/* Nav */}
+      {/* Nav principal */}
       <nav className="flex-1 py-4 px-3 space-y-1" aria-label="Menu principal">
         {navItems.map(({ href, label, icon, badge }) => {
           const active = pathname.startsWith(href)
@@ -65,6 +69,25 @@ function NavContent({
             </Link>
           )
         })}
+
+        {/* Link admin — visível apenas para admins */}
+        {isAdmin && (
+          <div className="pt-2 mt-2 border-t border-navy-600">
+            <Link
+              href={adminItem.href}
+              onClick={onNavClick}
+              className={[
+                'flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-lg text-sm font-medium transition-colors',
+                pathname.startsWith(adminItem.href)
+                  ? 'bg-nota-upgrade/10 text-nota-upgrade'
+                  : 'text-nota-upgrade/70 hover:text-nota-upgrade hover:bg-nota-upgrade/10',
+              ].join(' ')}
+            >
+              <span className="shrink-0" aria-hidden="true">{adminItem.icon}</span>
+              <span className="flex-1">{adminItem.label}</span>
+            </Link>
+          </div>
+        )}
       </nav>
 
       {/* Footer */}
@@ -86,7 +109,15 @@ function NavContent({
   )
 }
 
-export default function Sidebar({ razaoSocial, notificationBell }: { razaoSocial: string; notificationBell?: React.ReactNode }) {
+export default function Sidebar({
+  razaoSocial,
+  isAdmin = false,
+  notificationBell,
+}: {
+  razaoSocial: string
+  isAdmin?: boolean
+  notificationBell?: React.ReactNode
+}) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
@@ -103,7 +134,7 @@ export default function Sidebar({ razaoSocial, notificationBell }: { razaoSocial
     <>
       {/* ── Desktop sidebar (lg+) ── */}
       <aside className="hidden lg:flex w-60 shrink-0 bg-navy-700 min-h-screen flex-col border-r border-navy-600">
-        <NavContent razaoSocial={razaoSocial} notificationBell={notificationBell} />
+        <NavContent razaoSocial={razaoSocial} isAdmin={isAdmin} notificationBell={notificationBell} />
       </aside>
 
       {/* ── Mobile top bar ── */}
@@ -152,11 +183,15 @@ export default function Sidebar({ razaoSocial, notificationBell }: { razaoSocial
                 </svg>
               </button>
             </div>
-            <NavContent razaoSocial={razaoSocial} onNavClick={() => setOpen(false)} notificationBell={notificationBell} />
+            <NavContent
+              razaoSocial={razaoSocial}
+              isAdmin={isAdmin}
+              onNavClick={() => setOpen(false)}
+              notificationBell={notificationBell}
+            />
           </aside>
         </>
       )}
-
     </>
   )
 }

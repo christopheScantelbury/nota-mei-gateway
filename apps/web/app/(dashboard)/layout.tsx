@@ -19,10 +19,10 @@ export default async function DashboardLayout({
 }) {
   const supabase = createClient()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!user) {
     redirect('/login')
   }
 
@@ -30,14 +30,21 @@ export default async function DashboardLayout({
   const { data: mei } = await supabase
     .from('meis')
     .select('id, cnpj, razao_social, email, municipio_ibge, stripe_customer_id')
-    .eq('id', session.user.id)
+    .eq('id', user.id)
     .single<MEI>()
 
-  const razaoSocial = mei?.razao_social ?? session.user.email ?? 'Meu painel'
+  const razaoSocial = mei?.razao_social ?? user.email ?? 'Meu painel'
+
+  // app_metadata só pode ser definido server-side — seguro
+  const isAdmin = user.app_metadata?.role === 'admin'
 
   return (
     <div className="min-h-screen bg-navy-900 text-text-1 font-body lg:flex">
-      <Sidebar razaoSocial={razaoSocial} notificationBell={<NotificationBell />} />
+      <Sidebar
+        razaoSocial={razaoSocial}
+        isAdmin={isAdmin}
+        notificationBell={<NotificationBell />}
+      />
       <main
         id="main-content"
         className="flex-1 overflow-auto pt-14 lg:pt-0"

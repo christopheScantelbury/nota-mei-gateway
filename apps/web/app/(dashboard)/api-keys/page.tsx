@@ -3,6 +3,7 @@ export const metadata = { title: 'API Keys' }
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import APIKeysManager from '@/components/dashboard/APIKeysManager'
+import PlanGate from '@/components/dashboard/PlanGate'
 
 export type APIKey = {
   id: string
@@ -24,7 +25,7 @@ export default async function APIKeysPage() {
     .order('created_at', { ascending: false })
     .returns<APIKey[]>()
 
-  // Fetch plan limits from emissoes_mensais + planos
+  // Fetch plan info
   const { data: usage } = await supabase
     .from('emissoes_mensais')
     .select('planos(nome, emissoes_limite)')
@@ -37,18 +38,27 @@ export default async function APIKeysPage() {
   const maxKeys  = planName === 'Trial' ? 2 : planName === 'Starter' ? 5 : 10
 
   return (
-    <div className="p-8 max-w-4xl">
-      <div className="mb-8">
-        <h1 className="font-display text-3xl font-extrabold text-text-1">API Keys</h1>
-        <p className="text-text-2 mt-1 text-sm">
-          Gerencie suas chaves de acesso à API. Nunca compartilhe chaves de produção.
-        </p>
+    <PlanGate
+      planName={planName}
+      feature="webhooks"
+      icon="🔑"
+      title="API Keys disponíveis a partir do Starter"
+      description="Crie chaves de acesso à API para integrar seu sistema com a Nota Fácil MEI de forma programática."
+      requiredPlan="Starter"
+    >
+      <div className="p-8 max-w-4xl">
+        <div className="mb-8">
+          <h1 className="font-display text-3xl font-extrabold text-text-1">API Keys</h1>
+          <p className="text-text-2 mt-1 text-sm">
+            Gerencie suas chaves de acesso à API. Nunca compartilhe chaves de produção.
+          </p>
+        </div>
+        <APIKeysManager
+          initialKeys={keys ?? []}
+          planName={planName}
+          maxKeys={maxKeys}
+        />
       </div>
-      <APIKeysManager
-        initialKeys={keys ?? []}
-        planName={planName}
-        maxKeys={maxKeys}
-      />
-    </div>
+    </PlanGate>
   )
 }
