@@ -149,7 +149,7 @@ export default function LoginClient() {
         <div className="mt-6 text-center space-y-2">
           <p className="text-xs text-text-2">
             Não tem conta?{' '}
-            <Link href="/cadastro" className="text-brand-cyan hover:underline">
+            <Link href={`/cadastro?produto=${produto ?? 'gateway'}`} className="text-brand-cyan hover:underline">
               Cadastrar MEI
             </Link>
           </p>

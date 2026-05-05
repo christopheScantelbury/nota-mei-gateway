@@ -441,7 +441,7 @@ function CadastroPageInner() {
 
             <p className="text-xs text-text-2 text-center">
               Já tem uma conta?{' '}
-              <a href="/login" className="text-brand-cyan hover:underline">
+              <a href={`/login?produto=${isMei ? 'mei' : 'gateway'}`} className="text-brand-cyan hover:underline">
                 Fazer login
               </a>
             </p>
