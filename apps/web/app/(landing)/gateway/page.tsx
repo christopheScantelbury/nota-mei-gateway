@@ -100,10 +100,10 @@ type SdkAccess  = { type: 'access';  name: string; subtitle: string; cadastroHre
 type Sdk = SdkPackage | SdkAccess
 
 const sdks: Sdk[] = [
-  { type: 'package', name: 'Node.js',     subtitle: 'TypeScript · Mantido oficialmente',     install: 'npm install @notamei/gateway', docsHref: '/docs/sdks/node' },
-  { type: 'package', name: 'Python',      subtitle: 'Python 3.10+ · Mantido oficialmente',   install: 'pip install notamei',           docsHref: '/docs/sdks/python' },
+  { type: 'package', name: 'Node.js',     subtitle: 'TypeScript · Mantido oficialmente',        install: 'npm install @notamei/gateway', docsHref: '/docs' },
+  { type: 'package', name: 'Python',      subtitle: 'Python 3.10+ · Mantido oficialmente',      install: 'pip install notamei',           docsHref: '/docs' },
   { type: 'access',  name: 'WooCommerce', subtitle: 'Plugin WordPress · Instalação em 1 clique', cadastroHref: '/cadastro?produto=gateway&origem=sdk-woocommerce' },
-  { type: 'access',  name: 'Zapier',      subtitle: 'No-code · 6.000+ integrações',             cadastroHref: '/cadastro?produto=gateway&origem=sdk-zapier' },
+  { type: 'access',  name: 'Zapier',      subtitle: 'No-code · 6.000+ integrações',               cadastroHref: '/cadastro?produto=gateway&origem=sdk-zapier' },
 ]
 
 const faqs = [
@@ -368,9 +368,11 @@ export default function GatewayLandingPage() {
                 <p className="text-text-2 text-xs">{sdk.subtitle}</p>
                 {sdk.type === 'package' ? (
                   <>
-                    <code className="block text-xs bg-navy-900 text-brand-cyan rounded-lg px-3 py-2 font-mono break-all">
-                      {sdk.install}
-                    </code>
+                    <div className="bg-navy-900 rounded-lg px-3 py-2 overflow-x-auto">
+                      <code className="text-xs font-mono text-brand-cyan whitespace-nowrap">
+                        {sdk.install}
+                      </code>
+                    </div>
                     <Link
                       href={sdk.docsHref}
                       className="text-xs text-brand-cyan font-semibold hover:underline mt-auto"
@@ -379,12 +381,16 @@ export default function GatewayLandingPage() {
                     </Link>
                   </>
                 ) : (
+                  <>
+                    {/* Spacer para alinhar com os cards de package */}
+                    <div className="flex-1" />
                   <Link
                     href={sdk.cadastroHref}
-                    className="mt-auto text-center text-sm font-semibold py-2 rounded-lg border border-navy-600 text-text-1 hover:border-brand-cyan transition"
+                    className="text-center text-sm font-semibold py-2 rounded-lg border border-navy-600 text-text-1 hover:border-brand-cyan transition"
                   >
                     Acessar SDK →
                   </Link>
+                  </>
                 )}
               </div>
             ))}
