@@ -27,15 +27,15 @@ function formatDateFull(iso: string | null) {
 export default async function NotaDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  if (!session) redirect('/login')
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
   const { data: nota } = await supabase
     .from('notas_fiscais')
     .select('*')
     .eq('id', params.id)
-    .eq('mei_id', session.user.id)
+    .eq('mei_id', user.id)
     .single<Nota>()
 
   if (!nota) notFound()

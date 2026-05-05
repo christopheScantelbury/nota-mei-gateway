@@ -52,8 +52,8 @@ interface HistoricoRow {
 
 export default async function BillingPage() {
   const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) redirect('/login')
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
   const competencia = currentCompetencia()
   const months6 = lastMonths(6)
@@ -68,7 +68,7 @@ export default async function BillingPage() {
         stripe_subscription_id, stripe_subscription_status, renovacao_em,
         planos ( nome, emissoes_limite, preco_mensal_brl )
       `)
-      .eq('mei_id', session.user.id)
+      .eq('mei_id', user.id)
       .eq('competencia', competencia)
       .single<EmissaoMensal>(),
 
@@ -76,7 +76,7 @@ export default async function BillingPage() {
     supabase
       .from('emissoes_mensais')
       .select('competencia, total_emitidas, planos(nome, emissoes_limite)')
-      .eq('mei_id', session.user.id)
+      .eq('mei_id', user.id)
       .in('competencia', months6)
       .order('competencia', { ascending: false })
       .returns<{ competencia: string; total_emitidas: number; planos: { nome: string; emissoes_limite: number } | null }[]>(),
