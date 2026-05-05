@@ -18,10 +18,21 @@ interface FormState {
   cnpj: string
   razaoSocial: string
   email: string
+  cep: string
   municipioIBGE: string
   municipioNome: string
+  municipioUF: string
   certFile: File | null
   certPassword: string
+}
+
+interface ViaCepResponse {
+  erro?: boolean
+  localidade: string
+  uf: string
+  ibge: string
+  logradouro: string
+  bairro: string
 }
 
 interface SuccessState {
@@ -30,6 +41,12 @@ interface SuccessState {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+function formatCEP(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 8)
+  if (digits.length <= 5) return digits
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`
+}
 
 function formatCNPJ(raw: string): string {
   const digits = raw.replace(/\D/g, '').slice(0, 14)
@@ -44,6 +61,8 @@ function formatCNPJ(raw: string): string {
 // ── Stepper UI ────────────────────────────────────────────────────────────────
 
 const STEP_LABELS = ['Dados do MEI', 'Localização', 'Certificado']
+// Step 2 display label shown in header
+const STEP2_LABEL = 'CEP'
 
 function StepIndicator({ current }: { current: WizardStep }) {
   return (
@@ -116,6 +135,9 @@ function CadastroPageInner() {
   const [error, setError]           = useState<string | null>(null)
   const [success, setSuccess]       = useState<SuccessState | null>(null)
   const [copied, setCopied]         = useState(false)
+  const [cepLoading, setCepLoading] = useState(false)
+  const [cepError, setCepError]     = useState<string | null>(null)
+  const [showMunicipioSearch, setShowMunicipioSearch] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   // Per-field validation errors
@@ -125,8 +147,10 @@ function CadastroPageInner() {
     cnpj: '',
     razaoSocial: '',
     email: '',
+    cep: '',
     municipioIBGE: '',
     municipioNome: '',
+    municipioUF: '',
     certFile: null,
     certPassword: '',
   })
@@ -135,6 +159,36 @@ function CadastroPageInner() {
     setForm((prev) => ({ ...prev, [field]: value }))
     setFieldErrors((prev) => ({ ...prev, [field]: undefined }))
     setError(null)
+  }
+
+  async function handleCepChange(raw: string) {
+    const formatted = formatCEP(raw)
+    setForm((prev) => ({ ...prev, cep: formatted, municipioIBGE: '', municipioNome: '', municipioUF: '' }))
+    setCepError(null)
+
+    const digits = raw.replace(/\D/g, '')
+    if (digits.length !== 8) return
+
+    setCepLoading(true)
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`)
+      const data = await res.json() as ViaCepResponse
+      if (data.erro) {
+        setCepError('CEP não encontrado. Verifique o número ou busque o município pelo nome.')
+        return
+      }
+      setForm((prev) => ({
+        ...prev,
+        municipioIBGE: data.ibge,
+        municipioNome: data.localidade,
+        municipioUF: data.uf,
+      }))
+      setShowMunicipioSearch(false)
+    } catch {
+      setCepError('Não foi possível consultar o CEP. Tente novamente ou busque o município pelo nome.')
+    } finally {
+      setCepLoading(false)
+    }
   }
 
   // ── Step validation ──────────────────────────────────────────────────────────
@@ -397,25 +451,85 @@ function CadastroPageInner() {
         {/* ── Step 2: Localização ──────────────────────────────────────────── */}
         {wizardStep === 2 && (
           <div className="space-y-4">
-            <MunicipioAutocomplete
-              value={form.municipioIBGE}
-              onChange={(code, nome) => {
-                setField('municipioIBGE', code)
-                setField('municipioNome', nome)
-              }}
-              error={fieldErrors.municipioIBGE}
-            />
-
-            {form.municipioNome && (
-              <div className="bg-navy-900 border border-navy-600 rounded-lg px-3 py-2 flex items-center gap-2">
-                <span className="text-xs text-text-2">Município selecionado:</span>
-                <span className="text-xs font-semibold text-brand-cyan">
-                  {form.municipioNome}
-                </span>
-                <span className="text-xs text-text-2 font-mono ml-auto">
-                  {form.municipioIBGE}
-                </span>
+            {/* CEP input */}
+            <div>
+              <label className="block text-xs font-semibold text-text-2 uppercase tracking-wider mb-1">
+                CEP
+              </label>
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="00000-000"
+                  value={form.cep}
+                  onChange={(e) => handleCepChange(e.target.value)}
+                  maxLength={9}
+                  className={[
+                    'w-full bg-navy-900 border rounded-lg px-3 py-2 text-sm text-text-1 placeholder-text-2/50 focus:outline-none focus:border-brand-cyan transition-colors pr-8',
+                    cepError ? 'border-nota-rejeitada' : form.municipioIBGE ? 'border-nota-autorizada' : 'border-navy-600',
+                  ].join(' ')}
+                />
+                {cepLoading && (
+                  <span className="absolute right-2.5 text-text-2 text-xs animate-pulse">⟳</span>
+                )}
+                {form.municipioIBGE && !cepLoading && (
+                  <span className="absolute right-2.5 text-nota-autorizada text-sm">✓</span>
+                )}
               </div>
+              {cepError && <p className="text-xs text-nota-rejeitada mt-1">{cepError}</p>}
+            </div>
+
+            {/* Municipality confirmed card */}
+            {form.municipioNome && !cepLoading && (
+              <div className="bg-nota-autorizada/10 border border-nota-autorizada/30 rounded-lg px-4 py-3 flex items-center gap-3">
+                <span className="text-nota-autorizada text-lg">📍</span>
+                <div>
+                  <p className="text-sm font-bold text-text-1">
+                    {form.municipioNome} — {form.municipioUF}
+                  </p>
+                  <p className="text-xs text-text-2">Município detectado pelo CEP</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm((prev) => ({ ...prev, municipioIBGE: '', municipioNome: '', municipioUF: '', cep: '' }))
+                    setShowMunicipioSearch(false)
+                    setCepError(null)
+                  }}
+                  className="ml-auto text-xs text-text-2 hover:text-text-1 transition"
+                >
+                  Trocar
+                </button>
+              </div>
+            )}
+
+            {/* Fallback: search by name */}
+            {!form.municipioNome && (
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setShowMunicipioSearch((v) => !v)}
+                  className="text-xs text-text-2 hover:text-brand-cyan transition underline underline-offset-2"
+                >
+                  {showMunicipioSearch ? 'Ocultar busca' : 'Não sei meu CEP — buscar município pelo nome'}
+                </button>
+              </div>
+            )}
+
+            {showMunicipioSearch && !form.municipioNome && (
+              <MunicipioAutocomplete
+                value={form.municipioIBGE}
+                onChange={(code, nome) => {
+                  setField('municipioIBGE', code)
+                  setField('municipioNome', nome)
+                  setField('municipioUF', '')
+                }}
+                error={fieldErrors.municipioIBGE}
+              />
+            )}
+
+            {fieldErrors.municipioIBGE && !cepError && (
+              <p className="text-xs text-nota-rejeitada">{fieldErrors.municipioIBGE}</p>
             )}
 
             <div className="flex gap-3 mt-2">
@@ -434,6 +548,7 @@ function CadastroPageInner() {
                 size="lg"
                 className="flex-1"
                 onClick={handleNextStep2}
+                disabled={cepLoading}
               >
                 Próximo →
               </Button>
