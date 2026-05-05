@@ -144,6 +144,14 @@ func (p *Publisher) Publish(ctx context.Context, msg DeliveryMessage) error {
 }
 
 // Close releases the channel and connection. Safe to call on nil receiver.
+// Ping returns nil if the RabbitMQ connection is healthy.
+func (p *Publisher) Ping() error {
+	if p == nil || p.conn == nil || p.conn.IsClosed() {
+		return fmt.Errorf("rabbitmq connection closed or unavailable")
+	}
+	return nil
+}
+
 func (p *Publisher) Close() {
 	if p == nil {
 		return
