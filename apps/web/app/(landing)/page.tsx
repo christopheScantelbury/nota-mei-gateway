@@ -6,6 +6,8 @@ import HeroSection from '@/components/landing/HeroSection'
 import SocialProof from '@/components/landing/SocialProof'
 import AnimatedSection from '@/components/landing/AnimatedSection'
 import UrgencyBanner from '@/components/landing/UrgencyBanner'
+import HowItWorksToggle from '@/components/landing/HowItWorksToggle'
+import PricingToggle from '@/components/landing/PricingToggle'
 
 export const metadata: Metadata = {
   title: 'Emissão de NFS-e para MEI — Nota Fácil MEI & Nota MEI Gateway',
@@ -42,54 +44,6 @@ const jsonLd = {
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'BRL', description: 'Trial gratuito de 30 dias' },
   author: { '@type': 'Organization', name: 'ScantelburyDevs', url: 'https://scantelburydevs.com.br' },
 }
-
-const plans = [
-  {
-    name: 'Trial',
-    price: 'Grátis',
-    period: '30 dias',
-    limit: '5 notas/mês',
-    description: 'Para experimentar sem compromisso.',
-    cta: 'Começar grátis',
-    highlight: false,
-  },
-  {
-    name: 'Starter',
-    price: 'R$ 29',
-    period: '/mês',
-    limit: '50 notas/mês',
-    description: 'Para freelancers com baixo volume.',
-    cta: 'Assinar Starter',
-    highlight: false,
-  },
-  {
-    name: 'Basic',
-    price: 'R$ 59',
-    period: '/mês',
-    limit: '200 notas/mês',
-    description: 'Para MEIs com fluxo regular de serviços.',
-    cta: 'Assinar Basic',
-    highlight: true,
-  },
-  {
-    name: 'Pro',
-    price: 'R$ 119',
-    period: '/mês',
-    limit: '500 notas/mês',
-    description: 'Para desenvolvedores e agências.',
-    cta: 'Assinar Pro',
-    highlight: false,
-  },
-  {
-    name: 'Business',
-    price: 'R$ 249',
-    period: '/mês',
-    limit: '2 000 notas/mês',
-    description: 'Para plataformas e alto volume.',
-    cta: 'Assinar Business',
-    highlight: false,
-  },
-]
 
 const faqs = [
   {
@@ -141,34 +95,10 @@ export default function LandingPage() {
       {/* Como funciona */}
       <AnimatedSection className="py-24 px-4 bg-navy-700/40" id="como-funciona">
         <div className="mx-auto max-w-4xl">
-          <h2 className="font-display text-3xl font-extrabold text-center mb-16">
+          <h2 className="font-display text-3xl font-extrabold text-center mb-8">
             Como funciona
           </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              {
-                step: '01',
-                title: 'Cadastre seu MEI',
-                desc: 'Crie sua conta, faça upload do certificado A1 e receba sua API Key em segundos.',
-              },
-              {
-                step: '02',
-                title: 'Emita via API',
-                desc: 'Envie um POST /v1/nfse com os dados do tomador e serviço. Nós cuidamos do XML, assinatura e envio à Receita.',
-              },
-              {
-                step: '03',
-                title: 'Receba o resultado',
-                desc: 'Quando a nota for autorizada, um webhook assinado entrega o número da NFS-e, PDF e XML direto no seu sistema.',
-              },
-            ].map(({ step, title, desc }) => (
-              <div key={step} className="bg-navy-700 border border-navy-600 rounded-2xl p-6">
-                <span className="text-brand-cyan font-mono text-sm font-bold">{step}</span>
-                <h3 className="font-display text-xl font-bold mt-2 mb-3">{title}</h3>
-                <p className="text-text-2 text-sm leading-relaxed">{desc}</p>
-              </div>
-            ))}
-          </div>
+          <HowItWorksToggle />
         </div>
       </AnimatedSection>
 
@@ -178,46 +108,10 @@ export default function LandingPage() {
           <h2 className="font-display text-3xl font-extrabold text-center mb-4">
             Planos e preços
           </h2>
-          <p className="text-text-2 text-center mb-16">
+          <p className="text-text-2 text-center mb-8">
             Comece grátis. Escale conforme cresce.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {plans.map((plan) => (
-              <div
-                key={plan.name}
-                className={`rounded-2xl p-6 border flex flex-col gap-4 ${
-                  plan.highlight
-                    ? 'bg-brand-cyan/10 border-brand-cyan ring-1 ring-brand-cyan'
-                    : 'bg-navy-700 border-navy-600'
-                }`}
-              >
-                {plan.highlight && (
-                  <span className="text-xs font-bold text-brand-cyan bg-brand-cyan/20 px-2 py-0.5 rounded-full self-start">
-                    Mais popular
-                  </span>
-                )}
-                <div>
-                  <p className="font-display font-extrabold text-lg">{plan.name}</p>
-                  <p className="text-text-2 text-xs mt-1">{plan.description}</p>
-                </div>
-                <div>
-                  <span className="font-display text-3xl font-extrabold">{plan.price}</span>
-                  <span className="text-text-2 text-sm">{plan.period}</span>
-                </div>
-                <p className="text-brand-cyan text-sm font-semibold">{plan.limit}</p>
-                <Link
-                  href="/cadastro"
-                  className={`mt-auto text-center text-sm font-semibold py-2.5 rounded-lg transition ${
-                    plan.highlight
-                      ? 'bg-brand-cyan text-navy-900 hover:opacity-90'
-                      : 'border border-navy-600 text-text-1 hover:border-brand-cyan'
-                  }`}
-                >
-                  {plan.cta}
-                </Link>
-              </div>
-            ))}
-          </div>
+          <PricingToggle />
         </div>
       </AnimatedSection>
 
@@ -263,29 +157,76 @@ export default function LandingPage() {
       </AnimatedSection>
 
       {/* Footer */}
-      <footer className="border-t border-navy-600 py-10 px-4">
-        <div className="mx-auto max-w-6xl flex flex-col md:flex-row justify-between gap-6 text-text-2 text-sm">
-          <div className="flex flex-col gap-2">
-            {/* Logo — light/dark adaptive */}
-            <Link href="/" className="inline-flex items-center">
-              <LogoAdaptive
-                lightSrc="/logos/nfm-logo-navbar-light.svg"
-                darkSrc="/logos/nfm-logo-navbar-dark-clean.svg"
-                alt="Nota Fácil MEI"
-                width={160}
-                height={44}
-              />
-            </Link>
-            <p className="text-text-2 text-xs">
-              © {new Date().getFullYear()} ScantelburyDevs. Todos os direitos reservados.
-            </p>
+      <footer className="border-t border-navy-600 py-12 px-4">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-10 mb-10">
+            {/* Marca */}
+            <div className="sm:col-span-1 flex flex-col gap-3">
+              <Link href="/" className="inline-flex items-center">
+                <LogoAdaptive
+                  lightSrc="/logos/nfm-logo-navbar-light.svg"
+                  darkSrc="/logos/nfm-logo-navbar-dark-clean.svg"
+                  alt="Nota Fácil MEI"
+                  width={160}
+                  height={44}
+                />
+              </Link>
+              <p className="text-text-2 text-xs leading-relaxed">
+                Emissão de NFS-e para MEI.<br />
+                Build · Migrate · Innovate.
+              </p>
+            </div>
+
+            {/* Produtos */}
+            <div>
+              <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-2 mb-4">
+                Produtos
+              </h4>
+              <ul className="flex flex-col gap-2.5 text-sm text-text-2">
+                <li><Link href="/mei"     className="hover:text-text-1 transition">Nota Fácil MEI</Link></li>
+                <li><Link href="/gateway" className="hover:text-text-1 transition">Nota MEI Gateway</Link></li>
+                <li><Link href="/#planos" className="hover:text-text-1 transition">Planos e preços</Link></li>
+              </ul>
+            </div>
+
+            {/* Desenvolvedores */}
+            <div>
+              <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-2 mb-4">
+                Desenvolvedores
+              </h4>
+              <ul className="flex flex-col gap-2.5 text-sm text-text-2">
+                <li><Link href="/docs"             className="hover:text-text-1 transition">Documentação</Link></li>
+                <li><Link href="/docs/quickstart"  className="hover:text-text-1 transition">Quickstart</Link></li>
+                <li><Link href="/docs/sdks"        className="hover:text-text-1 transition">SDKs</Link></li>
+                <li><Link href="/sandbox"          className="hover:text-text-1 transition">Sandbox</Link></li>
+                <li><Link href="/status"           className="hover:text-text-1 transition">Status da API</Link></li>
+              </ul>
+            </div>
+
+            {/* Empresa */}
+            <div>
+              <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-2 mb-4">
+                Empresa
+              </h4>
+              <ul className="flex flex-col gap-2.5 text-sm text-text-2">
+                <li>
+                  <a href="https://scantelburydevs.com.br" target="_blank" rel="noopener noreferrer" className="hover:text-text-1 transition">
+                    ScantelburyDevs
+                  </a>
+                </li>
+                <li><Link href="/privacidade" className="hover:text-text-1 transition">Privacidade</Link></li>
+                <li><Link href="/termos"      className="hover:text-text-1 transition">Termos de uso</Link></li>
+                <li>
+                  <a href="mailto:suporte@emitirnotafacil.com.br" className="hover:text-text-1 transition">
+                    Suporte
+                  </a>
+                </li>
+              </ul>
+            </div>
           </div>
-          <div className="flex gap-6 items-center flex-wrap">
-            <a href="/docs"                                className="hover:text-text-1 transition">Documentação</a>
-            <a href="/status"                              className="hover:text-text-1 transition">Status da API</a>
-            <a href="/privacidade"                         className="hover:text-text-1 transition">Privacidade</a>
-            <a href="/termos"                              className="hover:text-text-1 transition">Termos de uso</a>
-            <a href="mailto:suporte@emitirnotafacil.com.br" className="hover:text-text-1 transition">Suporte</a>
+
+          <div className="border-t border-navy-600 pt-6 text-center text-xs text-text-2">
+            © {new Date().getFullYear()} ScantelburyDevs. Todos os direitos reservados.
           </div>
         </div>
       </footer>
