@@ -1,50 +1,124 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 
-const navItems = [
-  { href: '/notas',         label: 'Notas Fiscais',       icon: '🧾', badge: null         },
-  { href: '/templates',     label: 'Templates',           icon: '📄', badge: 'PRO'        },
-  { href: '/recorrencias',  label: 'Automação',           icon: '🔄', badge: 'BUSINESS'   },
-  { href: '/api-keys',      label: 'API Keys',            icon: '🔑', badge: null         },
-  { href: '/webhooks',      label: 'Webhooks',            icon: '🔗', badge: null         },
-  { href: '/billing',       label: 'Plano & Faturamento', icon: '💳', badge: null         },
-  { href: '/configuracoes', label: 'Configurações',       icon: '⚙️', badge: null        },
+// ── Nav item definitions ────────────────────────────────────────────────────
+
+type NavItem = {
+  href: string
+  label: string
+  icon: string
+  badge: string | null
+  /** 'all' = aparece para mei e gateway; 'gateway' = só para devs */
+  audience: 'all' | 'gateway'
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { href: '/notas',         label: 'Notas Fiscais',       icon: '🧾', badge: null,        audience: 'all'     },
+  { href: '/templates',     label: 'Templates',           icon: '📄', badge: 'PRO',       audience: 'all'     },
+  { href: '/recorrencias',  label: 'Automação',           icon: '🔄', badge: 'BUSINESS',  audience: 'gateway' },
+  { href: '/api-keys',      label: 'API Keys',            icon: '🔑', badge: null,        audience: 'gateway' },
+  { href: '/webhooks',      label: 'Webhooks',            icon: '🔗', badge: null,        audience: 'gateway' },
+  { href: '/billing',       label: 'Plano & Faturamento', icon: '💳', badge: null,        audience: 'all'     },
+  { href: '/configuracoes', label: 'Configurações',       icon: '⚙️', badge: null,        audience: 'all'     },
 ]
 
-const adminItem = { href: '/admin', label: 'Painel Admin', icon: '🛡️' }
+const ADMIN_ITEM = { href: '/admin', label: 'Painel Admin', icon: '🛡️' }
+
+// ── Logo by product ─────────────────────────────────────────────────────────
+
+function SidebarLogo({
+  tipoUsuario,
+  onClick,
+}: {
+  tipoUsuario: 'mei' | 'gateway'
+  onClick?: () => void
+}) {
+  const isMei = tipoUsuario === 'mei'
+
+  return (
+    <div className="px-5 py-5 border-b border-navy-600">
+      <Link href="/notas" className="block" onClick={onClick}>
+        {isMei ? (
+          <>
+            <Image
+              src="/logos/nfm-logo-navbar-dark-clean.svg"
+              alt="Nota Fácil MEI"
+              width={140}
+              height={32}
+              className="hidden dark:block h-8 w-auto"
+              priority
+            />
+            <Image
+              src="/logos/nfm-logo-navbar-light.svg"
+              alt="Nota Fácil MEI"
+              width={140}
+              height={32}
+              className="block dark:hidden h-8 w-auto"
+              priority
+            />
+          </>
+        ) : (
+          <>
+            <Image
+              src="/logos/gateway-logo-navbar-dark.svg"
+              alt="Nota MEI Gateway"
+              width={148}
+              height={32}
+              className="hidden dark:block h-8 w-auto"
+              priority
+            />
+            <Image
+              src="/logos/gateway-logo-navbar-light.svg"
+              alt="Nota MEI Gateway"
+              width={148}
+              height={32}
+              className="block dark:hidden h-8 w-auto"
+              priority
+            />
+          </>
+        )}
+      </Link>
+    </div>
+  )
+}
+
+// ── Nav content (shared between desktop sidebar and mobile drawer) ───────────
 
 function NavContent({
   razaoSocial,
   isAdmin,
+  tipoUsuario,
   onNavClick,
   notificationBell,
 }: {
   razaoSocial: string
   isAdmin: boolean
+  tipoUsuario: 'mei' | 'gateway'
   onNavClick?: () => void
   notificationBell?: React.ReactNode
 }) {
   const pathname = usePathname()
 
+  const visibleItems = NAV_ITEMS.filter(
+    (item) => item.audience === 'all' || item.audience === tipoUsuario,
+  )
+
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="px-6 py-5 border-b border-navy-600">
-        <Link href="/home" className="block" onClick={onNavClick}>
-          <span className="font-display font-extrabold text-xl text-brand-cyan tracking-tight">
-            Nota Fácil MEI
-          </span>
-        </Link>
-        <p className="text-xs text-text-2 mt-0.5 truncate">{razaoSocial}</p>
-      </div>
+      <SidebarLogo tipoUsuario={tipoUsuario} onClick={onNavClick} />
+
+      {/* Razão social */}
+      <p className="px-5 pt-3 pb-1 text-xs text-text-2 truncate">{razaoSocial}</p>
 
       {/* Nav principal */}
-      <nav className="flex-1 py-4 px-3 space-y-1" aria-label="Menu principal">
-        {navItems.map(({ href, label, icon, badge }) => {
+      <nav className="flex-1 py-3 px-3 space-y-1" aria-label="Menu principal">
+        {visibleItems.map(({ href, label, icon, badge }) => {
           const active = pathname.startsWith(href)
           return (
             <Link
@@ -74,17 +148,17 @@ function NavContent({
         {isAdmin && (
           <div className="pt-2 mt-2 border-t border-navy-600">
             <Link
-              href={adminItem.href}
+              href={ADMIN_ITEM.href}
               onClick={onNavClick}
               className={[
                 'flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-lg text-sm font-medium transition-colors',
-                pathname.startsWith(adminItem.href)
+                pathname.startsWith(ADMIN_ITEM.href)
                   ? 'bg-nota-upgrade/10 text-nota-upgrade'
                   : 'text-nota-upgrade/70 hover:text-nota-upgrade hover:bg-nota-upgrade/10',
               ].join(' ')}
             >
-              <span className="shrink-0" aria-hidden="true">{adminItem.icon}</span>
-              <span className="flex-1">{adminItem.label}</span>
+              <span className="shrink-0" aria-hidden="true">{ADMIN_ITEM.icon}</span>
+              <span className="flex-1">{ADMIN_ITEM.label}</span>
             </Link>
           </div>
         )}
@@ -109,13 +183,17 @@ function NavContent({
   )
 }
 
+// ── Sidebar component ────────────────────────────────────────────────────────
+
 export default function Sidebar({
   razaoSocial,
   isAdmin = false,
+  tipoUsuario = 'gateway',
   notificationBell,
 }: {
   razaoSocial: string
   isAdmin?: boolean
+  tipoUsuario?: 'mei' | 'gateway'
   notificationBell?: React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
@@ -130,17 +208,57 @@ export default function Sidebar({
     return () => { document.body.style.overflow = '' }
   }, [open])
 
+  const navProps = { razaoSocial, isAdmin, tipoUsuario, notificationBell }
+
   return (
     <>
       {/* ── Desktop sidebar (lg+) ── */}
       <aside className="hidden lg:flex w-60 shrink-0 bg-navy-700 min-h-screen flex-col border-r border-navy-600">
-        <NavContent razaoSocial={razaoSocial} isAdmin={isAdmin} notificationBell={notificationBell} />
+        <NavContent {...navProps} />
       </aside>
 
       {/* ── Mobile top bar ── */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between h-14 px-4 bg-navy-700 border-b border-navy-600">
-        <Link href="/home" className="font-display font-extrabold text-lg text-brand-cyan tracking-tight">
-          Nota Fácil MEI
+        <Link href="/notas" className="flex items-center">
+          {tipoUsuario === 'mei' ? (
+            <>
+              <Image
+                src="/logos/nfm-logo-navbar-dark-clean.svg"
+                alt="Nota Fácil MEI"
+                width={120}
+                height={28}
+                className="hidden dark:block h-7 w-auto"
+                priority
+              />
+              <Image
+                src="/logos/nfm-logo-navbar-light.svg"
+                alt="Nota Fácil MEI"
+                width={120}
+                height={28}
+                className="block dark:hidden h-7 w-auto"
+                priority
+              />
+            </>
+          ) : (
+            <>
+              <Image
+                src="/logos/gateway-logo-navbar-dark.svg"
+                alt="Nota MEI Gateway"
+                width={128}
+                height={28}
+                className="hidden dark:block h-7 w-auto"
+                priority
+              />
+              <Image
+                src="/logos/gateway-logo-navbar-light.svg"
+                alt="Nota MEI Gateway"
+                width={128}
+                height={28}
+                className="block dark:hidden h-7 w-auto"
+                priority
+              />
+            </>
+          )}
         </Link>
         <button
           onClick={() => setOpen(true)}
@@ -184,10 +302,8 @@ export default function Sidebar({
               </button>
             </div>
             <NavContent
-              razaoSocial={razaoSocial}
-              isAdmin={isAdmin}
+              {...navProps}
               onNavClick={() => setOpen(false)}
-              notificationBell={notificationBell}
             />
           </aside>
         </>

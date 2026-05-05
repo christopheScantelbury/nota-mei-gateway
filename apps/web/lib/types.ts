@@ -53,4 +53,5 @@ export interface MEI {
   email: string
   municipio_ibge: string
   stripe_customer_id: string | null
+  tipo_usuario: 'mei' | 'gateway'
 }

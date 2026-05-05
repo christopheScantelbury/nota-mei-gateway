@@ -54,6 +54,7 @@ type registerRequest struct {
 	RazaoSocial   string `json:"razao_social"`
 	Email         string `json:"email"`
 	MunicipioIBGE string `json:"municipio_ibge"`
+	Produto       string `json:"produto"` // "mei" | "gateway" — optional, defaults to "gateway"
 }
 
 // Register handles POST /v1/auth/register — public, no Bearer token required.
@@ -129,6 +130,7 @@ func (h *RegisterHandler) Register(c *fiber.Ctx) error {
 		RazaoSocial:   strings.TrimSpace(req.RazaoSocial),
 		Email:         strings.TrimSpace(strings.ToLower(req.Email)),
 		MunicipioIBGE: req.MunicipioIBGE,
+		TipoUsuario:   req.Produto,
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError

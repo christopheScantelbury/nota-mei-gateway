@@ -16,6 +16,7 @@ type RegisterMEIParams struct {
 	RazaoSocial   string
 	Email         string
 	MunicipioIBGE string
+	TipoUsuario   string // "mei" | "gateway" — defaults to "gateway" if empty
 }
 
 // RegisterMEIResult is returned after a successful registration.
@@ -128,12 +129,17 @@ func (r *Repository) RegisterMEI(ctx context.Context, p RegisterMEIParams) (*Reg
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
+	tipoUsuario := p.TipoUsuario
+	if tipoUsuario != "mei" && tipoUsuario != "gateway" {
+		tipoUsuario = "gateway"
+	}
+
 	var meiID uuid.UUID
 	err = tx.QueryRow(ctx, `
-		INSERT INTO meis (cnpj, razao_social, email, municipio_ibge)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO meis (cnpj, razao_social, email, municipio_ibge, tipo_usuario)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id
-	`, p.CNPJ, p.RazaoSocial, p.Email, p.MunicipioIBGE).Scan(&meiID)
+	`, p.CNPJ, p.RazaoSocial, p.Email, p.MunicipioIBGE, tipoUsuario).Scan(&meiID)
 	if err != nil {
 		return nil, err
 	}
