@@ -95,11 +95,15 @@ const infraStack = [
   { name: 'Prometheus', color: '#E6522C' },
 ]
 
-const sdks = [
-  { name: 'Node.js',   href: 'https://github.com/christopheScantelbury/nota-mei-gateway', lang: 'TypeScript' },
-  { name: 'Python',    href: 'https://github.com/christopheScantelbury/nota-mei-gateway', lang: 'Python 3.10+' },
-  { name: 'WooCommerce', href: 'https://github.com/christopheScantelbury/nota-mei-gateway', lang: 'PHP' },
-  { name: 'Zapier',    href: 'https://github.com/christopheScantelbury/nota-mei-gateway', lang: 'No-code' },
+type SdkPackage = { type: 'package'; name: string; subtitle: string; install: string; docsHref: string }
+type SdkAccess  = { type: 'access';  name: string; subtitle: string; cadastroHref: string }
+type Sdk = SdkPackage | SdkAccess
+
+const sdks: Sdk[] = [
+  { type: 'package', name: 'Node.js',     subtitle: 'TypeScript · Mantido oficialmente',     install: 'npm install @notamei/gateway', docsHref: '/docs/sdks/node' },
+  { type: 'package', name: 'Python',      subtitle: 'Python 3.10+ · Mantido oficialmente',   install: 'pip install notamei',           docsHref: '/docs/sdks/python' },
+  { type: 'access',  name: 'WooCommerce', subtitle: 'Plugin WordPress · Instalação em 1 clique', cadastroHref: '/cadastro?produto=gateway&origem=sdk-woocommerce' },
+  { type: 'access',  name: 'Zapier',      subtitle: 'No-code · 6.000+ integrações',             cadastroHref: '/cadastro?produto=gateway&origem=sdk-zapier' },
 ]
 
 const faqs = [
@@ -280,31 +284,132 @@ export default function GatewayLandingPage() {
         </div>
       </AnimatedSection>
 
-      {/* SDKs */}
-      <AnimatedSection className="py-24 px-4" delay={0.1}>
+      {/* Por que não construir você mesmo? — Task 6 */}
+      <AnimatedSection className="py-24 px-4" delay={0.05}>
+        <div className="mx-auto max-w-5xl">
+          <h2 className="font-display text-3xl font-extrabold text-center mb-4">
+            Construa em 1 tarde o que levaria 6 meses.
+          </h2>
+          <p className="text-text-2 text-center mb-16">
+            A Receita Federal não tem API amigável. Nós traduzimos isso pra você.
+          </p>
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Integração direta — coluna vermelha */}
+            <div className="bg-navy-900 border border-nota-rejeitada/30 rounded-2xl p-7">
+              <div className="flex items-center gap-2 mb-6">
+                <span className="text-nota-rejeitada font-bold text-lg">✕</span>
+                <p className="font-semibold text-text-1">Integração direta com a Receita Federal</p>
+              </div>
+              <ul className="flex flex-col gap-3">
+                {[
+                  '3–6 meses de desenvolvimento',
+                  'Manter biblioteca ABRASF atualizada',
+                  'Gerenciar certificado A1 com segurança',
+                  'Lidar com variações por município',
+                  'Monitorar uptime do serviço federal',
+                  'Suporte quando a Receita muda o padrão',
+                ].map(item => (
+                  <li key={item} className="flex items-start gap-2.5 text-sm text-text-2">
+                    <span className="text-nota-rejeitada mt-0.5 shrink-0">—</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Gateway — coluna verde */}
+            <div className="bg-navy-900 border border-nota-autorizada/30 rounded-2xl p-7">
+              <div className="flex items-center gap-2 mb-6">
+                <span className="text-nota-autorizada font-bold text-lg">✓</span>
+                <p className="font-semibold text-text-1">Nota MEI Gateway</p>
+              </div>
+              <ul className="flex flex-col gap-3">
+                {[
+                  'Integrado em 1 tarde com o SDK',
+                  'Atualizações automáticas quando a Receita muda',
+                  'Certificado gerenciado com AWS KMS',
+                  '5.000+ municípios cobertos',
+                  '99,9% uptime SLA monitorado',
+                  'Suporte técnico em português',
+                ].map(item => (
+                  <li key={item} className="flex items-start gap-2.5 text-sm text-text-2">
+                    <span className="text-nota-autorizada mt-0.5 shrink-0">✓</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </AnimatedSection>
+
+      {/* SDKs — Tasks 1, 2, 3 */}
+      <AnimatedSection className="py-24 px-4 bg-navy-700/40" delay={0.1}>
         <div className="mx-auto max-w-4xl">
           <h2 className="font-display text-3xl font-extrabold text-center mb-4">
-            SDKs disponíveis
+            Integre em qualquer linguagem
           </h2>
           <p className="text-text-2 text-center mb-12">
-            Open source. Contribuições bem-vindas.
+            Bibliotecas oficiais mantidas pela ScantelburyDevs.
+            Suporte garantido. Atualizações automáticas com cada versão da API.
           </p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {sdks.map(({ name, href, lang }) => (
-              <a
-                key={name}
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-navy-700 border border-navy-600 rounded-xl p-5 hover:border-brand-cyan transition-colors group"
+            {sdks.map((sdk) => (
+              <div
+                key={sdk.name}
+                className="bg-navy-700 border border-navy-600 rounded-xl p-5 flex flex-col gap-3"
               >
-                <p className="font-display font-bold text-text-1 group-hover:text-brand-cyan transition-colors">
-                  {name}
-                </p>
-                <p className="text-text-2 text-xs mt-1">{lang}</p>
-                <p className="text-brand-cyan text-xs mt-3">Ver no GitHub →</p>
-              </a>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-display font-bold text-text-1">{sdk.name}</p>
+                  <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-nota-autorizada/10 text-nota-autorizada border border-nota-autorizada/20 shrink-0">
+                    Oficial
+                  </span>
+                </div>
+                <p className="text-text-2 text-xs">{sdk.subtitle}</p>
+                {sdk.type === 'package' ? (
+                  <>
+                    <code className="block text-xs bg-navy-900 text-brand-cyan rounded-lg px-3 py-2 font-mono break-all">
+                      {sdk.install}
+                    </code>
+                    <Link
+                      href={sdk.docsHref}
+                      className="text-xs text-brand-cyan font-semibold hover:underline mt-auto"
+                    >
+                      Ver documentação →
+                    </Link>
+                  </>
+                ) : (
+                  <Link
+                    href={sdk.cadastroHref}
+                    className="mt-auto text-center text-sm font-semibold py-2 rounded-lg border border-navy-600 text-text-1 hover:border-brand-cyan transition"
+                  >
+                    Acessar SDK →
+                  </Link>
+                )}
+              </div>
             ))}
+          </div>
+
+          {/* CTA abaixo dos SDKs — Task 3 */}
+          <div className="mt-12 text-center">
+            <p className="text-sm text-text-2 mb-4">Precisa de uma linguagem não listada?</p>
+            <div className="flex gap-3 justify-center flex-wrap">
+              <Link
+                href="/cadastro?produto=gateway"
+                className="bg-brand-cyan text-navy-900 font-semibold px-6 py-2.5 rounded-lg text-sm hover:opacity-90 transition"
+              >
+                Criar conta e acessar SDKs →
+              </Link>
+              <Link
+                href="/docs/sdks"
+                className="border border-navy-600 text-text-1 font-semibold px-6 py-2.5 rounded-lg text-sm hover:border-brand-cyan transition"
+              >
+                Ver documentação completa
+              </Link>
+            </div>
+            <p className="text-xs text-text-2 mt-4">
+              Todos os SDKs inclusos em qualquer plano · Suporte técnico garantido
+            </p>
           </div>
         </div>
       </AnimatedSection>
@@ -415,41 +520,84 @@ export default function GatewayLandingPage() {
         </div>
       </AnimatedSection>
 
-      {/* Footer */}
-      <footer className="border-t border-navy-600 py-10 px-4">
-        <div className="mx-auto max-w-6xl flex flex-col md:flex-row justify-between gap-6 text-text-2 text-sm">
-          <div className="flex flex-col gap-2">
-            <Link href="/gateway" className="inline-flex items-center">
-              <Image
-                src="/logos/gateway-logo-navbar-dark.svg"
-                alt="Nota MEI Gateway"
-                width={140}
-                height={34}
-                className="h-7 w-auto dark:block hidden"
-              />
-              <Image
-                src="/logos/gateway-logo-navbar-light.svg"
-                alt="Nota MEI Gateway"
-                width={140}
-                height={34}
-                className="h-7 w-auto block dark:hidden"
-              />
-            </Link>
-            <p className="text-xs">© {new Date().getFullYear()} ScantelburyDevs. Todos os direitos reservados.</p>
-            <p className="text-xs">
-              É MEI e quer uma solução simples?{' '}
-              <Link href="/mei" className="underline hover:text-text-1 transition">
-                Ver Nota Fácil MEI
+      {/* Footer — 3 colunas */}
+      <footer className="border-t border-navy-600 py-12 px-4">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-10 mb-10">
+            {/* Marca */}
+            <div className="sm:col-span-1 flex flex-col gap-3">
+              <Link href="/gateway" className="inline-flex items-center">
+                <Image
+                  src="/logos/gateway-logo-navbar-dark.svg"
+                  alt="Nota MEI Gateway"
+                  width={140}
+                  height={34}
+                  className="h-7 w-auto dark:block hidden"
+                />
+                <Image
+                  src="/logos/gateway-logo-navbar-light.svg"
+                  alt="Nota MEI Gateway"
+                  width={140}
+                  height={34}
+                  className="h-7 w-auto block dark:hidden"
+                />
               </Link>
-            </p>
+              <p className="text-text-2 text-xs leading-relaxed">
+                A API de NFS-e para devs e plataformas.<br />
+                Build · Migrate · Innovate.
+              </p>
+            </div>
+
+            {/* Produtos */}
+            <div>
+              <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-2 mb-4">
+                Produtos
+              </h4>
+              <ul className="flex flex-col gap-2.5 text-sm text-text-2">
+                <li><Link href="/mei"          className="hover:text-text-1 transition">Nota Fácil MEI</Link></li>
+                <li><Link href="/gateway"      className="hover:text-text-1 transition">Nota MEI Gateway</Link></li>
+                <li><Link href="/gateway#precos" className="hover:text-text-1 transition">Planos e preços</Link></li>
+              </ul>
+            </div>
+
+            {/* Desenvolvedores */}
+            <div>
+              <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-2 mb-4">
+                Desenvolvedores
+              </h4>
+              <ul className="flex flex-col gap-2.5 text-sm text-text-2">
+                <li><Link href="/docs"            className="hover:text-text-1 transition">Documentação</Link></li>
+                <li><Link href="/docs/quickstart" className="hover:text-text-1 transition">Quickstart</Link></li>
+                <li><Link href="/docs/sdks"       className="hover:text-text-1 transition">SDKs</Link></li>
+                <li><Link href="/sandbox"         className="hover:text-text-1 transition">Sandbox</Link></li>
+                <li><Link href="/status"          className="hover:text-text-1 transition">Status da API</Link></li>
+              </ul>
+            </div>
+
+            {/* Empresa */}
+            <div>
+              <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-2 mb-4">
+                Empresa
+              </h4>
+              <ul className="flex flex-col gap-2.5 text-sm text-text-2">
+                <li>
+                  <a href="https://scantelburydevs.com.br" target="_blank" rel="noopener noreferrer" className="hover:text-text-1 transition">
+                    ScantelburyDevs
+                  </a>
+                </li>
+                <li><Link href="/privacidade" className="hover:text-text-1 transition">Privacidade</Link></li>
+                <li><Link href="/termos"      className="hover:text-text-1 transition">Termos de uso</Link></li>
+                <li>
+                  <a href="mailto:suporte@emitirnotafacil.com.br" className="hover:text-text-1 transition">
+                    Suporte
+                  </a>
+                </li>
+              </ul>
+            </div>
           </div>
-          <div className="flex gap-6 items-center flex-wrap">
-            <Link href="/"                className="hover:text-text-1 transition">Início</Link>
-            <a    href="/docs"            className="hover:text-text-1 transition">Documentação</a>
-            <Link href="/status"          className="hover:text-text-1 transition">Status da API</Link>
-            <Link href="/privacidade"     className="hover:text-text-1 transition">Privacidade</Link>
-            <Link href="/termos"          className="hover:text-text-1 transition">Termos</Link>
-            <a href="mailto:dev@notameigateway.com.br" className="hover:text-text-1 transition">Contato</a>
+
+          <div className="border-t border-navy-600 pt-6 text-center text-xs text-text-2">
+            © {new Date().getFullYear()} ScantelburyDevs. Todos os direitos reservados.
           </div>
         </div>
       </footer>
