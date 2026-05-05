@@ -1,19 +1,27 @@
 name: E2E — Integration
 
-# Runs on every push to main and on pull requests to main.
-# Spins up a full stack (postgres, redis, rabbitmq) locally in CI,
-# builds the API binary, and runs the E2E test suite.
+# Roda apenas em PRs para main (nunca em push direto).
+# O código já foi validado pelo PR antes do merge.
+# Inclui path filter: só dispara quando a API Go ou as migrations mudam.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+    paths:
+      - 'apps/api/**'
+      - 'supabase/migrations/**'
+      - 'supabase/seed.sql'
+      - '.github/workflows/e2e.yml'
   workflow_dispatch:
     inputs:
       api_url:
         description: "Override API URL (leave blank to run local stack)"
         required: false
         default: ""
+
+# Cancel in-progress E2E runs for the same PR when new commits push
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   e2e:

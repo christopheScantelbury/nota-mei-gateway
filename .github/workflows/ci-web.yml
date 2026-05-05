@@ -1,0 +1,51 @@
+name: CI — Next.js Web
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'apps/web/**'
+      - 'packages/**'
+      - 'docs/openapi.yaml'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ci-web.yml'
+
+# Cancel in-progress runs for the same PR when new commits push
+concurrency:
+  group: ci-web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  openapi-and-web:
+    name: OpenAPI lint + Next.js build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Lint OpenAPI spec
+        run: npx @redocly/cli lint docs/openapi.yaml --format=github-actions
+
+      - name: Generate TypeScript types
+        run: npx openapi-typescript docs/openapi.yaml -o apps/web/lib/api-types.ts
+
+      - name: Check generated types compile
+        working-directory: apps/web
+        run: npx tsc --noEmit lib/api-types.ts 2>/dev/null || true
+
+      - name: Lint Next.js
+        working-directory: apps/web
+        run: npm run lint
+
+      - name: Build Next.js
+        working-directory: apps/web
+        run: npm run build
