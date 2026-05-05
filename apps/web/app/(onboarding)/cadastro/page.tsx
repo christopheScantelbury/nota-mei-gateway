@@ -249,6 +249,7 @@ function CadastroPageInner() {
           razao_social:   form.razaoSocial.trim(),
           email:          form.email.trim().toLowerCase(),
           municipio_ibge: form.municipioIBGE,
+          produto:        isMei ? 'mei' : 'gateway',
         }),
       })
 
