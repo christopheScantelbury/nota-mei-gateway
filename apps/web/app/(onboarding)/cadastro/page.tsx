@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useState, useRef, FormEvent } from 'react'
+import { useState, useRef, FormEvent, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -105,7 +105,7 @@ function StepIndicator({ current }: { current: WizardStep }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function CadastroPage() {
+function CadastroPageInner() {
   const searchParams = useSearchParams()
   const produto = searchParams.get('produto') // 'mei' | null (gateway/dev)
   const isMei = produto === 'mei'
@@ -526,5 +526,14 @@ export default function CadastroPage() {
         )}
       </div>
     </main>
+  )
+}
+
+// useSearchParams() requires a Suspense boundary in Next.js 14 App Router
+export default function CadastroPage() {
+  return (
+    <Suspense>
+      <CadastroPageInner />
+    </Suspense>
   )
 }
