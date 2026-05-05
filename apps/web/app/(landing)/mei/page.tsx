@@ -4,6 +4,8 @@ import Image from 'next/image'
 import AnimatedSection from '@/components/landing/AnimatedSection'
 import UrgencyBanner from '@/components/landing/UrgencyBanner'
 import NavbarMei from '@/components/landing/NavbarMei'
+import PricingToggleMei from '@/components/landing/PricingToggleMei'
+import TimeSavingsCalculator from '@/components/landing/TimeSavingsCalculator'
 
 export const metadata: Metadata = {
   title: 'Nota Fácil MEI — Emita sua NFS-e em 30 segundos',
@@ -26,49 +28,6 @@ export const metadata: Metadata = {
   },
   alternates: { canonical: 'https://emitirnotafacil.com.br/mei' },
 }
-
-const meiPlans = [
-  {
-    name: 'Trial',
-    price: 'Grátis',
-    period: '30 dias',
-    limit: '5 notas no trial',
-    desc: 'Para experimentar sem compromisso.',
-    extra: null,
-    cta: 'Começar grátis',
-    highlight: false,
-  },
-  {
-    name: 'Avulso',
-    price: 'R$ 2,90',
-    period: '/nota',
-    limit: 'Sem mensalidade',
-    desc: 'Para quem emite pouco ou de forma esporádica.',
-    extra: 'R$ 2,90 por nota',
-    cta: 'Emitir nota',
-    highlight: false,
-  },
-  {
-    name: 'MEI Mensal',
-    price: 'R$ 19',
-    period: '/mês',
-    limit: '30 notas/mês',
-    desc: 'Para quem emite todo mês com regularidade.',
-    extra: 'R$ 0,80 por nota acima do limite',
-    cta: 'Assinar agora',
-    highlight: true,
-  },
-  {
-    name: 'MEI Plus',
-    price: 'R$ 39',
-    period: '/mês',
-    limit: '100 notas/mês',
-    desc: 'Para MEI com fluxo regular de serviços.',
-    extra: 'R$ 0,50 por nota acima do limite',
-    cta: 'Assinar agora',
-    highlight: false,
-  },
-]
 
 const faqs = [
   {
@@ -267,55 +226,30 @@ export default function MeiLandingPage() {
         </div>
       </AnimatedSection>
 
-      {/* Preços */}
+      {/* Calculadora de economia de tempo — #161 */}
+      <AnimatedSection className="py-24 px-4" id="calculadora" delay={0.05}>
+        <div className="mx-auto max-w-3xl">
+          <h2 className="font-display text-3xl font-extrabold text-center mb-4">
+            Quanto tempo você perde com nota fiscal?
+          </h2>
+          <p className="text-text-2 text-center mb-12">
+            Emitir pelo sistema da prefeitura leva ~30 minutos por nota.<br />
+            Com a Nota Fácil MEI, leva 30 segundos. Veja a diferença.
+          </p>
+          <TimeSavingsCalculator />
+        </div>
+      </AnimatedSection>
+
+      {/* Preços — #160 toggle anual */}
       <AnimatedSection className="py-24 px-4 bg-navy-700/40" id="precos" delay={0.1}>
         <div className="mx-auto max-w-5xl">
           <h2 className="font-display text-3xl font-extrabold text-center mb-4">
             Preços feitos para MEI
           </h2>
-          <p className="text-text-2 text-center mb-16">
+          <p className="text-text-2 text-center mb-8">
             Comece grátis. Pague apenas pelo que usar.
           </p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {meiPlans.map((plan) => (
-              <div
-                key={plan.name}
-                className={`rounded-2xl p-6 border flex flex-col gap-4 ${
-                  plan.highlight
-                    ? 'bg-brand-cyan/10 border-brand-cyan ring-1 ring-brand-cyan'
-                    : 'bg-navy-700 border-navy-600'
-                }`}
-              >
-                {plan.highlight && (
-                  <span className="text-xs font-bold text-brand-cyan bg-brand-cyan/20 px-2 py-0.5 rounded-full self-start">
-                    Mais popular
-                  </span>
-                )}
-                <div>
-                  <p className="font-display font-extrabold text-lg">{plan.name}</p>
-                  <p className="text-text-2 text-xs mt-1">{plan.desc}</p>
-                </div>
-                <div>
-                  <span className="font-display text-3xl font-extrabold">{plan.price}</span>
-                  <span className="text-text-2 text-sm">{plan.period}</span>
-                </div>
-                <p className="text-brand-cyan text-sm font-semibold">{plan.limit}</p>
-                {plan.extra && (
-                  <p className="text-text-2 text-xs">{plan.extra}</p>
-                )}
-                <Link
-                  href={`/cadastro?produto=mei&plano=${plan.name.toLowerCase().replace(' ', '-')}`}
-                  className={`mt-auto text-center text-sm font-semibold py-2.5 rounded-lg transition ${
-                    plan.highlight
-                      ? 'bg-brand-cyan text-navy-900 hover:opacity-90'
-                      : 'border border-navy-600 text-text-1 hover:border-brand-cyan'
-                  }`}
-                >
-                  {plan.cta}
-                </Link>
-              </div>
-            ))}
-          </div>
+          <PricingToggleMei />
         </div>
       </AnimatedSection>
 
