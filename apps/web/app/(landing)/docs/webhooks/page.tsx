@@ -30,7 +30,7 @@ export default function WebhooksPage() {
           O payload inclui uma assinatura HMAC-SHA256 para verificar autenticidade.
         </p>
         <div className="bg-[#142035] border border-[#1E3050] rounded-xl p-4 space-y-2 text-sm">
-          <p className="font-medium">Fluxo:</p>
+          <p className="font-medium text-[#EEF4FF]">Fluxo:</p>
           <ol className="list-decimal list-inside space-y-1 text-[#8AA0B8]">
             <li>Você envia <code className="text-[#00E8FF]">POST /v1/nfse</code> com <code className="text-[#00E8FF]">webhook_url</code></li>
             <li>API responde <code className="text-[#00C85A]">202</code> imediatamente</li>

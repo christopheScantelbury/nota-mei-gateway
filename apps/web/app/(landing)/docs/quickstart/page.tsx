@@ -147,7 +147,7 @@ export default function QuickstartPage() {
 
       {/* Next steps */}
       <div className="bg-[#142035] border border-[#1E3050] rounded-xl p-5 space-y-3 !mt-4">
-        <h3 className="font-semibold">Próximos passos</h3>
+        <h3 className="font-semibold text-[#EEF4FF]">Próximos passos</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
           {[
             { href: '/docs/referencia', label: '📖 Referência completa da API' },
@@ -158,7 +158,7 @@ export default function QuickstartPage() {
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-2 px-3 py-2 bg-[#0A0F1E] border border-[#1E3050] rounded-lg hover:border-[#00E8FF]/30 hover:text-[#00E8FF] transition-colors"
+              className="flex items-center gap-2 px-3 py-2 bg-[#0A0F1E] border border-[#1E3050] rounded-lg text-[#EEF4FF] hover:border-[#00E8FF]/30 hover:text-[#00E8FF] transition-colors"
             >
               {item.label}
             </Link>
