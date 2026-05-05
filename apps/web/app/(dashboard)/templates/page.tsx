@@ -60,7 +60,7 @@ export default async function TemplatesPage() {
   const {
     data: { session },
   } = await supabase.auth.getSession()
-  if (!session) redirect('/')
+  if (!session) redirect('/login')
 
   // Get current plan and templates in parallel
   const competencia = new Date().toISOString().slice(0, 7) // AAAA-MM

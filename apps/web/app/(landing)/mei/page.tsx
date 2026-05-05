@@ -77,7 +77,14 @@ const faqs = [
   },
   {
     q: 'O que é certificado digital A1 e onde consigo?',
-    a: 'É uma assinatura eletrônica obrigatória para emitir notas fiscais. Você pode adquirir em cartórios ou empresas credenciadas (Certisign, Serasa, etc.) por cerca de R$ 100–200/ano. A gente te guia passo a passo no cadastro.',
+    a: (
+      <>
+        É uma assinatura eletrônica obrigatória para emitir notas fiscais. Você pode adquirir em certificadoras credenciadas (Certisign, Serasa, etc.) por cerca de R$ 100–200/ano — ou gratuitamente na Receita Federal para e-CPF.{' '}
+        <Link href="/certificado-a1" className="text-brand-cyan hover:underline">
+          Veja o guia completo →
+        </Link>
+      </>
+    ),
   },
   {
     q: 'Posso emitir nota para pessoa física (CPF)?',

@@ -1,3 +1,5 @@
+export const metadata = { title: 'Configurações' }
+
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import ConfiguracoesTabs from '@/components/dashboard/ConfiguracoesTabs'
@@ -5,7 +7,7 @@ import ConfiguracoesTabs from '@/components/dashboard/ConfiguracoesTabs'
 export default async function ConfiguracoesPage() {
   const supabase = createClient()
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session) redirect('/')
+  if (!session) redirect('/login')
 
   const [meiResult, keysResult] = await Promise.all([
     supabase
@@ -29,7 +31,7 @@ export default async function ConfiguracoesPage() {
       .returns<{ id: string; key_prefix: string; label: string | null; created_at: string }[]>(),
   ])
 
-  if (!meiResult.data) redirect('/')
+  if (!meiResult.data) redirect('/login')
 
   return (
     <div className="p-8 max-w-3xl">

@@ -1,3 +1,5 @@
+export const metadata = { title: 'Notas Fiscais' }
+
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
@@ -64,7 +66,7 @@ export default async function NotasPage({
 }) {
   const supabase = createClient()
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session) redirect('/')
+  if (!session) redirect('/login')
 
   const page = Math.max(1, Number(searchParams.page ?? '1'))
   const from = (page - 1) * PAGE_SIZE
