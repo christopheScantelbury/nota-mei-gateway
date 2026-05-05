@@ -1,30 +1,38 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 import { NextResponse, type NextRequest } from 'next/server'
 
 /**
  * Auth callback handler for Magic Link / OAuth providers.
- * Supabase redirects here after login with a `code` param.
- * We exchange it for a session, set the cookie and redirect to the dashboard.
+ * Supabase redirects here after login with a `code` param (PKCE flow).
+ * We exchange it for a session, set the cookie on the redirect response,
+ * and forward the user to the dashboard.
+ *
+ * IMPORTANT: this route MUST be excluded from the middleware matcher so
+ * the middleware's getUser() call doesn't run before the session is set.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/notas'
+  const target = next.startsWith('/') ? next : '/notas'
 
   if (code) {
-    const cookieStore = cookies()
+    // Build the redirect response first so we can attach cookies to it.
+    const redirectResponse = NextResponse.redirect(`${origin}${target}`)
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
           getAll() {
-            return cookieStore.getAll()
+            return request.cookies.getAll()
           },
           setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+            // Write auth cookies directly onto the redirect response so they
+            // are included in the Set-Cookie headers sent back to the browser.
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              redirectResponse.cookies.set(name, value, options)
             )
           },
         },
@@ -33,12 +41,10 @@ export async function GET(request: NextRequest) {
 
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      // Redirect to the intended destination or default dashboard.
-      const target = next.startsWith('/') ? next : '/notas'
-      return NextResponse.redirect(`${origin}${target}`)
+      return redirectResponse
     }
   }
 
-  // Something went wrong — redirect to login with an error hint.
+  // No code or exchange failed — send back to login with an error hint.
   return NextResponse.redirect(`${origin}/login?error=auth_callback_failed`)
 }
