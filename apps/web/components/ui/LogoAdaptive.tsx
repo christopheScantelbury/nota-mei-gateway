@@ -3,9 +3,12 @@
 /**
  * LogoAdaptive — troca o SVG da logo conforme o tema ativo (light / dark).
  *
- * Usa useTheme do next-themes para ler resolvedTheme após a hidratação.
  * Antes do mount renderiza um placeholder invisível com as mesmas dimensões
- * para evitar layout shift (CLS).
+ * para evitar layout shift (CLS). Após mount, usa resolvedTheme do next-themes.
+ *
+ * Props extras:
+ *   iconLightSrc / iconDarkSrc — versão só-ícone para telas muito pequenas (≤ 360px).
+ *   Se não fornecidos, exibe sempre a logo completa.
  */
 
 import { useEffect, useState } from 'react'
@@ -13,13 +16,16 @@ import Image from 'next/image'
 import { useTheme } from 'next-themes'
 
 interface LogoAdaptiveProps {
-  lightSrc: string   // logo para fundo claro
-  darkSrc: string    // logo para fundo escuro
+  lightSrc: string
+  darkSrc: string
   alt: string
   width: number
   height: number
   priority?: boolean
   className?: string
+  /** Ícone compacto para telas ≤ 360px */
+  iconLightSrc?: string
+  iconDarkSrc?: string
 }
 
 export default function LogoAdaptive({
@@ -30,29 +36,46 @@ export default function LogoAdaptive({
   height,
   priority = false,
   className,
+  iconLightSrc,
+  iconDarkSrc,
 }: LogoAdaptiveProps) {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
-  // Só usa o tema depois do mount para evitar mismatch de hidratação
   useEffect(() => { setMounted(true) }, [])
 
   if (!mounted) {
-    // Espaço reservado com as mesmas dimensões — evita CLS
-    return <div style={{ width, height, display: 'inline-block' }} aria-hidden />
+    return <div style={{ width, height: Math.min(height, 44), display: 'inline-block' }} aria-hidden />
   }
 
-  const src = resolvedTheme === 'dark' ? darkSrc : lightSrc
+  const isDark = resolvedTheme === 'dark'
+  const src     = isDark ? darkSrc  : lightSrc
+  const iconSrc = isDark ? iconDarkSrc : iconLightSrc
 
   return (
-    <Image
-      src={src}
-      alt={alt}
-      width={width}
-      height={height}
-      priority={priority}
-      unoptimized
-      className={className}
-    />
+    <>
+      {/* Logo completa — desktop e mobile ≥ 361px */}
+      <Image
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        priority={priority}
+        unoptimized
+        className={`${iconSrc ? 'hidden min-[361px]:block' : ''} ${className ?? ''}`}
+      />
+      {/* Ícone compacto — apenas em telas ≤ 360px, se fornecido */}
+      {iconSrc && (
+        <Image
+          src={iconSrc}
+          alt={alt}
+          width={40}
+          height={40}
+          priority={priority}
+          unoptimized
+          className="block min-[361px]:hidden w-10 h-10"
+        />
+      )}
+    </>
   )
 }
