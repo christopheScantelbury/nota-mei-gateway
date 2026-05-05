@@ -10,10 +10,20 @@ import { Input } from '@/components/ui/Input'
 
 type Step = 'email' | 'otp'
 
-const OTP_LENGTH = 6
+const OTP_LENGTH     = 6
 const RESEND_COOLDOWN = 60 // seconds
 
-// ── OTP boxes component ────────────────────────────────────────────────────────
+// Domínios de produção por produto
+const PRODUCT_ORIGINS: Record<'mei' | 'gateway', string> = {
+  mei:     'https://notafacilmei.com.br',
+  gateway: 'https://notameigateway.com.br',
+}
+
+function isProdHostname(hostname: string) {
+  return !['localhost', '127.0.0.1', 'vercel.app'].some((h) => hostname.includes(h))
+}
+
+// ── OTP boxes ─────────────────────────────────────────────────────────────────
 
 function OtpInput({
   value,
@@ -34,31 +44,19 @@ function OtpInput({
     if (e.key === 'Backspace') {
       e.preventDefault()
       if (value[idx]) {
-        const next = [...value]
-        next[idx] = ''
-        onChange(next)
+        const next = [...value]; next[idx] = ''; onChange(next)
       } else if (idx > 0) {
-        const next = [...value]
-        next[idx - 1] = ''
-        onChange(next)
-        focusBox(idx - 1)
+        const next = [...value]; next[idx - 1] = ''; onChange(next); focusBox(idx - 1)
       }
-    } else if (e.key === 'ArrowLeft' && idx > 0) {
-      focusBox(idx - 1)
-    } else if (e.key === 'ArrowRight' && idx < OTP_LENGTH - 1) {
-      focusBox(idx + 1)
-    }
+    } else if (e.key === 'ArrowLeft'  && idx > 0)              focusBox(idx - 1)
+    else if   (e.key === 'ArrowRight' && idx < OTP_LENGTH - 1) focusBox(idx + 1)
   }
 
   function handleChange(idx: number, raw: string) {
     const digit = raw.replace(/\D/g, '').slice(-1)
     if (!digit) return
-    const next = [...value]
-    next[idx] = digit
-    onChange(next)
-    if (idx < OTP_LENGTH - 1) {
-      focusBox(idx + 1)
-    }
+    const next = [...value]; next[idx] = digit; onChange(next)
+    if (idx < OTP_LENGTH - 1) focusBox(idx + 1)
   }
 
   function handlePaste(e: ClipboardEvent<HTMLInputElement>) {
@@ -68,8 +66,7 @@ function OtpInput({
     const next = [...value]
     for (let i = 0; i < text.length; i++) next[i] = text[i]
     onChange(next)
-    const lastFilled = Math.min(text.length, OTP_LENGTH - 1)
-    focusBox(lastFilled)
+    focusBox(Math.min(text.length, OTP_LENGTH - 1))
   }
 
   return (
@@ -89,8 +86,7 @@ function OtpInput({
             'w-11 h-14 text-center text-xl font-bold rounded-lg border transition-all outline-none',
             'bg-white text-gray-900 border-gray-300',
             'focus:border-brand-cyan focus:ring-2 focus:ring-brand-cyan/30',
-            'dark:bg-navy-800 dark:text-text-1 dark:border-navy-500',
-            'dark:focus:border-brand-cyan',
+            'dark:bg-navy-800 dark:text-text-1 dark:border-navy-500 dark:focus:border-brand-cyan',
             disabled ? 'opacity-50 cursor-not-allowed' : '',
             value[idx] ? 'border-brand-cyan bg-brand-cyan/5 dark:bg-brand-cyan/10' : '',
           ].join(' ')}
@@ -107,13 +103,7 @@ function OtpInput({
 
 // ── Resend button with cooldown ────────────────────────────────────────────────
 
-function ResendButton({
-  onResend,
-  disabled,
-}: {
-  onResend: () => Promise<void>
-  disabled?: boolean
-}) {
+function ResendButton({ onResend, disabled }: { onResend: () => Promise<void>; disabled?: boolean }) {
   const [seconds, setSeconds] = useState(RESEND_COOLDOWN)
   const [loading, setLoading] = useState(false)
 
@@ -171,7 +161,7 @@ export default function LoginClient() {
       : null,
   )
 
-  // ── Step 1: send OTP ────────────────────────────────────────────────────────
+  // ── Step 1: enviar OTP ─────────────────────────────────────────────────────
 
   async function handleEmailSubmit(e: FormEvent) {
     e.preventDefault()
@@ -184,9 +174,7 @@ export default function LoginClient() {
     const supabase = createClient()
     const { error: sbError } = await supabase.auth.signInWithOtp({
       email: trimmed,
-      options: {
-        shouldCreateUser: false, // only existing accounts
-      },
+      options: { shouldCreateUser: false },
     })
 
     setLoading(false)
@@ -204,8 +192,6 @@ export default function LoginClient() {
     setStep('otp')
   }
 
-  // ── Resend (same call, resets cooldown in child) ────────────────────────────
-
   async function handleResend() {
     const supabase = createClient()
     await supabase.auth.signInWithOtp({
@@ -214,7 +200,7 @@ export default function LoginClient() {
     })
   }
 
-  // ── Step 2: verify OTP ─────────────────────────────────────────────────────
+  // ── Step 2: verificar OTP + redirecionar para o domínio do produto ─────────
 
   async function handleOtpSubmit(e: FormEvent) {
     e.preventDefault()
@@ -228,60 +214,56 @@ export default function LoginClient() {
     setLoading(true)
 
     const supabase = createClient()
-    const { error: sbError } = await supabase.auth.verifyOtp({
+    const { data: otpData, error: sbError } = await supabase.auth.verifyOtp({
       email: email.trim().toLowerCase(),
       token,
       type: 'email',
     })
 
-    setLoading(false)
-
     if (sbError) {
+      setLoading(false)
       setError('Código incorreto ou expirado. Confira o e-mail ou solicite um novo.')
       setOtp(Array(OTP_LENGTH).fill(''))
       return
     }
 
-    // Session set — redirect
+    // Consulta tipo_usuario para redirecionar ao domínio correto em produção
+    const userId = otpData?.user?.id
     const target = next.startsWith('/') ? next : '/notas'
+
+    if (userId && isProdHostname(window.location.hostname)) {
+      const { data: meiData } = await supabase
+        .from('meis')
+        .select('tipo_usuario')
+        .eq('id', userId)
+        .maybeSingle()
+
+      const tipo = (meiData?.tipo_usuario as 'mei' | 'gateway') ?? 'gateway'
+      const expectedOrigin = PRODUCT_ORIGINS[tipo]
+
+      if (window.location.origin !== expectedOrigin) {
+        // Redireciona para o domínio correto — o cookie de sessão é cross-domain
+        // via Supabase (a sessão já está no cliente; o layout.tsx vai confirmar)
+        window.location.href = `${expectedOrigin}${target}`
+        return
+      }
+    }
+
+    setLoading(false)
     router.replace(target)
   }
 
-  // ── Logo block ─────────────────────────────────────────────────────────────
+  // ── Logo por produto ───────────────────────────────────────────────────────
 
   const logo = isMei ? (
     <>
-      <Image
-        src="/logos/nfm-logo-navbar-light.svg"
-        alt="Nota Fácil MEI"
-        width={160} height={44}
-        className="h-9 w-auto block dark:hidden"
-        priority
-      />
-      <Image
-        src="/logos/nfm-logo-navbar-dark-clean.svg"
-        alt="Nota Fácil MEI"
-        width={160} height={44}
-        className="h-9 w-auto hidden dark:block"
-        priority
-      />
+      <Image src="/logos/nfm-logo-navbar-light.svg"      alt="Nota Fácil MEI"   width={160} height={44} className="h-9 w-auto block dark:hidden" priority />
+      <Image src="/logos/nfm-logo-navbar-dark-clean.svg" alt="Nota Fácil MEI"   width={160} height={44} className="h-9 w-auto hidden dark:block" priority />
     </>
   ) : (
     <>
-      <Image
-        src="/logos/gateway-logo-navbar-light.svg"
-        alt="Nota MEI Gateway"
-        width={160} height={40}
-        className="h-8 w-auto block dark:hidden"
-        priority
-      />
-      <Image
-        src="/logos/gateway-logo-navbar-dark.svg"
-        alt="Nota MEI Gateway"
-        width={160} height={40}
-        className="h-8 w-auto hidden dark:block"
-        priority
-      />
+      <Image src="/logos/gateway-logo-navbar-light.svg"  alt="Nota MEI Gateway" width={160} height={40} className="h-8 w-auto block dark:hidden" priority />
+      <Image src="/logos/gateway-logo-navbar-dark.svg"   alt="Nota MEI Gateway" width={160} height={40} className="h-8 w-auto hidden dark:block" priority />
     </>
   )
 
@@ -301,7 +283,7 @@ export default function LoginClient() {
           </p>
         </div>
 
-        {/* ── STEP 1: email ── */}
+        {/* ── STEP 1: e-mail ── */}
         {step === 'email' && (
           <form onSubmit={handleEmailSubmit} className="space-y-4">
             <Input
@@ -316,16 +298,11 @@ export default function LoginClient() {
               error={error ?? undefined}
             />
 
-            <Button
-              type="submit"
-              loading={loading}
-              className="w-full"
-              size="lg"
-            >
+            <Button type="submit" loading={loading} className="w-full" size="lg">
               Enviar código de acesso
             </Button>
 
-            <div className="text-center space-y-2 pt-1">
+            <div className="text-center pt-1">
               <p className="text-xs text-text-2">
                 Não tem conta?{' '}
                 <Link
@@ -343,28 +320,19 @@ export default function LoginClient() {
         {step === 'otp' && (
           <form onSubmit={handleOtpSubmit} className="space-y-6">
             <div className="text-center space-y-1 mb-2">
-              <p className="text-sm text-text-2">
-                Enviamos um código de 6 dígitos para
-              </p>
+              <p className="text-sm text-text-2">Enviamos um código de 6 dígitos para</p>
               <p className="font-semibold text-text-1 text-sm break-all">{email}</p>
-              <p className="text-xs text-text-2 mt-1">
-                Verifique sua caixa de entrada (e o spam).
-              </p>
+              <p className="text-xs text-text-2 mt-1">Verifique sua caixa de entrada (e o spam).</p>
             </div>
 
             <OtpInput
               value={otp}
-              onChange={(digits) => {
-                setOtp(digits)
-                setError(null)
-              }}
+              onChange={(digits) => { setOtp(digits); setError(null) }}
               disabled={loading}
             />
 
             {error && (
-              <p className="text-xs text-nota-rejeitada text-center" role="alert">
-                {error}
-              </p>
+              <p className="text-xs text-nota-rejeitada text-center" role="alert">{error}</p>
             )}
 
             <Button
@@ -382,11 +350,7 @@ export default function LoginClient() {
             <div className="text-center">
               <button
                 type="button"
-                onClick={() => {
-                  setStep('email')
-                  setError(null)
-                  setOtp(Array(OTP_LENGTH).fill(''))
-                }}
+                onClick={() => { setStep('email'); setError(null); setOtp(Array(OTP_LENGTH).fill('')) }}
                 className="text-xs text-text-2 hover:text-text-1 transition"
               >
                 ← Usar outro e-mail
