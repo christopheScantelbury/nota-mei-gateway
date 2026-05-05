@@ -65,8 +65,8 @@ export default async function NotasPage({
   searchParams: { page?: string; status?: string; q?: string; sort?: string; order?: string; competencia?: string }
 }) {
   const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) redirect('/login')
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
   const page = Math.max(1, Number(searchParams.page ?? '1'))
   const from = (page - 1) * PAGE_SIZE
@@ -84,7 +84,7 @@ export default async function NotasPage({
   let query = supabase
     .from('notas_fiscais')
     .select('*', { count: 'exact' })
-    .eq('mei_id', session.user.id)
+    .eq('mei_id', user.id)
 
   if (statusFilter)  query = query.eq('status', statusFilter)
   if (competencia)   query = query.eq('competencia', competencia)

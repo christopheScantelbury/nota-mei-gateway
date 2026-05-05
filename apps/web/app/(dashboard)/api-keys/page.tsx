@@ -15,13 +15,13 @@ export type APIKey = {
 
 export default async function APIKeysPage() {
   const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) redirect('/login')
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
   const { data: keys } = await supabase
     .from('api_keys')
     .select('id, key_prefix, label, created_at, revoked_at')
-    .eq('mei_id', session.user.id)
+    .eq('mei_id', user.id)
     .order('created_at', { ascending: false })
     .returns<APIKey[]>()
 
@@ -29,7 +29,7 @@ export default async function APIKeysPage() {
   const { data: usage } = await supabase
     .from('emissoes_mensais')
     .select('planos(nome, emissoes_limite)')
-    .eq('mei_id', session.user.id)
+    .eq('mei_id', user.id)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle<{ planos: { nome: string; emissoes_limite: number } | null }>()

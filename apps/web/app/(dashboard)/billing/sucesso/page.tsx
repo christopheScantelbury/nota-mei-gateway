@@ -14,9 +14,9 @@ export default async function BillingSuccessPage({
 }) {
   const supabase = createClient()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  if (!session) redirect('/login')
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
   return (
     <div className="p-8 max-w-xl">
