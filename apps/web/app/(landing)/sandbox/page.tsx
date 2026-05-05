@@ -1,6 +1,8 @@
 ﻿'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 
 const DEMO_KEY = 'sk_test_sandbox_demo'
@@ -191,17 +193,34 @@ export default function SandboxPage() {
       <div className="border-b border-navy-600 bg-navy-900/80 backdrop-blur sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <span className="text-2xl font-bold font-display text-brand-cyan">Nota MEI</span>
+            <Link href="/gateway" className="flex items-center shrink-0">
+              <Image
+                src="/logos/gateway-logo-navbar-dark.svg"
+                alt="Nota MEI Gateway"
+                width={160}
+                height={40}
+                className="h-8 w-auto dark:block hidden"
+                priority
+              />
+              <Image
+                src="/logos/gateway-logo-navbar-light.svg"
+                alt="Nota MEI Gateway"
+                width={160}
+                height={40}
+                className="h-8 w-auto dark:hidden block"
+                priority
+              />
+            </Link>
             <span className="text-xs bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/20 rounded-full px-2 py-0.5">
               Sandbox
             </span>
           </div>
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <a href="/docs" className="text-sm text-text-2 hover:text-text-1 transition">Docs</a>
-            <a href="https://emitirnotafacil.com.br/cadastro" className="text-sm font-semibold bg-brand-cyan text-navy-900 px-4 py-2 rounded-lg hover:opacity-90 transition">
+            <Link href="/docs" className="text-sm text-text-2 hover:text-text-1 transition">Docs</Link>
+            <Link href="/cadastro?produto=gateway" className="text-sm font-semibold bg-brand-cyan text-navy-900 px-4 py-2 rounded-lg hover:opacity-90 transition">
               Criar conta →
-            </a>
+            </Link>
           </div>
         </div>
       </div>

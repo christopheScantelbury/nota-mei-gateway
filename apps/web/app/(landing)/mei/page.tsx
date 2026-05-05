@@ -312,7 +312,7 @@ export default function MeiLandingPage() {
       </AnimatedSection>
 
       {/* FAQ */}
-      <AnimatedSection className="py-24 px-4" id="faq" delay={0.05}>
+      <AnimatedSection className="py-24 px-4 scroll-mt-20" id="faq" delay={0.05}>
         <div className="mx-auto max-w-3xl">
           <h2 className="font-display text-3xl font-extrabold text-center mb-16">
             Perguntas frequentes
