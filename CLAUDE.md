@@ -473,10 +473,11 @@ status-cancelada.png    → #6473A0 (cinza)
                               · GetOrCreateEmissaoMensal: upsert single round-trip
                               · Autorizar/Rejeitar: WHERE status='PROCESSANDO' guard
                               migration 20260504000002_rps_sequences.sql aplicada em prod
-✅ DNS                        emitirnotafacil.com.br configurado no Registro.br + domínios adicionados no Vercel
-                              A @ → 76.76.21.21 | CNAME www → cname.vercel-dns.com
+✅ DNS                        emitirnotafacil.com.br totalmente configurado (2026-05-04)
+                              A @ → 216.198.79.1 | CNAME www → c4ed91af802cfdc8.vercel-dns-017.com
                               CNAME api → api-production-73b1.up.railway.app
-                              SSL gerando no Vercel (2026-05-04)
+                              Domínio api.emitirnotafacil.com.br adicionado no Railway (id b2f13ae9)
+                              SSL Vercel ativo · API Railway 200 OK
 ✅ Vercel env vars            NEXT_PUBLIC_SUPABASE_ANON_KEY + NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY configurados
 ✅ supabase db push           4 migrations aplicadas em prod (templates, recorrências, STOR-01, SCALE-01)
 ✅ Light theme (PR #145)      light-first + dark mode toggle — mergeado em main (2026-05-04)
@@ -617,7 +618,7 @@ vercel --prod               # deploy manual produção
 | Repositório | https://github.com/christopheScantelbury/nota-mei-gateway |
 | **API produção (Railway)** | https://api-production-73b1.up.railway.app |
 | **Dashboard (Vercel)** | https://nota-mei-gateway-web.vercel.app |
-| **API domínio custom** | https://api.emitirnotafacil.com.br *(CNAME pendente)* |
+| **API domínio custom** | https://api.emitirnotafacil.com.br ✅ |
 | Supabase Dashboard | https://supabase.com/dashboard/project/pzjvgtwnstfyangfwdom |
 | Railway Dashboard | https://railway.app/project/25988fa0-9393-462f-b57e-8780f2ca138e |
 | Vercel Dashboard | https://vercel.com/dashboard |
@@ -665,8 +666,9 @@ vercel --prod               # deploy manual produção
 ### Pendências operacionais (sem código — apenas configuração)
 
 ```
-✅ DNS          emitirnotafacil.com.br configurado — A/CNAME no Registro.br, domínios no Vercel
-                SSL gerado automaticamente pelo Vercel (2026-05-04)
+✅ DNS          emitirnotafacil.com.br totalmente configurado (2026-05-04)
+                A @ → 216.198.79.1 | CNAME www → c4ed91af802cfdc8.vercel-dns-017.com
+                CNAME api → api-production-73b1.up.railway.app (Railway custom domain ativo)
 
 ⏳ Supabase     supabase link --project-ref pzjvgtwnstfyangfwdom
                 supabase db push   (aplicar migrations em produção)
