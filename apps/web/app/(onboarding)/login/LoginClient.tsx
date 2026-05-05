@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/browser'
 import { Button } from '@/components/ui/Button'
@@ -11,7 +12,9 @@ type Step = 'form' | 'sent'
 
 export default function LoginClient() {
   const searchParams = useSearchParams()
-  const next = searchParams.get('next') ?? '/home'
+  const next    = searchParams.get('next') ?? '/home'
+  const produto = searchParams.get('produto') // 'mei' | null (gateway/dev)
+  const isMei   = produto === 'mei'
   const errorParam = searchParams.get('error')
 
   const [email, setEmail] = useState('')
@@ -74,12 +77,50 @@ export default function LoginClient() {
   return (
     <main className="min-h-screen bg-navy-900 flex items-center justify-center px-4 py-12">
       <div className="bg-navy-700 border border-navy-600 rounded-xl p-8 w-full max-w-md">
-        {/* Logo */}
+        {/* Logo — produto-aware */}
         <div className="mb-8 text-center">
-          <span className="font-display font-extrabold text-2xl text-brand-cyan tracking-tight">
-            Nota MEI Gateway
-          </span>
-          <p className="text-text-2 text-sm mt-1">Entre com Magic Link — sem senha</p>
+          <Link href={isMei ? '/mei' : '/gateway'} className="inline-flex justify-center mb-2">
+            {isMei ? (
+              <>
+                <Image
+                  src="/logos/nfm-logo-navbar-light.svg"
+                  alt="Nota Fácil MEI"
+                  width={160}
+                  height={44}
+                  className="h-9 w-auto block dark:hidden"
+                  priority
+                />
+                <Image
+                  src="/logos/nfm-logo-navbar-dark-clean.svg"
+                  alt="Nota Fácil MEI"
+                  width={160}
+                  height={44}
+                  className="h-9 w-auto hidden dark:block"
+                  priority
+                />
+              </>
+            ) : (
+              <>
+                <Image
+                  src="/logos/gateway-logo-navbar-light.svg"
+                  alt="Nota MEI Gateway"
+                  width={160}
+                  height={40}
+                  className="h-8 w-auto block dark:hidden"
+                  priority
+                />
+                <Image
+                  src="/logos/gateway-logo-navbar-dark.svg"
+                  alt="Nota MEI Gateway"
+                  width={160}
+                  height={40}
+                  className="h-8 w-auto hidden dark:block"
+                  priority
+                />
+              </>
+            )}
+          </Link>
+          <p className="text-text-2 text-sm">Entre com Magic Link — sem senha</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

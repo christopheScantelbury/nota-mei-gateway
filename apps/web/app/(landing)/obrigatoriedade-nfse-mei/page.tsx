@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export const metadata: Metadata = {
   title: 'Obrigatoriedade NFS-e para MEI em 2026',
@@ -10,12 +11,34 @@ export const metadata: Metadata = {
 
 export default function ObrigatoriedadePage() {
   return (
-    <main className="min-h-screen bg-navy-900 text-text-1 font-body">
-      <div className="mx-auto max-w-3xl px-4 py-20">
+    <div className="min-h-screen bg-navy-900 text-text-1 font-body">
+      {/* Minimal navbar */}
+      <header className="border-b border-navy-600 bg-navy-900/90 backdrop-blur sticky top-0 z-20">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+          <Link href="/mei" className="flex items-center shrink-0">
+            <Image
+              src="/logos/nfm-logo-navbar-dark-clean.svg"
+              alt="Nota Fácil MEI"
+              width={140}
+              height={38}
+              className="h-8 w-auto"
+              priority
+            />
+          </Link>
+          <Link href="/mei" className="text-sm text-text-2 hover:text-brand-cyan transition">
+            ← Nota Fácil MEI
+          </Link>
+        </div>
+      </header>
+
+      <main>
+      <div className="mx-auto max-w-3xl px-4 py-16">
 
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-text-2 mb-8">
           <Link href="/" className="hover:text-text-1 transition">Início</Link>
+          <span>/</span>
+          <Link href="/mei" className="hover:text-text-1 transition">Nota Fácil MEI</Link>
           <span>/</span>
           <span>Obrigatoriedade NFS-e 2026</span>
         </div>
@@ -87,7 +110,7 @@ export default function ObrigatoriedadePage() {
             <ol className="space-y-3">
               {[
                 { n: 1, text: 'Obtenha seu certificado digital A1 (e-CPF ou e-CNPJ MEI) — disponível em cartórios e certificadoras como Certisign, Serasa e Receita Federal.' },
-                { n: 2, text: 'Cadastre seu MEI no Nota MEI Gateway com o certificado — o sistema já está integrado ao sistema federal.' },
+                { n: 2, text: 'Cadastre seu MEI na Nota Fácil MEI com o certificado — o sistema já está integrado ao sistema federal.' },
                 { n: 3, text: 'Emita suas notas diretamente pelo dashboard ou via API REST.' },
               ].map(({ n, text }) => (
                 <li key={n} className="flex items-start gap-3">
@@ -138,6 +161,20 @@ export default function ObrigatoriedadePage() {
         </p>
 
       </div>
-    </main>
+      </main>
+
+      {/* Minimal footer */}
+      <footer className="border-t border-navy-600 py-6 px-4 mt-8">
+        <div className="max-w-3xl mx-auto flex flex-wrap justify-between items-center gap-3 text-xs text-text-2">
+          <p>© {new Date().getFullYear()} ScantelburyDevs. Todos os direitos reservados.</p>
+          <div className="flex gap-4">
+            <Link href="/mei" className="hover:text-text-1 transition">Nota Fácil MEI</Link>
+            <Link href="/privacidade" className="hover:text-text-1 transition">Privacidade</Link>
+            <Link href="/termos" className="hover:text-text-1 transition">Termos</Link>
+            <a href="mailto:suporte@emitirnotafacil.com.br" className="hover:text-text-1 transition">Suporte</a>
+          </div>
+        </div>
+      </footer>
+    </div>
   )
 }

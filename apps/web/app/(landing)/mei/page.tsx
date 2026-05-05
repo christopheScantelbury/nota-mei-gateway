@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import Image from 'next/image'
 import AnimatedSection from '@/components/landing/AnimatedSection'
 import UrgencyBanner from '@/components/landing/UrgencyBanner'
 import NavbarMei from '@/components/landing/NavbarMei'
@@ -358,11 +359,26 @@ export default function MeiLandingPage() {
       {/* Footer */}
       <footer className="border-t border-navy-600 py-10 px-4">
         <div className="mx-auto max-w-6xl flex flex-col md:flex-row justify-between gap-6 text-text-2 text-sm">
-          <div>
-            <p className="font-display font-bold text-text-1 mb-1">Nota Fácil MEI</p>
-            <p>© {new Date().getFullYear()} ScantelburyDevs. Todos os direitos reservados.</p>
-            <p className="mt-1">
-              Também somos desenvolvedores?{' '}
+          <div className="flex flex-col gap-2">
+            <Link href="/mei" className="inline-flex items-center">
+              <Image
+                src="/logos/nfm-logo-navbar-dark-clean.svg"
+                alt="Nota Fácil MEI"
+                width={140}
+                height={38}
+                className="h-8 w-auto dark:block hidden"
+              />
+              <Image
+                src="/logos/nfm-logo-navbar-light.svg"
+                alt="Nota Fácil MEI"
+                width={140}
+                height={38}
+                className="h-8 w-auto block dark:hidden"
+              />
+            </Link>
+            <p className="text-xs">© {new Date().getFullYear()} ScantelburyDevs. Todos os direitos reservados.</p>
+            <p className="text-xs">
+              Também é desenvolvedor?{' '}
               <Link href="/gateway" className="underline hover:text-text-1 transition">
                 Ver Nota MEI Gateway (API)
               </Link>
