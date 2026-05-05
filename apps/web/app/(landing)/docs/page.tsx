@@ -73,7 +73,7 @@ export default function DocsPage() {
           ].map((env) => (
             <div key={env.label} className="bg-[#0A0F1E] border border-[#1E3050] rounded-lg p-3">
               <p className={`text-xs font-medium mb-1 ${env.color}`}>{env.label}</p>
-              <code className="text-sm text-[#8AA0B8] font-mono">{env.url}</code>
+              <code className="block text-sm text-[#8AA0B8] font-mono break-all">{env.url}</code>
             </div>
           ))}
         </div>
