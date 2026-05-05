@@ -157,8 +157,9 @@ export default function CadastroPage() {
   }
 
   function validateStep2(): boolean {
-    if (form.municipioIBGE.length !== 7) {
-      setFieldErrors({ municipioIBGE: 'Selecione um município da lista.' })
+    const code = form.municipioIBGE.replace(/\D/g, '')
+    if (code.length !== 7) {
+      setFieldErrors({ municipioIBGE: 'Selecione um município da lista ou digite o código IBGE de 7 dígitos.' })
       return false
     }
     setFieldErrors({})
@@ -373,7 +374,7 @@ export default function CadastroPage() {
 
             <p className="text-xs text-text-2 text-center">
               Já tem uma conta?{' '}
-              <a href="/" className="text-brand-cyan hover:underline">
+              <a href="/login" className="text-brand-cyan hover:underline">
                 Fazer login
               </a>
             </p>

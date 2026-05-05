@@ -25,7 +25,7 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://emitirnotafacil.com.br/gateway' },
 }
 
-const curlSnippet = `curl -X POST https://api.notameigateway.com.br/v1/nfse \\
+const curlSnippet = `curl -X POST https://api.emitirnotafacil.com.br/v1/nfse \\
   -H "Authorization: Bearer $API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -317,7 +317,7 @@ export default function GatewayLandingPage() {
           <p className="text-text-2 text-center mb-16">
             Sandbox sempre incluso. Escale conforme cresce.
           </p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {apiPlans.map((plan) => (
               <div
                 key={plan.name}
