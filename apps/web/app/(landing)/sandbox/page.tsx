@@ -4,7 +4,9 @@ import { useState, useEffect, useMemo } from 'react'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 
 const DEMO_KEY = 'sk_test_sandbox_demo'
-const API_URL  = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8080'
+// NEXT_PUBLIC_API_URL is set in Vercel env vars.
+// Fallback to Railway URL so the sandbox works while the custom CNAME is pending.
+const API_URL  = process.env.NEXT_PUBLIC_API_URL ?? 'https://api-production-73b1.up.railway.app'
 const WEBHOOK_URL = `${API_URL}/v1/sandbox/webhook`
 
 type Tab = 'curl' | 'node' | 'python'

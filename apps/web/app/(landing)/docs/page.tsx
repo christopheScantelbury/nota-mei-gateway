@@ -56,7 +56,7 @@ export default function DocsPage() {
     <div className="max-w-3xl space-y-10">
       {/* Hero */}
       <div className="space-y-3">
-        <h1 className="text-3xl font-bold font-outfit">Developer Portal</h1>
+        <h1 className="text-3xl font-bold font-outfit text-white">Developer Portal</h1>
         <p className="text-[#8AA0B8] text-lg leading-relaxed">
           Bem-vindo à documentação do <strong className="text-[#EEF4FF]">Nota MEI Gateway</strong>.
           API REST para emissão automatizada de NFS-e para MEI via Receita Federal Nacional.
@@ -90,7 +90,7 @@ export default function DocsPage() {
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="text-xl">{card.icon}</span>
-                <h2 className="font-semibold group-hover:text-[#00E8FF] transition-colors">
+                <h2 className="font-semibold text-white group-hover:text-[#00E8FF] transition-colors">
                   {card.title}
                 </h2>
               </div>
@@ -107,7 +107,7 @@ export default function DocsPage() {
 
       {/* Auth snippet */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold">Autenticação</h2>
+        <h2 className="text-lg font-semibold text-white">Autenticação</h2>
         <p className="text-sm text-[#8AA0B8]">
           Todas as rotas autenticadas exigem o header <code className="text-[#00E8FF]">Authorization</code>:
         </p>

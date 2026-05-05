@@ -83,7 +83,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
 
             {/* Criar conta — sm+ */}
             <Link
-              href="https://emitirnotafacil.com.br/cadastro"
+              href="/cadastro"
               className="hidden sm:inline-flex whitespace-nowrap text-sm px-3 py-1.5 rounded-lg bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/30 text-brand-cyan transition-colors"
             >
               Criar conta

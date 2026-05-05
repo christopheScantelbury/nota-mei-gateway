@@ -58,6 +58,8 @@
     @apply scroll-smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Compensate for fixed navbar (h-14 = 3.5rem) when jumping to anchors */
+    scroll-padding-top: 4rem;
   }
 
   body {
@@ -75,6 +77,21 @@
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover { background: rgb(var(--navy-600) / 0.8); }
+}
+
+/* ── Animations ───────────────────────────────────────────────────────────── */
+@keyframes fadeUpIn {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+
+.animate-fade-up {
+  animation: fadeUpIn 0.55s ease-out both;
+}
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up { animation: none; }
 }
 
 /* ── Utilities ────────────────────────────────────────────────────────────── */

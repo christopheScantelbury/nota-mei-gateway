@@ -60,7 +60,7 @@ async function fetchMunicipios(): Promise<Municipio[]> {
 function normalize(s: string): string {
   return s
     .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[̀-ͯ]/g, '')  // strip combining diacritics
     .toLowerCase()
 }
 
@@ -235,11 +235,36 @@ export function MunicipioAutocomplete({
 
       {error && <p className="text-xs text-nota-rejeitada">{error}</p>}
 
-      {/* Fallback: if fetch failed, show a plain code input */}
+      {/* Fallback: if fetch failed, allow direct IBGE code entry */}
       {fetchError && (
-        <p className="text-xs text-nota-rejeitada">
-          Não foi possível carregar os municípios. Digite o código IBGE manualmente (7 dígitos).
-        </p>
+        <div className="space-y-1.5">
+          <p className="text-xs text-nota-rejeitada">
+            Não foi possível carregar os municípios via IBGE. Digite o código IBGE manualmente (7 dígitos).
+          </p>
+          <input
+            type="text"
+            inputMode="numeric"
+            placeholder="Ex.: 3550308 (São Paulo)"
+            maxLength={7}
+            value={value}
+            onChange={(e) => {
+              const v = e.target.value.replace(/\D/g, '').slice(0, 7)
+              if (v.length === 7) {
+                onChange(v, `Código IBGE: ${v}`)
+              } else {
+                onChange(v, '')
+              }
+            }}
+            className={cn(
+              'w-full rounded-lg border bg-navy-900 px-3 py-2 text-sm text-text-1 placeholder:text-text-2/50',
+              'focus:outline-none focus:border-brand-cyan transition-colors',
+              value.length === 7 ? 'border-nota-autorizada' : 'border-navy-600',
+            )}
+          />
+          {value.length === 7 && (
+            <p className="text-xs text-nota-autorizada">✓ Código IBGE registrado: {value}</p>
+          )}
+        </div>
       )}
 
       {/* Hidden input carries the IBGE code */}
