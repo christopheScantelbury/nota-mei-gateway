@@ -359,7 +359,7 @@ export default function GatewayLandingPage() {
                 key={sdk.name}
                 className="bg-navy-700 border border-navy-600 rounded-xl p-5 flex flex-col gap-3"
               >
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start justify-between gap-x-2 gap-y-1 flex-wrap">
                   <p className="font-display font-bold text-text-1">{sdk.name}</p>
                   <span className="text-xs font-mono px-2 py-0.5 rounded-full bg-nota-autorizada/10 text-nota-autorizada border border-nota-autorizada/20 shrink-0">
                     Oficial
