@@ -269,11 +269,11 @@ export default function LandingPage() {
             {/* Logo — light/dark adaptive */}
             <Link href="/" className="inline-flex items-center">
               <LogoAdaptive
-                lightSrc="/logos/gateway-logo-navbar-light.svg"
-                darkSrc="/logos/gateway-logo-navbar-dark.svg"
-                alt="Nota MEI Gateway"
+                lightSrc="/logos/nfm-logo-navbar-light.svg"
+                darkSrc="/logos/nfm-logo-navbar-dark-clean.svg"
+                alt="Nota Fácil MEI"
                 width={160}
-                height={34}
+                height={44}
               />
             </Link>
             <p className="text-text-2 text-xs">

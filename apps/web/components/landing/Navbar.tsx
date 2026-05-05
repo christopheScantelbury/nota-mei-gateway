@@ -25,11 +25,11 @@ export default function Navbar() {
       <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center shrink-0">
           <LogoAdaptive
-            lightSrc="/logos/gateway-logo-navbar-light.svg"
-            darkSrc="/logos/gateway-logo-navbar-dark.svg"
-            alt="Nota MEI Gateway"
-            width={200}
-            height={43}
+            lightSrc="/logos/nfm-logo-navbar-light.svg"
+            darkSrc="/logos/nfm-logo-navbar-dark-clean.svg"
+            alt="Nota Fácil MEI"
+            width={180}
+            height={50}
             priority
           />
         </Link>
