@@ -1,0 +1,58 @@
+Detalhamento dos itens (todos corrigidos)
+
+🔴 Graves
+
+✅ L1 — Logo ausente na /sandbox (NÃO ERA BUG NO CÓDIGO LOCAL)
+O código já tinha <Image> com gateway-logo-navbar-dark.svg e gateway-logo-navbar-light.svg.
+A versão deployada pode ter sido stale. Nenhuma alteração necessária.
+
+✅ L2 — Logo ausente no /status (NÃO ERA BUG NO CÓDIGO LOCAL)
+O código já tinha <Image> com as logos correta. Mesma situação que L1.
+
+✅ L3 — Logo ausente no /login (CORRIGIDO — commit 7fbe499)
+Substituído <span>Nota MEI Gateway</span> por pares de <Image> light/dark:
+· light mode → gateway-logo-navbar-light.svg
+· dark mode  → gateway-logo-navbar-dark.svg
+Também corrigido L8 neste mesmo commit (ver abaixo).
+
+✅ L4 — Sem navbar e sem footer em /privacidade, /termos, /recuperar-senha, /obrigatoriedade-nfse-mei
+(CORRIGIDO — commit 7fbe499)
+· /privacidade e /termos: adicionado header sticky com logo Gateway + "← Início" + footer
+· /obrigatoriedade-nfse-mei: adicionado header com logo NFM + breadcrumb atualizado
+· /recuperar-senha: adicionado logo Gateway no topo do card
+
+🟠 Sérios / Moderados
+
+✅ L5 — Footer do /mei e /gateway sem logo visual (CORRIGIDO — commit 7fbe499)
+Substituído o texto simples <p>Nome do produto</p> por pares de <Image> SVG light/dark
+em ambos os footers. Consistente com o footer da homepage (/).
+
+✅ L6 — Texto "Nota MEI Gateway" invisível em /docs (CORRIGIDO — commit 7fbe499)
+Convertidos todos os hardcoded dark-only colors para classes adaptive:
+· text-white → text-slate-900 dark:text-white
+· text-[#8AA0B8] → text-slate-600 dark:text-[#8AA0B8]
+· bg-[#142035] → bg-slate-50 dark:bg-[#142035]
+· bg-[#0A0F1E] → bg-white dark:bg-[#0A0F1E]
+Contraste WCAG AA agora passando em light mode.
+
+✅ L7 — /obrigatoriedade-nfse-mei menciona "Nota MEI Gateway" em contexto MEI
+(CORRIGIDO — commit 7fbe499)
+Passo 2: "Cadastre seu MEI no Nota MEI Gateway" → "Cadastre seu MEI na Nota Fácil MEI"
+
+✅ L8 — /login não diferencia produto (CORRIGIDO — commit 7fbe499)
+Agora lê ?produto=mei de useSearchParams():
+· isMei=true → logo nfm-logo-navbar-light/dark + link href="/mei"
+· isMei=false → logo gateway-logo-navbar-light/dark + link href="/gateway"
+
+🟡 Cosméticos / Baixa prioridade
+
+✅ L9 — Espaçamento excessivo antes do footer na homepage em dark mode (CORRIGIDO)
+Causa: FAQ com bg-navy-700/40 + py-24 em ambas as seções criava ~192px de zona de transição visível.
+Fix: FAQ → pt-24 pb-12, CTA → pt-12 pb-24 em apps/web/app/(landing)/page.tsx
+
+✅ L10 — Logo da navbar usa sempre o arquivo *-dark-clean.svg (NÃO ERA BUG NO CÓDIGO)
+NavbarMei e Navbar já usam LogoAdaptive com lightSrc e darkSrc corretamente.
+
+✅ L11 — Botão "Criar conta gratuita" em dark mode usa ciano saturado com baixo contraste (CORRIGIDO)
+Causa: --brand-cyan CSS var = #0076A3 em light, #00E8FF em dark (globals.css). Mesmo token, cores opostas.
+Fix: adicionado dark:text-[#0A0F1E] no botão para garantir texto escuro sobre fundo neon em dark mode.
