@@ -1,0 +1,55 @@
+name: CI — Go API
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'apps/api/**'
+      - 'docker-compose.yml'
+      - 'apps/api/Dockerfile'
+      - '.github/workflows/ci-api.yml'
+
+# Cancel in-progress runs for the same PR when new commits push
+concurrency:
+  group: ci-api-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compose-validate:
+    name: Docker Compose validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose -f docker-compose.yml config
+
+  test-api:
+    name: Go lint + test
+    runs-on: ubuntu-latest
+    env:
+      GOTOOLCHAIN: local
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+          cache-dependency-path: apps/api/go.sum
+
+      - name: Download deps
+        run: go mod download
+
+      - name: Install golangci-lint v2
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.1.6
+
+      - name: Lint
+        run: golangci-lint run --timeout=5m
+
+      - name: Test
+        run: go test ./... -race -coverprofile=coverage.out
+
+      - name: Coverage
+        run: go tool cover -func=coverage.out
