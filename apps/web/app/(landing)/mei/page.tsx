@@ -313,7 +313,7 @@ export default function MeiLandingPage() {
       </AnimatedSection>
 
       {/* FAQ */}
-      <AnimatedSection className="py-24 px-4 scroll-mt-20" id="faq" delay={0.05}>
+      <AnimatedSection className="pt-24 pb-12 px-4 scroll-mt-20" id="faq" delay={0.05}>
         <div className="mx-auto max-w-3xl">
           <h2 className="font-display text-3xl font-extrabold text-center mb-16">
             Perguntas frequentes
@@ -333,7 +333,7 @@ export default function MeiLandingPage() {
       </AnimatedSection>
 
       {/* CTA final */}
-      <AnimatedSection className="py-24 px-4 text-center" delay={0.1}>
+      <AnimatedSection className="pt-12 pb-24 px-4 text-center" delay={0.1}>
         <div className="mx-auto max-w-2xl">
           <h2 className="font-display text-4xl font-extrabold mb-6">
             Pronto pra parar de perder tempo com nota fiscal?

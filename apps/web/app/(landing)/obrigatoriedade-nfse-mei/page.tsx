@@ -111,7 +111,7 @@ export default function ObrigatoriedadePage() {
               {[
                 { n: 1, text: 'Obtenha seu certificado digital A1 (e-CPF ou e-CNPJ MEI) — disponível em cartórios e certificadoras como Certisign, Serasa e Receita Federal.' },
                 { n: 2, text: 'Cadastre seu MEI na Nota Fácil MEI com o certificado — o sistema já está integrado ao sistema federal.' },
-                { n: 3, text: 'Emita suas notas diretamente pelo dashboard ou via API REST.' },
+                { n: 3, text: 'Emita suas notas com poucos cliques pelo painel — ou automaticamente se você usar um sistema de gestão.' },
               ].map(({ n, text }) => (
                 <li key={n} className="flex items-start gap-3">
                   <span className="shrink-0 w-6 h-6 rounded-full bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan text-xs font-bold flex items-center justify-center mt-0.5">
