@@ -1,8 +1,16 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/dashboard/Sidebar'
 import NotificationBell from '@/components/dashboard/NotificationBell'
 import type { MEI } from '@/lib/types'
+
+export const metadata: Metadata = {
+  title: {
+    default: 'Painel — Nota Fácil MEI',
+    template: '%s — Nota Fácil MEI',
+  },
+}
 
 export default async function DashboardLayout({
   children,
@@ -15,7 +23,7 @@ export default async function DashboardLayout({
   } = await supabase.auth.getSession()
 
   if (!session) {
-    redirect('/')
+    redirect('/login')
   }
 
   // Load MEI profile for sidebar display.

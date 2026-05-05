@@ -37,7 +37,6 @@ async function fetchMunicipios(): Promise<Municipio[]> {
 
   fetchPromise = fetch(
     'https://servicodados.ibge.gov.br/api/v1/localidades/municipios?orderBy=nome',
-    { cache: 'force-cache' },
   )
     .then((res) => {
       if (!res.ok) throw new Error('Falha ao carregar municípios')
@@ -49,7 +48,12 @@ async function fetchMunicipios(): Promise<Municipio[]> {
         nome: m.nome,
         uf: m.microrregiao.mesorregiao.UF.sigla,
       }))
-      return cachedMunicipios
+      return cachedMunicipios!
+    })
+    .catch((err) => {
+      // Reset so the next attempt can retry instead of reusing the rejected promise
+      fetchPromise = null
+      throw err
     })
 
   return fetchPromise

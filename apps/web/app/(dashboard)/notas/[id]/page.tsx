@@ -29,7 +29,7 @@ export default async function NotaDetailPage({ params }: { params: { id: string 
   const {
     data: { session },
   } = await supabase.auth.getSession()
-  if (!session) redirect('/')
+  if (!session) redirect('/login')
 
   const { data: nota } = await supabase
     .from('notas_fiscais')

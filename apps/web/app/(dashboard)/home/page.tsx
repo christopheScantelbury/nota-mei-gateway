@@ -1,3 +1,5 @@
+export const metadata = { title: 'Painel' }
+
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
@@ -83,7 +85,7 @@ function UsageBar({ pct }: { pct: number }) {
 export default async function DashboardHome() {
   const supabase = createClient()
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session) redirect('/')
+  if (!session) redirect('/login')
 
   const competencia = currentCompetencia()
 
@@ -134,8 +136,8 @@ export default async function DashboardHome() {
   const apiKey = keyResult.data
   const firstAutorizada = firstAutorizadaResult.data
 
-  const razaoSocial = mei?.razao_social ?? 'MEI'
-  const displayName = razaoSocial.length > 25 ? razaoSocial.split(' ')[0] : razaoSocial
+  const rawName = mei?.razao_social || session.user.email?.split('@')[0] || 'você'
+  const displayName = rawName.length > 25 ? rawName.split(' ')[0] : rawName
 
   const totalEmitidas = emissao?.total_emitidas ?? 0
   const limite = emissao?.planos?.emissoes_limite ?? 5

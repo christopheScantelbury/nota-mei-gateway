@@ -1,8 +1,8 @@
+export const metadata = { title: 'API Keys' }
+
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import APIKeysManager from '@/components/dashboard/APIKeysManager'
-
-export const metadata = { title: 'API Keys — Nota MEI Gateway' }
 
 export type APIKey = {
   id: string
@@ -15,7 +15,7 @@ export type APIKey = {
 export default async function APIKeysPage() {
   const supabase = createClient()
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session) redirect('/')
+  if (!session) redirect('/login')
 
   const { data: keys } = await supabase
     .from('api_keys')
