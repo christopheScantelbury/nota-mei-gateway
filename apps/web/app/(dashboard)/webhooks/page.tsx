@@ -3,6 +3,7 @@ export const metadata = { title: 'Webhooks' }
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import WebhooksConfig from '@/components/dashboard/WebhooksConfig'
+import PlanGate from '@/components/dashboard/PlanGate'
 
 type WebhookRow = {
   id: string
@@ -21,6 +22,17 @@ export default async function WebhooksPage() {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) redirect('/login')
 
+  // Fetch plan info for gate
+  const { data: usage } = await supabase
+    .from('emissoes_mensais')
+    .select('planos(nome)')
+    .eq('mei_id', session.user.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle<{ planos: { nome: string } | null }>()
+
+  const planName = usage?.planos?.nome ?? 'Trial'
+
   const { data: rows } = await supabase
     .from('notas_fiscais')
     .select('id, tomador_nome, valor_servico, webhook_url, webhook_entregue, webhook_tentativas, status, created_at, emitida_em')
@@ -31,14 +43,23 @@ export default async function WebhooksPage() {
     .returns<WebhookRow[]>()
 
   return (
-    <div className="p-8 max-w-4xl">
-      <div className="mb-8">
-        <h1 className="font-display text-3xl font-extrabold text-text-1">Webhooks</h1>
-        <p className="text-text-2 mt-1 text-sm">
-          Configure e monitore a entrega de eventos para seu endpoint.
-        </p>
+    <PlanGate
+      planName={planName}
+      feature="webhooks"
+      icon="🔗"
+      title="Webhooks disponíveis a partir do Starter"
+      description="Receba notificações em tempo real no seu sistema quando uma nota for autorizada, rejeitada ou cancelada."
+      requiredPlan="Starter"
+    >
+      <div className="p-8 max-w-4xl">
+        <div className="mb-8">
+          <h1 className="font-display text-3xl font-extrabold text-text-1">Webhooks</h1>
+          <p className="text-text-2 mt-1 text-sm">
+            Configure e monitore a entrega de eventos para seu endpoint.
+          </p>
+        </div>
+        <WebhooksConfig deliveries={rows ?? []} />
       </div>
-      <WebhooksConfig deliveries={rows ?? []} />
-    </div>
+    </PlanGate>
   )
 }

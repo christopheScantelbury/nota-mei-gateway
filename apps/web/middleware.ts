@@ -2,7 +2,13 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Routes that require an authenticated Supabase session.
-const PROTECTED_PREFIXES = ['/home', '/notas', '/billing', '/configuracoes', '/templates', '/recorrencias']
+const PROTECTED_PREFIXES = [
+  '/home', '/notas', '/billing', '/configuracoes',
+  '/templates', '/recorrencias', '/api-keys', '/webhooks',
+]
+
+// Routes that require admin role (app_metadata.role === 'admin').
+const ADMIN_PREFIXES = ['/admin']
 
 // Routes that should redirect to /home if already authenticated.
 const AUTH_ROUTES = ['/login', '/recuperar-senha']
@@ -54,7 +60,26 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Redirect unauthenticated users away from protected routes.
+  // ── Admin routes: exige autenticação + role === 'admin' ──
+  const isAdmin = ADMIN_PREFIXES.some((p) => pathname.startsWith(p))
+  if (isAdmin) {
+    if (!user) {
+      const loginUrl = request.nextUrl.clone()
+      loginUrl.pathname = '/login'
+      loginUrl.searchParams.set('next', pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+    // app_metadata só pode ser definido server-side — seguro contra adulteração
+    const role = user.app_metadata?.role
+    if (role !== 'admin') {
+      const homeUrl = request.nextUrl.clone()
+      homeUrl.pathname = '/home'
+      homeUrl.search = ''
+      return NextResponse.redirect(homeUrl)
+    }
+  }
+
+  // ── Dashboard routes: exige autenticação ──
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p))
   if (isProtected && !user) {
     const loginUrl = request.nextUrl.clone()
@@ -63,7 +88,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Redirect authenticated users away from auth pages.
+  // ── Auth pages: redireciona usuários já logados ──
   const isAuthRoute = AUTH_ROUTES.some((p) => pathname.startsWith(p))
   if (isAuthRoute && user) {
     const nextParam = request.nextUrl.searchParams.get('next')
