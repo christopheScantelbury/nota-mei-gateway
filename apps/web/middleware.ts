@@ -111,7 +111,9 @@ export const config = {
      * - favicon.ico
      * - /brand/       (public brand assets)
      * - /api/         (route handlers manage their own auth)
+     * - /auth/        (Supabase callback — must not be intercepted by middleware)
+     * - /logos/       (public logo assets)
      */
-    '/((?!_next/static|_next/image|favicon.ico|brand/|api/).*)',
+    '/((?!_next/static|_next/image|favicon.ico|brand/|logos/|api/|auth/).*)',
   ],
 }

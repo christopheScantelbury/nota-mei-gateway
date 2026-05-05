@@ -27,8 +27,14 @@ pop3_port = 54326
 file_size_limit = "50MiB"
 
 [auth]
-site_url = "http://127.0.0.1:3000"
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+site_url = "https://emitirnotafacil.com.br"
+additional_redirect_urls = [
+  "http://127.0.0.1:3000",
+  "http://localhost:3000",
+  "https://emitirnotafacil.com.br/auth/callback",
+  "https://nota-mei-gateway-web.vercel.app/auth/callback",
+  "https://*.vercel.app/auth/callback",
+]
 jwt_expiry = 3600
 enable_signup = true
 
