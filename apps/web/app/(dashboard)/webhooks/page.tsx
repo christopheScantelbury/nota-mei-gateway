@@ -1,8 +1,8 @@
+export const metadata = { title: 'Webhooks' }
+
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import WebhooksConfig from '@/components/dashboard/WebhooksConfig'
-
-export const metadata = { title: 'Webhooks — Nota MEI Gateway' }
 
 type WebhookRow = {
   id: string
@@ -19,7 +19,7 @@ type WebhookRow = {
 export default async function WebhooksPage() {
   const supabase = createClient()
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session) redirect('/')
+  if (!session) redirect('/login')
 
   const { data: rows } = await supabase
     .from('notas_fiscais')

@@ -1,4 +1,6 @@
-﻿import { redirect } from 'next/navigation'
+﻿export const metadata = { title: 'Automação' }
+
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import RecorrenciasList from './RecorrenciasList'
 

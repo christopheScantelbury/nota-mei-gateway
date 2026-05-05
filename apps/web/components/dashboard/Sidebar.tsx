@@ -11,7 +11,7 @@ const navItems = [
   { href: '/recorrencias',  label: 'Automação',       icon: '🔄', badge: 'BUSINESS'   },
   { href: '/api-keys',      label: 'API Keys',        icon: '🔑', badge: null         },
   { href: '/webhooks',      label: 'Webhooks',        icon: '🔗', badge: null         },
-  { href: '/billing',       label: 'Plano & Billing', icon: '💳', badge: null         },
+  { href: '/billing',       label: 'Plano & Faturamento', icon: '💳', badge: null     },
   { href: '/configuracoes', label: 'Configurações',   icon: '⚙️', badge: null        },
 ]
 
@@ -32,7 +32,7 @@ function NavContent({
       <div className="px-6 py-5 border-b border-navy-600">
         <Link href="/home" className="block" onClick={onNavClick}>
           <span className="font-display font-extrabold text-xl text-brand-cyan tracking-tight">
-            Nota MEI
+            Nota Fácil MEI
           </span>
         </Link>
         <p className="text-xs text-text-2 mt-0.5 truncate">{razaoSocial}</p>
@@ -109,7 +109,7 @@ export default function Sidebar({ razaoSocial, notificationBell }: { razaoSocial
       {/* ── Mobile top bar ── */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between h-14 px-4 bg-navy-700 border-b border-navy-600">
         <Link href="/home" className="font-display font-extrabold text-lg text-brand-cyan tracking-tight">
-          Nota MEI
+          Nota Fácil MEI
         </Link>
         <button
           onClick={() => setOpen(true)}

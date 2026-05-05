@@ -12,7 +12,7 @@ export default async function BillingCanceladoPage() {
   const {
     data: { session },
   } = await supabase.auth.getSession()
-  if (!session) redirect('/')
+  if (!session) redirect('/login')
 
   return (
     <div className="p-8 max-w-xl">

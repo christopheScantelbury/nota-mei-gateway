@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import AnimatedSection from '@/components/landing/AnimatedSection'
 import NavbarGateway from '@/components/landing/NavbarGateway'
+import PricingToggleGateway from '@/components/landing/PricingToggleGateway'
 
 export const metadata: Metadata = {
   title: 'Nota MEI Gateway — A API de NFS-e para seu produto',
@@ -41,49 +42,6 @@ const curlSnippet = `curl -X POST https://api.emitirnotafacil.com.br/v1/nfse \\
     },
     "webhook_url": "https://meusite.com/webhooks/nfse"
   }'`
-
-const apiPlans = [
-  {
-    name: 'Dev',
-    price: 'R$ 59',
-    period: '/mês',
-    limit: '200 notas + sandbox',
-    desc: 'Desenvolvedor solo, prototipagem e MVPs.',
-    extra: 'R$ 0,50 por nota acima do limite',
-    cta: 'Criar conta de teste',
-    highlight: false,
-  },
-  {
-    name: 'Pro',
-    price: 'R$ 119',
-    period: '/mês',
-    limit: '500 notas/mês',
-    desc: 'Agências e pequenos SaaS em produção.',
-    extra: 'R$ 0,35 por nota acima do limite',
-    cta: 'Assinar Pro',
-    highlight: true,
-  },
-  {
-    name: 'Business',
-    price: 'R$ 249',
-    period: '/mês',
-    limit: '2.000 notas/mês',
-    desc: 'Plataformas e marketplaces estabelecidos.',
-    extra: 'R$ 0,20 por nota acima do limite',
-    cta: 'Assinar Business',
-    highlight: false,
-  },
-  {
-    name: 'Scale',
-    price: 'Sob consulta',
-    period: '',
-    limit: '10.000+ notas/mês',
-    desc: 'High volume, SLA dedicado, suporte prioritário.',
-    extra: null,
-    cta: 'Falar com vendas',
-    highlight: false,
-  },
-]
 
 const infraStack = [
   { name: 'Supabase',   color: '#3ECF8E' },
@@ -420,57 +378,87 @@ export default function GatewayLandingPage() {
         </div>
       </AnimatedSection>
 
-      {/* Preços */}
+      {/* Comparativo — #159 */}
+      <AnimatedSection className="py-24 px-4" id="comparativo" delay={0.05}>
+        <div className="mx-auto max-w-5xl">
+          <h2 className="font-display text-3xl font-extrabold text-center mb-4">
+            Por que o Nota MEI Gateway?
+          </h2>
+          <p className="text-text-2 text-center mb-16 max-w-xl mx-auto">
+            Comparado com integração direta na Receita Federal e com APIs genéricas de NFS-e.
+          </p>
+
+          <div className="overflow-x-auto rounded-2xl border border-navy-600">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-navy-600 bg-navy-700/60">
+                  <th className="text-left py-4 px-5 text-text-2 font-semibold text-xs uppercase tracking-wider">
+                    Recurso
+                  </th>
+                  <th className="py-4 px-5 text-center text-text-2 font-semibold text-xs uppercase tracking-wider whitespace-nowrap">
+                    Direto Receita
+                  </th>
+                  <th className="py-4 px-5 text-center text-text-2 font-semibold text-xs uppercase tracking-wider whitespace-nowrap">
+                    APIs genéricas
+                  </th>
+                  <th className="py-4 px-5 text-center text-brand-cyan font-bold text-xs uppercase tracking-wider whitespace-nowrap">
+                    Nota MEI Gateway
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-navy-600">
+                {(
+                  [
+                    { feature: 'Integração em menos de 1 dia',          direto: false, genericas: null  as boolean | null, gateway: true },
+                    { feature: 'Foco exclusivo em MEI',                  direto: false, genericas: false as boolean | null, gateway: true },
+                    { feature: 'Certificado A1 gerenciado na nuvem',     direto: false, genericas: false as boolean | null, gateway: true },
+                    { feature: 'Sandbox incluso sem custo adicional',     direto: false, genericas: null  as boolean | null, gateway: true },
+                    { feature: 'SDK Node.js e Python mantidos',          direto: false, genericas: null  as boolean | null, gateway: true },
+                    { feature: 'Webhooks assinados (HMAC-SHA256)',        direto: false, genericas: null  as boolean | null, gateway: true },
+                    { feature: 'NFS-e Nacional 2026 nativo',             direto: false, genericas: null  as boolean | null, gateway: true },
+                    { feature: 'Suporte técnico em pt-BR',               direto: false, genericas: null  as boolean | null, gateway: true },
+                  ]
+                ).map(({ feature, direto, genericas, gateway }) => (
+                  <tr key={feature} className="bg-navy-900/20 hover:bg-navy-700/30 transition">
+                    <td className="py-3.5 px-5 text-text-2 text-xs">{feature}</td>
+                    <td className="py-3.5 px-5 text-center">
+                      <span className={`font-bold ${direto ? 'text-nota-autorizada' : 'text-nota-rejeitada'}`}>
+                        {direto ? '✓' : '✗'}
+                      </span>
+                    </td>
+                    <td className="py-3.5 px-5 text-center">
+                      {genericas === true  && <span className="text-nota-autorizada font-bold">✓</span>}
+                      {genericas === false && <span className="text-nota-rejeitada font-bold">✗</span>}
+                      {genericas === null  && <span className="text-amber-400 text-xs font-semibold">varia</span>}
+                    </td>
+                    <td className="py-3.5 px-5 text-center">
+                      <span className={`font-bold ${gateway ? 'text-nota-autorizada' : 'text-nota-rejeitada'}`}>
+                        {gateway ? '✓' : '✗'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="text-center text-xs text-text-2 mt-4">
+            &ldquo;APIs genéricas&rdquo; refere-se a APIs de NFS-e de uso geral, não especializadas em MEI.
+            Funcionalidades variam por fornecedor — consulte cada produto.
+          </p>
+        </div>
+      </AnimatedSection>
+
+      {/* Preços — #160 toggle anual */}
       <AnimatedSection className="py-24 px-4 bg-navy-700/40" id="precos" delay={0.1}>
         <div className="mx-auto max-w-5xl">
           <h2 className="font-display text-3xl font-extrabold text-center mb-4">
             Preços
           </h2>
-          <p className="text-text-2 text-center mb-16">
+          <p className="text-text-2 text-center mb-8">
             Sandbox sempre incluso. Escale conforme cresce.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {apiPlans.map((plan) => (
-              <div
-                key={plan.name}
-                className={`rounded-2xl p-6 border flex flex-col gap-4 ${
-                  plan.highlight
-                    ? 'bg-brand-cyan/10 border-brand-cyan ring-1 ring-brand-cyan'
-                    : 'bg-navy-700 border-navy-600'
-                }`}
-              >
-                {plan.highlight && (
-                  <span className="text-xs font-bold text-brand-cyan bg-brand-cyan/20 px-2 py-0.5 rounded-full self-start">
-                    Mais popular
-                  </span>
-                )}
-                <div>
-                  <p className="font-display font-extrabold text-lg">{plan.name}</p>
-                  <p className="text-text-2 text-xs mt-1">{plan.desc}</p>
-                </div>
-                <div>
-                  <span className="font-display text-3xl font-extrabold">{plan.price}</span>
-                  {plan.period && <span className="text-text-2 text-sm">{plan.period}</span>}
-                </div>
-                <p className="text-brand-cyan text-sm font-semibold">{plan.limit}</p>
-                {plan.extra && <p className="text-text-2 text-xs">{plan.extra}</p>}
-                <Link
-                  href={
-                    plan.name === 'Scale'
-                      ? 'mailto:vendas@notameigateway.com.br'
-                      : `/cadastro?produto=gateway&plano=${plan.name.toLowerCase()}`
-                  }
-                  className={`mt-auto text-center text-sm font-semibold py-2.5 rounded-lg transition ${
-                    plan.highlight
-                      ? 'bg-brand-cyan text-navy-900 hover:opacity-90'
-                      : 'border border-navy-600 text-text-1 hover:border-brand-cyan'
-                  }`}
-                >
-                  {plan.cta}
-                </Link>
-              </div>
-            ))}
-          </div>
+          <PricingToggleGateway />
         </div>
       </AnimatedSection>
 
