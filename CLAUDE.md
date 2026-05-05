@@ -473,7 +473,10 @@ status-cancelada.png    → #6473A0 (cinza)
                               · GetOrCreateEmissaoMensal: upsert single round-trip
                               · Autorizar/Rejeitar: WHERE status='PROCESSANDO' guard
                               migration 20260504000002_rps_sequences.sql aplicada em prod
-⏳ DNS                        CNAME api.emitirnotafacil.com.br → api-production-73b1.up.railway.app
+✅ DNS                        emitirnotafacil.com.br configurado no Registro.br + domínios adicionados no Vercel
+                              A @ → 76.76.21.21 | CNAME www → cname.vercel-dns.com
+                              CNAME api → api-production-73b1.up.railway.app
+                              SSL gerando no Vercel (2026-05-04)
 ✅ Vercel env vars            NEXT_PUBLIC_SUPABASE_ANON_KEY + NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY configurados
 ✅ supabase db push           4 migrations aplicadas em prod (templates, recorrências, STOR-01, SCALE-01)
 ✅ Light theme (PR #145)      light-first + dark mode toggle — mergeado em main (2026-05-04)
@@ -662,8 +665,8 @@ vercel --prod               # deploy manual produção
 ### Pendências operacionais (sem código — apenas configuração)
 
 ```
-⏳ DNS          Apontar CNAME api.emitirnotafacil.com.br
-                → api-production-73b1.up.railway.app
+✅ DNS          emitirnotafacil.com.br configurado — A/CNAME no Registro.br, domínios no Vercel
+                SSL gerado automaticamente pelo Vercel (2026-05-04)
 
 ⏳ Supabase     supabase link --project-ref pzjvgtwnstfyangfwdom
                 supabase db push   (aplicar migrations em produção)
