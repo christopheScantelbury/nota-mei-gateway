@@ -13,14 +13,14 @@ function currentCompetencia() {
 
 export default async function RecorrenciasPage() {
   const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) redirect('/login')
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
   // Plan guard — automação is a Business-plan feature
   const { data: emissao } = await supabase
     .from('emissoes_mensais')
     .select('planos(nome)')
-    .eq('mei_id', session.user.id)
+    .eq('mei_id', user.id)
     .eq('competencia', currentCompetencia())
     .single<{ planos: { nome: string } | null }>()
 
@@ -58,7 +58,7 @@ export default async function RecorrenciasPage() {
   let initialData: unknown[] = []
   try {
     const res = await fetch(`${API_BASE}/v1/recorrencias`, {
-      headers: { Authorization: `Bearer ${session.access_token}` },
+      headers: { Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token ?? ''}` },
       cache: 'no-store',
     })
     if (res.ok) {

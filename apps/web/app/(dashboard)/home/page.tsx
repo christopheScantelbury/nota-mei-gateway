@@ -84,8 +84,9 @@ function UsageBar({ pct }: { pct: number }) {
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default async function DashboardHome() {
   const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) redirect('/login')
+  // Use getUser() (validates JWT server-side) instead of getSession() (trusts client cookie)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
   const competencia = currentCompetencia()
 
@@ -94,20 +95,20 @@ export default async function DashboardHome() {
     supabase
       .from('meis')
       .select('razao_social, cert_valid_until')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single<{ razao_social: string; cert_valid_until: string | null }>(),
 
     supabase
       .from('emissoes_mensais')
       .select('total_emitidas, renovacao_em, stripe_subscription_id, planos(nome, emissoes_limite)')
-      .eq('mei_id', session.user.id)
+      .eq('mei_id', user.id)
       .eq('competencia', competencia)
       .single<EmissaoMensal>(),
 
     supabase
       .from('notas_fiscais')
       .select('id, numero_rps, status, tomador_nome, valor_servico, competencia, emitida_em, created_at')
-      .eq('mei_id', session.user.id)
+      .eq('mei_id', user.id)
       .order('created_at', { ascending: false })
       .limit(5)
       .overrideTypes<Pick<Nota, 'id' | 'numero_rps' | 'status' | 'tomador_nome' | 'valor_servico' | 'competencia' | 'emitida_em' | 'created_at'>[]>(),
@@ -115,7 +116,7 @@ export default async function DashboardHome() {
     supabase
       .from('api_keys')
       .select('key_prefix, label, created_at')
-      .eq('mei_id', session.user.id)
+      .eq('mei_id', user.id)
       .is('revoked_at', null)
       .limit(1)
       .single<{ key_prefix: string; label: string | null; created_at: string }>(),
@@ -123,7 +124,7 @@ export default async function DashboardHome() {
     supabase
       .from('notas_fiscais')
       .select('id')
-      .eq('mei_id', session.user.id)
+      .eq('mei_id', user.id)
       .eq('status', 'AUTORIZADA')
       .order('emitida_em', { ascending: true })
       .limit(1)
@@ -136,7 +137,7 @@ export default async function DashboardHome() {
   const apiKey = keyResult.data
   const firstAutorizada = firstAutorizadaResult.data
 
-  const rawName = mei?.razao_social || session.user.email?.split('@')[0] || 'você'
+  const rawName = mei?.razao_social || user.email?.split('@')[0] || 'você'
   const displayName = rawName.length > 25 ? rawName.split(' ')[0] : rawName
 
   const totalEmitidas = emissao?.total_emitidas ?? 0

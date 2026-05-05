@@ -58,9 +58,9 @@ function PlanGuard({ currentPlan }: { currentPlan: string }) {
 export default async function TemplatesPage() {
   const supabase = createClient()
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
-  if (!session) redirect('/login')
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
   // Get current plan and templates in parallel
   const competencia = new Date().toISOString().slice(0, 7) // AAAA-MM
@@ -69,14 +69,14 @@ export default async function TemplatesPage() {
     supabase
       .from('emissoes_mensais')
       .select('planos(nome)')
-      .eq('mei_id', session.user.id)
+      .eq('mei_id', user.id)
       .eq('competencia', competencia)
       .single<{ planos: { nome: string } | null }>(),
 
     supabase
       .from('nota_templates')
       .select('*')
-      .eq('mei_id', session.user.id)
+      .eq('mei_id', user.id)
       .eq('ativo', true)
       .order('created_at', { ascending: false })
       .returns<NotaTemplate[]>(),

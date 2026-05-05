@@ -42,7 +42,7 @@ function SidebarLogo({
 
   return (
     <div className="px-5 py-5 border-b border-navy-600">
-      <Link href="/notas" className="block" onClick={onClick}>
+      <Link href="/home" className="block" onClick={onClick}>
         {isMei ? (
           <>
             <Image
@@ -219,7 +219,7 @@ export default function Sidebar({
 
       {/* ── Mobile top bar ── */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between h-14 px-4 bg-navy-700 border-b border-navy-600">
-        <Link href="/notas" className="flex items-center">
+        <Link href="/home" className="flex items-center">
           {tipoUsuario === 'mei' ? (
             <>
               <Image

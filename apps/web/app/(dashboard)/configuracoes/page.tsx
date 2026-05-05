@@ -6,14 +6,15 @@ import ConfiguracoesTabs from '@/components/dashboard/ConfiguracoesTabs'
 
 export default async function ConfiguracoesPage() {
   const supabase = createClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) redirect('/login')
+  // Use getUser() (validates JWT server-side) instead of getSession() (trusts client cookie)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
   const [meiResult, keysResult] = await Promise.all([
     supabase
       .from('meis')
       .select('cnpj, razao_social, email, municipio_ibge, cert_valid_until')
-      .eq('id', session.user.id)
+      .eq('id', user.id)
       .single<{
         cnpj: string
         razao_social: string
@@ -25,7 +26,7 @@ export default async function ConfiguracoesPage() {
     supabase
       .from('api_keys')
       .select('id, key_prefix, label, created_at')
-      .eq('mei_id', session.user.id)
+      .eq('mei_id', user.id)
       .is('revoked_at', null)
       .order('created_at', { ascending: false })
       .returns<{ id: string; key_prefix: string; label: string | null; created_at: string }[]>(),
