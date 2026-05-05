@@ -319,6 +319,43 @@ function CadastroPageInner() {
   // ── Success screen ────────────────────────────────────────────────────────────
 
   if (appStep === 'success' && success) {
+    // Domínio de destino por produto (em produção) ou caminho relativo (dev)
+    const isProd = typeof window !== 'undefined' &&
+      !window.location.hostname.includes('localhost') &&
+      !window.location.hostname.includes('vercel.app')
+
+    const loginHref  = isProd
+      ? `https://${isMei ? 'notafacilmei.com.br' : 'notameigateway.com.br'}/login?produto=${isMei ? 'mei' : 'gateway'}`
+      : `/login?produto=${isMei ? 'mei' : 'gateway'}`
+
+    const painelHref = isProd
+      ? `https://${isMei ? 'notafacilmei.com.br' : 'notameigateway.com.br'}/notas`
+      : '/notas'
+
+    // ── Versão MEI: simples, sem API Key ──────────────────────────────────────
+    if (isMei) {
+      return (
+        <main className="min-h-screen bg-navy-900 flex items-center justify-center px-4 py-12">
+          <div className="bg-navy-700 border border-navy-600 rounded-xl p-8 w-full max-w-lg text-center">
+            <div className="text-5xl mb-4">🎉</div>
+            <h1 className="font-display text-2xl font-extrabold text-text-1 mb-2">
+              Conta criada com sucesso!
+            </h1>
+            <p className="text-text-2 text-sm mb-8">
+              Agora é só fazer login para começar a emitir sua primeira nota fiscal.
+            </p>
+            <a
+              href={loginHref}
+              className="block text-center text-sm bg-brand-cyan text-navy-900 font-bold px-4 py-3 rounded-lg hover:bg-brand-cyan/90 transition"
+            >
+              Fazer login →
+            </a>
+          </div>
+        </main>
+      )
+    }
+
+    // ── Versão Gateway: mostra API Key para integração ────────────────────────
     return (
       <main className="min-h-screen bg-navy-900 flex items-center justify-center px-4 py-12">
         <div className="bg-navy-700 border border-navy-600 rounded-xl p-8 w-full max-w-lg">
@@ -348,13 +385,13 @@ function CadastroPageInner() {
 
           <div className="border-t border-navy-600 pt-4 flex flex-col gap-2">
             <a
-              href="/billing"
+              href={`${isProd ? 'https://notameigateway.com.br' : ''}/billing`}
               className="block text-center text-sm bg-brand-cyan text-navy-900 font-bold px-4 py-2.5 rounded-lg hover:bg-brand-cyan/90 transition"
             >
               Escolher plano →
             </a>
             <a
-              href="/notas"
+              href={painelHref}
               className="block text-center text-sm text-text-2 hover:text-text-1 transition py-1"
             >
               Ir para o painel
@@ -426,7 +463,7 @@ function CadastroPageInner() {
             <div className="bg-brand-cyan/5 border border-brand-cyan/20 rounded-lg px-3 py-2.5 flex gap-2 items-start text-xs text-text-2">
               <span className="shrink-0 mt-0.5">📧</span>
               <span>
-                Você receberá um <strong className="text-text-1">link de acesso por e-mail</strong> para entrar na sua conta — sem precisar criar uma senha.
+                Você receberá um <strong className="text-text-1">código de 6 dígitos por e-mail</strong> para entrar na sua conta — sem precisar criar uma senha.
               </span>
             </div>
 

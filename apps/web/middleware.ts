@@ -10,8 +10,18 @@ const PROTECTED_PREFIXES = [
 // Routes that require admin role (app_metadata.role === 'admin').
 const ADMIN_PREFIXES = ['/admin']
 
-// Routes that should redirect to /home if already authenticated.
+// Routes that should redirect to /notas if already authenticated.
 const AUTH_ROUTES = ['/login', '/recuperar-senha']
+
+// Domínios de produto — em produção, login redireciona para o domínio certo do usuário.
+// O domain guard final fica no layout.tsx (tem acesso ao DB).
+// Aqui só redirecionamos usuários já logados que batem em /login.
+const PRODUCT_ORIGINS: Record<string, string> = {
+  'notafacilmei.com.br':        'https://notafacilmei.com.br',
+  'www.notafacilmei.com.br':    'https://notafacilmei.com.br',
+  'notameigateway.com.br':      'https://notameigateway.com.br',
+  'www.notameigateway.com.br':  'https://notameigateway.com.br',
+}
 
 // Hostname → path rewrite for multi-domain setup.
 // Each product domain rewrites its root to the dedicated landing page.
@@ -92,9 +102,18 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = AUTH_ROUTES.some((p) => pathname.startsWith(p))
   if (isAuthRoute && user) {
     const nextParam = request.nextUrl.searchParams.get('next')
-    const target = nextParam && nextParam.startsWith('/') ? nextParam : '/home'
+    const pathTarget = nextParam && nextParam.startsWith('/') ? nextParam : '/notas'
+
+    // Em produção: redireciona para o domínio do produto correto.
+    // O layout.tsx tem o tipo_usuario e fará a correção definitiva se necessário.
+    const productOrigin = PRODUCT_ORIGINS[hostname]
+    if (productOrigin) {
+      const dest = new URL(pathTarget, productOrigin)
+      return NextResponse.redirect(dest)
+    }
+
     const dest = request.nextUrl.clone()
-    dest.pathname = target
+    dest.pathname = pathTarget
     dest.search = ''
     return NextResponse.redirect(dest)
   }
