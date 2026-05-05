@@ -245,7 +245,7 @@ export default function MeiLandingPage() {
               {
                 icon: '💬',
                 title: 'Suporte de gente, em português',
-                desc: 'WhatsApp, e-mail, atendimento humano. Nada de robô. Nossa equipe responde em até 4 horas úteis.',
+                desc: 'WhatsApp (47) 99735-2380, e-mail, atendimento humano. Nada de robô. Respondemos em até 4 horas úteis.',
               },
             ].map(({ icon, title, desc }) => (
               <div key={title} className="flex gap-4 bg-navy-700 border border-navy-600 rounded-xl p-5">
@@ -347,49 +347,109 @@ export default function MeiLandingPage() {
           >
             Começar grátis — trial de 30 dias
           </Link>
-          <p className="text-text-2 text-sm mt-6">
-            Tem dúvida?{' '}
-            <a href="mailto:suporte@notafacilmei.com.br" className="underline hover:text-text-1 transition">
-              Fale com a gente por e-mail
+          <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
+            <a
+              href="https://wa.me/5547997352380"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 border border-navy-600 text-text-2 text-sm font-medium px-5 py-2.5 rounded-lg hover:border-brand-cyan hover:text-text-1 transition"
+            >
+              <span>💬</span> WhatsApp (47) 99735-2380
             </a>
-          </p>
+            <a
+              href="mailto:suporte@emitirnotafacil.com.br"
+              className="flex items-center justify-center gap-2 border border-navy-600 text-text-2 text-sm font-medium px-5 py-2.5 rounded-lg hover:border-brand-cyan hover:text-text-1 transition"
+            >
+              <span>✉️</span> suporte@emitirnotafacil.com.br
+            </a>
+          </div>
         </div>
       </AnimatedSection>
 
       {/* Footer */}
-      <footer className="border-t border-navy-600 py-10 px-4">
-        <div className="mx-auto max-w-6xl flex flex-col md:flex-row justify-between gap-6 text-text-2 text-sm">
-          <div className="flex flex-col gap-2">
-            <Link href="/mei" className="inline-flex items-center">
-              <Image
-                src="/logos/nfm-logo-navbar-dark-clean.svg"
-                alt="Nota Fácil MEI"
-                width={140}
-                height={38}
-                className="h-8 w-auto dark:block hidden"
-              />
-              <Image
-                src="/logos/nfm-logo-navbar-light.svg"
-                alt="Nota Fácil MEI"
-                width={140}
-                height={38}
-                className="h-8 w-auto block dark:hidden"
-              />
-            </Link>
-            <p className="text-xs">© {new Date().getFullYear()} ScantelburyDevs. Todos os direitos reservados.</p>
-            <p className="text-xs">
-              Também é desenvolvedor?{' '}
-              <Link href="/gateway" className="underline hover:text-text-1 transition">
-                Ver Nota MEI Gateway (API)
+      <footer className="border-t border-navy-600 py-12 px-4">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-10 mb-10">
+            {/* Marca */}
+            <div className="sm:col-span-1 flex flex-col gap-3">
+              <Link href="/mei" className="inline-flex items-center">
+                <Image
+                  src="/logos/nfm-logo-navbar-dark-clean.svg"
+                  alt="Nota Fácil MEI"
+                  width={140}
+                  height={38}
+                  className="h-8 w-auto dark:block hidden"
+                />
+                <Image
+                  src="/logos/nfm-logo-navbar-light.svg"
+                  alt="Nota Fácil MEI"
+                  width={140}
+                  height={38}
+                  className="h-8 w-auto block dark:hidden"
+                />
               </Link>
-            </p>
+              <p className="text-text-2 text-xs leading-relaxed">
+                Emissão de NFS-e simples para MEI.<br />
+                Build · Migrate · Innovate.
+              </p>
+            </div>
+
+            {/* Produtos */}
+            <div>
+              <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-2 mb-4">
+                Produtos
+              </h4>
+              <ul className="flex flex-col gap-2.5 text-sm text-text-2">
+                <li><Link href="/mei"          className="hover:text-text-1 transition">Nota Fácil MEI</Link></li>
+                <li><Link href="/gateway"      className="hover:text-text-1 transition">Nota MEI Gateway</Link></li>
+                <li><Link href="/mei#precos"   className="hover:text-text-1 transition">Planos e preços</Link></li>
+                <li><Link href="/status"       className="hover:text-text-1 transition">Status da API</Link></li>
+              </ul>
+            </div>
+
+            {/* Suporte */}
+            <div>
+              <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-2 mb-4">
+                Suporte
+              </h4>
+              <ul className="flex flex-col gap-2.5 text-sm text-text-2">
+                <li>
+                  <a
+                    href="https://wa.me/5547997352380"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-text-1 transition"
+                  >
+                    💬 WhatsApp (47) 99735-2380
+                  </a>
+                </li>
+                <li>
+                  <a href="mailto:suporte@emitirnotafacil.com.br" className="hover:text-text-1 transition">
+                    ✉️ suporte@emitirnotafacil.com.br
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Empresa */}
+            <div>
+              <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-2 mb-4">
+                Empresa
+              </h4>
+              <ul className="flex flex-col gap-2.5 text-sm text-text-2">
+                <li>
+                  <a href="https://scantelburydevs.com.br" target="_blank" rel="noopener noreferrer" className="hover:text-text-1 transition">
+                    ScantelburyDevs
+                  </a>
+                </li>
+                <li><Link href="/privacidade" className="hover:text-text-1 transition">Privacidade</Link></li>
+                <li><Link href="/termos"      className="hover:text-text-1 transition">Termos de uso</Link></li>
+              </ul>
+            </div>
           </div>
-          <div className="flex gap-6 items-center flex-wrap">
-            <Link href="/"              className="hover:text-text-1 transition">Início</Link>
-            <Link href="/privacidade"   className="hover:text-text-1 transition">Privacidade</Link>
-            <Link href="/termos"        className="hover:text-text-1 transition">Termos de uso</Link>
-            <Link href="/status"        className="hover:text-text-1 transition">Status</Link>
-            <a href="mailto:suporte@notafacilmei.com.br" className="hover:text-text-1 transition">Suporte</a>
+
+          <div className="border-t border-navy-600 pt-6 text-center text-xs text-text-2">
+            © {new Date().getFullYear()} ScantelburyDevs. Todos os direitos reservados.
           </div>
         </div>
       </footer>
