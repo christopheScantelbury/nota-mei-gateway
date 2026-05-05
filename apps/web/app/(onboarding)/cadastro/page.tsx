@@ -561,7 +561,15 @@ function CadastroPageInner() {
           <form onSubmit={handleSubmitWithCert} className="space-y-4">
             <p className="text-sm text-text-2">
               <strong className="text-text-1">Certificado A1</strong> — opcional agora,
-              obrigatório para emitir notas. Você pode adicionar depois em Configurações.
+              obrigatório para emitir notas. Você pode adicionar depois em Configurações.{' '}
+              <a
+                href="/certificado-a1"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-brand-cyan hover:underline"
+              >
+                O que é e onde obter →
+              </a>
             </p>
 
             {/* PFX upload */}

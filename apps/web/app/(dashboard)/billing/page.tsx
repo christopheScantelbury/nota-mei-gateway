@@ -1,4 +1,6 @@
-﻿import { redirect } from 'next/navigation'
+﻿export const metadata = { title: 'Plano & Faturamento' }
+
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { EmissaoMensal } from '@/lib/types'
 import UsageChart from '@/components/dashboard/UsageChart'
@@ -51,7 +53,7 @@ interface HistoricoRow {
 export default async function BillingPage() {
   const supabase = createClient()
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session) redirect('/')
+  if (!session) redirect('/login')
 
   const competencia = currentCompetencia()
   const months6 = lastMonths(6)
