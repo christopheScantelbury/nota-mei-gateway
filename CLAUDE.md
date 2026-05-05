@@ -475,9 +475,9 @@ status-cancelada.png    → #6473A0 (cinza)
                               migration 20260504000002_rps_sequences.sql aplicada em prod
 ✅ DNS                        emitirnotafacil.com.br totalmente configurado (2026-05-04)
                               A @ → 216.198.79.1 | CNAME www → c4ed91af802cfdc8.vercel-dns-017.com
-                              CNAME api → api-production-73b1.up.railway.app
-                              Domínio api.emitirnotafacil.com.br adicionado no Railway (id b2f13ae9)
-                              SSL Vercel ativo · API Railway 200 OK
+                              CNAME api → tay2rr7t.up.railway.app (Railway proxy)
+                              TXT _railway-verify.api → token de verificação Railway
+                              SSL Vercel ativo · API Railway 200 OK · todos os domínios online
 ✅ Vercel env vars            NEXT_PUBLIC_SUPABASE_ANON_KEY + NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY configurados
 ✅ supabase db push           4 migrations aplicadas em prod (templates, recorrências, STOR-01, SCALE-01)
 ✅ Light theme (PR #145)      light-first + dark mode toggle — mergeado em main (2026-05-04)
