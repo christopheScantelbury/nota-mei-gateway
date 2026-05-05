@@ -1,6 +1,7 @@
 ﻿'use client'
 
 import { useState, useRef, FormEvent } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { MunicipioAutocomplete } from '@/components/ui/MunicipioAutocomplete'
@@ -105,6 +106,10 @@ function StepIndicator({ current }: { current: WizardStep }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function CadastroPage() {
+  const searchParams = useSearchParams()
+  const produto = searchParams.get('produto') // 'mei' | null (gateway/dev)
+  const isMei = produto === 'mei'
+
   const [appStep, setAppStep]       = useState<AppStep>('wizard')
   const [wizardStep, setWizardStep] = useState<WizardStep>(1)
   const [loading, setLoading]       = useState(false)
@@ -315,7 +320,9 @@ export default function CadastroPage() {
           <h1 className="font-display text-2xl font-extrabold text-text-1 leading-tight">
             Cadastrar MEI
           </h1>
-          <p className="text-text-2 text-xs mt-0.5">Nota MEI Gateway</p>
+          <p className="text-text-2 text-xs mt-0.5">
+            {isMei ? 'Nota Fácil MEI' : 'Nota MEI Gateway'}
+          </p>
         </div>
 
         {/* Step indicator */}
@@ -361,6 +368,12 @@ export default function CadastroPage() {
               onChange={(e) => setField('email', e.target.value)}
               error={fieldErrors.email}
             />
+            <div className="bg-brand-cyan/5 border border-brand-cyan/20 rounded-lg px-3 py-2.5 flex gap-2 items-start text-xs text-text-2">
+              <span className="shrink-0 mt-0.5">📧</span>
+              <span>
+                Você receberá um <strong className="text-text-1">link de acesso por e-mail</strong> para entrar na sua conta — sem precisar criar uma senha.
+              </span>
+            </div>
 
             <Button
               type="button"
