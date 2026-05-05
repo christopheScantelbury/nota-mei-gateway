@@ -56,24 +56,25 @@ export default function DocsPage() {
     <div className="max-w-3xl space-y-10">
       {/* Hero */}
       <div className="space-y-3">
-        <h1 className="text-3xl font-bold font-outfit text-white">Developer Portal</h1>
-        <p className="text-[#8AA0B8] text-lg leading-relaxed">
-          Bem-vindo à documentação do <strong className="text-[#EEF4FF]">Nota MEI Gateway</strong>.
+        <h1 className="text-3xl font-bold font-outfit text-slate-900 dark:text-white">Developer Portal</h1>
+        <p className="text-slate-600 dark:text-[#8AA0B8] text-lg leading-relaxed">
+          Bem-vindo à documentação do{' '}
+          <strong className="text-slate-900 dark:text-text-1 font-semibold">Nota MEI Gateway</strong>.
           API REST para emissão automatizada de NFS-e para MEI via Receita Federal Nacional.
         </p>
       </div>
 
       {/* Base URL */}
-      <div className="bg-[#142035] border border-[#1E3050] rounded-xl p-5 space-y-3">
-        <p className="text-sm font-medium text-[#8AA0B8] uppercase tracking-wider">Base URL</p>
+      <div className="bg-slate-100 dark:bg-[#142035] border border-slate-200 dark:border-[#1E3050] rounded-xl p-5 space-y-3">
+        <p className="text-sm font-medium text-slate-500 dark:text-[#8AA0B8] uppercase tracking-wider">Base URL</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
             { label: 'Produção', url: 'https://api.emitirnotafacil.com.br', color: 'text-[#00C85A]' },
             { label: 'Sandbox', url: 'https://sandbox.emitirnotafacil.com.br', color: 'text-[#F0B414]' },
           ].map((env) => (
-            <div key={env.label} className="bg-[#0A0F1E] border border-[#1E3050] rounded-lg p-3">
+            <div key={env.label} className="bg-white dark:bg-[#0A0F1E] border border-slate-200 dark:border-[#1E3050] rounded-lg p-3">
               <p className={`text-xs font-medium mb-1 ${env.color}`}>{env.label}</p>
-              <code className="block text-sm text-[#8AA0B8] font-mono break-all">{env.url}</code>
+              <code className="block text-sm text-slate-600 dark:text-[#8AA0B8] font-mono break-all">{env.url}</code>
             </div>
           ))}
         </div>
@@ -85,12 +86,12 @@ export default function DocsPage() {
           <Link
             key={card.href}
             href={card.href}
-            className="group bg-[#142035] hover:bg-[#1a2940] border border-[#1E3050] hover:border-[#00E8FF]/30 rounded-xl p-5 transition-all space-y-2"
+            className="group bg-slate-50 hover:bg-slate-100 dark:bg-[#142035] dark:hover:bg-[#1a2940] border border-slate-200 dark:border-[#1E3050] hover:border-brand-cyan/30 rounded-xl p-5 transition-all space-y-2"
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="text-xl">{card.icon}</span>
-                <h2 className="font-semibold text-white group-hover:text-[#00E8FF] transition-colors">
+                <h2 className="font-semibold text-slate-900 dark:text-white group-hover:text-brand-cyan transition-colors">
                   {card.title}
                 </h2>
               </div>
@@ -100,23 +101,23 @@ export default function DocsPage() {
                 </span>
               )}
             </div>
-            <p className="text-sm text-[#8AA0B8]">{card.desc}</p>
+            <p className="text-sm text-slate-600 dark:text-[#8AA0B8]">{card.desc}</p>
           </Link>
         ))}
       </div>
 
       {/* Auth snippet */}
       <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-white">Autenticação</h2>
-        <p className="text-sm text-[#8AA0B8]">
-          Todas as rotas autenticadas exigem o header <code className="text-[#00E8FF]">Authorization</code>:
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Autenticação</h2>
+        <p className="text-sm text-slate-600 dark:text-[#8AA0B8]">
+          Todas as rotas autenticadas exigem o header <code className="text-brand-cyan">Authorization</code>:
         </p>
-        <pre className="bg-[#142035] border border-[#1E3050] rounded-xl p-4 text-sm font-mono text-[#00E8FF] overflow-x-auto">
+        <pre className="bg-slate-100 dark:bg-[#142035] border border-slate-200 dark:border-[#1E3050] rounded-xl p-4 text-sm font-mono text-brand-cyan overflow-x-auto">
           {`Authorization: Bearer sk_live_<sua-chave>`}
         </pre>
-        <p className="text-sm text-[#8AA0B8]">
-          Use <code className="text-[#F0B414]">sk_test_</code> para o sandbox e{' '}
-          <code className="text-[#00C85A]">sk_live_</code> para produção.
+        <p className="text-sm text-slate-600 dark:text-[#8AA0B8]">
+          Use <code className="text-amber-600 dark:text-[#F0B414]">sk_test_</code> para o sandbox e{' '}
+          <code className="text-emerald-600 dark:text-[#00C85A]">sk_live_</code> para produção.
           Nunca exponha suas chaves no frontend.
         </p>
       </div>

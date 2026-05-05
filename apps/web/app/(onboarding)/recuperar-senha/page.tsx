@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/browser'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -63,6 +64,19 @@ export default function RecuperarSenhaPage() {
   return (
     <main className="min-h-screen bg-navy-900 flex items-center justify-center px-4 py-12">
       <div className="bg-navy-700 border border-navy-600 rounded-xl p-8 w-full max-w-md">
+        {/* Logo */}
+        <div className="mb-6 text-center">
+          <Link href="/" className="inline-flex justify-center">
+            <Image
+              src="/logos/gateway-logo-navbar-dark.svg"
+              alt="Nota MEI Gateway"
+              width={140}
+              height={34}
+              className="h-7 w-auto"
+              priority
+            />
+          </Link>
+        </div>
         <div className="mb-6">
           <h1 className="font-display text-2xl font-extrabold text-text-1 mb-1">
             Novo link de acesso

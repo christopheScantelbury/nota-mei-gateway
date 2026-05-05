@@ -1,5 +1,6 @@
 ﻿import type { Metadata } from 'next'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export const metadata: Metadata = {
   title: 'Política de Privacidade',
@@ -13,14 +14,28 @@ const EMAIL   = 'privacidade@emitirnotafacil.com.br'
 
 export default function PrivacidadePage() {
   return (
-    <main className="min-h-screen bg-navy-900 text-text-1">
-      <div className="max-w-3xl mx-auto px-6 py-16">
-        <Link
-          href="/"
-          className="text-sm text-text-2 hover:text-brand-cyan transition mb-8 inline-block"
-        >
-          ← Início
-        </Link>
+    <div className="min-h-screen bg-navy-900 text-text-1">
+      {/* Minimal navbar */}
+      <header className="border-b border-navy-600 bg-navy-900/90 backdrop-blur sticky top-0 z-20">
+        <div className="max-w-3xl mx-auto px-6 py-3 flex items-center justify-between">
+          <Link href="/" className="flex items-center shrink-0">
+            <Image
+              src="/logos/gateway-logo-navbar-dark.svg"
+              alt="Nota MEI Gateway"
+              width={140}
+              height={34}
+              className="h-7 w-auto"
+              priority
+            />
+          </Link>
+          <Link href="/" className="text-sm text-text-2 hover:text-brand-cyan transition">
+            ← Início
+          </Link>
+        </div>
+      </header>
+
+      <main>
+      <div className="max-w-3xl mx-auto px-6 py-12">
 
         <h1 className="font-display text-4xl font-extrabold mb-2">Política de Privacidade</h1>
         <p className="text-text-2 text-sm mb-10">
@@ -156,6 +171,20 @@ export default function PrivacidadePage() {
           <Link href="/" className="hover:text-brand-cyan transition">← Início</Link>
         </div>
       </div>
-    </main>
+      </main>
+
+      {/* Minimal footer */}
+      <footer className="border-t border-navy-600 py-6 px-6 mt-8">
+        <div className="max-w-3xl mx-auto flex flex-wrap justify-between items-center gap-3 text-xs text-text-2">
+          <p>© {new Date().getFullYear()} ScantelburyDevs. Todos os direitos reservados.</p>
+          <div className="flex gap-4">
+            <Link href="/privacidade" className="hover:text-text-1 transition">Privacidade</Link>
+            <Link href="/termos" className="hover:text-text-1 transition">Termos</Link>
+            <Link href="/status" className="hover:text-text-1 transition">Status</Link>
+            <a href="mailto:suporte@emitirnotafacil.com.br" className="hover:text-text-1 transition">Suporte</a>
+          </div>
+        </div>
+      </footer>
+    </div>
   )
 }
