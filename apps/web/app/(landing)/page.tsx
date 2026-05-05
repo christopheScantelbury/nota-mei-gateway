@@ -47,20 +47,20 @@ const jsonLd = {
 
 const faqs = [
   {
-    q: 'O que é o Nota MEI Gateway?',
-    a: 'É uma API REST que automatiza a emissão de NFS-e para MEI diretamente na Receita Federal Nacional (NFS-e Nacional v1.2), sem precisar acessar sistemas municipais individualmente.',
+    q: 'Isso funciona para o meu MEI?',
+    a: 'Sim. Se você é MEI prestador de serviços, a Nota Fácil MEI emite sua NFS-e em segundos — sem precisar entender de sistemas fiscais. Basta o certificado A1 e o e-mail do seu cliente. Para desenvolvedores, o Nota MEI Gateway oferece a mesma emissão via API REST.',
   },
   {
     q: 'Preciso de certificado digital A1?',
-    a: 'Sim. O certificado A1 do seu MEI é necessário para assinar digitalmente cada nota, conforme exige o padrão ABRASF. Você faz upload uma única vez e nós armazenamos com segurança via AWS KMS.',
+    a: 'Sim. O certificado A1 do seu MEI é necessário para assinar digitalmente cada nota, conforme exige o padrão ABRASF. Você faz upload uma única vez e nós armazenamos com segurança.',
   },
   {
     q: 'O trial exige cartão de crédito?',
     a: 'Não. O trial de 30 dias é completamente gratuito e não exige nenhuma forma de pagamento. Você só precisa fornecer cartão ao escolher um plano pago.',
   },
   {
-    q: 'Como funciona o webhook?',
-    a: 'Após a nota ser autorizada ou rejeitada pela Receita Federal, enviamos um POST assinado (HMAC-SHA256) para a URL de webhook que você configurar na requisição. O payload inclui o número da NFS-e e links para PDF e XML.',
+    q: 'Sou desenvolvedor — como integro a API?',
+    a: 'Envie um POST /v1/nfse com os dados do serviço e do tomador. Nós cuidamos do XML, assinatura digital e envio à Receita Federal. O resultado chega via webhook assinado (HMAC-SHA256) com o número da NFS-e, PDF e XML.',
   },
   {
     q: 'Vocês suportam todos os municípios brasileiros?',
@@ -68,7 +68,7 @@ const faqs = [
   },
   {
     q: 'O que acontece se eu ultrapassar o limite do meu plano?',
-    a: 'Cada nota excedente é cobrada pela tarifa proporcional do seu plano via Stripe. Você pode acompanhar o consumo em tempo real pelo endpoint GET /v1/billing/usage.',
+    a: 'Cada nota excedente é cobrada pela tarifa proporcional do seu plano. Você pode acompanhar o consumo em tempo real pelo painel de uso no dashboard.',
   },
 ]
 
@@ -172,8 +172,7 @@ export default function LandingPage() {
                 />
               </Link>
               <p className="text-text-2 text-xs leading-relaxed">
-                Emissão de NFS-e para MEI.<br />
-                Build · Migrate · Innovate.
+                Simples para o MEI. Poderoso para o dev.
               </p>
             </div>
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
+import LogoAdaptive from '@/components/ui/LogoAdaptive'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 
 const DEMO_KEY = 'sk_test_sandbox_demo'
@@ -194,21 +194,12 @@ export default function SandboxPage() {
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link href="/gateway" className="flex items-center shrink-0">
-              <Image
-                src="/logos/gateway-logo-navbar-dark.svg"
+              <LogoAdaptive
+                darkSrc="/logos/gateway-logo-navbar-dark.svg"
+                lightSrc="/logos/gateway-logo-navbar-light.svg"
                 alt="Nota MEI Gateway"
                 width={160}
                 height={40}
-                className="h-8 w-auto dark:block hidden"
-                priority
-              />
-              <Image
-                src="/logos/gateway-logo-navbar-light.svg"
-                alt="Nota MEI Gateway"
-                width={160}
-                height={40}
-                className="h-8 w-auto dark:hidden block"
-                priority
               />
             </Link>
             <span className="text-xs bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/20 rounded-full px-2 py-0.5">
