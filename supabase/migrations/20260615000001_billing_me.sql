@@ -38,8 +38,7 @@ WHERE trial_me = true
 COMMENT ON COLUMN empresas.trial_inicio IS
     'Data de início do trial ME/EPP. Preenchida automaticamente no cadastro.';
 COMMENT ON COLUMN empresas.trial_fim IS
-    'Data de encerramento do trial. NULL = trial ainda ativo. ' ||
-    'Definida pelo admin via Supabase Dashboard ao ativar plano pago.';
+    'Data de encerramento do trial. NULL = trial ainda ativo. Definida pelo admin via Supabase Dashboard ao ativar plano pago.';
 
 -- ── 3. emissoes_mensais — remover unique constraint legada (mei_id, competencia)
 --    A constraint (empresa_id, competencia) foi adicionada em ARCH-03 como
