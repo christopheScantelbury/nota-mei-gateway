@@ -253,6 +253,41 @@
 
 ---
 
+### TC-PROD-007 🔴 Título da aba vem do banco, não do domínio
+> _Regressão do bug corrigido: `generateMetadata` usava hostname em vez de `tipo_usuario`._
+
+**Pré-condições:** Conta MEI (`tipo_usuario = 'mei'`) cadastrada  
+**Passos:**
+1. Logar como MEI em `emitirnotafacil.com.br`
+2. Navegar por: `/home`, `/notas`, `/configuracoes`, `/billing`
+3. Verificar o título da aba em cada página
+
+**Resultado esperado:**
+- Todas as páginas exibem `"— Nota Fácil MEI"` no título (ex.: `"Painel — Nota Fácil MEI"`, `"Notas Fiscais — Nota Fácil MEI"`)
+- **Nenhuma** página exibe `"— Nota MEI Gateway"` para um usuário MEI
+
+**Resultado real:** ___  
+**Status:** ___
+
+---
+
+### TC-PROD-008 🟠 Saudação exibe primeiro nome, não razão social completa
+> _Regressão do bug corrigido: saudação mostrava "Bom dia, Empresa Completa LTDA ME" em vez de "Bom dia, Empresa"._
+
+**Pré-condições:** MEI cadastrado com razão social de mais de uma palavra (ex.: `"Técnica Serviços Digitais ME"`)  
+**Passos:**
+1. Logar e acessar `/home`
+2. Verificar o texto da saudação no topo da página
+
+**Resultado esperado:**
+- Saudação exibe apenas o **primeiro nome/palavra**: `"Bom dia, Técnica"`
+- NÃO exibe a razão social completa: `"Bom dia, Técnica Serviços Digitais ME"`
+
+**Resultado real:** ___  
+**Status:** ___
+
+---
+
 ## 3. CADASTRO — Onboarding
 
 ### TC-CAD-001 🔴 Cadastro MEI completo (happy path)
@@ -291,7 +326,49 @@
 
 ---
 
-### TC-CAD-003 🟠 CNPJ duplicado
+### TC-CAD-003 🔴 tipo_usuario definido corretamente após cadastro MEI
+> _Cobre o fluxo crítico: `?produto=mei` → campo `tipo_usuario = 'mei'` no banco → sidebar e título corretos._
+
+**Pré-condições:** CNPJ válido MEI não cadastrado  
+**Passos:**
+1. Acessar `emitirnotafacil.com.br/cadastro?produto=mei`
+2. Concluir os 3 steps do wizard
+3. Fazer login com o e-mail cadastrado via OTP
+4. Verificar sidebar e título da aba
+
+**Resultado esperado:**
+- Logo "Nota Fácil MEI" no sidebar
+- Sidebar **não** exibe: API Keys, Webhooks, Automação
+- Título da aba: `"Painel — Nota Fácil MEI"`
+- (Opcional) Confirmar no Supabase: `SELECT tipo_usuario FROM meis WHERE email = '...'` → `mei`
+
+**Resultado real:** ___  
+**Status:** ___
+
+---
+
+### TC-CAD-004 🔴 tipo_usuario definido corretamente após cadastro Gateway
+> _Cobre o fluxo crítico: `?produto=gateway` → campo `tipo_usuario = 'gateway'` no banco._
+
+**Pré-condições:** CNPJ válido MEI não cadastrado  
+**Passos:**
+1. Acessar `emitirnotafacil.com.br/cadastro?produto=gateway`
+2. Concluir os 3 steps
+3. Fazer login com o e-mail cadastrado via OTP
+4. Verificar sidebar e título da aba
+
+**Resultado esperado:**
+- Logo "Nota MEI Gateway" no sidebar
+- Sidebar exibe: API Keys, Webhooks, Automação
+- Tela de sucesso exibiu a API Key (`sk_live_...` ou `sk_test_...`)
+- Título da aba: `"Painel — Nota MEI Gateway"`
+
+**Resultado real:** ___  
+**Status:** ___
+
+---
+
+### TC-CAD-005 🟠 CNPJ duplicado
 **Pré-condições:** CNPJ já cadastrado no sistema  
 **Passos:**
 1. Tentar cadastrar o mesmo CNPJ novamente
@@ -306,7 +383,7 @@
 
 ---
 
-### TC-CAD-004 🟠 CNPJ inválido
+### TC-CAD-006 🟠 CNPJ inválido
 **Passos:**
 1. Step 1: digitar CNPJ com dígito verificador errado (ex.: `11.222.333/0001-00`)
 2. Clicar "Próximo"
@@ -320,7 +397,7 @@
 
 ---
 
-### TC-CAD-005 🟡 Lookup de CEP
+### TC-CAD-007 🟡 Lookup de CEP
 **Passos:**
 1. Step 2: digitar CEP válido (ex.: `01310-100`)
 
@@ -334,7 +411,7 @@
 
 ---
 
-### TC-CAD-006 🟡 CEP não encontrado → busca por nome
+### TC-CAD-008 🟡 CEP não encontrado → busca por nome
 **Passos:**
 1. Step 2: digitar CEP inexistente (ex.: `99999-999`)
 2. Clicar "Não sei meu CEP — buscar município pelo nome"
@@ -350,7 +427,7 @@
 
 ---
 
-### TC-CAD-007 🟡 Cadastro com certificado A1
+### TC-CAD-009 🟡 Cadastro com certificado A1
 **Pré-condições:** Arquivo `.pfx` válido disponível  
 **Passos:**
 1. Step 3: fazer upload do arquivo `.pfx`
@@ -472,6 +549,29 @@
 **Resultado esperado:**
 - Erro claro: limite de emissões do plano atingido
 - CTA para upgrade de plano
+
+**Resultado real:** ___  
+**Status:** ___
+
+---
+
+### TC-NF-008 🔴 Seletor de município carrega via proxy IBGE
+> _Regressão do bug P5: o autocomplete chamava diretamente `servicodados.ibge.gov.br` (CORS/timeout). Agora usa proxy interno `/api/municipios`._
+
+**Pré-condições:** Formulário de nova nota aberto (ou formulário de cadastro, step de localização)  
+**Passos:**
+1. Clicar no campo "Município"
+2. Aguardar o carregamento (spinner deve aparecer brevemente)
+3. Digitar ao menos 2 letras (ex.: `"São"`)
+4. Verificar a lista de sugestões
+5. Selecionar um município
+6. Verificar o campo preenchido e o código IBGE registrado
+
+**Resultado esperado:**
+- Lista de sugestões aparece com municípios brasileiros (ex.: `São Paulo — SP`, `São Bernardo do Campo — SP`)
+- **NÃO** aparece a mensagem de fallback: "Não foi possível carregar os municípios via IBGE"
+- Seleção preenche o campo e registra o código IBGE de 7 dígitos corretamente
+- Campo oculto `municipio_ibge` contém o código (verificar no DevTools → Elements)
 
 **Resultado real:** ___  
 **Status:** ___
