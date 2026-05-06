@@ -381,7 +381,7 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 		ValorServico:     req.Servico.Valor,
 		Competencia:      req.Competencia,
 		IdempotencyKey:   c.Get("Idempotency-Key"),
-		RegimeTributario: empresa.RegimeTributario, // ME-42: stored for dashboard badge
+		RegimeTributario: empresa.RegimeTributario,                                    // ME-42: stored for dashboard badge
 		ISSRetido:        issRetidoPtr(empresa.RegimeTributario, dpsResult.ISSRetido), // ME-42
 	})
 	if err != nil {
@@ -730,7 +730,7 @@ func (h *NFSeHandler) cancelarNotaME(c *fiber.Ctx, nota *nfse.Nota, empresa *aut
 	}
 
 	// DPS cancellation uses the same ABRASF cancellation XML for now.
-	// TODO(ME-32): replace with DPS-native cancellation when ADN endpoint is confirmed. //nolint:misspell
+	// TODO(ME-32): replace with DPS-native cancellation when ADN endpoint is confirmed.
 	xmlCancel, err := h.builder.BuildCancelamento(*nota.NumeroNFSe, empresa.CNPJ, empresa.MunicipioIBGE)
 	if err != nil {
 		return internalError(c, "erro ao construir XML de cancelamento")

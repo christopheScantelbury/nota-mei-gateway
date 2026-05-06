@@ -12,15 +12,15 @@ import (
 // Empresa holds the authenticated empresa and their current subscription info.
 // Used for ME/EPP companies registered in the empresas table.
 type Empresa struct {
-	ID                 uuid.UUID
-	Tipo               string  // "MEI" | "ME" | "EPP"
-	RegimeTributario   string  // "SIMPLES_MEI" | "SIMPLES_NACIONAL" | "LUCRO_PRESUMIDO" | "LUCRO_REAL"
-	CNPJ               string
-	RazaoSocial        string
-	Email              string
-	MunicipioIBGE      string
+	ID               uuid.UUID
+	Tipo             string // "MEI" | "ME" | "EPP"
+	RegimeTributario string // "SIMPLES_MEI" | "SIMPLES_NACIONAL" | "LUCRO_PRESUMIDO" | "LUCRO_REAL"
+	CNPJ             string
+	RazaoSocial      string
+	Email            string
+	MunicipioIBGE    string
 	// CNAE is the empresa's primary CNAE activity code (7 digits), required for DPS.
-	CNAE               string
+	CNAE string
 	// CEP is the empresa's postal code (8 digits), required for the DPS enderNac block.
 	CEP                string
 	InscricaoMunicipal *string

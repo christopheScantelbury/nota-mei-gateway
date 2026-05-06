@@ -2,14 +2,15 @@
 //
 // DPS is the federal document for ME/EPP companies in the NFS-e Nacional system.
 // Unlike the RPS (used by MEI with the ABRASF municipal schema), the DPS is sent
-// directly to the ADN (Ambiente de Dados Nacional) via SEFIN Nacional. //nolint:misspell
+// directly to the ADN (Ambiente de Dados Nacional) via SEFIN Nacional.
 //
 // Reference: NT 004 v2.0 — gov.br/nfse → Acesso à informação → Notas Técnicas
 //
 // ⚠️  Namespace: The xmlns value below MUST match the XSD official exactly.
-//     Download the schema from gov.br/nfse → Integrar ao sistema → Schemas
-//     and verify before connecting to the ADN production environment. //nolint:misspell
-//     A wrong namespace causes silent rejection with no error from the ADN. //nolint:misspell
+//
+//	Download the schema from gov.br/nfse → Integrar ao sistema → Schemas
+//	and verify before connecting to the ADN production environment.
+//	A wrong namespace causes silent rejection with no error from the ADN.
 package document
 
 import "encoding/xml"
@@ -41,10 +42,10 @@ type InfDPS struct {
 	NDPS     string `xml:"nDPS"`
 	DCompet  string `xml:"dCompet"` // AAAA-MM-DD (primeiro dia do mês de competência)
 
-	Emit    DPSEmit      `xml:"emit"`
-	Toma    DPSTomador   `xml:"toma"`
-	Serv    DPSServico   `xml:"serv"`
-	Valores DPSValores   `xml:"valores"`
+	Emit    DPSEmit    `xml:"emit"`
+	Toma    DPSTomador `xml:"toma"`
+	Serv    DPSServico `xml:"serv"`
+	Valores DPSValores `xml:"valores"`
 }
 
 // ── Emitente ──────────────────────────────────────────────────────────────────
@@ -146,7 +147,7 @@ type DPSTribMun struct {
 //	indISSRet: 1=ISS retido pelo tomador, 2=ISS não retido (prestador recolhe)
 //	vISSRet:   only when indISSRet=1 — must be omitted when indISSRet=2
 type DPSTribISSQN struct {
-	CLocIncid string  `xml:"cLocIncid"`         // IBGE code of the ISS incidence municipality
+	CLocIncid string  `xml:"cLocIncid"`          // IBGE code of the ISS incidence municipality
 	PAliq     float64 `xml:"pAliq"`              // ISS rate in percentage, e.g. 2.00
 	IndISSRet int     `xml:"indISSRet"`          // 1=retido, 2=não retido
 	VISSRet   float64 `xml:"vISSRet,omitempty"`  // withheld ISS value; omit when not retained
