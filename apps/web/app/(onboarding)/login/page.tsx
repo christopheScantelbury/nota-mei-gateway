@@ -1,8 +1,16 @@
+import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import LoginClient from './LoginClient'
 
-export const metadata = {
-  title: 'Entrar | Nota MEI Gateway & Nota Fácil MEI',
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: { produto?: string }
+}): Promise<Metadata> {
+  const isMei = searchParams.produto === 'mei'
+  return {
+    title: isMei ? 'Entrar — Nota Fácil MEI' : 'Entrar — Nota MEI Gateway',
+  }
 }
 
 export default function LoginPage() {

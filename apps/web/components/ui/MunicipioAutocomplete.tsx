@@ -35,9 +35,8 @@ async function fetchMunicipios(): Promise<Municipio[]> {
   if (cachedMunicipios) return cachedMunicipios
   if (fetchPromise) return fetchPromise
 
-  fetchPromise = fetch(
-    'https://servicodados.ibge.gov.br/api/v1/localidades/municipios?orderBy=nome',
-  )
+  // Usa proxy interno para evitar CORS e melhorar confiabilidade
+  fetchPromise = fetch('/api/municipios')
     .then((res) => {
       if (!res.ok) throw new Error('Falha ao carregar municípios')
       return res.json() as Promise<IbgeMunicipio[]>
