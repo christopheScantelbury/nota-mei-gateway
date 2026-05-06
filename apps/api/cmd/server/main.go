@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -116,6 +115,12 @@ func main() {
 	authRepo := auth.NewRepository(db)
 	billingRepo := billing.NewRepository(db)
 	notaRepo := nfse.NewNotaRepository(db)
+
+	// Wire billing repository into the guard so Check (ME/EPP) can query
+	// trial status and plano limits without a separate DB round-trip per request.
+	if billingGrd != nil {
+		billingGrd = billingGrd.WithRepository(billingRepo)
+	}
 
 	// ── Adapters & builders ────────────────────────────────────────────────
 	adapter := nfse.NewAdapterWithSefin(cfg.ReceitaAPIURL, cfg.SefinAPIURL)
@@ -292,15 +297,14 @@ func main() {
 	}
 
 	// Admin: ME/EPP relatorio CSV — IP-whitelist protected (ME-52).
-	// Only accessible from the Railway internal network (127.0.0.1 / 10.x.x.x).
+	// ADMIN_ALLOWED_IPS env var: comma-separated list of allowed IPs.
+	// In development mode, all IPs are allowed regardless of the list.
 	adminRelatorioH := handler.NewAdminRelatorioMEHandler(db.Pool())
-	adminGroup := app.Group("/v1/admin", func(c *fiber.Ctx) error {
-		ip := c.IP()
-		if ip != "127.0.0.1" && !isRailwayPrivateIP(ip) && cfg.AppEnv != "development" {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "FORBIDDEN"})
-		}
-		return c.Next()
-	})
+	adminIPs := cfg.AdminAllowedIPs
+	if cfg.AppEnv == "development" {
+		adminIPs = nil // fail-open in dev
+	}
+	adminGroup := app.Group("/v1/admin", middleware.IPWhitelist(adminIPs))
 	adminGroup.Get("/relatorio-me", adminRelatorioH.RelatorioME)
 
 	// Stripe webhook — raw body needed for signature verification.
@@ -420,13 +424,4 @@ func main() {
 			log.Fatal().Err(err).Msg("server error")
 		}
 	}
-}
-
-// isRailwayPrivateIP reports whether the given IP is in Railway's private network range.
-// Railway uses 10.0.0.0/8 for internal service communication.
-func isRailwayPrivateIP(ip string) bool {
-	return strings.HasPrefix(ip, "10.") ||
-		strings.HasPrefix(ip, "172.16.") ||
-		strings.HasPrefix(ip, "172.17.") ||
-		strings.HasPrefix(ip, "192.168.")
 }

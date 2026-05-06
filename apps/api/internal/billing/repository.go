@@ -3,19 +3,27 @@ package billing
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/supabase"
 	"github.com/google/uuid"
 )
 
-// Plano holds the billing plan data for a MEI.
+// Plano holds the billing plan data for a MEI or ME/EPP empresa.
 type Plano struct {
 	ID               uuid.UUID
 	Nome             string
+	TipoEmpresa      *string // nil = legado MEI
 	EmissoesLimite   int
 	PrecMensalBRL    float64
 	PrecExcedenteBRL float64
 	StripePriceID    *string
+}
+
+// EmpresaBillingInfo holds the minimum empresa data needed by BillingGuard.Check.
+type EmpresaBillingInfo struct {
+	TrialMe bool
+	Tipo    string // "MEI" | "ME" | "EPP"
 }
 
 // EmissaoMensal holds the MEI's monthly emission record.
@@ -149,4 +157,61 @@ func (r *Repository) IncrementEmitidasEmpresa(ctx context.Context, empresaID uui
 		return 0, err
 	}
 	return total, nil
+}
+
+// GetEmpresaBillingInfo returns the trial status and tipo for a given empresa.
+// Called by BillingGuard.Check to determine whether the trial bypass applies.
+func (r *Repository) GetEmpresaBillingInfo(ctx context.Context, empresaID uuid.UUID) (*EmpresaBillingInfo, error) {
+	var info EmpresaBillingInfo
+	err := r.db.Pool().QueryRow(ctx,
+		`SELECT trial_me, tipo FROM empresas WHERE id = $1`,
+		empresaID,
+	).Scan(&info.TrialMe, &info.Tipo)
+	if err != nil {
+		return nil, fmt.Errorf("GetEmpresaBillingInfo: %w", err)
+	}
+	return &info, nil
+}
+
+// GetPlano returns the active plan for a given plan ID.
+// If planoID is nil, falls back to the Trial plan for the given tipoEmpresa
+// (e.g. "Trial ME" for tipo="ME").
+func (r *Repository) GetPlano(ctx context.Context, planoID *uuid.UUID, tipoEmpresa string) (*Plano, error) {
+	var p Plano
+	var err error
+
+	if planoID != nil {
+		err = r.db.Pool().QueryRow(ctx, `
+			SELECT id, nome, tipo_empresa, emissoes_limite,
+			       COALESCE(preco_mensal_brl, 0),
+			       COALESCE(preco_excedente_brl, 0),
+			       stripe_price_id
+			FROM planos
+			WHERE id = $1 AND ativo = true
+		`, *planoID).Scan(
+			&p.ID, &p.Nome, &p.TipoEmpresa, &p.EmissoesLimite,
+			&p.PrecMensalBRL, &p.PrecExcedenteBRL, &p.StripePriceID,
+		)
+	} else {
+		// Fallback: buscar plano Trial do tipo da empresa
+		err = r.db.Pool().QueryRow(ctx, `
+			SELECT id, nome, tipo_empresa, emissoes_limite,
+			       COALESCE(preco_mensal_brl, 0),
+			       COALESCE(preco_excedente_brl, 0),
+			       stripe_price_id
+			FROM planos
+			WHERE ativo = true
+			  AND (tipo_empresa = $1 OR tipo_empresa = 'ALL')
+			  AND nome ILIKE 'Trial%'
+			ORDER BY emissoes_limite DESC
+			LIMIT 1
+		`, tipoEmpresa).Scan(
+			&p.ID, &p.Nome, &p.TipoEmpresa, &p.EmissoesLimite,
+			&p.PrecMensalBRL, &p.PrecExcedenteBRL, &p.StripePriceID,
+		)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("GetPlano(tipo=%s): %w", tipoEmpresa, err)
+	}
+	return &p, nil
 }
