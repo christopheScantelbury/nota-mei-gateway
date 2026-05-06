@@ -45,17 +45,28 @@ func main() {
 	defer stop()
 
 	// ── Infrastructure ─────────────────────────────────────────────────────
-	db, err := supabase.New(ctx, cfg.DatabaseURL)
+	db, err := supabase.New(ctx, cfg.DatabaseURL, supabase.PoolConfig{
+		MaxConns: cfg.PGMaxConns, // 0 → package default (25)
+		MinConns: cfg.PGMinConns, // 0 → package default (5)
+	})
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to connect to database")
 	}
 	defer db.Close()
 
 	// cert.New only loads AWS SDK config; actual credentials are verified on first call.
-	certProv, err := cert.New(ctx, cfg.AWSRegion, cfg.AWSKMSKeyARN)
+	// CachingProvider wraps it with a 4 h in-memory TTL cache (ARCH-01) so SM is
+	// called at most once per cert ARN per instance every 4 hours, protecting against
+	// throttling at ME/EPP scale (SM limit: ~5 000 req/s, sa-east-1).
+	rawCertProv, err := cert.New(ctx, cfg.AWSRegion, cfg.AWSKMSKeyARN)
 	if err != nil {
 		log.Warn().Err(err).Msg("cert provider unavailable — certificate features disabled")
-		certProv = nil
+	}
+
+	var certProv cert.CertProvider
+	if rawCertProv != nil {
+		certProv = cert.NewCachingProvider(rawCertProv, cert.NewCache(0))
+		log.Info().Msg("cert cache inicializado (TTL 4 h)")
 	}
 
 	// ── Object storage (STOR-01) ───────────────────────────────────────────

@@ -31,4 +31,18 @@ var (
 		Name: "stripe_events_total",
 		Help: "Total number of processed Stripe webhook events.",
 	}, []string{"tipo"})
+
+	// CertCacheHitsTotal counts cert cache hits (AWS SM call avoided).
+	// A high hit rate (>95 %) indicates the cache is working correctly.
+	CertCacheHitsTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "cert_cache_hits_total",
+		Help: "Total number of A1 certificate cache hits (AWS SM call avoided).",
+	})
+
+	// CertCacheMissesTotal counts cert cache misses (AWS SM was called).
+	// Expected on first access per ARN and after UpdateCert invalidation.
+	CertCacheMissesTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "cert_cache_misses_total",
+		Help: "Total number of A1 certificate cache misses (AWS SM was called).",
+	})
 )

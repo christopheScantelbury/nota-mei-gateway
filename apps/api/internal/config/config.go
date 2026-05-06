@@ -4,6 +4,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 // Config holds all runtime configuration for the API server.
@@ -15,6 +16,12 @@ type Config struct {
 	DatabaseURL        string
 	SupabaseURL        string
 	SupabaseServiceKey string
+
+	// PGMaxConns / PGMinConns tune the pgx connection pool.
+	// Defaults (25 / 5) are set in pkg/supabase when these are zero.
+	// Override via PG_MAX_CONNS / PG_MIN_CONNS for production tuning without redeploy.
+	PGMaxConns int32
+	PGMinConns int32
 
 	RedisURL    string
 	RabbitMQURL string
@@ -102,6 +109,9 @@ func Load() *Config {
 		SupabaseURL:        os.Getenv("SUPABASE_URL"),
 		SupabaseServiceKey: os.Getenv("SUPABASE_SERVICE_ROLE_KEY"),
 
+		PGMaxConns: parseInt32Env("PG_MAX_CONNS", 0),
+		PGMinConns: parseInt32Env("PG_MIN_CONNS", 0),
+
 		RedisURL:    os.Getenv("REDIS_URL"),
 		RabbitMQURL: os.Getenv("RABBITMQ_URL"),
 
@@ -131,6 +141,15 @@ func Load() *Config {
 func getEnv(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
+	}
+	return fallback
+}
+
+func parseInt32Env(key string, fallback int32) int32 {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 32); err == nil {
+			return int32(n)
+		}
 	}
 	return fallback
 }
