@@ -9,8 +9,12 @@ export async function generateMetadata({
   searchParams: { produto?: string }
 }): Promise<Metadata> {
   const isMei = searchParams.produto === 'mei'
+  // absolute bypasses the root layout template so MEI users don't see the
+  // Gateway suffix: 'Cadastrar — Nota Fácil MEI · Nota MEI Gateway'
   return {
-    title: isMei ? 'Cadastrar — Nota Fácil MEI' : 'Cadastrar — Nota MEI Gateway',
+    title: {
+      absolute: isMei ? 'Cadastrar — Nota Fácil MEI' : 'Cadastrar — Nota MEI Gateway',
+    },
   }
 }
 

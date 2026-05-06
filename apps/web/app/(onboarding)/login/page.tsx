@@ -8,8 +8,12 @@ export async function generateMetadata({
   searchParams: { produto?: string }
 }): Promise<Metadata> {
   const isMei = searchParams.produto === 'mei'
+  // absolute bypasses the root layout template ('%s · Nota MEI Gateway')
+  // so MEI users don't see 'Entrar — Nota Fácil MEI · Nota MEI Gateway'
   return {
-    title: isMei ? 'Entrar — Nota Fácil MEI' : 'Entrar — Nota MEI Gateway',
+    title: {
+      absolute: isMei ? 'Entrar — Nota Fácil MEI' : 'Entrar — Nota MEI Gateway',
+    },
   }
 }
 
