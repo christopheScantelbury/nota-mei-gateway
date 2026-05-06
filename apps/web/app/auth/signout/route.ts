@@ -13,7 +13,9 @@ export async function POST(req: NextRequest) {
   const url = req.nextUrl.clone()
   url.pathname = '/'
   url.search = ''
-  const response = NextResponse.redirect(url)
+  // 303 See Other: converte POST → GET no redirect, evitando HTTP 405 na landing.
+  // NextResponse.redirect() usa 307 por padrão, que preserva o método HTTP.
+  const response = NextResponse.redirect(url, { status: 303 })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
