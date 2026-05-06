@@ -53,3 +53,12 @@ __pycache__/
 # Arquivos locais com credenciais (NUNCA commitar)
 *.local.md
 ACESSOS*
+
+# Claude Code (configuração local do agente — não pertence ao repo público)
+.claude/
+
+# Arquivos internos de projeto (QA, tarefas, notas de desenvolvimento)
+bugs.txt
+nota-mei-tasks.md
+tasks-marketing-sdks-home.md
+kitvisual/

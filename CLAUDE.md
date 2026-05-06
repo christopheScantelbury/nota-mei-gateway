@@ -658,7 +658,7 @@ vercel --prod               # deploy manual produção
 | **Railway — Redis** | ✅ | `a8d1d6bb` |
 | **Railway — RabbitMQ** | ✅ | `15f5b32f` |
 | **Vercel** | ✅ | `prj_je9YLMwvbwGoZe6a4mbDvfV2f4ts` · `nota-mei-gateway-web.vercel.app` |
-| **AWS KMS** | ✅ | `arn:aws:kms:sa-east-1:394072826336:key/c5587f17-…` |
+| **AWS KMS** | ✅ | `arn:aws:kms:sa-east-1:[ACCOUNT_ID]:key/[KEY_ID]` |
 | **AWS Secrets Manager** | ✅ | prefix `nota-mei-gateway/*` pronto para certs A1 |
 | **Stripe (test mode)** | ✅ | 4 produtos + webhook `we_1TT2gXHImHeWw3ex19ytZ8gs` |
 | **GitHub Secrets** | ✅ | `RAILWAY_TOKEN`, `VERCEL_TOKEN`, `VERCEL_PROJECT_ID`, `STRIPE_*` (7 secrets) |
@@ -699,7 +699,7 @@ vercel --prod               # deploy manual produção
    `production` (carrega do Secrets Manager). IAM user `nota-mei-gateway-api` já tem permissão.
 
 5. **BillingGuard cache** — Redis TTL 5 min, invalidado pelos webhooks Stripe. O webhook secret
-   `whsec_REDACTED` já está configurado no Railway.
+   está configurado no Railway como variável de ambiente `STRIPE_WEBHOOK_SECRET`.
 
 6. **STOR-01 (#126) — ✅ totalmente ativo** — S3 bucket criado, lifecycle 5a aplicado,
    IAM policy no user `nota-mei-gateway-api`, migration aplicada em prod, Railway redeployado.
