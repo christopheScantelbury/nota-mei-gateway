@@ -88,7 +88,9 @@ jobs:
       - name: Verificar seed planos
         run: |
           count=$(psql -tAc "SELECT COUNT(*) FROM planos")
-          test "$count" = "5"
+          # 5 planos MEI (Trial/Starter/Basic/Pro/Business) + 1 plano ME (Trial ME)
+          # adicionado pela migration 20260506000002_me_ep1_empresas_extras.sql
+          test "$count" = "6"
 
   test-api:
     name: Go lint + test
