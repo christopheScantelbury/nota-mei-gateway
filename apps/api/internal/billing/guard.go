@@ -34,8 +34,10 @@ var BlockedSubscriptionStatuses = map[string]bool{
 
 // Guard checks and increments the monthly emission counter via Redis and
 // caches the MEI's Stripe subscription status to gate access.
+// For ME/EPP empresas, use Check(ctx, empresaID) which handles the trial bypass.
 type Guard struct {
-	rdb *redis.Client
+	rdb  *redis.Client
+	repo *Repository // optional — required for Check (ME/EPP path)
 }
 
 // NewGuard parses redisURL and returns a Guard backed by that Redis instance.
@@ -45,6 +47,108 @@ func NewGuard(redisURL string) (*Guard, error) {
 		return nil, err
 	}
 	return &Guard{rdb: redis.NewClient(opt)}, nil
+}
+
+// WithRepository attaches a billing Repository so that Check (ME/EPP) can
+// query trial status and plano limits.  Call after NewGuard in main.go.
+func (g *Guard) WithRepository(repo *Repository) *Guard {
+	g.repo = repo
+	return g
+}
+
+// guardCacheTTL is the Redis TTL for billing guard allow/deny entries.
+const guardCacheTTL = 5 * time.Minute
+
+// ErrPlanLimitReached is returned by Check when the empresa has exhausted
+// their monthly emission quota.
+type ErrPlanLimitReached struct {
+	Limite   int
+	Emitidas int
+}
+
+func (e ErrPlanLimitReached) Error() string {
+	if e.Limite == 0 && e.Emitidas == 0 {
+		return "limite do plano atingido"
+	}
+	return fmt.Sprintf("limite do plano atingido: %d/%d emissões", e.Emitidas, e.Limite)
+}
+
+// Check verifies whether the ME/EPP empresa can emit more notas this month.
+//
+// Flow:
+//  1. Redis cache hit → return immediately (nil = allowed, ErrPlanLimitReached = blocked)
+//  2. DB: fetch empresa trial status
+//  3. Trial bypass → cache "ok", return nil
+//  4. DB: fetch emissao mensal + plano limit
+//  5. Cache result, return accordingly
+//
+// Fail-open: if repo is nil or any DB call fails, returns nil (emission allowed).
+// A transient DB error is less harmful than silently blocking legitimate customers.
+func (g *Guard) Check(ctx context.Context, empresaID uuid.UUID) error {
+	if g == nil || g.repo == nil {
+		return nil
+	}
+
+	competencia := monthKey()
+	cacheKey := fmt.Sprintf("billing:guard:%s:%s", empresaID, competencia)
+
+	// 1. Redis cache
+	if cached, err := g.rdb.Get(ctx, cacheKey).Result(); err == nil {
+		if cached == "ok" {
+			return nil
+		}
+		return ErrPlanLimitReached{}
+	}
+
+	// 2. Empresa trial status
+	info, err := g.repo.GetEmpresaBillingInfo(ctx, empresaID)
+	if err != nil {
+		return nil // fail-open
+	}
+
+	// 3. Trial bypass
+	if info.TrialMe {
+		_ = g.rdb.Set(ctx, cacheKey, "ok", guardCacheTTL).Err()
+		return nil
+	}
+
+	// 4. Plano limit check
+	em, err := g.repo.GetOrCreateEmissaoMensalEmpresa(ctx, empresaID)
+	if err != nil {
+		return nil // fail-open
+	}
+
+	plano, err := g.repo.GetPlano(ctx, em.PlanoID, info.Tipo)
+	if err != nil {
+		// No active plan for this empresa type — deny with explicit error.
+		return fmt.Errorf("nenhum plano ativo para empresa tipo %s: %w",
+			info.Tipo, ErrPlanLimitReached{})
+	}
+
+	if em.TotalEmitidas >= plano.EmissoesLimite {
+		_ = g.rdb.Set(ctx, cacheKey, "limit_reached", guardCacheTTL).Err()
+		return ErrPlanLimitReached{
+			Limite:   plano.EmissoesLimite,
+			Emitidas: em.TotalEmitidas,
+		}
+	}
+
+	_ = g.rdb.Set(ctx, cacheKey, "ok", guardCacheTTL).Err()
+	return nil
+}
+
+// InvalidateEmpresa removes the cached billing guard result for the given empresa,
+// forcing the next Check to re-query the DB.
+// Call from Stripe webhook handlers when a subscription changes plan or status.
+func (g *Guard) InvalidateEmpresa(ctx context.Context, empresaID uuid.UUID) {
+	if g == nil {
+		return
+	}
+	pattern := fmt.Sprintf("billing:guard:%s:*", empresaID)
+	keys, _ := g.rdb.Keys(ctx, pattern).Result()
+	if len(keys) > 0 {
+		_ = g.rdb.Del(ctx, keys...).Err()
+	}
 }
 
 // Ping sends a PING command to Redis and returns an error if unreachable.

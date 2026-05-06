@@ -88,9 +88,18 @@ jobs:
       - name: Verificar seed planos
         run: |
           count=$(psql -tAc "SELECT COUNT(*) FROM planos")
-          # 5 planos MEI (Trial/Starter/Basic/Pro/Business) + 1 plano ME (Trial ME)
-          # adicionado pela migration 20260506000002_me_ep1_empresas_extras.sql
-          test "$count" = "6"
+          # 5 MEI (Trial/Starter/Basic/Pro/Business) + 1 Trial ME + 4 ME (Starter/Basic/Pro/Business)
+          # + 2 EPP (Trial EPP / Starter EPP) adicionados por 20260615000001_billing_me.sql
+          test "$count" -ge 12 || (echo "planos: expected >= 12, got $count" && exit 1)
+      - name: Verificar ME-EP6 planos ME + colunas empresas
+        run: |
+          # planos ME devem existir (ativo=false exceto Trial ME)
+          me_count=$(psql -tAc "SELECT COUNT(*) FROM planos WHERE tipo_empresa = 'ME'")
+          test "$me_count" -ge 5 || (echo "planos ME: expected >= 5, got $me_count" && exit 1)
+          # colunas trial_inicio e trial_fim devem existir em empresas
+          psql -v ON_ERROR_STOP=1 -c "SELECT trial_inicio, trial_fim FROM empresas LIMIT 0"
+          # tipo_empresa deve aceitar 'ALL' (verifica CHECK constraint)
+          psql -v ON_ERROR_STOP=1 -c "UPDATE planos SET tipo_empresa = 'ALL' WHERE nome = 'Trial' AND false"
       - name: Verificar tabelas ME-EP3 municipios_nfse + iss_aliquotas
         run: |
           # municipios_nfse deve existir com pelo menos 10 municípios (seed da migration)

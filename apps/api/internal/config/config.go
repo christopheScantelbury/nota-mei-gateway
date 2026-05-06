@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // Config holds all runtime configuration for the API server.
@@ -60,6 +61,13 @@ type Config struct {
 
 	ResendAPIKey string
 	EmailFrom    string
+
+	// AdminAllowedIPs is the list of IP addresses permitted to access
+	// /v1/admin/* endpoints (e.g. relatorio-me).
+	// Set via ADMIN_ALLOWED_IPS as a comma-separated list.
+	// If empty, the IP whitelist middleware fails-open (all IPs allowed) —
+	// set this explicitly in production.
+	AdminAllowedIPs []string
 }
 
 // Load lê variáveis de ambiente, valida as obrigatórias e devolve a configuração.
@@ -148,6 +156,8 @@ func Load() *Config {
 
 		ResendAPIKey: os.Getenv("RESEND_API_KEY"),
 		EmailFrom:    getEnv("EMAIL_FROM", "Nota MEI Gateway <noreply@emitirnotafacil.com.br>"),
+
+		AdminAllowedIPs: parseCSVEnv("ADMIN_ALLOWED_IPS"),
 	}
 }
 
@@ -190,4 +200,22 @@ func parseIntEnv(key string, fallback int) int {
 		}
 	}
 	return fallback
+}
+
+// parseCSVEnv parses a comma-separated environment variable into a string slice.
+// Returns nil if the variable is empty or unset.
+func parseCSVEnv(key string) []string {
+	v := os.Getenv(key)
+	if v == "" {
+		return nil
+	}
+	parts := strings.Split(v, ",")
+	result := make([]string, 0, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+	return result
 }
