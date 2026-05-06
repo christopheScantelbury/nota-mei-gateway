@@ -5,7 +5,9 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { CepMunicipioInput } from '@/components/ui/CepMunicipioInput'
 import { validarCNPJ } from '@/lib/cnpj'
+import ISSRecolhimentoCard from '@/components/nota/ISSRecolhimentoCard'
 import type { NotaTemplate } from '@/app/api/templates/route'
+import type { RegimeTributario } from '@/lib/types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function currentMonth() {
@@ -112,6 +114,8 @@ export default function NovaNota() {
   const [submitted, setSubmitted] = useState(false)
   const [notaId, setNotaId] = useState('')
   const [apiError, setApiError] = useState('')
+  // ME-42: regime do usuário para exibir ISSRecolhimentoCard no sucesso
+  const [userRegime, setUserRegime] = useState<RegimeTributario | null>(null)
 
   useEffect(() => {
     setIdempotencyKey(crypto.randomUUID())
@@ -229,6 +233,10 @@ export default function NovaNota() {
 
       if (res.ok || res.status === 202) {
         setNotaId(data.nota_id ?? '')
+        // Capture regime from response for ISSRecolhimentoCard (ME-42)
+        if (data.regime_tributario) {
+          setUserRegime(data.regime_tributario as RegimeTributario)
+        }
         setSubmitted(true)
       } else {
         const msg = data.message ?? data.error ?? 'Erro ao emitir a nota. Tente novamente.'
@@ -257,7 +265,18 @@ export default function NovaNota() {
           <p className="text-text-2 text-sm mb-6">
             A Receita Federal irá processar sua NFS-e em instantes. Você receberá o resultado via webhook.
           </p>
-          <div className="flex gap-3 justify-center flex-wrap">
+          {/* ME-42: ISS recolhimento card no sucesso */}
+          {userRegime && (
+            <div className="mt-4 mb-2 text-left">
+              <ISSRecolhimentoCard
+                regime={userRegime}
+                issRetido={issRetido}
+                competencia={competencia}
+              />
+            </div>
+          )}
+
+          <div className="flex gap-3 justify-center flex-wrap mt-4">
             {notaId && (
               <Link
                 href={`/notas/${notaId}`}

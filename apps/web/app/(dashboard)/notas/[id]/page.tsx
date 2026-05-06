@@ -9,6 +9,7 @@ import WebhookDeliveryLog from '@/components/dashboard/WebhookDeliveryLog'
 import EnviarNotaEmail from '@/components/dashboard/EnviarNotaEmail'
 import ISSBadge from '@/components/nota/ISSBadge'
 import SubstituicaoDeadline from '@/components/nota/SubstituicaoDeadline'
+import ISSRecolhimentoCard from '@/components/nota/ISSRecolhimentoCard'
 import type { Nota } from '@/lib/types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
@@ -93,6 +94,17 @@ export default async function NotaDetailPage({ params }: { params: { id: string 
             <p className="text-sm text-text-2">{nota.erro_descricao}</p>
           </div>
         )}
+
+      {/* ME-42: ISS recolhimento card — aparece para notas autorizadas */}
+      {nota.status === 'AUTORIZADA' && (
+        <div className="mb-6">
+          <ISSRecolhimentoCard
+            regime={nota.regime_tributario}
+            issRetido={nota.iss_retido}
+            competencia={nota.competencia}
+          />
+        </div>
+      )}
 
       {/* Event timeline */}
       <NotaTimeline nota={nota} />

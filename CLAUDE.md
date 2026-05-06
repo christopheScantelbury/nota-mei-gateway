@@ -492,8 +492,16 @@ status-cancelada.png    → #6473A0 (cinza)
                               · Contadores corrigidos: SSR renderiza valor final (< 3s, 99.9%, 5000+)
                               · UrgencyBanner: faixa âmbar sobre obrigatoriedade NFS-e 2026, dismissível
                               · Stack técnica removida da home root (Supabase/Railway/AWS/etc.)
-⏳ Stripe live keys           sk_live_ / pk_live_ ainda não criadas (somente test mode ativo)
-⏳ QA-01                      E2E tests (depende de DNS)
+✅ Stripe live keys           sk_live_ + pk_live_ + whsec_ + 5 price IDs live configurados (2026-05-06)
+                              produtos/preços criados via stripe_provision.js, aplicados no Railway
+✅ ME-EP3 (#213)              ISS multi-município NFS-e Nacional — squash merge main (2026-06-08)
+                              · migration 20260608000001_municipios_iss.sql aplicada em prod
+                              · municipios_nfse + iss_aliquotas (10 municípios seed + Manaus NBS)
+                              · ISSLookup: GetAliquota(ctx) + MunicipioAtivo(ctx) com Redis 30d/24h
+                              · DBMunicipioLister + GET /v1/municipios reescrito (nome/uf/nbs_mapeadas)
+                              · cmd/jobs/update_municipios.go — job mensal NFS-e Nacional
+✅ Supabase db push           20 migrations aplicadas em prod (2026-05-06) — municipios_iss incluída
+⏳ QA-01                      E2E tests contra homologação Receita Federal
 ```
 
 ---
@@ -629,7 +637,7 @@ vercel --prod               # deploy manual produção
 ---
 
 ## 13. ESTADO ATUAL
-> Última atualização: 2026-05-04 · branch `main` · commit `a401410` · CI ✅ Deploy ✅ Issues: 116 fechadas / 2 abertas
+> Última atualização: 2026-06-08 · branch `main` · commit `1f42117` (ME-EP3) · CI ✅ Deploy ✅ Migrations: 20/20 aplicadas em prod
 
 ### Código — 100% concluído
 
@@ -670,8 +678,7 @@ vercel --prod               # deploy manual produção
                 A @ → 216.198.79.1 | CNAME www → c4ed91af802cfdc8.vercel-dns-017.com
                 CNAME api → api-production-73b1.up.railway.app (Railway custom domain ativo)
 
-⏳ Supabase     supabase link --project-ref pzjvgtwnstfyangfwdom
-                supabase db push   (aplicar migrations em produção)
+✅ Supabase     supabase db push concluído — todas as 20 migrations aplicadas (2026-05-06)
 
 ⏳ Vercel       Adicionar no projeto as env vars que faltam:
                   NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...   (do ACESSOS.local.md)
@@ -680,7 +687,7 @@ vercel --prod               # deploy manual produção
 ⏳ Stripe       Criar chaves live (sk_live_ / pk_live_) quando pronto para produção
                 Atualizar STRIPE_SECRET_KEY + STRIPE_PUBLISHABLE_KEY no Railway/Vercel
 
-⏳ QA-01        Rodar E2E contra homologação da Receita Federal (depende de DNS + Vercel vars)
+⏳ QA-01        Rodar E2E contra homologação da Receita Federal
 ```
 
 ### Pontos de atenção
