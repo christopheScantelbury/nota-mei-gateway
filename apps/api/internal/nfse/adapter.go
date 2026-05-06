@@ -29,14 +29,32 @@ func (e transientErr) Error() string {
 }
 
 // Adapter is the HTTP mTLS client for the Receita Federal NFS-e Nacional API.
+// baseURL is used for MEI/ABRASF RPS calls; sefinBaseURL is used for ME/EPP DPS calls.
 type Adapter struct {
-	baseURL string
+	baseURL      string
+	sefinBaseURL string
 }
 
-// NewAdapter returns an Adapter pointing at the given base URL
-// (e.g. https://www.nfse.gov.br/m/app/api/recepcionar-lote-rps/v1).
+// NewAdapter returns an Adapter pointing at the given base URL for MEI RPS calls.
+// ME/EPP DPS calls will fall back to baseURL when sefinBaseURL is not configured.
 func NewAdapter(baseURL string) *Adapter {
 	return &Adapter{baseURL: baseURL}
+}
+
+// NewAdapterWithSefin returns an Adapter with separate endpoints for MEI (ABRASF RPS)
+// and ME/EPP (SEFIN Nacional DPS).
+func NewAdapterWithSefin(receitaURL, sefinURL string) *Adapter {
+	return &Adapter{baseURL: receitaURL, sefinBaseURL: sefinURL}
+}
+
+// sefinBase returns the SEFIN Nacional base URL, falling back to baseURL with a log
+// when sefinBaseURL is not configured (degraded mode).
+func (a *Adapter) sefinBase() string {
+	if a.sefinBaseURL != "" {
+		return a.sefinBaseURL
+	}
+	fmt.Println("WARN: sefinBaseURL not configured — ME/EPP DPS calls using MEI endpoint as fallback")
+	return a.baseURL
 }
 
 // Enviar sends an RPS XML envelope to POST /envio and parses the response.
@@ -126,6 +144,69 @@ func (a *Adapter) Cancelar(ctx context.Context, xmlBody []byte, cert *tls.Certif
 	})
 	if err != nil {
 		return nil, fmt.Errorf("cancelamento: %w", err)
+	}
+	return result, nil
+}
+
+// EnviarDPS sends a signed DPS XML to POST /envio on the SEFIN Nacional endpoint.
+// Used for ME/EPP companies (DPS path). Retries on 5xx/network errors with backoff.
+func (a *Adapter) EnviarDPS(ctx context.Context, xmlBody []byte, cert *tls.Certificate) (*EnvioResponse, error) {
+	var result *EnvioResponse
+	base := a.sefinBase()
+	err := withRetry(ctx, backoffDelays, func() error {
+		resp, err := a.do(ctx, http.MethodPost, base+"/envio", xmlBody, cert)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode >= 500 {
+			return transientErr{code: resp.StatusCode, body: body}
+		}
+		if resp.StatusCode >= 400 {
+			return fmt.Errorf("sefin nacional client error %d: %.200s", resp.StatusCode, body)
+		}
+		result, err = parseEnvioResponse(body)
+		return err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("envio dps: %w", err)
+	}
+	return result, nil
+}
+
+// ConsultarDPS queries the SEFIN Nacional endpoint for the status of a DPS batch by protocol.
+// Used for ME/EPP companies (DPS path). Retries on 5xx/network errors with backoff.
+func (a *Adapter) ConsultarDPS(ctx context.Context, cnpj, protocolo string, cert *tls.Certificate) (*ConsultaResponse, error) {
+	base := a.sefinBase()
+	url := fmt.Sprintf("%s/consulta?cnpj=%s&protocolo=%s", base, cnpj, protocolo)
+	var result *ConsultaResponse
+	err := withRetry(ctx, backoffDelays, func() error {
+		resp, err := a.do(ctx, http.MethodGet, url, nil, cert)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		if resp.StatusCode >= 500 {
+			return transientErr{code: resp.StatusCode, body: body}
+		}
+		if resp.StatusCode >= 400 {
+			return fmt.Errorf("sefin nacional client error %d: %.200s", resp.StatusCode, body)
+		}
+		result, err = parseConsultaResponse(body)
+		return err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("consulta dps: %w", err)
 	}
 	return result, nil
 }

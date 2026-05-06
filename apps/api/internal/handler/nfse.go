@@ -473,7 +473,7 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 		warnings = append(warnings, "ISS forçado para retido: tomador é órgão público (Art. 6 LC 116/2003)")
 	}
 
-	envioResp, envErr := h.adapter.Enviar(ctx, signedXML, cert)
+	envioResp, envErr := h.adapter.EnviarDPS(ctx, signedXML, cert)
 	if envErr != nil {
 		log.Ctx(ctx).Warn().Err(envErr).Str("nota_id", nota.ID.String()).Msg("envio DPS falhou, mantendo PROCESSANDO")
 		resp := fiber.Map{
@@ -493,8 +493,12 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 
 	// ── 9. Process response ────────────────────────────────────────────────
 	if len(envioResp.Erros) > 0 {
+		// ME-33: enrich rejection description with known SEFIN Nacional codes (E01-E09, E55, W01).
 		codigo := envioResp.Erros[0].Codigo
 		descricao := envioResp.Erros[0].Descricao
+		if descricao == "" || descricao == codigo {
+			descricao = nfse.DescricaoRejeicao(codigo)
+		}
 		_, _ = h.notaRepo.Rejeitar(ctx, nota.ID, codigo, descricao)
 		h.publishEvent(ctx, nota, webhook.EventRejeitada, "", "", codigo, descricao)
 		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
@@ -709,15 +713,22 @@ func (h *NFSeHandler) CancelarNota(c *fiber.Ctx) error {
 		return internalError(c, "nota sem número NFS-e")
 	}
 
-	// ME-31: validate 90-day cancellation window for ME/EPP.
-	if empresa != nil && nota.EmitidaEm != nil {
-		janela := 90 * 24 * time.Hour
-		if time.Since(*nota.EmitidaEm) > janela {
+	// ME-31: validate cancellation window for ME/EPP.
+	// PRIVADO tomadores: 90 days. ORGAO_PUBLICO tomadores: 365 days.
+	if empresa != nil {
+		prazo := nfse.VerificarPrazoCancelamento(nota.EmitidaEm, nota.TomadorTipo)
+		if !prazo.Permitido {
+			orientacao := "prazo de 90 dias para cancelamento expirado"
+			if prazo.TomadorPublico {
+				orientacao = "prazo de 365 dias para cancelamento expirado (tomador órgão público)"
+			}
 			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
-				"error":      "CANCELLATION_WINDOW_EXPIRED",
-				"message":    "prazo de cancelamento de 90 dias expirado",
-				"emitida_em": nota.EmitidaEm,
-				"request_id": c.Locals("request_id"),
+				"error":       "CANCELLATION_WINDOW_EXPIRED",
+				"message":     orientacao,
+				"emitida_em":  nota.EmitidaEm,
+				"data_limite": prazo.DataLimite,
+				"orientacao":  orientacao,
+				"request_id":  c.Locals("request_id"),
 			})
 		}
 	}

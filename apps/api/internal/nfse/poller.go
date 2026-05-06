@@ -157,7 +157,13 @@ func (p *Poller) consultaNota(ctx context.Context, nc NotaParaConsulta) {
 		return
 	}
 
-	resp, err := p.adapter.Consultar(ctx, nc.CNPJ, *nc.ProtocoloReceita, cert)
+	// Route to SEFIN Nacional endpoint for ME/EPP (DPS path), ABRASF for MEI.
+	var resp *ConsultaResponse
+	if nc.EmpresaTipo != "" {
+		resp, err = p.adapter.ConsultarDPS(ctx, nc.CNPJ, *nc.ProtocoloReceita, cert)
+	} else {
+		resp, err = p.adapter.Consultar(ctx, nc.CNPJ, *nc.ProtocoloReceita, cert)
+	}
 	if err != nil {
 		l.Warn().Err(err).Msg("poller: consulta request failed — will retry next sweep")
 		return
@@ -184,6 +190,10 @@ func (p *Poller) consultaNota(ctx context.Context, nc NotaParaConsulta) {
 		if len(resp.Erros) > 0 {
 			errCodigo = resp.Erros[0].Codigo
 			errDescricao = resp.Erros[0].Descricao
+			// ME-33: enrich with known rejection description when the API returns a bare code.
+			if errDescricao == "" || errDescricao == errCodigo {
+				errDescricao = DescricaoRejeicao(errCodigo)
+			}
 		}
 		updated, err := p.repo.Rejeitar(ctx, nc.ID, errCodigo, errDescricao)
 		if err != nil {

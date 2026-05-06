@@ -118,7 +118,7 @@ func main() {
 	notaRepo := nfse.NewNotaRepository(db)
 
 	// ── Adapters & builders ────────────────────────────────────────────────
-	adapter := nfse.NewAdapter(cfg.ReceitaAPIURL)
+	adapter := nfse.NewAdapterWithSefin(cfg.ReceitaAPIURL, cfg.SefinAPIURL)
 	builder := document.NewBuilder()
 	dpsBuilder := document.NewDPSBuilder()
 
