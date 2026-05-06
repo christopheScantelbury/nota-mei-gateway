@@ -1,44 +1,72 @@
 package handler_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
-	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/document"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/handler"
 	"github.com/gofiber/fiber/v2"
 )
 
-// newMunicipioApp builds a minimal Fiber app with the municipio endpoint wired.
-func newMunicipioApp(t *testing.T) *fiber.App {
+// ── stub lister ───────────────────────────────────────────────────────────────
+
+// stubMunicipioLister implements handler.MunicipioLister using an in-memory slice.
+type stubMunicipioLister struct {
+	entries []handler.MunicipioEntry
+}
+
+func (s *stubMunicipioLister) ListAtivos(_ context.Context, uf string) ([]handler.MunicipioEntry, time.Time, error) {
+	if uf == "" {
+		return s.entries, time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC), nil
+	}
+	var filtered []handler.MunicipioEntry
+	for _, e := range s.entries {
+		if e.UF == uf {
+			filtered = append(filtered, e)
+		}
+	}
+	return filtered, time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC), nil
+}
+
+// newTestMunicipioApp builds a Fiber app backed by the stub lister.
+func newTestMunicipioApp(t *testing.T) *fiber.App {
 	t.Helper()
-	issLookup := document.NewISSLookupFromRates(map[string]float64{
-		// AM — Amazonas (prefix 13)
-		"1302603": 2.0, // Manaus
-		"1301704": 5.0, // Itacoatiara
-		// SP — São Paulo (prefix 35)
-		"3550308": 2.9, // São Paulo capital
-		"3509502": 3.5, // Campinas
-	})
 
-	h := handler.NewMunicipioHandler(issLookup)
+	aliq200 := 2.00
+	aliq250 := 2.50
 
+	lister := &stubMunicipioLister{
+		entries: []handler.MunicipioEntry{
+			// AM — Amazonas
+			{IBGE: "1302603", Nome: "Manaus", UF: "AM", DataAdesao: "2026-01-01", AliqPadrao: &aliq200, NBSMapeadas: true},
+			{IBGE: "1301704", Nome: "Itacoatiara", UF: "AM", DataAdesao: "2026-01-01", AliqPadrao: &aliq200, NBSMapeadas: false},
+			// SP — São Paulo
+			{IBGE: "3550308", Nome: "São Paulo", UF: "SP", DataAdesao: "2023-09-01", AliqPadrao: &aliq200, NBSMapeadas: false},
+			{IBGE: "3509502", Nome: "Campinas", UF: "SP", DataAdesao: "2024-01-01", AliqPadrao: &aliq250, NBSMapeadas: false},
+		},
+	}
+
+	h := handler.NewMunicipioHandler(lister)
 	app := fiber.New()
 	app.Get("/v1/municipios", h.ListMunicipios)
 	return app
 }
 
+// ── tests ─────────────────────────────────────────────────────────────────────
+
 func TestListMunicipios_NoFilter_ReturnsAll(t *testing.T) {
-	app := newMunicipioApp(t)
+	app := newTestMunicipioApp(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/municipios", nil)
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test: %v", err)
 	}
-	t.Cleanup(func() { _ = resp.Body.Close() })
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -48,7 +76,10 @@ func TestListMunicipios_NoFilter_ReturnsAll(t *testing.T) {
 		Total      int `json:"total"`
 		Municipios []struct {
 			IBGE        string  `json:"ibge"`
-			AliquotaISS float64 `json:"aliquota_iss"`
+			Nome        string  `json:"nome"`
+			UF          string  `json:"uf"`
+			AliqPadrao  float64 `json:"aliquota_padrao"`
+			NBSMapeadas bool    `json:"aliquotas_nbs_mapeadas"`
 		} `json:"municipios"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
@@ -60,14 +91,14 @@ func TestListMunicipios_NoFilter_ReturnsAll(t *testing.T) {
 }
 
 func TestListMunicipios_FilterByUF_AM(t *testing.T) {
-	app := newMunicipioApp(t)
+	app := newTestMunicipioApp(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/municipios?uf=AM", nil)
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test: %v", err)
 	}
-	t.Cleanup(func() { _ = resp.Body.Close() })
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -85,14 +116,14 @@ func TestListMunicipios_FilterByUF_AM(t *testing.T) {
 }
 
 func TestListMunicipios_FilterByUF_Lowercase(t *testing.T) {
-	app := newMunicipioApp(t)
+	app := newTestMunicipioApp(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/municipios?uf=sp", nil)
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test: %v", err)
 	}
-	t.Cleanup(func() { _ = resp.Body.Close() })
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200 for lowercase uf, got %d", resp.StatusCode)
@@ -110,14 +141,14 @@ func TestListMunicipios_FilterByUF_Lowercase(t *testing.T) {
 }
 
 func TestListMunicipios_InvalidUF_Returns400(t *testing.T) {
-	app := newMunicipioApp(t)
+	app := newTestMunicipioApp(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/v1/municipios?uf=XX", nil)
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test: %v", err)
 	}
-	t.Cleanup(func() { _ = resp.Body.Close() })
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400 for invalid UF, got %d", resp.StatusCode)
@@ -132,7 +163,7 @@ func TestListMunicipios_InvalidUF_Returns400(t *testing.T) {
 	}
 }
 
-func TestListMunicipios_NilLookup_ReturnsEmpty(t *testing.T) {
+func TestListMunicipios_NilLister_ReturnsEmpty(t *testing.T) {
 	h := handler.NewMunicipioHandler(nil)
 	app := fiber.New()
 	app.Get("/v1/municipios", h.ListMunicipios)
@@ -142,36 +173,88 @@ func TestListMunicipios_NilLookup_ReturnsEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test: %v", err)
 	}
-	t.Cleanup(func() { _ = resp.Body.Close() })
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("expected 200 for nil lookup, got %d", resp.StatusCode)
+		t.Fatalf("expected 200 for nil lister, got %d", resp.StatusCode)
 	}
 }
 
-func TestListMunicipios_SortedByIBGE(t *testing.T) {
-	app := newMunicipioApp(t)
+func TestListMunicipios_ResponseHasAtualizadoEm(t *testing.T) {
+	app := newTestMunicipioApp(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/v1/municipios?uf=SP", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/municipios", nil)
 	resp, err := app.Test(req)
 	if err != nil {
 		t.Fatalf("app.Test: %v", err)
 	}
-	t.Cleanup(func() { _ = resp.Body.Close() })
+	defer func() { _ = resp.Body.Close() }()
+
+	var body map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if _, ok := body["atualizado_em"]; !ok {
+		t.Error("response should contain atualizado_em field")
+	}
+}
+
+func TestListMunicipios_ResponseHasNBSMapeadasField(t *testing.T) {
+	app := newTestMunicipioApp(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/municipios?uf=AM", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
 
 	var body struct {
 		Municipios []struct {
-			IBGE string `json:"ibge"`
+			IBGE        string `json:"ibge"`
+			NBSMapeadas bool   `json:"aliquotas_nbs_mapeadas"`
 		} `json:"municipios"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	if len(body.Municipios) < 2 {
-		t.Fatalf("expected at least 2 municipios for SP, got %d", len(body.Municipios))
+	if len(body.Municipios) == 0 {
+		t.Fatal("expected at least 1 municipio")
 	}
-	// Should be sorted ascending: 3509502 < 3550308
-	if body.Municipios[0].IBGE >= body.Municipios[1].IBGE {
-		t.Fatalf("municipios not sorted: %s >= %s", body.Municipios[0].IBGE, body.Municipios[1].IBGE)
+	// Manaus should have NBS mapeadas = true
+	for _, m := range body.Municipios {
+		if m.IBGE == "1302603" && !m.NBSMapeadas {
+			t.Error("Manaus should have aliquotas_nbs_mapeadas=true")
+		}
+	}
+}
+
+func TestListMunicipios_ResponseHasNomeAndUF(t *testing.T) {
+	app := newTestMunicipioApp(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/municipios?uf=AM", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	var body struct {
+		Municipios []struct {
+			IBGE string `json:"ibge"`
+			Nome string `json:"nome"`
+			UF   string `json:"uf"`
+		} `json:"municipios"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	for _, m := range body.Municipios {
+		if m.Nome == "" {
+			t.Errorf("municipio %s should have nome field", m.IBGE)
+		}
+		if m.UF == "" {
+			t.Errorf("municipio %s should have uf field", m.IBGE)
+		}
 	}
 }

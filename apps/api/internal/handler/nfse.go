@@ -278,13 +278,23 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 	ctx := c.Context()
 
 	// ── ME-21: Validar município habilitado para NFS-e Nacional ───────────
-	if h.issLookup != nil && !h.issLookup.IsHabilitado(empresa.MunicipioIBGE) {
-		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
-			"error":      "MUNICIPIO_NAO_HABILITADO",
-			"message":    "município não habilitado para emissão no NFS-e Nacional",
-			"ibge":       empresa.MunicipioIBGE,
-			"request_id": c.Locals("request_id"),
-		})
+	// MunicipioAtivo checks the municipios_nfse table (Redis-cached 24 h).
+	// Graceful degradation: if the DB check fails we warn but do not block.
+	if h.issLookup != nil {
+		ativo, muniErr := h.issLookup.MunicipioAtivo(ctx, empresa.MunicipioIBGE)
+		if muniErr != nil {
+			log.Ctx(ctx).Warn().Err(muniErr).
+				Str("ibge", empresa.MunicipioIBGE).
+				Msg("municipio check failed — allowing emission (graceful degradation)")
+		} else if !ativo {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+				"error":      "MUNICIPIO_NAO_HABILITADO",
+				"message":    "município não habilitado para emissão no NFS-e Nacional — consulte gov.br/nfse para a lista de municípios ativos",
+				"ibge":       empresa.MunicipioIBGE,
+				"info_url":   "https://www.nfse.gov.br/pt-br/municipios",
+				"request_id": c.Locals("request_id"),
+			})
+		}
 	}
 
 	// ── NBS validation ────────────────────────────────────────────────────
@@ -335,9 +345,41 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 		return internalError(c, "erro ao alocar número de DPS")
 	}
 
-	// ── 3. Resolve ISS rate ───────────────────────────────────────────────
+	// ── 3. Resolve ISS rate (3-level: NBS-specific → muni default → client) ─
 	if h.issLookup != nil {
-		req.Servico.AliquotaISS = h.issLookup.Resolve(empresa.MunicipioIBGE, req.Servico.AliquotaISS)
+		result, issErr := h.issLookup.GetAliquota(ctx, empresa.MunicipioIBGE, req.Servico.CodigoNBS)
+		if issErr == nil {
+			// Found in DB (NBS-specific or municipality default) — use it.
+			req.Servico.AliquotaISS = result.Aliquota
+			log.Ctx(ctx).Debug().
+				Str("ibge", empresa.MunicipioIBGE).
+				Str("nbs", req.Servico.CodigoNBS).
+				Float64("aliquota", result.Aliquota).
+				Str("fonte", result.Fonte).
+				Msg("ISS rate resolved")
+		} else {
+			// Not in DB — use client-provided aliquota_iss.
+			// Validate legal range (LC 116/2003, Art. 8): 0% (isenção) or 2–5%.
+			a := req.Servico.AliquotaISS
+			if a == 0 {
+				// Zero means "not provided" in the request — require the client to inform it.
+				return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+					"error":      "VALIDATION_ERROR",
+					"message":    "alíquota ISS não mapeada para este município/NBS — informe aliquota_iss no request",
+					"fields":     []fiber.Map{{"field": "aliquota_iss", "message": "obrigatório quando alíquota não está mapeada"}},
+					"request_id": c.Locals("request_id"),
+				})
+			}
+			// Allow 0% isenção or legal range 2–5%.
+			if a != 0 && (a < 2.00 || a > 5.00) {
+				return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+					"error":      "VALIDATION_ERROR",
+					"message":    "alíquota ISS deve ser 0% (isenção) ou estar entre 2.00% e 5.00% (LC 116/2003, Art. 8)",
+					"fields":     []fiber.Map{{"field": "aliquota_iss", "message": "fora do range legal"}},
+					"request_id": c.Locals("request_id"),
+				})
+			}
+		}
 	}
 
 	// ── 4. Build DPS XML ──────────────────────────────────────────────────
