@@ -18,6 +18,12 @@ type ISSLookup struct {
 	rates map[string]float64 // municipio_ibge → aliquota percentage
 }
 
+// NewISSLookupFromRates creates an ISSLookup directly from a pre-built rates map.
+// Intended for tests and seed scenarios where no database is available.
+func NewISSLookupFromRates(rates map[string]float64) *ISSLookup {
+	return &ISSLookup{rates: rates}
+}
+
 // NewISSLookup loads all municipality rates from the database into memory.
 func NewISSLookup(ctx context.Context, db *pgxpool.Pool) (*ISSLookup, error) {
 	rows, err := db.Query(ctx, `SELECT municipio_ibge, aliquota FROM aliquotas_iss`)
