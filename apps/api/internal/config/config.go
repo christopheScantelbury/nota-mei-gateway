@@ -44,6 +44,10 @@ type Config struct {
 	WebhookHMACSecret string
 
 	ReceitaAPIURL string
+	// SefinAPIURL is the base URL for the SEFIN Nacional endpoint used by ME/EPP companies.
+	// When empty the adapter falls back to ReceitaAPIURL (degraded mode — logs a warning on first call).
+	// Override via SEFIN_API_URL env var; homologação is selected automatically when APP_ENV != production.
+	SefinAPIURL string
 
 	// S3BucketNotas is the AWS S3 bucket name for fiscal document storage (STOR-01).
 	// When empty the API falls back to NoopStore (in-memory, dev/test only).
@@ -94,6 +98,7 @@ func Load() *Config {
 		"STRIPE_PRICE_BASIC",
 		"STRIPE_PRICE_PRO",
 		"STRIPE_PRICE_BUSINESS",
+		"SEFIN_API_URL",
 	}
 	var softMissing []string
 	for _, k := range softRequired {
@@ -135,6 +140,7 @@ func Load() *Config {
 		WebhookHMACSecret: os.Getenv("WEBHOOK_HMAC_SECRET"),
 
 		ReceitaAPIURL: os.Getenv("RECEITA_API_URL"),
+		SefinAPIURL:   sefinURL(),
 
 		S3BucketNotas: os.Getenv("S3_BUCKET_NOTAS"),
 
@@ -143,6 +149,22 @@ func Load() *Config {
 		ResendAPIKey: os.Getenv("RESEND_API_KEY"),
 		EmailFrom:    getEnv("EMAIL_FROM", "Nota MEI Gateway <noreply@emitirnotafacil.com.br>"),
 	}
+}
+
+// sefinURL returns the SEFIN Nacional base URL.
+// When SEFIN_API_URL is set it is used as-is (production or custom).
+// When SEFIN_API_URL_HOM is set and APP_ENV is not "production", the homologação URL is used.
+// Falls back to the production SEFIN Nacional URL so the API starts without panicking.
+func sefinURL() string {
+	if v := os.Getenv("SEFIN_API_URL"); v != "" {
+		return v
+	}
+	if os.Getenv("APP_ENV") != "production" {
+		if v := os.Getenv("SEFIN_API_URL_HOM"); v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func getEnv(key, fallback string) string {

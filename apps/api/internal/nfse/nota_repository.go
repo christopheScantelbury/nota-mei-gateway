@@ -51,6 +51,12 @@ type Nota struct {
 	// ISSRetido is true when ISS was withheld at source by the tomador.
 	// NULL for MEI/SN rows (ME-42).
 	ISSRetido *bool
+	// TomadorTipo is PRIVADO or ORGAO_PUBLICO (ME-31).
+	// NULL for MEI historical rows.
+	TomadorTipo *string
+	// MotivoCancelamento is the free-text reason provided by the empresa (ME-31).
+	// NULL when not set.
+	MotivoCancelamento *string
 }
 
 // ErrNotaNotFound is returned when a nota does not exist or does not belong to the MEI.
@@ -183,7 +189,8 @@ func (r *NotaRepository) FindByID(ctx context.Context, notaID, meiID uuid.UUID) 
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at, substituida_por, regime_tributario, iss_retido
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido,
+		       tomador_tipo, motivo_cancelamento
 		FROM notas_fiscais
 		WHERE id = $1 AND mei_id = $2
 	`, notaID, meiID)
@@ -202,7 +209,8 @@ func (r *NotaRepository) FindByIDForEmpresa(ctx context.Context, notaID, empresa
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at, substituida_por, regime_tributario, iss_retido
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido,
+		       tomador_tipo, motivo_cancelamento
 		FROM notas_fiscais
 		WHERE id = $1 AND empresa_id = $2
 	`, notaID, empresaID)
@@ -221,7 +229,8 @@ func (r *NotaRepository) ListByEmpresa(ctx context.Context, empresaID uuid.UUID,
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at, substituida_por, regime_tributario, iss_retido
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido,
+		       tomador_tipo, motivo_cancelamento
 		FROM notas_fiscais
 		WHERE empresa_id = $1
 		ORDER BY created_at DESC
@@ -265,7 +274,8 @@ func (r *NotaRepository) ListByMEI(ctx context.Context, meiID uuid.UUID, limit, 
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at, substituida_por, regime_tributario, iss_retido
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido,
+		       tomador_tipo, motivo_cancelamento
 		FROM notas_fiscais
 		WHERE mei_id = $1
 		ORDER BY created_at DESC
@@ -311,7 +321,8 @@ func (r *NotaRepository) FindProcessandoSemProtocolo(ctx context.Context, olderT
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at, substituida_por, regime_tributario, iss_retido
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido,
+		       tomador_tipo, motivo_cancelamento
 		FROM notas_fiscais
 		WHERE status = 'PROCESSANDO'
 		  AND protocolo_receita IS NULL
@@ -522,7 +533,8 @@ func (r *NotaRepository) FindPendingWebhooks(ctx context.Context, limit int) ([]
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at, substituida_por, regime_tributario, iss_retido
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido,
+		       tomador_tipo, motivo_cancelamento
 		FROM notas_fiscais
 		WHERE webhook_url IS NOT NULL
 		  AND webhook_entregue = false
@@ -547,17 +559,23 @@ func (r *NotaRepository) FindPendingWebhooks(ctx context.Context, limit int) ([]
 	return notas, rows.Err()
 }
 
-// NotaParaConsulta extends Nota with MEI data needed by the status poller.
+// NotaParaConsulta extends Nota with MEI/empresa data needed by the status poller.
 type NotaParaConsulta struct {
 	Nota
 	CNPJ          string
 	MunicipioIBGE string
-	CertSecretARN *string // nullable — MEI might not have a cert yet
+	CertSecretARN *string // nullable — entity might not have a cert yet
+	// EmpresaTipo is non-empty ("ME" or "EPP") for ME/EPP notas, empty for MEI notas.
+	// The poller uses this to route to the correct adapter method (ConsultarDPS vs Consultar).
+	EmpresaTipo string
 }
 
 // FindProcessandoComProtocolo returns PROCESSANDO notas that already have a
 // protocolo_receita (i.e. were accepted async by the Receita Federal) and
 // are thus ready to be polled for their final status.
+//
+// Supports both MEI (mei_id IS NOT NULL) and ME/EPP (empresa_id references empresas)
+// notas via LEFT JOINs. EmpresaTipo is non-empty only for ME/EPP rows.
 func (r *NotaRepository) FindProcessandoComProtocolo(ctx context.Context, limit int) ([]NotaParaConsulta, error) {
 	rows, err := r.db.Pool().Query(ctx, `
 		SELECT n.id, n.mei_id, n.numero_rps, n.status,
@@ -569,9 +587,14 @@ func (r *NotaRepository) FindProcessandoComProtocolo(ctx context.Context, limit 
 		       n.erro_codigo, n.erro_descricao,
 		       n.cancelada_em, n.emitida_em,
 		       n.created_at, n.updated_at, n.substituida_por, n.regime_tributario, n.iss_retido,
-		       m.cnpj, m.municipio_ibge, m.cert_secret_arn
+		       n.tomador_tipo, n.motivo_cancelamento,
+		       COALESCE(m.cnpj, e.cnpj)                     AS cnpj,
+		       COALESCE(m.municipio_ibge, e.municipio_ibge)  AS municipio_ibge,
+		       COALESCE(m.cert_secret_arn, e.cert_secret_arn) AS cert_secret_arn,
+		       COALESCE(e.tipo, '')                           AS empresa_tipo
 		FROM notas_fiscais n
-		JOIN meis m ON m.id = n.mei_id
+		LEFT JOIN meis m     ON m.id = n.mei_id
+		LEFT JOIN empresas e ON e.id = n.empresa_id AND n.mei_id IS NULL
 		WHERE n.status = 'PROCESSANDO'
 		  AND n.protocolo_receita IS NOT NULL
 		ORDER BY n.updated_at ASC
@@ -595,7 +618,9 @@ func (r *NotaRepository) FindProcessandoComProtocolo(ctx context.Context, limit 
 			&nc.ErroCodigo, &nc.ErroDescricao,
 			&nc.CanceladaEm, &nc.EmitidaEm,
 			&nc.CreatedAt, &nc.UpdatedAt, &nc.SubstituidaPor, &nc.RegimeTributario, &nc.ISSRetido,
+			&nc.TomadorTipo, &nc.MotivoCancelamento,
 			&nc.CNPJ, &nc.MunicipioIBGE, &nc.CertSecretARN,
+			&nc.EmpresaTipo,
 		)
 		if err != nil {
 			return nil, err
@@ -624,6 +649,7 @@ func scanNota(row scanner) (*Nota, error) {
 		&n.ErroCodigo, &n.ErroDescricao,
 		&n.CanceladaEm, &n.EmitidaEm,
 		&n.CreatedAt, &n.UpdatedAt, &n.SubstituidaPor, &n.RegimeTributario, &n.ISSRetido,
+		&n.TomadorTipo, &n.MotivoCancelamento,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
