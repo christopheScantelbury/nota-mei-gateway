@@ -1,7 +1,8 @@
 # Casos de Teste — QA Nota Fácil MEI + Nota MEI Gateway
 
-> **Versão:** 1.0 · **Data:** 2026-05-05  
-> **Ambientes:** produção (`notafacilmei.com.br` / `notameigateway.com.br`) e staging  
+> **Versão:** 1.1 · **Data:** 2026-05-05  
+> **Ambientes:** produção (`emitirnotafacil.com.br`) · staging (`nota-mei-gateway-web.vercel.app`)  
+> **Nota:** Ambos os produtos (Nota Fácil MEI e Nota MEI Gateway) rodam no mesmo domínio. O produto é determinado pelo parâmetro `?produto=mei` ou `?produto=gateway` na URL de login/cadastro e pelo campo `tipo_usuario` no banco.  
 > **Legenda de severidade:** 🔴 Crítico · 🟠 Alto · 🟡 Médio · 🟢 Baixo
 
 ---
@@ -24,7 +25,7 @@
 ### TC-AUTH-001 🔴 Login com código correto (happy path)
 **Pré-condições:** E-mail `usuario@teste.com` cadastrado no sistema  
 **Passos:**
-1. Acessar `notafacilmei.com.br/login` (ou `/login?produto=gateway` para Gateway)
+1. Acessar `emitirnotafacil.com.br/login?produto=mei` (MEI) ou `emitirnotafacil.com.br/login?produto=gateway` (Gateway)
 2. Digitar o e-mail cadastrado
 3. Clicar em "Enviar código de acesso"
 4. Abrir o e-mail recebido — assunto "Seu código de acesso"
@@ -127,7 +128,7 @@
 ### TC-AUTH-007 🟡 Usuário já logado acessa /login
 **Pré-condições:** Usuário autenticado  
 **Passos:**
-1. Usuário logado acessa `notafacilmei.com.br/login`
+1. Usuário logado acessa `emitirnotafacil.com.br/login`
 
 **Resultado esperado:**
 - Redirecionado imediatamente para `/notas` (não vê a tela de login)
@@ -152,18 +153,22 @@
 
 ---
 
-## 2. SEPARAÇÃO DE PRODUTO — Domain Routing
+## 2. SEPARAÇÃO DE PRODUTO — Single Domain, Dois Produtos
 
-### TC-PROD-001 🔴 MEI logado no domínio MEI
+> Nota: ambos os produtos rodam no mesmo domínio `emitirnotafacil.com.br`.  
+> A separação é feita pelo campo `tipo_usuario` na tabela `meis` e detectada no servidor via JWT do Supabase.
+
+### TC-PROD-001 🔴 MEI vê painel correto após login
 **Pré-condições:** Conta com `tipo_usuario = 'mei'`  
 **Passos:**
-1. Fazer login em `notafacilmei.com.br/login`
-2. Concluir OTP
+1. Acessar `emitirnotafacil.com.br/login?produto=mei`
+2. Inserir e-mail MEI e concluir OTP
 
 **Resultado esperado:**
-- Aterra em `notafacilmei.com.br/notas`
-- Logo "Nota Fácil MEI" no sidebar
-- Sidebar exibe: Notas, Templates, Plano, Configurações (sem API Keys, Webhooks, Automação)
+- Aterra em `emitirnotafacil.com.br/notas`
+- Logo "Nota Fácil MEI" no sidebar (SVG do produto MEI)
+- Sidebar exibe: Notas Fiscais, Templates, Plano & Faturamento, Configurações
+- Sidebar **não** exibe: API Keys, Webhooks, Automação
 - Título da aba: "Painel — Nota Fácil MEI"
 
 **Resultado real:** ___  
@@ -171,16 +176,16 @@
 
 ---
 
-### TC-PROD-002 🔴 Gateway logado no domínio Gateway
+### TC-PROD-002 🔴 Gateway vê painel correto após login
 **Pré-condições:** Conta com `tipo_usuario = 'gateway'`  
 **Passos:**
-1. Fazer login em `notameigateway.com.br/login`
-2. Concluir OTP
+1. Acessar `emitirnotafacil.com.br/login?produto=gateway`
+2. Inserir e-mail Gateway e concluir OTP
 
 **Resultado esperado:**
-- Aterra em `notameigateway.com.br/notas`
-- Logo "Nota MEI Gateway" no sidebar
-- Sidebar exibe: Notas, Templates, Automação, API Keys, Webhooks, Plano, Configurações
+- Aterra em `emitirnotafacil.com.br/notas`
+- Logo "Nota MEI Gateway" no sidebar (SVG do produto Gateway)
+- Sidebar exibe: Notas Fiscais, Templates, Automação, API Keys, Webhooks, Plano & Faturamento, Configurações
 - Título da aba: "Painel — Nota MEI Gateway"
 
 **Resultado real:** ___  
@@ -188,27 +193,30 @@
 
 ---
 
-### TC-PROD-003 🔴 MEI tenta acessar domínio Gateway
+### TC-PROD-003 🟠 MEI não consegue acessar página exclusiva do Gateway
 **Pré-condições:** Conta com `tipo_usuario = 'mei'`, usuário logado  
 **Passos:**
-1. Com sessão ativa de MEI, digitar `notameigateway.com.br/notas` na barra de endereço
+1. Com sessão ativa de MEI, acessar diretamente `emitirnotafacil.com.br/api-keys`
 
 **Resultado esperado:**
-- Redirecionado automaticamente para `notafacilmei.com.br/notas`
-- Nunca vê o dashboard do Gateway
+- Página não é exibida ou exibe estado vazio/bloqueado
+- Link "API Keys" não aparece no sidebar do MEI
 
 **Resultado real:** ___  
 **Status:** ___
 
 ---
 
-### TC-PROD-004 🔴 Gateway tenta acessar domínio MEI
-**Pré-condições:** Conta com `tipo_usuario = 'gateway'`, usuário logado  
+### TC-PROD-004 🟡 Página de login renderiza logo correto por produto
+**Pré-condições:** Nenhuma sessão ativa  
 **Passos:**
-1. Com sessão ativa de Gateway, digitar `notafacilmei.com.br/notas` na barra de endereço
+1. Acessar `emitirnotafacil.com.br/login?produto=mei` — verificar logo
+2. Acessar `emitirnotafacil.com.br/login?produto=gateway` — verificar logo
 
 **Resultado esperado:**
-- Redirecionado automaticamente para `notameigateway.com.br/notas`
+- Com `?produto=mei`: logo "Nota Fácil MEI" + título da aba "Entrar — Nota Fácil MEI"
+- Com `?produto=gateway`: logo "Nota MEI Gateway" + título da aba "Entrar — Nota MEI Gateway"
+- Sem parâmetro: logo Gateway por padrão
 
 **Resultado real:** ___  
 **Status:** ___
@@ -231,10 +239,10 @@
 ---
 
 ### TC-PROD-006 🟡 Título da aba por produto
-**Pré-condições:** Usuário logado em cada produto  
+**Pré-condições:** Duas contas — uma `tipo_usuario = 'mei'`, outra `tipo_usuario = 'gateway'`  
 **Passos:**
-1. Abrir `notafacilmei.com.br/notas` → verificar título da aba
-2. Abrir `notameigateway.com.br/notas` → verificar título da aba
+1. Logar como MEI → acessar `emitirnotafacil.com.br/notas` → verificar título da aba
+2. Deslogar; logar como Gateway → acessar `emitirnotafacil.com.br/notas` → verificar título da aba
 
 **Resultado esperado:**
 - MEI: `"Notas Fiscais — Nota Fácil MEI"`
@@ -250,7 +258,7 @@
 ### TC-CAD-001 🔴 Cadastro MEI completo (happy path)
 **Pré-condições:** CNPJ válido não cadastrado  
 **Passos:**
-1. Acessar `notafacilmei.com.br/cadastro?produto=mei`
+1. Acessar `emitirnotafacil.com.br/cadastro?produto=mei`
 2. Step 1: preencher CNPJ, Razão Social, E-mail → "Próximo"
 3. Step 2: digitar CEP válido (aguardar preenchimento automático) → "Próximo"
 4. Step 3: clicar "Pular por agora"
@@ -258,7 +266,7 @@
 **Resultado esperado:**
 - Tela de sucesso exibe: "Conta criada com sucesso!" + emoji 🎉
 - **NÃO** exibe API Key
-- Botão "Fazer login →" aponta para `notafacilmei.com.br/login?produto=mei`
+- Botão "Fazer login →" aponta para `emitirnotafacil.com.br/login?produto=mei`
 
 **Resultado real:** ___  
 **Status:** ___
@@ -268,7 +276,7 @@
 ### TC-CAD-002 🔴 Cadastro Gateway completo (happy path)
 **Pré-condições:** CNPJ válido não cadastrado  
 **Passos:**
-1. Acessar `notameigateway.com.br/cadastro?produto=gateway`
+1. Acessar `emitirnotafacil.com.br/cadastro?produto=gateway`
 2. Step 1: preencher dados → "Próximo"
 3. Step 2: preencher localização → "Próximo"
 4. Step 3: clicar "Pular por agora"
@@ -276,7 +284,7 @@
 **Resultado esperado:**
 - Tela de sucesso exibe API Key completa (`sk_live_...` ou `sk_test_...`)
 - Botão "Copiar API Key" funciona
-- Link "Ir para o painel" aponta para `notameigateway.com.br/notas`
+- Link "Ir para o painel" aponta para `emitirnotafacil.com.br/notas`
 
 **Resultado real:** ___  
 **Status:** ___
@@ -1037,10 +1045,10 @@ GET /v1/health
 
 ### TC-E2E-001 🔴 Fluxo completo MEI
 **Passos:**
-1. Cadastrar novo MEI em `notafacilmei.com.br/cadastro?produto=mei`
+1. Cadastrar novo MEI em `emitirnotafacil.com.br/cadastro?produto=mei`
 2. Verificar e-mail de confirmação (se houver)
-3. Fazer login via OTP em `notafacilmei.com.br/login`
-4. Confirmar aterrizagem em `notafacilmei.com.br/notas`
+3. Fazer login via OTP em `emitirnotafacil.com.br/login`
+4. Confirmar aterrizagem em `emitirnotafacil.com.br/notas`
 5. Ir para Configurações → upload de certificado A1
 6. Emitir uma nota fiscal
 7. Verificar nota AUTORIZADA
@@ -1058,10 +1066,10 @@ GET /v1/health
 
 ### TC-E2E-002 🔴 Fluxo completo Gateway (B2B)
 **Passos:**
-1. Cadastrar novo MEI em `notameigateway.com.br/cadastro?produto=gateway`
+1. Cadastrar novo MEI em `emitirnotafacil.com.br/cadastro?produto=gateway`
 2. Anotar a API Key exibida na tela de sucesso
-3. Fazer login via OTP em `notameigateway.com.br/login`
-4. Confirmar aterrizagem em `notameigateway.com.br/notas`
+3. Fazer login via OTP em `emitirnotafacil.com.br/login`
+4. Confirmar aterrizagem em `emitirnotafacil.com.br/notas`
 5. Ir para API Keys → criar nova chave com label "Integração"
 6. Usar a chave para emitir nota via `POST /v1/nfse`
 7. Consultar status via `GET /v1/nfse/{id}`
