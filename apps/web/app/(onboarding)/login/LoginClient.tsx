@@ -13,16 +13,6 @@ type Step = 'email' | 'otp'
 const OTP_LENGTH     = 6
 const RESEND_COOLDOWN = 60 // seconds
 
-// Domínios de produção por produto
-const PRODUCT_ORIGINS: Record<'mei' | 'gateway', string> = {
-  mei:     'https://notafacilmei.com.br',
-  gateway: 'https://notameigateway.com.br',
-}
-
-function isProdHostname(hostname: string) {
-  return !['localhost', '127.0.0.1', 'vercel.app'].some((h) => hostname.includes(h))
-}
-
 // ── OTP boxes ─────────────────────────────────────────────────────────────────
 
 function OtpInput({
@@ -227,29 +217,8 @@ export default function LoginClient() {
       return
     }
 
-    // Consulta tipo_usuario para redirecionar ao domínio correto em produção
-    const userId = otpData?.user?.id
+    // Sessão estabelecida — redireciona para o destino no mesmo domínio
     const target = next.startsWith('/') ? next : '/notas'
-
-    if (userId && isProdHostname(window.location.hostname)) {
-      const { data: meiData } = await supabase
-        .from('meis')
-        .select('tipo_usuario')
-        .eq('id', userId)
-        .maybeSingle()
-
-      const tipo = (meiData?.tipo_usuario as 'mei' | 'gateway') ?? 'gateway'
-      const expectedOrigin = PRODUCT_ORIGINS[tipo]
-
-      if (window.location.origin !== expectedOrigin) {
-        // Redireciona para o domínio correto — o cookie de sessão é cross-domain
-        // via Supabase (a sessão já está no cliente; o layout.tsx vai confirmar)
-        window.location.href = `${expectedOrigin}${target}`
-        return
-      }
-    }
-
-    setLoading(false)
     router.replace(target)
   }
 

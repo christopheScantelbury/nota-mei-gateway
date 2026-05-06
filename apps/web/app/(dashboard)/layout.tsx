@@ -6,20 +6,11 @@ import Sidebar from '@/components/dashboard/Sidebar'
 import NotificationBell from '@/components/dashboard/NotificationBell'
 import type { MEI } from '@/lib/types'
 
-// ── Domínios de produção por produto ────────────────────────────────────────
-const PRODUCT_DOMAINS: Record<'mei' | 'gateway', string> = {
-  mei:     'notafacilmei.com.br',
-  gateway: 'notameigateway.com.br',
-}
-
-// Hostname do Vercel preview — nunca aplicar domain guard aqui
-const DEV_HOSTS = ['localhost', '127.0.0.1', 'vercel.app']
-
-function isProductionHost(host: string) {
-  return !DEV_HOSTS.some((h) => host.includes(h))
-}
-
 // ── Metadata dinâmico por produto ───────────────────────────────────────────
+// Detecta o hostname para exibir o título correto por produto.
+// O domain guard (redirect entre domínios) está DESATIVADO até que
+// notafacilmei.com.br e notameigateway.com.br estejam configurados no DNS.
+// Domínio de produção atual: emitirnotafacil.com.br
 
 export async function generateMetadata(): Promise<Metadata> {
   const host = headers().get('host') ?? ''
@@ -50,7 +41,7 @@ export default async function DashboardLayout({
     redirect('/login')
   }
 
-  // Carrega perfil MEI para sidebar e domain guard
+  // Carrega perfil MEI para a sidebar (logo MEI vs Gateway, filtro de nav)
   const { data: mei } = await supabase
     .from('meis')
     .select('id, cnpj, razao_social, email, municipio_ibge, stripe_customer_id, tipo_usuario')
@@ -60,16 +51,6 @@ export default async function DashboardLayout({
   const razaoSocial  = mei?.razao_social ?? user.email ?? 'Meu painel'
   const isAdmin      = user.app_metadata?.role === 'admin'
   const tipoUsuario: 'mei' | 'gateway' = mei?.tipo_usuario ?? 'gateway'
-
-  // ── Domain guard: em produção, usuário MEI só acessa notafacilmei.com.br
-  //    e usuário gateway só acessa notameigateway.com.br ─────────────────────
-  const host = headers().get('host') ?? ''
-  if (isProductionHost(host)) {
-    const expectedDomain = PRODUCT_DOMAINS[tipoUsuario]
-    if (!host.includes(expectedDomain)) {
-      redirect(`https://${expectedDomain}/notas`)
-    }
-  }
 
   return (
     <div className="min-h-screen bg-navy-900 text-text-1 font-body lg:flex">
