@@ -122,10 +122,14 @@ func main() {
 	// XMLDSigSigner is used in staging/production where a real A1 certificate
 	// is loaded from AWS Secrets Manager.  NoopSigner is kept for local
 	// development because no real certificate is available without AUTH-04.
-	var signer document.Signer = document.NoopSigner{}
+	// PooledSigner (ARCH-02) caps concurrent Sign() calls to prevent runaway
+	// goroutine growth at month-end peak load (e.g. 1 000 MEIs emitting at once).
+	var rawSigner document.Signer = document.NoopSigner{}
 	if cfg.AppEnv != "development" {
-		signer = document.XMLDSigSigner{}
+		rawSigner = document.XMLDSigSigner{}
 	}
+	signer := document.NewPooledSigner(rawSigner, cfg.XMLSecWorkerPoolSize)
+	log.Info().Int("pool_size", signer.Capacity()).Msg("XMLDSig worker pool inicializado")
 
 	// ── NBS validator (Redis cache + DB fallback) ──────────────────────────
 	nbsValidator, err := document.NewNBSValidator(cfg.RedisURL, db.Pool())

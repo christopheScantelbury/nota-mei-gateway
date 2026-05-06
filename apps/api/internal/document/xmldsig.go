@@ -15,6 +15,7 @@ package document
 
 import (
 	"bytes"
+	"context"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -65,7 +66,7 @@ type XMLDSigSigner struct{}
 //  6. RSA-SHA1 sign the canonical <SignedInfo> bytes.
 //  7. Assemble <Signature> with <SignatureValue> and X.509 <KeyInfo>.
 //  8. Inject <Signature> as a sibling immediately after the signed element.
-func (XMLDSigSigner) Sign(xmlDoc []byte, cert *tls.Certificate) ([]byte, error) {
+func (XMLDSigSigner) Sign(_ context.Context, xmlDoc []byte, cert *tls.Certificate) ([]byte, error) {
 	if cert == nil {
 		return nil, fmt.Errorf("xmldsig: certificate is required")
 	}

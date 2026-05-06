@@ -1,6 +1,7 @@
 package document_test
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/tls"
@@ -94,7 +95,7 @@ const minimalCancelamento = `<?xml version="1.0" encoding="UTF-8"?>
 // ─── XMLDSigSigner tests ───────────────────────────────────────────────────
 
 func TestXMLDSigSigner_EmissionContainsSignature(t *testing.T) {
-	signed, err := document.XMLDSigSigner{}.Sign([]byte(minimalRPS), selfSignedRSACert(t))
+	signed, err := document.XMLDSigSigner{}.Sign(context.Background(), []byte(minimalRPS), selfSignedRSACert(t))
 	if err != nil {
 		t.Fatalf("Sign: %v", err)
 	}
@@ -121,7 +122,7 @@ func TestXMLDSigSigner_EmissionContainsSignature(t *testing.T) {
 }
 
 func TestXMLDSigSigner_DigestValueIsValidBase64(t *testing.T) {
-	signed, err := document.XMLDSigSigner{}.Sign([]byte(minimalRPS), selfSignedRSACert(t))
+	signed, err := document.XMLDSigSigner{}.Sign(context.Background(), []byte(minimalRPS), selfSignedRSACert(t))
 	if err != nil {
 		t.Fatalf("Sign: %v", err)
 	}
@@ -138,7 +139,7 @@ func TestXMLDSigSigner_DigestValueIsValidBase64(t *testing.T) {
 }
 
 func TestXMLDSigSigner_SignatureValueIsValidBase64(t *testing.T) {
-	signed, err := document.XMLDSigSigner{}.Sign([]byte(minimalRPS), selfSignedRSACert(t))
+	signed, err := document.XMLDSigSigner{}.Sign(context.Background(), []byte(minimalRPS), selfSignedRSACert(t))
 	if err != nil {
 		t.Fatalf("Sign: %v", err)
 	}
@@ -155,7 +156,7 @@ func TestXMLDSigSigner_SignatureValueIsValidBase64(t *testing.T) {
 }
 
 func TestXMLDSigSigner_DocumentStructurePreserved(t *testing.T) {
-	signed, err := document.XMLDSigSigner{}.Sign([]byte(minimalRPS), selfSignedRSACert(t))
+	signed, err := document.XMLDSigSigner{}.Sign(context.Background(), []byte(minimalRPS), selfSignedRSACert(t))
 	if err != nil {
 		t.Fatalf("Sign: %v", err)
 	}
@@ -174,7 +175,7 @@ func TestXMLDSigSigner_DocumentStructurePreserved(t *testing.T) {
 }
 
 func TestXMLDSigSigner_SignaturePositionedAfterSignedElement(t *testing.T) {
-	signed, err := document.XMLDSigSigner{}.Sign([]byte(minimalRPS), selfSignedRSACert(t))
+	signed, err := document.XMLDSigSigner{}.Sign(context.Background(), []byte(minimalRPS), selfSignedRSACert(t))
 	if err != nil {
 		t.Fatalf("Sign: %v", err)
 	}
@@ -191,7 +192,7 @@ func TestXMLDSigSigner_SignaturePositionedAfterSignedElement(t *testing.T) {
 }
 
 func TestXMLDSigSigner_CancellationDocument(t *testing.T) {
-	signed, err := document.XMLDSigSigner{}.Sign([]byte(minimalCancelamento), selfSignedRSACert(t))
+	signed, err := document.XMLDSigSigner{}.Sign(context.Background(), []byte(minimalCancelamento), selfSignedRSACert(t))
 	if err != nil {
 		t.Fatalf("Sign cancellation: %v", err)
 	}
@@ -211,7 +212,7 @@ func TestXMLDSigSigner_CancellationDocument(t *testing.T) {
 // ─── Error handling ────────────────────────────────────────────────────────
 
 func TestXMLDSigSigner_NilCertError(t *testing.T) {
-	_, err := document.XMLDSigSigner{}.Sign([]byte(minimalRPS), nil)
+	_, err := document.XMLDSigSigner{}.Sign(context.Background(), []byte(minimalRPS), nil)
 	if err == nil {
 		t.Error("expected error for nil certificate, got nil")
 	}
@@ -222,7 +223,7 @@ func TestXMLDSigSigner_NilPrivateKeyError(t *testing.T) {
 		Certificate: [][]byte{{0x30, 0x02, 0x05, 0x00}},
 		PrivateKey:  nil,
 	}
-	_, err := document.XMLDSigSigner{}.Sign([]byte(minimalRPS), cert)
+	_, err := document.XMLDSigSigner{}.Sign(context.Background(), []byte(minimalRPS), cert)
 	if err == nil {
 		t.Error("expected error for nil private key, got nil")
 	}
@@ -230,7 +231,7 @@ func TestXMLDSigSigner_NilPrivateKeyError(t *testing.T) {
 
 func TestXMLDSigSigner_NoKnownElementError(t *testing.T) {
 	xml := `<?xml version="1.0"?><Root><Unknown>x</Unknown></Root>`
-	_, err := document.XMLDSigSigner{}.Sign([]byte(xml), selfSignedRSACert(t))
+	_, err := document.XMLDSigSigner{}.Sign(context.Background(), []byte(xml), selfSignedRSACert(t))
 	if err == nil {
 		t.Error("expected error when no known signable element found")
 	}
@@ -253,11 +254,11 @@ func TestXMLDSigSigner_DigestIsDeterministic(t *testing.T) {
 		return s[start:end]
 	}
 
-	s1, err := document.XMLDSigSigner{}.Sign([]byte(minimalRPS), cert)
+	s1, err := document.XMLDSigSigner{}.Sign(context.Background(), []byte(minimalRPS), cert)
 	if err != nil {
 		t.Fatalf("Sign #1: %v", err)
 	}
-	s2, err := document.XMLDSigSigner{}.Sign([]byte(minimalRPS), cert)
+	s2, err := document.XMLDSigSigner{}.Sign(context.Background(), []byte(minimalRPS), cert)
 	if err != nil {
 		t.Fatalf("Sign #2: %v", err)
 	}
@@ -276,7 +277,7 @@ func TestXMLDSigSigner_DigestIsDeterministic(t *testing.T) {
 
 func TestNoopSigner_ReturnsUnchangedDocument(t *testing.T) {
 	original := []byte(minimalRPS)
-	result, err := document.NoopSigner{}.Sign(original, nil)
+	result, err := document.NoopSigner{}.Sign(context.Background(), original, nil)
 	if err != nil {
 		t.Fatalf("NoopSigner.Sign: %v", err)
 	}

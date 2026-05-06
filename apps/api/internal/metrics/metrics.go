@@ -32,6 +32,20 @@ var (
 		Help: "Total number of processed Stripe webhook events.",
 	}, []string{"tipo"})
 
+	// XMLSecPoolActive is the current number of concurrent Sign() calls in flight.
+	// Alert when this approaches XMLSEC_WORKER_POOL_SIZE (default 50).
+	XMLSecPoolActive = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "xmlsec_pool_active",
+		Help: "Current number of concurrent XMLDSig signing operations in flight.",
+	})
+
+	// XMLSecPoolQueueDepth is the number of goroutines waiting for a signing slot.
+	// A sustained non-zero value indicates the pool size should be increased.
+	XMLSecPoolQueueDepth = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "xmlsec_pool_queue_depth",
+		Help: "Current number of goroutines waiting to acquire an XMLDSig worker slot.",
+	})
+
 	// CertCacheHitsTotal counts cert cache hits (AWS SM call avoided).
 	// A high hit rate (>95 %) indicates the cache is working correctly.
 	CertCacheHitsTotal = promauto.NewCounter(prometheus.CounterOpts{

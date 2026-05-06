@@ -203,7 +203,7 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 	}
 
 	// ── 6. Sign XML ───────────────────────────────────────────────────────
-	signedXML, err := h.signer.Sign(xmlDoc, cert)
+	signedXML, err := h.signer.Sign(ctx, xmlDoc, cert)
 	if err != nil {
 		return internalError(c, "erro ao assinar XML")
 	}
@@ -426,7 +426,7 @@ func (h *NFSeHandler) CancelarNota(c *fiber.Ctx) error {
 	if err != nil {
 		return internalError(c, "erro ao construir XML de cancelamento")
 	}
-	signedCancel, err := h.signer.Sign(xmlCancel, cert)
+	signedCancel, err := h.signer.Sign(c.Context(), xmlCancel, cert)
 	if err != nil {
 		return internalError(c, "erro ao assinar XML de cancelamento")
 	}

@@ -23,6 +23,11 @@ type Config struct {
 	PGMaxConns int32
 	PGMinConns int32
 
+	// XMLSecWorkerPoolSize limits concurrent XMLDSig signing operations (ARCH-02).
+	// Default (0) → document.DefaultWorkerPoolSize (50).
+	// Override via XMLSEC_WORKER_POOL_SIZE without redeploy.
+	XMLSecWorkerPoolSize int
+
 	RedisURL    string
 	RabbitMQURL string
 
@@ -112,6 +117,8 @@ func Load() *Config {
 		PGMaxConns: parseInt32Env("PG_MAX_CONNS", 0),
 		PGMinConns: parseInt32Env("PG_MIN_CONNS", 0),
 
+		XMLSecWorkerPoolSize: parseIntEnv("XMLSEC_WORKER_POOL_SIZE", 0),
+
 		RedisURL:    os.Getenv("REDIS_URL"),
 		RabbitMQURL: os.Getenv("RABBITMQ_URL"),
 
@@ -149,6 +156,15 @@ func parseInt32Env(key string, fallback int32) int32 {
 	if v := os.Getenv(key); v != "" {
 		if n, err := strconv.ParseInt(v, 10, 32); err == nil {
 			return int32(n)
+		}
+	}
+	return fallback
+}
+
+func parseIntEnv(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			return n
 		}
 	}
 	return fallback
