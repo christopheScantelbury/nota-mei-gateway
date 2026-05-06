@@ -137,8 +137,9 @@ export default async function DashboardHome() {
   const apiKey = keyResult.data
   const firstAutorizada = firstAutorizadaResult.data
 
+  // Usa o primeiro nome/palavra da razão social ou o prefixo do e-mail
   const rawName = mei?.razao_social || user.email?.split('@')[0] || 'você'
-  const displayName = rawName.length > 25 ? rawName.split(' ')[0] : rawName
+  const displayName = rawName.split(' ')[0]
 
   const totalEmitidas = emissao?.total_emitidas ?? 0
   const limite = emissao?.planos?.emissoes_limite ?? 5

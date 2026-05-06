@@ -1,21 +1,30 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
-import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/dashboard/Sidebar'
 import NotificationBell from '@/components/dashboard/NotificationBell'
 import type { MEI } from '@/lib/types'
 
 // ── Metadata dinâmico por produto ───────────────────────────────────────────
-// Detecta o hostname para exibir o título correto por produto.
-// O domain guard (redirect entre domínios) está DESATIVADO até que
-// notafacilmei.com.br e notameigateway.com.br estejam configurados no DNS.
-// Domínio de produção atual: emitirnotafacil.com.br
+// Usa tipo_usuario do banco para determinar o produto correto.
+// Ambos os produtos rodam no mesmo domínio (emitirnotafacil.com.br),
+// então hostname não é suficiente — precisamos consultar o perfil do usuário.
 
 export async function generateMetadata(): Promise<Metadata> {
-  const host = headers().get('host') ?? ''
-  const isMeiDomain = host.includes('notafacilmei.com.br')
-  const product = isMeiDomain ? 'Nota Fácil MEI' : 'Nota MEI Gateway'
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  let product = 'Nota MEI Gateway' // default para não-autenticados e Gateway
+  if (user) {
+    const { data: mei } = await supabase
+      .from('meis')
+      .select('tipo_usuario')
+      .eq('id', user.id)
+      .single<{ tipo_usuario: 'mei' | 'gateway' }>()
+    if (mei?.tipo_usuario === 'mei') {
+      product = 'Nota Fácil MEI'
+    }
+  }
 
   return {
     title: {
