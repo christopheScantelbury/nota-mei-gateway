@@ -57,14 +57,16 @@ ALTER TABLE emissoes_mensais
 --    Demais planos criados aqui com ativo=false para não afetar o BillingGuard.
 
 INSERT INTO planos (nome, tipo_empresa, emissoes_limite, preco_mensal_brl, preco_excedente_brl, ativo)
-VALUES
-  ('Starter ME',  'ME',  50,    NULL, NULL, false),
-  ('Basic ME',    'ME',  150,   NULL, NULL, false),
-  ('Pro ME',      'ME',  500,   NULL, NULL, false),
-  ('Business ME', 'ME',  2000,  NULL, NULL, false),
-  ('Trial EPP',   'EPP', 9999,  NULL, NULL, true),
-  ('Starter EPP', 'EPP', 100,   NULL, NULL, false)
-ON CONFLICT (nome) DO NOTHING;
+SELECT nome, tipo_empresa, emissoes_limite, preco_mensal_brl, preco_excedente_brl, ativo
+FROM (VALUES
+  ('Starter ME',  'ME',  50,    NULL::DECIMAL, NULL::DECIMAL, false),
+  ('Basic ME',    'ME',  150,   NULL::DECIMAL, NULL::DECIMAL, false),
+  ('Pro ME',      'ME',  500,   NULL::DECIMAL, NULL::DECIMAL, false),
+  ('Business ME', 'ME',  2000,  NULL::DECIMAL, NULL::DECIMAL, false),
+  ('Trial EPP',   'EPP', 9999,  NULL::DECIMAL, NULL::DECIMAL, true),
+  ('Starter EPP', 'EPP', 100,   NULL::DECIMAL, NULL::DECIMAL, false)
+) AS v(nome, tipo_empresa, emissoes_limite, preco_mensal_brl, preco_excedente_brl, ativo)
+WHERE NOT EXISTS (SELECT 1 FROM planos WHERE planos.nome = v.nome);
 
 -- Índice para buscas de trial ativo (relatório ME-52 usa trial_me=true frequentemente)
 CREATE INDEX IF NOT EXISTS idx_empresas_trial_me
