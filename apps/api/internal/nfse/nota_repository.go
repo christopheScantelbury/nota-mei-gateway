@@ -38,10 +38,13 @@ type Nota struct {
 	Competencia       *string
 	ErroCodigo        *string
 	ErroDescricao     *string
-	CanceladaEm       *time.Time
-	EmitidaEm         *time.Time
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	CanceladaEm  *time.Time
+	EmitidaEm    *time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	// SubstituidaPor is the UUID of the replacement nota when this nota was
+	// cancelled via the 9-day substituição window (ME-32). NULL means not substituted.
+	SubstituidaPor *uuid.UUID
 }
 
 // ErrNotaNotFound is returned when a nota does not exist or does not belong to the MEI.
@@ -163,7 +166,7 @@ func (r *NotaRepository) FindByID(ctx context.Context, notaID, meiID uuid.UUID) 
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at
+		       created_at, updated_at, substituida_por
 		FROM notas_fiscais
 		WHERE id = $1 AND mei_id = $2
 	`, notaID, meiID)
@@ -182,7 +185,7 @@ func (r *NotaRepository) FindByIDForEmpresa(ctx context.Context, notaID, empresa
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at
+		       created_at, updated_at, substituida_por
 		FROM notas_fiscais
 		WHERE id = $1 AND empresa_id = $2
 	`, notaID, empresaID)
@@ -201,7 +204,7 @@ func (r *NotaRepository) ListByEmpresa(ctx context.Context, empresaID uuid.UUID,
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at
+		       created_at, updated_at, substituida_por
 		FROM notas_fiscais
 		WHERE empresa_id = $1
 		ORDER BY created_at DESC
@@ -245,7 +248,7 @@ func (r *NotaRepository) ListByMEI(ctx context.Context, meiID uuid.UUID, limit, 
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at
+		       created_at, updated_at, substituida_por
 		FROM notas_fiscais
 		WHERE mei_id = $1
 		ORDER BY created_at DESC
@@ -291,7 +294,7 @@ func (r *NotaRepository) FindProcessandoSemProtocolo(ctx context.Context, olderT
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at
+		       created_at, updated_at, substituida_por
 		FROM notas_fiscais
 		WHERE status = 'PROCESSANDO'
 		  AND protocolo_receita IS NULL
@@ -456,6 +459,18 @@ func (r *NotaRepository) SetPDFS3Key(ctx context.Context, notaID uuid.UUID, key 
 	return err
 }
 
+// SetSubstituidaPor links the cancelled original nota to its replacement (ME-32).
+// Called after the substitute DPS has been successfully persisted.
+func (r *NotaRepository) SetSubstituidaPor(ctx context.Context, originalID, novaNotaID uuid.UUID) error {
+	_, err := r.db.Pool().Exec(ctx, `
+		UPDATE notas_fiscais
+		SET substituida_por = $2,
+		    updated_at = NOW()
+		WHERE id = $1
+	`, originalID, novaNotaID)
+	return err
+}
+
 // MarcarWebhookEntregue marks a nota's webhook as successfully delivered.
 func (r *NotaRepository) MarcarWebhookEntregue(ctx context.Context, notaID uuid.UUID) error {
 	_, err := r.db.Pool().Exec(ctx, `
@@ -490,7 +505,7 @@ func (r *NotaRepository) FindPendingWebhooks(ctx context.Context, limit int) ([]
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at
+		       created_at, updated_at, substituida_por
 		FROM notas_fiscais
 		WHERE webhook_url IS NOT NULL
 		  AND webhook_entregue = false
@@ -536,7 +551,7 @@ func (r *NotaRepository) FindProcessandoComProtocolo(ctx context.Context, limit 
 		       n.valor_servico, n.competencia,
 		       n.erro_codigo, n.erro_descricao,
 		       n.cancelada_em, n.emitida_em,
-		       n.created_at, n.updated_at,
+		       n.created_at, n.updated_at, n.substituida_por,
 		       m.cnpj, m.municipio_ibge, m.cert_secret_arn
 		FROM notas_fiscais n
 		JOIN meis m ON m.id = n.mei_id
@@ -562,7 +577,7 @@ func (r *NotaRepository) FindProcessandoComProtocolo(ctx context.Context, limit 
 			&nc.ValorServico, &nc.Competencia,
 			&nc.ErroCodigo, &nc.ErroDescricao,
 			&nc.CanceladaEm, &nc.EmitidaEm,
-			&nc.CreatedAt, &nc.UpdatedAt,
+			&nc.CreatedAt, &nc.UpdatedAt, &nc.SubstituidaPor,
 			&nc.CNPJ, &nc.MunicipioIBGE, &nc.CertSecretARN,
 		)
 		if err != nil {
@@ -591,7 +606,7 @@ func scanNota(row scanner) (*Nota, error) {
 		&n.ValorServico, &n.Competencia,
 		&n.ErroCodigo, &n.ErroDescricao,
 		&n.CanceladaEm, &n.EmitidaEm,
-		&n.CreatedAt, &n.UpdatedAt,
+		&n.CreatedAt, &n.UpdatedAt, &n.SubstituidaPor,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

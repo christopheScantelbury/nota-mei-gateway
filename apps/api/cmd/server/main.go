@@ -351,6 +351,7 @@ func main() {
 	v1.Get("/nfse", nfseH.ListarNotas)
 	v1.Get("/nfse/:id", nfseH.ConsultarNota)
 	v1.Delete("/nfse/:id", nfseH.CancelarNota)
+	v1.Post("/nfse/:id/substituir", nfseH.SubstituirNota) // ME-32: 9-day substitution window (ME/EPP only)
 	v1.Get("/nfse/:id/xml", nfseH.DownloadXML)
 	v1.Get("/nfse/:id/pdf", nfseH.DownloadPDF)
 

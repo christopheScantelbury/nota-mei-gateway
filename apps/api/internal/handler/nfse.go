@@ -756,6 +756,249 @@ func (h *NFSeHandler) cancelarNotaME(c *fiber.Ctx, nota *nfse.Nota, empresa *aut
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"nota_id": nota.ID, "status": "CANCELADA"})
 }
 
+// ─── POST /v1/nfse/:id/substituir ─────────────────────────────────────────
+
+// SubstituirNota handles POST /v1/nfse/:id/substituir (ME-32).
+//
+// Available only for ME/EPP companies. Within a 9-day window from emitida_em:
+//  1. Cancels the original AUTORIZADA nota at the Receita Federal.
+//  2. Emits a new DPS with the provided request body (same schema as POST /v1/nfse).
+//  3. Links the original nota to its substitute via notas_fiscais.substituida_por.
+//
+// Substitution does NOT increment the monthly emissoes counter — the original
+// emission already consumed that slot.
+func (h *NFSeHandler) SubstituirNota(c *fiber.Ctx) error {
+	empresa := auth.GetEmpresa(c)
+	if empresa == nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error":      "FORBIDDEN",
+			"message":    "substituição de nota disponível apenas para empresas ME/EPP",
+			"request_id": c.Locals("request_id"),
+		})
+	}
+
+	notaID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return notFound(c)
+	}
+
+	original, err := h.notaRepo.FindByIDForEmpresa(c.Context(), notaID, empresa.ID)
+	if err != nil {
+		if isNotFound(err) {
+			return notFound(c)
+		}
+		return internalError(c, "erro ao consultar nota")
+	}
+
+	if original.Status != "AUTORIZADA" {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+			"error":      "INVALID_STATUS",
+			"message":    "apenas notas autorizadas podem ser substituídas",
+			"status":     original.Status,
+			"request_id": c.Locals("request_id"),
+		})
+	}
+	if original.NumeroNFSe == nil {
+		return internalError(c, "nota sem número NFS-e")
+	}
+
+	// ME-32: enforce the 9-day substitution window.
+	if original.EmitidaEm != nil {
+		if time.Since(*original.EmitidaEm) > 9*24*time.Hour {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+				"error":      "SUBSTITUTION_WINDOW_EXPIRED",
+				"message":    "prazo de substituição de 9 dias expirado",
+				"emitida_em": original.EmitidaEm,
+				"request_id": c.Locals("request_id"),
+			})
+		}
+	}
+
+	var req document.EmissaoRequest
+	if err := c.BodyParser(&req); err != nil {
+		return validationError(c, "corpo da requisição inválido: "+err.Error())
+	}
+	if errs := validateEmissaoRequest(req); len(errs) > 0 {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error":      "VALIDATION_ERROR",
+			"message":    "campos inválidos",
+			"fields":     errs,
+			"request_id": c.Locals("request_id"),
+		})
+	}
+
+	ctx := c.Context()
+
+	// Load certificate once — reused for cancellation and new DPS signing.
+	cert, err := h.loadCertEmpresa(ctx, empresa)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Str("empresa_id", empresa.ID.String()).Msg("certificate load failed")
+		return internalError(c, "erro ao carregar certificado digital")
+	}
+
+	// ── Step 1: Cancel the original nota at the Receita Federal ──────────────
+	xmlCancel, err := h.builder.BuildCancelamento(*original.NumeroNFSe, empresa.CNPJ, empresa.MunicipioIBGE)
+	if err != nil {
+		return internalError(c, "erro ao construir XML de cancelamento")
+	}
+	signedCancel, err := h.signer.Sign(ctx, xmlCancel, cert)
+	if err != nil {
+		return internalError(c, "erro ao assinar XML de cancelamento")
+	}
+
+	if !h.devMode {
+		cancelResp, cancelErr := h.adapter.Cancelar(ctx, signedCancel, cert)
+		if cancelErr != nil {
+			return internalError(c, "erro ao cancelar nota original na Receita Federal")
+		}
+		if !cancelResp.OK && len(cancelResp.Erros) > 0 {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+				"error":   "RECEITA_REJECTION",
+				"message": cancelResp.Erros[0].Descricao,
+				"codigo":  cancelResp.Erros[0].Codigo,
+			})
+		}
+	}
+
+	if err := h.notaRepo.CancelarEmpresa(ctx, original.ID, empresa.ID); err != nil {
+		return internalError(c, "erro ao atualizar status da nota original")
+	}
+	h.publishEvent(ctx, original, webhook.EventCancelada, "", "", "", "")
+
+	// ── Step 2: Emit the replacement DPS ────────────────────────────────────
+	if h.issLookup != nil {
+		req.Servico.AliquotaISS = h.issLookup.Resolve(empresa.MunicipioIBGE, req.Servico.AliquotaISS)
+	}
+
+	numeroDPS, err := h.notaRepo.NextNumeroDPS(ctx, empresa.ID)
+	if err != nil {
+		return internalError(c, "erro ao alocar número de DPS")
+	}
+
+	dpsResult, err := h.dpsBuilder.Build(req, empresa, numeroDPS)
+	if err != nil {
+		var validErr *document.ErrValidation
+		if errors.As(err, &validErr) {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+				"error":      "VALIDATION_ERROR",
+				"message":    validErr.Message,
+				"fields":     []fiber.Map{{"field": validErr.Field, "message": validErr.Message}},
+				"request_id": c.Locals("request_id"),
+			})
+		}
+		return validationError(c, "erro ao construir DPS de substituição: "+err.Error())
+	}
+
+	signedXML, err := h.signer.Sign(ctx, dpsResult.XML, cert)
+	if err != nil {
+		return internalError(c, "erro ao assinar DPS de substituição")
+	}
+
+	nova, err := h.notaRepo.Create(ctx, nfse.CreateNotaInput{
+		EmpresaID:    empresa.ID,
+		NumeroRPS:    numeroDPS,
+		XMLEnviado:   string(signedXML),
+		WebhookURL:   req.WebhookURL,
+		TomadorDoc:   req.Tomador.Documento,
+		TomadorNome:  req.Tomador.RazaoSocial,
+		ValorServico: req.Servico.Valor,
+		Competencia:  req.Competencia,
+		// IdempotencyKey intentionally empty for substitutions.
+	})
+	if err != nil {
+		return internalError(c, "erro ao salvar nota de substituição")
+	}
+
+	// Link original → substitute (non-fatal: audit trail only).
+	if linkErr := h.notaRepo.SetSubstituidaPor(ctx, original.ID, nova.ID); linkErr != nil {
+		log.Ctx(ctx).Warn().Err(linkErr).
+			Str("original_id", original.ID.String()).
+			Str("nova_id", nova.ID.String()).
+			Msg("failed to set substituida_por (non-fatal)")
+	}
+
+	// S3 upload for the new DPS XML (STOR-01, non-fatal).
+	if h.store != nil {
+		s3Key := storage.S3KeyForRPS(empresa.ID.String(), nova.ID.String())
+		if uploadErr := h.store.Put(ctx, s3Key, "application/xml", signedXML); uploadErr != nil {
+			log.Ctx(ctx).Error().Err(uploadErr).
+				Str("nota_id", nova.ID.String()).
+				Msg("falha ao fazer upload do DPS de substituição para S3 (non-fatal)")
+		} else {
+			_ = h.notaRepo.SetXMLS3Key(ctx, nova.ID, s3Key)
+		}
+	}
+
+	log.Ctx(ctx).Info().
+		Str("empresa_id", empresa.ID.String()).
+		Str("original_id", original.ID.String()).
+		Str("nova_id", nova.ID.String()).
+		Int64("numero_dps", numeroDPS).
+		Str("regime", empresa.RegimeTributario).
+		Bool("iss_retido", dpsResult.ISSRetido).
+		Msg("DPS de substituição criada, enviando para SEFIN Nacional")
+
+	if h.devMode {
+		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+			"nota_original_id":   original.ID,
+			"nota_substituta_id": nova.ID,
+			"status":             "PROCESSANDO",
+			"regime_tributario":  empresa.RegimeTributario,
+			"iss_retido":         dpsResult.ISSRetido,
+			"valor_iss":          dpsResult.ValorISS,
+			"valor_liquido":      dpsResult.ValorLiquido,
+			"mensagem":           "Substituição enviada para processamento [dev mode]",
+		})
+	}
+
+	envioResp, envErr := h.adapter.Enviar(ctx, signedXML, cert)
+	if envErr != nil {
+		log.Ctx(ctx).Warn().Err(envErr).
+			Str("nota_id", nova.ID.String()).
+			Msg("envio DPS substituição falhou, mantendo PROCESSANDO (retry automático)")
+		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+			"nota_original_id":   original.ID,
+			"nota_substituta_id": nova.ID,
+			"status":             "PROCESSANDO",
+			"regime_tributario":  empresa.RegimeTributario,
+			"mensagem":           "Substituição enviada para processamento (retry automático)",
+		})
+	}
+
+	if len(envioResp.Erros) > 0 {
+		codigo := envioResp.Erros[0].Codigo
+		descricao := envioResp.Erros[0].Descricao
+		_, _ = h.notaRepo.Rejeitar(ctx, nova.ID, codigo, descricao)
+		h.publishEvent(ctx, nova, webhook.EventRejeitada, "", "", codigo, descricao)
+		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+			"nota_original_id":   original.ID,
+			"nota_substituta_id": nova.ID,
+			"status":             "REJEITADA",
+			"erro_codigo":        codigo,
+			"erro_descricao":     descricao,
+		})
+	}
+
+	if envioResp.NumeroNFSe != "" {
+		_, _ = h.notaRepo.Autorizar(ctx, nova.ID, envioResp.NumeroNFSe, envioResp.CodVerificacao, "")
+		// Substitution does NOT increment emissoes_mensais — it replaces an existing emission.
+		h.publishEvent(ctx, nova, webhook.EventAutorizada, envioResp.NumeroNFSe, envioResp.CodVerificacao, "", "")
+	} else if envioResp.Protocolo != "" {
+		_ = h.notaRepo.SetProtocolo(ctx, nova.ID, envioResp.Protocolo)
+	}
+
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+		"nota_original_id":   original.ID,
+		"nota_substituta_id": nova.ID,
+		"status":             "PROCESSANDO",
+		"regime_tributario":  empresa.RegimeTributario,
+		"iss_retido":         dpsResult.ISSRetido,
+		"valor_iss":          dpsResult.ValorISS,
+		"valor_liquido":      dpsResult.ValorLiquido,
+		"mensagem":           "Substituição enviada para processamento",
+	})
+}
+
 // ─── GET /v1/nfse/:id/xml ──────────────────────────────────────────────────
 
 // DownloadXML handles GET /v1/nfse/:id/xml.
