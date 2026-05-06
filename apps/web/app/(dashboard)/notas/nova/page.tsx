@@ -98,6 +98,9 @@ export default function NovaNota() {
   // Opcionais
   const [webhookUrl, setWebhookUrl] = useState('')
   const [idempotencyKey, setIdempotencyKey] = useState('')
+  // ME-41: ISS retido — only required for Lucro Presumido companies
+  // null = not specified (MEI/Simples Nacional), true/false = explicit choice for LP
+  const [issRetido, setIssRetido] = useState<boolean | null>(null)
 
   // Template selector state
   const [templates, setTemplates] = useState<NotaTemplate[]>([])
@@ -212,6 +215,7 @@ export default function NovaNota() {
         },
         competencia,
         ...(webhookUrl.trim() ? { webhook_url: webhookUrl.trim() } : {}),
+        ...(issRetido !== null ? { iss_retido: issRetido } : {}),
         idempotency_key: idempotencyKey,
       }
 
@@ -477,6 +481,35 @@ export default function NovaNota() {
                 onChange={e => setWebhookUrl(e.target.value)}
               />
             </Field>
+
+            {/* ME-41: ISS retido toggle — required for Lucro Presumido, ignored for MEI/SN */}
+            <div className="rounded-lg border border-navy-600 p-4">
+              <p className="text-sm font-semibold text-text-1 mb-1">Retenção de ISS</p>
+              <p className="text-xs text-text-2 mb-3">
+                Apenas para empresas Lucro Presumido. MEI e Simples Nacional recolhem ISS via DAS — deixe sem seleção.
+              </p>
+              <div className="flex gap-2">
+                {([
+                  { label: 'Não especificado', value: null },
+                  { label: 'ISS retido na fonte', value: true },
+                  { label: 'ISS não retido', value: false },
+                ] as const).map(({ label, value }) => (
+                  <button
+                    key={String(value)}
+                    type="button"
+                    onClick={() => setIssRetido(value)}
+                    className={[
+                      'flex-1 py-2 px-2 rounded-lg text-xs font-semibold transition border',
+                      issRetido === value
+                        ? 'bg-brand-cyan text-navy-900 border-brand-cyan'
+                        : 'border-navy-600 text-text-2 hover:border-brand-cyan',
+                    ].join(' ')}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <Field label="Chave de idempotência">
               <div className="flex gap-2">

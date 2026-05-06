@@ -41,10 +41,11 @@ const (
 	xmlDSigNS = "http://www.w3.org/2000/09/xmldsig#"
 )
 
-// signableElements are the ABRASF element names we know how to sign, checked
-// in priority order (emission first, then cancellation).
+// signableElements are the element names we know how to sign, checked
+// in priority order (RPS emission first, then DPS, then cancellation).
 var signableElements = []string{
-	"InfDeclaracaoPrestacaoServico", // POST /nfse — RPS emission
+	"InfDeclaracaoPrestacaoServico", // POST /nfse — MEI RPS emission (ABRASF)
+	"infDPS",                        // POST /nfse — ME/EPP DPS emission (SEFIN Nacional)
 	"InfPedidoCancelamento",         // DELETE /nfse/:id — cancellation
 }
 
@@ -97,11 +98,15 @@ func (XMLDSigSigner) Sign(_ context.Context, xmlDoc []byte, cert *tls.Certificat
 		return nil, fmt.Errorf("xmldsig: document contains no known signable element")
 	}
 
-	// Step 1 — Inject Id attribute.
+	// Step 1 — Inject Id attribute (no-op when Id already present in struct).
 	doc := injectIDAttr(xmlDoc, elemName)
 
+	// Extract the actual Id value (may differ from elemName for DPS).
+	// DPS uses Id="DPS000001"; RPS uses Id="InfDeclaracaoPrestacaoServico".
+	idValue := extractIDValue(doc, elemName)
+
 	// Step 2 — Extract and canonicalize the target element.
-	canonical, err := c14nElement(doc, elemName)
+	canonical, err := c14nElement(doc, elemName, idValue)
 	if err != nil {
 		return nil, fmt.Errorf("xmldsig: c14n of %s: %w", elemName, err)
 	}
@@ -112,7 +117,8 @@ func (XMLDSigSigner) Sign(_ context.Context, xmlDoc []byte, cert *tls.Certificat
 	digestValue := base64.StdEncoding.EncodeToString(d[:])
 
 	// Step 4 — Build <SignedInfo> (compact canonical form).
-	signedInfo := buildSignedInfo(elemName, digestValue)
+	// Use idValue so the URI reference matches the actual Id attribute.
+	signedInfo := buildSignedInfo(idValue, digestValue)
 	canonicalSI := []byte(signedInfo) // already canonical — no XML decl, compact
 
 	// Step 5 — RSA-SHA1 sign.
@@ -162,23 +168,25 @@ func injectIDAttr(xmlDoc []byte, elemName string) []byte {
 	return xmlDoc
 }
 
-// c14nElement extracts the named element (with its Id attribute injected) and
+// c14nElement extracts the named element (with its Id attribute present) and
 // returns its inclusive C14N form:
-//   - The ABRASF default namespace is promoted from the ancestor root element
+//   - The document's default namespace is promoted from the ancestor root element
 //     onto the extracted element (per C14N 1.0 §2.4 — inherited namespaces must
 //     be rendered on the root of an extracted subtree).
 //   - All whitespace and text content inside is preserved verbatim.
 //   - No XML declaration is prepended.
-func c14nElement(xmlDoc []byte, elemName string) ([]byte, error) {
+//
+// idValue is the actual Id attribute value (e.g. "InfDeclaracaoPrestacaoServico"
+// for RPS, or "DPS000001" for DPS).
+func c14nElement(xmlDoc []byte, elemName, idValue string) ([]byte, error) {
 	s := string(xmlDoc)
 
-	// Expected opening tag after injectIDAttr.
-	idAttr := elemName + ` Id="` + elemName + `"`
-	openTag := "<" + idAttr
+	// Look for the opening tag with the actual Id value.
+	openTag := "<" + elemName + ` Id="` + idValue + `"`
 
 	start := strings.Index(s, openTag)
 	if start < 0 {
-		return nil, fmt.Errorf("element %q with Id attr not found", elemName)
+		return nil, fmt.Errorf("element %q with Id=%q not found", elemName, idValue)
 	}
 
 	closeTag := "</" + elemName + ">"
@@ -192,23 +200,61 @@ func c14nElement(xmlDoc []byte, elemName string) ([]byte, error) {
 
 	// C14N requires all namespace declarations that are "in scope" from ancestor
 	// elements to be rendered on the root of the extracted subtree.  Our document
-	// has exactly one namespace (the ABRASF namespace declared on the root
-	// element), and it must appear on this element.
+	// has exactly one namespace (declared on the root element), and it must appear
+	// on this element.
+	//
+	// Detect which namespace the document uses: ABRASF (RPS) or SEFIN (DPS).
 	//
 	// Per C14N attribute ordering rules: namespace declarations (xmlns:*) come
 	// before regular attributes; the default xmlns comes before any prefixed
 	// declarations; regular attributes are sorted by expanded name.
-	// Result for our case: xmlns="<abrasf>" Id="<elemName>"
+	// Result: xmlns="<detected-ns>" Id="<idValue>"
 	if !strings.Contains(elem, "xmlns=") {
+		ns := detectDocNamespace(s)
 		elem = strings.Replace(
 			elem,
-			"<"+idAttr,
-			"<"+elemName+` xmlns="`+abrasf+`" Id="`+elemName+`"`,
+			"<"+elemName+` Id="`+idValue+`"`,
+			"<"+elemName+` xmlns="`+ns+`" Id="`+idValue+`"`,
 			1,
 		)
 	}
 
 	return []byte(elem), nil
+}
+
+// extractIDValue returns the Id attribute value of the first occurrence of
+// elemName in xmlDoc.  If the element has no Id attribute, it falls back to
+// elemName (matching the legacy RPS behaviour where injectIDAttr sets Id=elemName).
+func extractIDValue(xmlDoc []byte, elemName string) string {
+	s := string(xmlDoc)
+	prefix := "<" + elemName + ` Id="`
+	idx := strings.Index(s, prefix)
+	if idx < 0 {
+		return elemName
+	}
+	rest := s[idx+len(prefix):]
+	endIdx := strings.Index(rest, `"`)
+	if endIdx < 0 {
+		return elemName
+	}
+	return rest[:endIdx]
+}
+
+// detectDocNamespace returns the default XML namespace declared on the root
+// element of the document.  Falls back to the ABRASF namespace when not found
+// so that existing RPS documents are not affected.
+func detectDocNamespace(xmlDoc string) string {
+	const nsPrefix = `xmlns="`
+	idx := strings.Index(xmlDoc, nsPrefix)
+	if idx < 0 {
+		return abrasf
+	}
+	rest := xmlDoc[idx+len(nsPrefix):]
+	endIdx := strings.Index(rest, `"`)
+	if endIdx < 0 {
+		return abrasf
+	}
+	return rest[:endIdx]
 }
 
 // buildSignedInfo returns the compact <SignedInfo> XML that will be signed.

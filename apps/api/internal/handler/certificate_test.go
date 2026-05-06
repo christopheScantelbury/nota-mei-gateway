@@ -6,6 +6,7 @@ import (
 	"mime/multipart"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/auth"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/handler"
@@ -49,6 +50,16 @@ type stubARNSaver struct {
 func (s *stubARNSaver) SaveCertSecretARN(_ context.Context, meiID uuid.UUID, arn string) error {
 	s.savedID = meiID
 	s.savedARN = arn
+	return s.err
+}
+
+func (s *stubARNSaver) SaveEmpresaCertARN(_ context.Context, empresaID uuid.UUID, arn string) error {
+	s.savedID = empresaID
+	s.savedARN = arn
+	return s.err
+}
+
+func (s *stubARNSaver) SaveEmpresaCertValidUntil(_ context.Context, _ uuid.UUID, _ time.Time) error {
 	return s.err
 }
 

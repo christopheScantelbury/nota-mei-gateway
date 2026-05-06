@@ -149,3 +149,52 @@ func PagamentoFalhouHTML(p PagamentoFalhouParams) string {
 `, p.RazaoSocial, p.PlanoNome, p.ValorBRL, p.PortalURL) +
 		htmlClose()
 }
+
+// BoasVindasMEParams holds the data for the ME welcome email.
+type BoasVindasMEParams struct {
+	RazaoSocial      string
+	APIKey           string
+	RegimeTributario string // "SIMPLES_NACIONAL" | "LUCRO_PRESUMIDO" | "LUCRO_REAL"
+}
+
+// BoasVindasMEHTML returns the welcome HTML email for a new ME/EPP empresa.
+// Includes ISS recolhimento guidance tailored to the regime tributário.
+func BoasVindasMEHTML(p BoasVindasMEParams) string {
+	var issBlock string
+	switch p.RegimeTributario {
+	case "SIMPLES_NACIONAL":
+		issBlock = `<div style="background:#0A0F1E;border:1px solid #00C85A;border-radius:8px;padding:16px 20px;margin:20px 0;">
+  <div style="color:#00C85A;font-weight:700;margin-bottom:6px;">✅ ISS recolhido via DAS (Simples Nacional)</div>
+  <p style="margin:0;color:#8AA0B8;font-size:14px;">O ISS já está incluído no seu DAS mensal — não é necessário emitir guia separada. Pague o DAS até o dia 20 de cada mês pelo <strong style="color:#EEF4FF;">PGDAS-D</strong> no Portal do Simples Nacional.</p>
+</div>`
+	case "LUCRO_PRESUMIDO":
+		issBlock = `<div style="background:#0A0F1E;border:1px solid #F0B414;border-radius:8px;padding:16px 20px;margin:20px 0;">
+  <div style="color:#F0B414;font-weight:700;margin-bottom:6px;">⚠️ ISS recolhido via DAM (Lucro Presumido)</div>
+  <p style="margin:0;color:#8AA0B8;font-size:14px;">Você deve emitir uma guia DAM para cada nota fiscal. O vencimento é <strong style="color:#EEF4FF;">dia 10 do mês seguinte</strong> à emissão. Acesse o sistema de emissão de DAM da prefeitura do seu município para gerar a guia.</p>
+</div>`
+	default:
+		issBlock = `<div style="background:#0A0F1E;border:1px solid #1E3050;border-radius:8px;padding:16px 20px;margin:20px 0;">
+  <div style="color:#8AA0B8;font-weight:700;margin-bottom:6px;">ℹ️ Recolhimento de ISS</div>
+  <p style="margin:0;color:#8AA0B8;font-size:14px;">Consulte seu contador para verificar a forma de recolhimento do ISS conforme seu regime tributário.</p>
+</div>`
+	}
+
+	return htmlOpen() + fmt.Sprintf(`
+<div class="header">
+  <h1>🎉 Empresa cadastrada com sucesso</h1>
+</div>
+<div class="body">
+  <p>Olá, <strong>%s</strong>!</p>
+  <p>Sua empresa foi cadastrada no <strong>Nota MEI Gateway</strong>. Você já pode emitir NFS-e pela nossa API.</p>
+  <hr class="divider"/>
+  <div class="label">Sua API Key (exibida apenas uma vez)</div>
+  <div class="code">%s</div>
+  <p style="font-size:13px;color:#FF3232;margin-top:8px;">⚠️ Guarde esta chave em local seguro — ela não será exibida novamente.</p>
+  <hr class="divider"/>
+  %s
+  <hr class="divider"/>
+  <p style="font-size:13px;color:#8AA0B8;">Próximos passos: faça upload do seu certificado A1 via <code>POST /v1/auth/certificate</code> para habilitar a assinatura digital das notas.</p>
+</div>
+`, p.RazaoSocial, p.APIKey, issBlock) +
+		htmlClose()
+}

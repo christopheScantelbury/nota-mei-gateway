@@ -19,6 +19,12 @@ linters:
         - name: exported
         - name: var-naming
         - name: error-return
+    misspell:
+      # ADN = Ambiente de Dados Nacional — official Brazilian fiscal acronym.
+      # golangci-lint misspell incorrectly flags it as a misspelling of "AND".
+      extra-words:
+        - typo: "ADN"
+          correction: "ADN"
 
 formatters:
   enable:
@@ -38,6 +44,11 @@ issues:
       text: "Error return value of .*(Body\\.Close)"
       linters:
         - errcheck
+    # ADN = Ambiente de Dados Nacional — official Brazilian fiscal acronym,
+    # not a misspelling of "AND".
+    - text: "`ADN` is a misspelling"
+      linters:
+        - misspell
 
 run:
   timeout: 5m

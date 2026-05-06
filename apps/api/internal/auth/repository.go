@@ -28,10 +28,15 @@ type RegisterMEIResult struct {
 // APIKey holds the data loaded from the api_keys table.
 type APIKey struct {
 	ID        uuid.UUID
-	MeiID     uuid.UUID
+	MeiID     uuid.UUID // zero UUID when key belongs to an ME/EPP empresa (mei_id IS NULL)
+	EmpresaID uuid.UUID // always set after ARCH-03
 	KeyHash   string
 	KeyPrefix string
 }
+
+// IsME returns true when this key belongs to an ME/EPP empresa (not a MEI).
+// MEI keys have mei_id == empresa_id; ME/EPP keys have mei_id == uuid.Nil.
+func (k *APIKey) IsME() bool { return k.MeiID == uuid.Nil }
 
 // MEI holds the authenticated MEI plus their current subscription limits.
 type MEI struct {
@@ -61,16 +66,22 @@ func NewRepository(db *supabase.Client) *Repository {
 }
 
 // FindByHash looks up a non-revoked API key by its SHA-256 hash.
+// For MEI keys: both mei_id and empresa_id are set (same UUID after ARCH-03).
+// For ME/EPP keys: mei_id is NULL (scanned as uuid.Nil); empresa_id is set.
 func (r *Repository) FindByHash(ctx context.Context, hash string) (*APIKey, error) {
 	row := r.db.Pool().QueryRow(ctx, `
-		SELECT id, mei_id, key_hash, key_prefix
+		SELECT id,
+		       COALESCE(mei_id, '00000000-0000-0000-0000-000000000000'::uuid),
+		       empresa_id,
+		       key_hash,
+		       key_prefix
 		FROM api_keys
 		WHERE key_hash = $1
 		  AND revoked_at IS NULL
 	`, hash)
 
 	var k APIKey
-	if err := row.Scan(&k.ID, &k.MeiID, &k.KeyHash, &k.KeyPrefix); err != nil {
+	if err := row.Scan(&k.ID, &k.MeiID, &k.EmpresaID, &k.KeyHash, &k.KeyPrefix); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrInvalidKey{Reason: "not found or revoked"}
 		}

@@ -42,6 +42,15 @@ type Nota struct {
 	EmitidaEm         *time.Time
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+	// SubstituidaPor is the UUID of the replacement nota when this nota was
+	// cancelled via the 9-day substituição window (ME-32). NULL means not substituted.
+	SubstituidaPor *uuid.UUID
+	// RegimeTributario is the tax regime at time of emission (ME-42 dashboard badge).
+	// Empty string for historical MEI rows.
+	RegimeTributario *string
+	// ISSRetido is true when ISS was withheld at source by the tomador.
+	// NULL for MEI/SN rows (ME-42).
+	ISSRetido *bool
 }
 
 // ErrNotaNotFound is returned when a nota does not exist or does not belong to the MEI.
@@ -66,8 +75,8 @@ func NewNotaRepository(db *supabase.Client) *NotaRepository {
 func (r *NotaRepository) NextNumeroRPS(ctx context.Context, meiID uuid.UUID) (int64, error) {
 	var n int64
 	err := r.db.Pool().QueryRow(ctx, `
-		INSERT INTO rps_sequences (mei_id, ultimo_rps)
-		VALUES ($1, 1)
+		INSERT INTO rps_sequences (mei_id, empresa_id, ultimo_rps)
+		VALUES ($1, $1, 1)
 		ON CONFLICT (mei_id) DO UPDATE
 		    SET ultimo_rps = rps_sequences.ultimo_rps + 1
 		RETURNING ultimo_rps
@@ -78,9 +87,31 @@ func (r *NotaRepository) NextNumeroRPS(ctx context.Context, meiID uuid.UUID) (in
 	return n, nil
 }
 
+// NextNumeroDPS atomically allocates the next DPS sequence number for a ME/EPP empresa.
+// Uses dps_sequences (empresa_id PK) so MEI and ME/EPP sequences never collide.
+func (r *NotaRepository) NextNumeroDPS(ctx context.Context, empresaID uuid.UUID) (int64, error) {
+	var n int64
+	err := r.db.Pool().QueryRow(ctx, `
+		INSERT INTO dps_sequences (empresa_id, ultimo_dps)
+		VALUES ($1, 1)
+		ON CONFLICT (empresa_id) DO UPDATE
+		    SET ultimo_dps = dps_sequences.ultimo_dps + 1
+		RETURNING ultimo_dps
+	`, empresaID).Scan(&n)
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
 // CreateNotaInput carries the data needed to insert a new nota.
+// For MEI: set MeiID; EmpresaID defaults to MeiID (they are the same UUID after ARCH-03).
+// For ME/EPP: leave MeiID as uuid.Nil and set EmpresaID.
 type CreateNotaInput struct {
-	MeiID          uuid.UUID
+	// MeiID is the MEI's UUID. Zero for ME/EPP companies.
+	MeiID uuid.UUID
+	// EmpresaID must always be set. For MEI it equals MeiID (same UUID after ARCH-03).
+	EmpresaID      uuid.UUID
 	NumeroRPS      int64
 	XMLEnviado     string
 	WebhookURL     string
@@ -89,28 +120,56 @@ type CreateNotaInput struct {
 	TomadorNome    string
 	ValorServico   float64
 	Competencia    string
+	// ME-42: stored for dashboard badge display — empty string means unset (MEI historical rows).
+	RegimeTributario string
+	// ME-42: nil for MEI/SN; true/false for LP/LR companies.
+	ISSRetido *bool
 }
 
 // Create inserts a new nota with status PROCESSANDO and returns it.
+// Always sets empresa_id (required NOT NULL after ARCH-03 migration).
 func (r *NotaRepository) Create(ctx context.Context, in CreateNotaInput) (*Nota, error) {
+	// EmpresaID must always be set; for MEI it equals MeiID.
+	empresaID := in.EmpresaID
+	if empresaID == uuid.Nil {
+		empresaID = in.MeiID
+	}
+
+	var meiIDParam interface{}
+	if in.MeiID != uuid.Nil {
+		meiIDParam = in.MeiID
+	} // else nil → NULL in DB (ME/EPP — no entry in meis table)
+
+	var regimeParam interface{}
+	if in.RegimeTributario != "" {
+		regimeParam = in.RegimeTributario
+	}
+
 	var id uuid.UUID
 	err := r.db.Pool().QueryRow(ctx, `
 		INSERT INTO notas_fiscais (
-			mei_id, numero_rps, status, xml_enviado,
+			mei_id, empresa_id, numero_rps, status, xml_enviado,
 			webhook_url, idempotency_key,
-			tomador_doc, tomador_nome, valor_servico, competencia
-		) VALUES ($1,$2,'PROCESSANDO',$3,$4,$5,$6,$7,$8,$9)
+			tomador_doc, tomador_nome, valor_servico, competencia,
+			regime_tributario, iss_retido
+		) VALUES ($1,$2,$3,'PROCESSANDO',$4,$5,$6,$7,$8,$9,$10,$11,$12)
 		RETURNING id
 	`,
-		in.MeiID, in.NumeroRPS, nullStr(in.XMLEnviado),
+		meiIDParam, empresaID, in.NumeroRPS, nullStr(in.XMLEnviado),
 		nullStr(in.WebhookURL), nullStr(in.IdempotencyKey),
 		nullStr(in.TomadorDoc), nullStr(in.TomadorNome),
 		in.ValorServico, nullStr(in.Competencia),
+		regimeParam, in.ISSRetido,
 	).Scan(&id)
 	if err != nil {
 		return nil, err
 	}
-	return r.FindByID(ctx, id, in.MeiID)
+
+	// Load the freshly created nota.
+	if in.MeiID != uuid.Nil {
+		return r.FindByID(ctx, id, in.MeiID)
+	}
+	return r.FindByIDForEmpresa(ctx, id, empresaID)
 }
 
 // FindByID loads a nota by its UUID, restricted to the given MEI.
@@ -124,11 +183,75 @@ func (r *NotaRepository) FindByID(ctx context.Context, notaID, meiID uuid.UUID) 
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido
 		FROM notas_fiscais
 		WHERE id = $1 AND mei_id = $2
 	`, notaID, meiID)
 	return scanNota(row)
+}
+
+// FindByIDForEmpresa loads a nota by its UUID, restricted to the given empresa.
+// Used for ME/EPP nota queries where mei_id is NULL.
+func (r *NotaRepository) FindByIDForEmpresa(ctx context.Context, notaID, empresaID uuid.UUID) (*Nota, error) {
+	row := r.db.Pool().QueryRow(ctx, `
+		SELECT id, mei_id, numero_rps, status,
+		       protocolo_receita, numero_nfse, codigo_verificacao,
+		       xml_enviado, xml_retorno, pdf_path, xml_s3_key, pdf_s3_key,
+		       webhook_url, webhook_entregue, webhook_tentativas,
+		       idempotency_key, tomador_doc, tomador_nome,
+		       valor_servico, competencia,
+		       erro_codigo, erro_descricao,
+		       cancelada_em, emitida_em,
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido
+		FROM notas_fiscais
+		WHERE id = $1 AND empresa_id = $2
+	`, notaID, empresaID)
+	return scanNota(row)
+}
+
+// ListByEmpresa returns a paginated list of notas for a given empresa, newest first.
+// Used for ME/EPP nota listing where mei_id may be NULL.
+func (r *NotaRepository) ListByEmpresa(ctx context.Context, empresaID uuid.UUID, limit, offset int) ([]Nota, int, error) {
+	rows, err := r.db.Pool().Query(ctx, `
+		SELECT id, mei_id, numero_rps, status,
+		       protocolo_receita, numero_nfse, codigo_verificacao,
+		       xml_enviado, xml_retorno, pdf_path, xml_s3_key, pdf_s3_key,
+		       webhook_url, webhook_entregue, webhook_tentativas,
+		       idempotency_key, tomador_doc, tomador_nome,
+		       valor_servico, competencia,
+		       erro_codigo, erro_descricao,
+		       cancelada_em, emitida_em,
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido
+		FROM notas_fiscais
+		WHERE empresa_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
+	`, empresaID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var notas []Nota
+	for rows.Next() {
+		n, err := scanNotaFromRows(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		notas = append(notas, *n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	var total int
+	if err := r.db.Pool().QueryRow(ctx, `
+		SELECT COUNT(*) FROM notas_fiscais WHERE empresa_id = $1
+	`, empresaID).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	return notas, total, nil
 }
 
 // ListByMEI returns a paginated list of notas for a given MEI, newest first.
@@ -142,7 +265,7 @@ func (r *NotaRepository) ListByMEI(ctx context.Context, meiID uuid.UUID, limit, 
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido
 		FROM notas_fiscais
 		WHERE mei_id = $1
 		ORDER BY created_at DESC
@@ -188,7 +311,7 @@ func (r *NotaRepository) FindProcessandoSemProtocolo(ctx context.Context, olderT
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido
 		FROM notas_fiscais
 		WHERE status = 'PROCESSANDO'
 		  AND protocolo_receita IS NULL
@@ -281,7 +404,7 @@ func (r *NotaRepository) Rejeitar(ctx context.Context, notaID uuid.UUID, erroCod
 	return tag.RowsAffected() > 0, nil
 }
 
-// Cancelar marks a nota as CANCELADA.
+// Cancelar marks a nota as CANCELADA (MEI path — filters by mei_id).
 func (r *NotaRepository) Cancelar(ctx context.Context, notaID, meiID uuid.UUID) error {
 	tag, err := r.db.Pool().Exec(ctx, `
 		UPDATE notas_fiscais
@@ -290,6 +413,24 @@ func (r *NotaRepository) Cancelar(ctx context.Context, notaID, meiID uuid.UUID) 
 		    updated_at = NOW()
 		WHERE id = $1 AND mei_id = $2 AND status = 'AUTORIZADA'
 	`, notaID, meiID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotaNotFound{}
+	}
+	return nil
+}
+
+// CancelarEmpresa marks a nota as CANCELADA (ME/EPP path — filters by empresa_id).
+func (r *NotaRepository) CancelarEmpresa(ctx context.Context, notaID, empresaID uuid.UUID) error {
+	tag, err := r.db.Pool().Exec(ctx, `
+		UPDATE notas_fiscais
+		SET status = 'CANCELADA',
+		    cancelada_em = NOW(),
+		    updated_at = NOW()
+		WHERE id = $1 AND empresa_id = $2 AND status = 'AUTORIZADA'
+	`, notaID, empresaID)
 	if err != nil {
 		return err
 	}
@@ -335,6 +476,18 @@ func (r *NotaRepository) SetPDFS3Key(ctx context.Context, notaID uuid.UUID, key 
 	return err
 }
 
+// SetSubstituidaPor links the cancelled original nota to its replacement (ME-32).
+// Called after the substitute DPS has been successfully persisted.
+func (r *NotaRepository) SetSubstituidaPor(ctx context.Context, originalID, novaNotaID uuid.UUID) error {
+	_, err := r.db.Pool().Exec(ctx, `
+		UPDATE notas_fiscais
+		SET substituida_por = $2,
+		    updated_at = NOW()
+		WHERE id = $1
+	`, originalID, novaNotaID)
+	return err
+}
+
 // MarcarWebhookEntregue marks a nota's webhook as successfully delivered.
 func (r *NotaRepository) MarcarWebhookEntregue(ctx context.Context, notaID uuid.UUID) error {
 	_, err := r.db.Pool().Exec(ctx, `
@@ -369,7 +522,7 @@ func (r *NotaRepository) FindPendingWebhooks(ctx context.Context, limit int) ([]
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido
 		FROM notas_fiscais
 		WHERE webhook_url IS NOT NULL
 		  AND webhook_entregue = false
@@ -415,7 +568,7 @@ func (r *NotaRepository) FindProcessandoComProtocolo(ctx context.Context, limit 
 		       n.valor_servico, n.competencia,
 		       n.erro_codigo, n.erro_descricao,
 		       n.cancelada_em, n.emitida_em,
-		       n.created_at, n.updated_at,
+		       n.created_at, n.updated_at, n.substituida_por, n.regime_tributario, n.iss_retido,
 		       m.cnpj, m.municipio_ibge, m.cert_secret_arn
 		FROM notas_fiscais n
 		JOIN meis m ON m.id = n.mei_id
@@ -441,7 +594,7 @@ func (r *NotaRepository) FindProcessandoComProtocolo(ctx context.Context, limit 
 			&nc.ValorServico, &nc.Competencia,
 			&nc.ErroCodigo, &nc.ErroDescricao,
 			&nc.CanceladaEm, &nc.EmitidaEm,
-			&nc.CreatedAt, &nc.UpdatedAt,
+			&nc.CreatedAt, &nc.UpdatedAt, &nc.SubstituidaPor, &nc.RegimeTributario, &nc.ISSRetido,
 			&nc.CNPJ, &nc.MunicipioIBGE, &nc.CertSecretARN,
 		)
 		if err != nil {
@@ -470,7 +623,7 @@ func scanNota(row scanner) (*Nota, error) {
 		&n.ValorServico, &n.Competencia,
 		&n.ErroCodigo, &n.ErroDescricao,
 		&n.CanceladaEm, &n.EmitidaEm,
-		&n.CreatedAt, &n.UpdatedAt,
+		&n.CreatedAt, &n.UpdatedAt, &n.SubstituidaPor, &n.RegimeTributario, &n.ISSRetido,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

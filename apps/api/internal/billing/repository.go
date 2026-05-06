@@ -68,6 +68,29 @@ func (r *Repository) GetOrCreateEmissaoMensal(ctx context.Context, meiID uuid.UU
 	return &em, nil
 }
 
+// GetOrCreateEmissaoMensalEmpresa is the ME/EPP equivalent of GetOrCreateEmissaoMensal.
+// Uses empresa_id instead of mei_id to match the empresas table.
+func (r *Repository) GetOrCreateEmissaoMensalEmpresa(ctx context.Context, empresaID uuid.UUID) (*EmissaoMensal, error) {
+	row := r.db.Pool().QueryRow(ctx, `
+		INSERT INTO emissoes_mensais (empresa_id, competencia, total_emitidas)
+		VALUES ($1, to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM'), 0)
+		ON CONFLICT (empresa_id, competencia) DO UPDATE
+		    SET empresa_id = EXCLUDED.empresa_id  -- no-op; forces RETURNING to fire
+		RETURNING id, empresa_id, plano_id, competencia, total_emitidas,
+		          stripe_subscription_id, stripe_subscription_status,
+		          stripe_subscription_item_id
+	`, empresaID)
+
+	var em EmissaoMensal
+	if err := row.Scan(
+		&em.ID, &em.MeiID, &em.PlanoID, &em.Competencia, &em.TotalEmitidas,
+		&em.StripeSubID, &em.StripeSubStatus, &em.StripeSubItemID,
+	); err != nil {
+		return nil, err
+	}
+	return &em, nil
+}
+
 // RenewMonth creates emissoes_mensais rows for all MEIs for the given competencia,
 // carrying each MEI's most recent plan forward. Returns the number of new rows inserted.
 func (r *Repository) RenewMonth(ctx context.Context, competencia string) (int, error) {
@@ -102,6 +125,24 @@ func (r *Repository) IncrementEmitidas(ctx context.Context, meiID uuid.UUID) (in
 		  AND competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
 		RETURNING total_emitidas
 	`, meiID)
+
+	var total int
+	if err := row.Scan(&total); err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
+// IncrementEmitidasEmpresa atomically increments the ME/EPP monthly emission counter.
+// Uses empresa_id column (guaranteed NOT NULL for all rows after ARCH-03).
+func (r *Repository) IncrementEmitidasEmpresa(ctx context.Context, empresaID uuid.UUID) (int, error) {
+	row := r.db.Pool().QueryRow(ctx, `
+		UPDATE emissoes_mensais
+		SET total_emitidas = total_emitidas + 1
+		WHERE empresa_id = $1
+		  AND competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
+		RETURNING total_emitidas
+	`, empresaID)
 
 	var total int
 	if err := row.Scan(&total); err != nil {

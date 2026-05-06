@@ -30,7 +30,8 @@ type CertProvider interface {
 type NFSeHandler struct {
 	notaRepo     *nfse.NotaRepository
 	adapter      *nfse.Adapter
-	builder      *document.Builder
+	builder      *document.Builder    // MEI RPS builder
+	dpsBuilder   *document.DPSBuilder // ME/EPP DPS builder
 	signer       document.Signer
 	certProv     CertProvider
 	billingRepo  *billing.Repository
@@ -50,6 +51,7 @@ func NewNFSeHandler(
 	notaRepo *nfse.NotaRepository,
 	adapter *nfse.Adapter,
 	builder *document.Builder,
+	dpsBuilder *document.DPSBuilder,
 	signer document.Signer,
 	certProv CertProvider,
 	billingRepo *billing.Repository,
@@ -61,6 +63,7 @@ func NewNFSeHandler(
 		notaRepo:    notaRepo,
 		adapter:     adapter,
 		builder:     builder,
+		dpsBuilder:  dpsBuilder,
 		signer:      signer,
 		certProv:    certProv,
 		billingRepo: billingRepo,
@@ -111,12 +114,17 @@ func (h *NFSeHandler) WithStorage(s storage.ObjectStore) *NFSeHandler {
 // ─── POST /v1/nfse ─────────────────────────────────────────────────────────
 
 // EmitirNota handles POST /v1/nfse.
-// It validates the request, checks billing, builds + signs the RPS XML,
-// sends it to the Receita Federal, and stores the result.
+//
+// Routes by company type:
+//   - MEI  → RPS builder (ABRASF/municipal) via the meis table
+//   - ME/EPP → DPS builder (SEFIN Nacional) via the empresas table
 func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
+	// Detect company type from context locals set by auth.Middleware.
 	mei := auth.GetMEI(c)
-	if mei == nil {
-		return internalError(c, "MEI not in context")
+	empresa := auth.GetEmpresa(c)
+
+	if mei == nil && empresa == nil {
+		return internalError(c, "nenhuma empresa autenticada no contexto")
 	}
 
 	var req document.EmissaoRequest
@@ -132,7 +140,152 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 		})
 	}
 
+	// Route: ME/EPP uses the DPS path.
+	if empresa != nil {
+		return h.emitirNotaME(c, req, empresa)
+	}
+	// Legacy MEI path.
+	return h.emitirNotaMEI(c, req, mei)
+}
+
+// emitirNotaMEI handles POST /v1/nfse for MEI companies (RPS/ABRASF path).
+func (h *NFSeHandler) emitirNotaMEI(c *fiber.Ctx, req document.EmissaoRequest, mei *auth.MEI) error {
+	// ── NBS validation ────────────────────────────────────────────────────
+	if h.nbsValidator != nil {
+		if err := h.nbsValidator.Validate(c.Context(), req.Servico.CodigoNBS); err != nil {
+			if errors.Is(err, document.ErrInvalidNBS) {
+				return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+					"error":      "INVALID_NBS",
+					"message":    "código NBS inválido ou não encontrado",
+					"request_id": c.Locals("request_id"),
+				})
+			}
+			log.Ctx(c.Context()).Error().Err(err).Str("codigo_nbs", req.Servico.CodigoNBS).Msg("nbs validation error")
+			return internalError(c, "erro ao validar código NBS")
+		}
+	}
+
+	// ── 1. Billing check ──────────────────────────────────────────────────
+	em, err := h.billingRepo.GetOrCreateEmissaoMensal(c.Context(), mei.ID)
+	if err != nil {
+		log.Ctx(c.Context()).Error().Err(err).Str("mei_id", mei.ID.String()).Msg("billing getOrCreate failed")
+		return internalError(c, "erro ao verificar limite de emissões")
+	}
+
+	if denied, resp := h.checkStripeSubscription(c, mei.ID, em); denied {
+		return resp
+	}
+
+	allowed, err := h.billingGrd.Allow(c.Context(), mei.ID, mei.PlanoLimite)
+	if err != nil {
+		log.Ctx(c.Context()).Error().Err(err).Str("mei_id", mei.ID.String()).Msg("billing guard error")
+		return internalError(c, "erro ao verificar limite de emissões")
+	}
+	if !allowed {
+		return c.Status(fiber.StatusPaymentRequired).JSON(fiber.Map{
+			"error":      "PLAN_LIMIT_REACHED",
+			"message":    fmt.Sprintf("limite de %d notas mensais atingido", mei.PlanoLimite),
+			"request_id": c.Locals("request_id"),
+		})
+	}
+
+	// ── 2. Allocate RPS number ────────────────────────────────────────────
+	numeroRPS, err := h.notaRepo.NextNumeroRPS(c.Context(), mei.ID)
+	if err != nil {
+		return internalError(c, "erro ao alocar número de RPS")
+	}
+
+	// ── 3. Resolve ISS rate ───────────────────────────────────────────────
+	if h.issLookup != nil {
+		req.Servico.AliquotaISS = h.issLookup.Resolve(mei.MunicipioIBGE, req.Servico.AliquotaISS)
+	}
+
+	// ── 4. Build RPS XML ──────────────────────────────────────────────────
+	xmlDoc, err := h.builder.Build(req, mei.CNPJ, mei.MunicipioIBGE, numeroRPS)
+	if err != nil {
+		return validationError(c, "erro ao construir RPS: "+err.Error())
+	}
+
+	// ── 5. Load certificate ───────────────────────────────────────────────
+	cert, err := h.loadCert(c.Context(), mei)
+	if err != nil {
+		log.Ctx(c.Context()).Error().Err(err).Str("mei_id", mei.ID.String()).Msg("certificate load failed")
+		return internalError(c, "erro ao carregar certificado digital")
+	}
+
+	// ── 6. Sign XML ───────────────────────────────────────────────────────
+	signedXML, err := h.signer.Sign(c.Context(), xmlDoc, cert)
+	if err != nil {
+		return internalError(c, "erro ao assinar XML")
+	}
+
+	// ── 7. Persist nota ───────────────────────────────────────────────────
+	// After ARCH-03, empresa_id = mei_id for all MEI rows — pass both.
+	nota, err := h.notaRepo.Create(c.Context(), nfse.CreateNotaInput{
+		MeiID:            mei.ID,
+		EmpresaID:        mei.ID, // empresa_id = mei_id for MEI (ARCH-03 invariant)
+		NumeroRPS:        numeroRPS,
+		XMLEnviado:       string(signedXML),
+		WebhookURL:       req.WebhookURL,
+		TomadorDoc:       req.Tomador.Documento,
+		TomadorNome:      req.Tomador.RazaoSocial,
+		ValorServico:     req.Servico.Valor,
+		Competencia:      req.Competencia,
+		IdempotencyKey:   c.Get("Idempotency-Key"),
+		RegimeTributario: "SIMPLES_MEI", // MEI is always Simples MEI
+	})
+	if err != nil {
+		return internalError(c, "erro ao salvar nota")
+	}
+
+	// ── 7a. Upload signed RPS XML to S3 (STOR-01) ─────────────────────────
+	if h.store != nil {
+		s3Key := storage.S3KeyForRPS(mei.ID.String(), nota.ID.String())
+		if uploadErr := h.store.Put(c.Context(), s3Key, "application/xml", signedXML); uploadErr != nil {
+			log.Ctx(c.Context()).Error().Err(uploadErr).
+				Str("nota_id", nota.ID.String()).
+				Str("s3_key", s3Key).
+				Msg("falha ao fazer upload do RPS XML para S3 (non-fatal)")
+		} else {
+			if setErr := h.notaRepo.SetXMLS3Key(c.Context(), nota.ID, s3Key); setErr != nil {
+				log.Ctx(c.Context()).Warn().Err(setErr).
+					Str("nota_id", nota.ID.String()).
+					Msg("falha ao registrar xml_s3_key no banco (non-fatal)")
+			}
+		}
+	}
+
+	log.Ctx(c.Context()).Info().
+		Str("mei_id", mei.ID.String()).
+		Str("nota_id", nota.ID.String()).
+		Int64("numero_rps", numeroRPS).
+		Msg("nota MEI criada, enviando para Receita Federal")
+
+	// ── 8. Send to Receita Federal ─────────────────────────────────────────
+	if h.devMode {
+		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+			"nota_id":  nota.ID,
+			"status":   "PROCESSANDO",
+			"mensagem": "Nota enviada para processamento [dev mode]",
+		})
+	}
+
+	return h.enviarEProcessar(c, nota, signedXML, cert, em, mei.ID, mei.PlanoLimite)
+}
+
+// emitirNotaME handles POST /v1/nfse for ME/EPP companies (DPS/SEFIN path).
+func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, empresa *auth.Empresa) error {
 	ctx := c.Context()
+
+	// ── ME-21: Validar município habilitado para NFS-e Nacional ───────────
+	if h.issLookup != nil && !h.issLookup.IsHabilitado(empresa.MunicipioIBGE) {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error":      "MUNICIPIO_NAO_HABILITADO",
+			"message":    "município não habilitado para emissão no NFS-e Nacional",
+			"ibge":       empresa.MunicipioIBGE,
+			"request_id": c.Locals("request_id"),
+		})
+	}
 
 	// ── NBS validation ────────────────────────────────────────────────────
 	if h.nbsValidator != nil {
@@ -150,95 +303,99 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 	}
 
 	// ── 1. Billing check ──────────────────────────────────────────────────
-	em, err := h.billingRepo.GetOrCreateEmissaoMensal(ctx, mei.ID)
+	em, err := h.billingRepo.GetOrCreateEmissaoMensalEmpresa(ctx, empresa.ID)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Str("mei_id", mei.ID.String()).Msg("billing getOrCreate failed")
+		log.Ctx(ctx).Error().Err(err).Str("empresa_id", empresa.ID.String()).Msg("billing getOrCreate failed")
 		return internalError(c, "erro ao verificar limite de emissões")
 	}
 
-	// ── 1a. Stripe subscription status ───────────────────────────────────
-	// Check Redis cache first; on miss, fall back to the value stored in DB
-	// (set by the Stripe webhook handler) and repopulate the cache.
-	if denied, resp := h.checkStripeSubscription(c, mei.ID, em); denied {
+	if denied, resp := h.checkStripeSubscription(c, empresa.ID, em); denied {
 		return resp
 	}
 
-	allowed, err := h.billingGrd.Allow(ctx, mei.ID, mei.PlanoLimite)
-	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Str("mei_id", mei.ID.String()).Msg("billing guard error")
-		return internalError(c, "erro ao verificar limite de emissões")
-	}
-	if !allowed {
-		return c.Status(fiber.StatusPaymentRequired).JSON(fiber.Map{
-			"error":      "PLAN_LIMIT_REACHED",
-			"message":    fmt.Sprintf("limite de %d notas mensais atingido", mei.PlanoLimite),
-			"request_id": c.Locals("request_id"),
-		})
+	// Bypass billing guard when trial_me is active.
+	if !empresa.TrialMe {
+		allowed, guardErr := h.billingGrd.Allow(ctx, empresa.ID, empresa.PlanoLimite)
+		if guardErr != nil {
+			log.Ctx(ctx).Error().Err(guardErr).Str("empresa_id", empresa.ID.String()).Msg("billing guard error")
+			return internalError(c, "erro ao verificar limite de emissões")
+		}
+		if !allowed {
+			return c.Status(fiber.StatusPaymentRequired).JSON(fiber.Map{
+				"error":      "PLAN_LIMIT_REACHED",
+				"message":    fmt.Sprintf("limite de %d notas mensais atingido", empresa.PlanoLimite),
+				"request_id": c.Locals("request_id"),
+			})
+		}
 	}
 
-	// ── 2. Allocate RPS number ────────────────────────────────────────────
-	numeroRPS, err := h.notaRepo.NextNumeroRPS(ctx, mei.ID)
+	// ── 2. Allocate DPS number ───────────────────────────────────────────
+	numeroDPS, err := h.notaRepo.NextNumeroDPS(ctx, empresa.ID)
 	if err != nil {
-		return internalError(c, "erro ao alocar número de RPS")
+		return internalError(c, "erro ao alocar número de DPS")
 	}
 
 	// ── 3. Resolve ISS rate ───────────────────────────────────────────────
 	if h.issLookup != nil {
-		req.Servico.AliquotaISS = h.issLookup.Resolve(mei.MunicipioIBGE, req.Servico.AliquotaISS)
+		req.Servico.AliquotaISS = h.issLookup.Resolve(empresa.MunicipioIBGE, req.Servico.AliquotaISS)
 	}
 
-	// ── 4. Build RPS XML ─────────────────────────────────────────────────
-	xmlDoc, err := h.builder.Build(req, mei.CNPJ, mei.MunicipioIBGE, numeroRPS)
+	// ── 4. Build DPS XML ──────────────────────────────────────────────────
+	dpsResult, err := h.dpsBuilder.Build(req, empresa, numeroDPS)
 	if err != nil {
-		return validationError(c, "erro ao construir RPS: "+err.Error())
+		// ErrValidation → 422 (e.g. iss_retido nil for LP)
+		var validErr *document.ErrValidation
+		if errors.As(err, &validErr) {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+				"error":      "VALIDATION_ERROR",
+				"message":    validErr.Message,
+				"fields":     []fiber.Map{{"field": validErr.Field, "message": validErr.Message}},
+				"request_id": c.Locals("request_id"),
+			})
+		}
+		return validationError(c, "erro ao construir DPS: "+err.Error())
 	}
 
-	// ── 5. Load certificate from AWS Secrets Manager ─────────────────────
-	// mei.CertSecretARN is populated by FindMEI from meis.cert_secret_arn;
-	// loadCert returns an error if no cert has been uploaded yet.
-	cert, err := h.loadCert(ctx, mei)
+	// ── 5. Load certificate ───────────────────────────────────────────────
+	cert, err := h.loadCertEmpresa(ctx, empresa)
 	if err != nil {
-		log.Ctx(ctx).Error().Err(err).Str("mei_id", mei.ID.String()).Msg("certificate load failed")
+		log.Ctx(ctx).Error().Err(err).Str("empresa_id", empresa.ID.String()).Msg("certificate load failed")
 		return internalError(c, "erro ao carregar certificado digital")
 	}
 
 	// ── 6. Sign XML ───────────────────────────────────────────────────────
-	signedXML, err := h.signer.Sign(ctx, xmlDoc, cert)
+	signedXML, err := h.signer.Sign(ctx, dpsResult.XML, cert)
 	if err != nil {
-		return internalError(c, "erro ao assinar XML")
+		return internalError(c, "erro ao assinar DPS")
 	}
 
-	// ── 7. Persist nota with PROCESSANDO status ───────────────────────────
-	// Always store the full XML in xml_enviado first (safe default).
-	// If S3 upload succeeds in step 7a, SetXMLS3Key will null out xml_enviado.
+	// ── 7. Persist nota ───────────────────────────────────────────────────
+	// MeiID is intentionally uuid.Nil — ME/EPP companies have no row in meis.
 	nota, err := h.notaRepo.Create(ctx, nfse.CreateNotaInput{
-		MeiID:          mei.ID,
-		NumeroRPS:      numeroRPS,
-		XMLEnviado:     string(signedXML),
-		WebhookURL:     req.WebhookURL,
-		TomadorDoc:     req.Tomador.Documento,
-		TomadorNome:    req.Tomador.RazaoSocial,
-		ValorServico:   req.Servico.Valor,
-		Competencia:    req.Competencia,
-		IdempotencyKey: c.Get("Idempotency-Key"),
+		EmpresaID:        empresa.ID,
+		NumeroRPS:        numeroDPS,
+		XMLEnviado:       string(signedXML),
+		WebhookURL:       req.WebhookURL,
+		TomadorDoc:       req.Tomador.Documento,
+		TomadorNome:      req.Tomador.RazaoSocial,
+		ValorServico:     req.Servico.Valor,
+		Competencia:      req.Competencia,
+		IdempotencyKey:   c.Get("Idempotency-Key"),
+		RegimeTributario: empresa.RegimeTributario,                                    // ME-42: stored for dashboard badge
+		ISSRetido:        issRetidoPtr(empresa.RegimeTributario, dpsResult.ISSRetido), // ME-42
 	})
 	if err != nil {
 		return internalError(c, "erro ao salvar nota")
 	}
 
-	// ── 7a. Upload signed RPS XML to S3 (STOR-01) ────────────────────────
-	// Only nulls out xml_enviado from DB after a confirmed successful upload.
-	// On failure, xml_enviado stays intact in the DB — no data loss.
+	// ── 7a. Upload DPS XML to S3 (STOR-01) ────────────────────────────────
 	if h.store != nil {
-		s3Key := storage.S3KeyForRPS(mei.ID.String(), nota.ID.String())
+		s3Key := storage.S3KeyForRPS(empresa.ID.String(), nota.ID.String())
 		if uploadErr := h.store.Put(ctx, s3Key, "application/xml", signedXML); uploadErr != nil {
-			// Non-fatal: log the error but continue — xml_enviado is still in the DB.
 			log.Ctx(ctx).Error().Err(uploadErr).
 				Str("nota_id", nota.ID.String()).
-				Str("s3_key", s3Key).
-				Msg("falha ao fazer upload do RPS XML para S3 (non-fatal, xml salvo no banco)")
+				Msg("falha ao fazer upload do DPS XML para S3 (non-fatal)")
 		} else {
-			// Success: set the S3 key and clear the DB text column to save space.
 			if setErr := h.notaRepo.SetXMLS3Key(ctx, nota.ID, s3Key); setErr != nil {
 				log.Ctx(ctx).Warn().Err(setErr).
 					Str("nota_id", nota.ID.String()).
@@ -248,25 +405,104 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 	}
 
 	log.Ctx(ctx).Info().
-		Str("mei_id", mei.ID.String()).
+		Str("empresa_id", empresa.ID.String()).
 		Str("nota_id", nota.ID.String()).
-		Int64("numero_rps", numeroRPS).
-		Msg("nota criada, enviando para Receita Federal")
+		Int64("numero_dps", numeroDPS).
+		Str("regime", empresa.RegimeTributario).
+		Bool("iss_retido", dpsResult.ISSRetido).
+		Msg("DPS criada, enviando para SEFIN Nacional")
 
-	// ── 8. Send to Receita Federal ────────────────────────────────────────
-	// In dev mode (NoopSigner, no real cert) skip the mTLS call entirely
-	// and return PROCESSANDO immediately — the poller won't retry in devMode.
+	// ── 8. Send to SEFIN Nacional ──────────────────────────────────────────
 	if h.devMode {
 		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
-			"nota_id":  nota.ID,
-			"status":   "PROCESSANDO",
-			"mensagem": "Nota enviada para processamento [dev mode]",
+			"nota_id":           nota.ID,
+			"status":            "PROCESSANDO",
+			"regime_tributario": empresa.RegimeTributario,
+			"iss_retido":        dpsResult.ISSRetido,
+			"valor_iss":         dpsResult.ValorISS,
+			"valor_liquido":     dpsResult.ValorLiquido,
+			"mensagem":          "Nota enviada para processamento [dev mode]",
 		})
 	}
 
+	// Build warnings slice (e.g. orgao_publico ISS forced).
+	var warnings []string
+	if req.Tomador.TipoOrgao == "ORGAO_PUBLICO" && req.IssRetido != nil && !*req.IssRetido {
+		warnings = append(warnings, "ISS forçado para retido: tomador é órgão público (Art. 6 LC 116/2003)")
+	}
+
+	envioResp, envErr := h.adapter.Enviar(ctx, signedXML, cert)
+	if envErr != nil {
+		log.Ctx(ctx).Warn().Err(envErr).Str("nota_id", nota.ID.String()).Msg("envio DPS falhou, mantendo PROCESSANDO")
+		resp := fiber.Map{
+			"nota_id":           nota.ID,
+			"status":            "PROCESSANDO",
+			"regime_tributario": empresa.RegimeTributario,
+			"iss_retido":        dpsResult.ISSRetido,
+			"valor_iss":         dpsResult.ValorISS,
+			"valor_liquido":     dpsResult.ValorLiquido,
+			"mensagem":          "Nota enviada para processamento (retry automático)",
+		}
+		if len(warnings) > 0 {
+			resp["avisos"] = warnings
+		}
+		return c.Status(fiber.StatusAccepted).JSON(resp)
+	}
+
+	// ── 9. Process response ────────────────────────────────────────────────
+	if len(envioResp.Erros) > 0 {
+		codigo := envioResp.Erros[0].Codigo
+		descricao := envioResp.Erros[0].Descricao
+		_, _ = h.notaRepo.Rejeitar(ctx, nota.ID, codigo, descricao)
+		h.publishEvent(ctx, nota, webhook.EventRejeitada, "", "", codigo, descricao)
+		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+			"nota_id":           nota.ID,
+			"status":            "REJEITADA",
+			"regime_tributario": empresa.RegimeTributario,
+			"erro_codigo":       codigo,
+			"erro_descricao":    descricao,
+		})
+	}
+
+	if envioResp.NumeroNFSe != "" {
+		_, _ = h.notaRepo.Autorizar(ctx, nota.ID, envioResp.NumeroNFSe, envioResp.CodVerificacao, "")
+		total, _ := h.billingRepo.IncrementEmitidasEmpresa(ctx, empresa.ID)
+		h.publishEvent(ctx, nota, webhook.EventAutorizada, envioResp.NumeroNFSe, envioResp.CodVerificacao, "", "")
+		h.reportOverageIfNeeded(ctx, nota.ID.String(), total, empresa.PlanoLimite, em)
+	} else if envioResp.Protocolo != "" {
+		_ = h.notaRepo.SetProtocolo(ctx, nota.ID, envioResp.Protocolo)
+	}
+
+	resp := fiber.Map{
+		"nota_id":           nota.ID,
+		"status":            "PROCESSANDO",
+		"regime_tributario": empresa.RegimeTributario,
+		"iss_retido":        dpsResult.ISSRetido,
+		"valor_iss":         dpsResult.ValorISS,
+		"valor_liquido":     dpsResult.ValorLiquido,
+		"mensagem":          "Nota enviada para processamento",
+	}
+	if len(warnings) > 0 {
+		resp["avisos"] = warnings
+	}
+	return c.Status(fiber.StatusAccepted).JSON(resp)
+}
+
+// enviarEProcessar sends signed XML to Receita Federal and processes the response.
+// Shared by the MEI path.
+func (h *NFSeHandler) enviarEProcessar(
+	c *fiber.Ctx,
+	nota *nfse.Nota,
+	signedXML []byte,
+	cert *tls.Certificate,
+	em *billing.EmissaoMensal,
+	ownerID uuid.UUID,
+	planoLimite int,
+) error {
+	ctx := c.Context()
+
 	envioResp, err := h.adapter.Enviar(ctx, signedXML, cert)
 	if err != nil {
-		// Transient error — keep status PROCESSANDO for later polling.
 		log.Ctx(ctx).Warn().Err(err).Str("nota_id", nota.ID.String()).Msg("envio falhou, mantendo PROCESSANDO")
 		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
 			"nota_id":  nota.ID,
@@ -275,7 +511,6 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 		})
 	}
 
-	// ── 9. Process response ───────────────────────────────────────────────
 	if len(envioResp.Erros) > 0 {
 		codigo := envioResp.Erros[0].Codigo
 		descricao := envioResp.Erros[0].Descricao
@@ -294,19 +529,15 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 	}
 
 	if envioResp.NumeroNFSe != "" {
-		// Synchronous authorisation.
 		_, _ = h.notaRepo.Autorizar(ctx, nota.ID, envioResp.NumeroNFSe, envioResp.CodVerificacao, "")
-		total, _ := h.billingRepo.IncrementEmitidas(ctx, mei.ID)
+		total, _ := h.billingRepo.IncrementEmitidas(ctx, ownerID)
 		log.Ctx(ctx).Info().
 			Str("nota_id", nota.ID.String()).
 			Str("numero_nfse", envioResp.NumeroNFSe).
 			Msg("nota autorizada")
 		h.publishEvent(ctx, nota, webhook.EventAutorizada, envioResp.NumeroNFSe, envioResp.CodVerificacao, "", "")
-
-		// STR-05: report metered overage to Stripe when count exceeds plan limit.
-		h.reportOverageIfNeeded(ctx, nota.ID.String(), total, mei.PlanoLimite, em)
+		h.reportOverageIfNeeded(ctx, nota.ID.String(), total, planoLimite, em)
 	} else if envioResp.Protocolo != "" {
-		// Async — store protocol, worker will poll later.
 		_ = h.notaRepo.SetProtocolo(ctx, nota.ID, envioResp.Protocolo)
 	}
 
@@ -322,8 +553,9 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 // ListarNotas handles GET /v1/nfse.
 func (h *NFSeHandler) ListarNotas(c *fiber.Ctx) error {
 	mei := auth.GetMEI(c)
-	if mei == nil {
-		return internalError(c, "MEI not in context")
+	empresa := auth.GetEmpresa(c)
+	if mei == nil && empresa == nil {
+		return internalError(c, "nenhuma empresa autenticada no contexto")
 	}
 
 	limit := 20
@@ -339,8 +571,15 @@ func (h *NFSeHandler) ListarNotas(c *fiber.Ctx) error {
 		}
 	}
 
-	notas, total, err := h.notaRepo.ListByMEI(c.Context(), mei.ID, limit, offset)
-	if err != nil {
+	var notas []nfse.Nota
+	var total int
+	var listErr error
+	if empresa != nil {
+		notas, total, listErr = h.notaRepo.ListByEmpresa(c.Context(), empresa.ID, limit, offset)
+	} else {
+		notas, total, listErr = h.notaRepo.ListByMEI(c.Context(), mei.ID, limit, offset)
+	}
+	if listErr != nil {
 		return internalError(c, "erro ao listar notas")
 	}
 
@@ -362,8 +601,9 @@ func (h *NFSeHandler) ListarNotas(c *fiber.Ctx) error {
 // ConsultarNota handles GET /v1/nfse/:id.
 func (h *NFSeHandler) ConsultarNota(c *fiber.Ctx) error {
 	mei := auth.GetMEI(c)
-	if mei == nil {
-		return internalError(c, "MEI not in context")
+	empresa := auth.GetEmpresa(c)
+	if mei == nil && empresa == nil {
+		return internalError(c, "nenhuma empresa autenticada no contexto")
 	}
 
 	notaID, err := uuid.Parse(c.Params("id"))
@@ -371,7 +611,12 @@ func (h *NFSeHandler) ConsultarNota(c *fiber.Ctx) error {
 		return notFound(c)
 	}
 
-	nota, err := h.notaRepo.FindByID(c.Context(), notaID, mei.ID)
+	var nota *nfse.Nota
+	if empresa != nil {
+		nota, err = h.notaRepo.FindByIDForEmpresa(c.Context(), notaID, empresa.ID)
+	} else {
+		nota, err = h.notaRepo.FindByID(c.Context(), notaID, mei.ID)
+	}
 	if err != nil {
 		if isNotFound(err) {
 			return notFound(c)
@@ -385,10 +630,12 @@ func (h *NFSeHandler) ConsultarNota(c *fiber.Ctx) error {
 // ─── DELETE /v1/nfse/:id ───────────────────────────────────────────────────
 
 // CancelarNota handles DELETE /v1/nfse/:id.
+// ME-31: validates 90-day cancellation window for ME/EPP (365 days for public sector).
 func (h *NFSeHandler) CancelarNota(c *fiber.Ctx) error {
 	mei := auth.GetMEI(c)
-	if mei == nil {
-		return internalError(c, "MEI not in context")
+	empresa := auth.GetEmpresa(c)
+	if mei == nil && empresa == nil {
+		return internalError(c, "nenhuma empresa autenticada no contexto")
 	}
 
 	notaID, err := uuid.Parse(c.Params("id"))
@@ -397,7 +644,12 @@ func (h *NFSeHandler) CancelarNota(c *fiber.Ctx) error {
 	}
 
 	// Load the nota to get the NFS-e number for the cancellation XML.
-	nota, err := h.notaRepo.FindByID(c.Context(), notaID, mei.ID)
+	var nota *nfse.Nota
+	if empresa != nil {
+		nota, err = h.notaRepo.FindByIDForEmpresa(c.Context(), notaID, empresa.ID)
+	} else {
+		nota, err = h.notaRepo.FindByID(c.Context(), notaID, mei.ID)
+	}
 	if err != nil {
 		if isNotFound(err) {
 			return notFound(c)
@@ -415,13 +667,33 @@ func (h *NFSeHandler) CancelarNota(c *fiber.Ctx) error {
 		return internalError(c, "nota sem número NFS-e")
 	}
 
-	// Load certificate.
+	// ME-31: validate 90-day cancellation window for ME/EPP.
+	if empresa != nil && nota.EmitidaEm != nil {
+		janela := 90 * 24 * time.Hour
+		if time.Since(*nota.EmitidaEm) > janela {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+				"error":      "CANCELLATION_WINDOW_EXPIRED",
+				"message":    "prazo de cancelamento de 90 dias expirado",
+				"emitida_em": nota.EmitidaEm,
+				"request_id": c.Locals("request_id"),
+			})
+		}
+	}
+
+	// Load certificate and build cancellation.
+	if empresa != nil {
+		return h.cancelarNotaME(c, nota, empresa)
+	}
+	return h.cancelarNotaMEI(c, nota, mei)
+}
+
+// cancelarNotaMEI cancels a MEI nota via the ABRASF RPS flow.
+func (h *NFSeHandler) cancelarNotaMEI(c *fiber.Ctx, nota *nfse.Nota, mei *auth.MEI) error {
 	cert, err := h.loadCert(c.Context(), mei)
 	if err != nil {
 		return internalError(c, "erro ao carregar certificado digital")
 	}
 
-	// Build cancellation XML.
 	xmlCancel, err := h.builder.BuildCancelamento(*nota.NumeroNFSe, mei.CNPJ, mei.MunicipioIBGE)
 	if err != nil {
 		return internalError(c, "erro ao construir XML de cancelamento")
@@ -431,7 +703,6 @@ func (h *NFSeHandler) CancelarNota(c *fiber.Ctx) error {
 		return internalError(c, "erro ao assinar XML de cancelamento")
 	}
 
-	// Send to Receita Federal.
 	resp, err := h.adapter.Cancelar(c.Context(), signedCancel, cert)
 	if err != nil {
 		return internalError(c, "erro ao comunicar cancelamento à Receita Federal")
@@ -444,15 +715,292 @@ func (h *NFSeHandler) CancelarNota(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := h.notaRepo.Cancelar(c.Context(), notaID, mei.ID); err != nil {
+	if err := h.notaRepo.Cancelar(c.Context(), nota.ID, mei.ID); err != nil {
 		return internalError(c, "erro ao atualizar status da nota")
 	}
-
 	h.publishEvent(c.Context(), nota, webhook.EventCancelada, "", "", "", "")
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"nota_id": nota.ID, "status": "CANCELADA"})
+}
 
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"nota_id": notaID,
-		"status":  "CANCELADA",
+// cancelarNotaME cancels a ME/EPP nota via the SEFIN Nacional DPS cancellation flow.
+func (h *NFSeHandler) cancelarNotaME(c *fiber.Ctx, nota *nfse.Nota, empresa *auth.Empresa) error {
+	cert, err := h.loadCertEmpresa(c.Context(), empresa)
+	if err != nil {
+		return internalError(c, "erro ao carregar certificado digital")
+	}
+
+	// DPS cancellation uses the same ABRASF cancellation XML for now.
+	// TODO(ME-32): replace with DPS-native cancellation when ADN endpoint is confirmed.
+	xmlCancel, err := h.builder.BuildCancelamento(*nota.NumeroNFSe, empresa.CNPJ, empresa.MunicipioIBGE)
+	if err != nil {
+		return internalError(c, "erro ao construir XML de cancelamento")
+	}
+	signedCancel, err := h.signer.Sign(c.Context(), xmlCancel, cert)
+	if err != nil {
+		return internalError(c, "erro ao assinar XML de cancelamento")
+	}
+
+	resp, err := h.adapter.Cancelar(c.Context(), signedCancel, cert)
+	if err != nil {
+		return internalError(c, "erro ao comunicar cancelamento à SEFIN Nacional")
+	}
+	if !resp.OK && len(resp.Erros) > 0 {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error":   "RECEITA_REJECTION",
+			"message": resp.Erros[0].Descricao,
+			"codigo":  resp.Erros[0].Codigo,
+		})
+	}
+
+	if err := h.notaRepo.CancelarEmpresa(c.Context(), nota.ID, empresa.ID); err != nil {
+		return internalError(c, "erro ao atualizar status da nota")
+	}
+	h.publishEvent(c.Context(), nota, webhook.EventCancelada, "", "", "", "")
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"nota_id": nota.ID, "status": "CANCELADA"})
+}
+
+// ─── POST /v1/nfse/:id/substituir ─────────────────────────────────────────
+
+// SubstituirNota handles POST /v1/nfse/:id/substituir (ME-32).
+//
+// Available only for ME/EPP companies. Within a 9-day window from emitida_em:
+//  1. Cancels the original AUTORIZADA nota at the Receita Federal.
+//  2. Emits a new DPS with the provided request body (same schema as POST /v1/nfse).
+//  3. Links the original nota to its substitute via notas_fiscais.substituida_por.
+//
+// Substitution does NOT increment the monthly emissoes counter — the original
+// emission already consumed that slot.
+func (h *NFSeHandler) SubstituirNota(c *fiber.Ctx) error {
+	empresa := auth.GetEmpresa(c)
+	if empresa == nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error":      "FORBIDDEN",
+			"message":    "substituição de nota disponível apenas para empresas ME/EPP",
+			"request_id": c.Locals("request_id"),
+		})
+	}
+
+	notaID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return notFound(c)
+	}
+
+	original, err := h.notaRepo.FindByIDForEmpresa(c.Context(), notaID, empresa.ID)
+	if err != nil {
+		if isNotFound(err) {
+			return notFound(c)
+		}
+		return internalError(c, "erro ao consultar nota")
+	}
+
+	if original.Status != "AUTORIZADA" {
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+			"error":      "INVALID_STATUS",
+			"message":    "apenas notas autorizadas podem ser substituídas",
+			"status":     original.Status,
+			"request_id": c.Locals("request_id"),
+		})
+	}
+	if original.NumeroNFSe == nil {
+		return internalError(c, "nota sem número NFS-e")
+	}
+
+	// ME-32: enforce the 9-day substitution window.
+	if original.EmitidaEm != nil {
+		if time.Since(*original.EmitidaEm) > 9*24*time.Hour {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+				"error":      "SUBSTITUTION_WINDOW_EXPIRED",
+				"message":    "prazo de substituição de 9 dias expirado",
+				"emitida_em": original.EmitidaEm,
+				"request_id": c.Locals("request_id"),
+			})
+		}
+	}
+
+	var req document.EmissaoRequest
+	if err := c.BodyParser(&req); err != nil {
+		return validationError(c, "corpo da requisição inválido: "+err.Error())
+	}
+	if errs := validateEmissaoRequest(req); len(errs) > 0 {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error":      "VALIDATION_ERROR",
+			"message":    "campos inválidos",
+			"fields":     errs,
+			"request_id": c.Locals("request_id"),
+		})
+	}
+
+	ctx := c.Context()
+
+	// Load certificate once — reused for cancellation and new DPS signing.
+	cert, err := h.loadCertEmpresa(ctx, empresa)
+	if err != nil {
+		log.Ctx(ctx).Error().Err(err).Str("empresa_id", empresa.ID.String()).Msg("certificate load failed")
+		return internalError(c, "erro ao carregar certificado digital")
+	}
+
+	// ── Step 1: Cancel the original nota at the Receita Federal ──────────────
+	xmlCancel, err := h.builder.BuildCancelamento(*original.NumeroNFSe, empresa.CNPJ, empresa.MunicipioIBGE)
+	if err != nil {
+		return internalError(c, "erro ao construir XML de cancelamento")
+	}
+	signedCancel, err := h.signer.Sign(ctx, xmlCancel, cert)
+	if err != nil {
+		return internalError(c, "erro ao assinar XML de cancelamento")
+	}
+
+	if !h.devMode {
+		cancelResp, cancelErr := h.adapter.Cancelar(ctx, signedCancel, cert)
+		if cancelErr != nil {
+			return internalError(c, "erro ao cancelar nota original na Receita Federal")
+		}
+		if !cancelResp.OK && len(cancelResp.Erros) > 0 {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+				"error":   "RECEITA_REJECTION",
+				"message": cancelResp.Erros[0].Descricao,
+				"codigo":  cancelResp.Erros[0].Codigo,
+			})
+		}
+	}
+
+	if err := h.notaRepo.CancelarEmpresa(ctx, original.ID, empresa.ID); err != nil {
+		return internalError(c, "erro ao atualizar status da nota original")
+	}
+	h.publishEvent(ctx, original, webhook.EventCancelada, "", "", "", "")
+
+	// ── Step 2: Emit the replacement DPS ────────────────────────────────────
+	if h.issLookup != nil {
+		req.Servico.AliquotaISS = h.issLookup.Resolve(empresa.MunicipioIBGE, req.Servico.AliquotaISS)
+	}
+
+	numeroDPS, err := h.notaRepo.NextNumeroDPS(ctx, empresa.ID)
+	if err != nil {
+		return internalError(c, "erro ao alocar número de DPS")
+	}
+
+	dpsResult, err := h.dpsBuilder.Build(req, empresa, numeroDPS)
+	if err != nil {
+		var validErr *document.ErrValidation
+		if errors.As(err, &validErr) {
+			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+				"error":      "VALIDATION_ERROR",
+				"message":    validErr.Message,
+				"fields":     []fiber.Map{{"field": validErr.Field, "message": validErr.Message}},
+				"request_id": c.Locals("request_id"),
+			})
+		}
+		return validationError(c, "erro ao construir DPS de substituição: "+err.Error())
+	}
+
+	signedXML, err := h.signer.Sign(ctx, dpsResult.XML, cert)
+	if err != nil {
+		return internalError(c, "erro ao assinar DPS de substituição")
+	}
+
+	nova, err := h.notaRepo.Create(ctx, nfse.CreateNotaInput{
+		EmpresaID:        empresa.ID,
+		NumeroRPS:        numeroDPS,
+		XMLEnviado:       string(signedXML),
+		WebhookURL:       req.WebhookURL,
+		TomadorDoc:       req.Tomador.Documento,
+		TomadorNome:      req.Tomador.RazaoSocial,
+		ValorServico:     req.Servico.Valor,
+		Competencia:      req.Competencia,
+		RegimeTributario: empresa.RegimeTributario,
+		ISSRetido:        issRetidoPtr(empresa.RegimeTributario, dpsResult.ISSRetido),
+		// IdempotencyKey intentionally empty for substitutions.
+	})
+	if err != nil {
+		return internalError(c, "erro ao salvar nota de substituição")
+	}
+
+	// Link original → substitute (non-fatal: audit trail only).
+	if linkErr := h.notaRepo.SetSubstituidaPor(ctx, original.ID, nova.ID); linkErr != nil {
+		log.Ctx(ctx).Warn().Err(linkErr).
+			Str("original_id", original.ID.String()).
+			Str("nova_id", nova.ID.String()).
+			Msg("failed to set substituida_por (non-fatal)")
+	}
+
+	// S3 upload for the new DPS XML (STOR-01, non-fatal).
+	if h.store != nil {
+		s3Key := storage.S3KeyForRPS(empresa.ID.String(), nova.ID.String())
+		if uploadErr := h.store.Put(ctx, s3Key, "application/xml", signedXML); uploadErr != nil {
+			log.Ctx(ctx).Error().Err(uploadErr).
+				Str("nota_id", nova.ID.String()).
+				Msg("falha ao fazer upload do DPS de substituição para S3 (non-fatal)")
+		} else {
+			_ = h.notaRepo.SetXMLS3Key(ctx, nova.ID, s3Key)
+		}
+	}
+
+	log.Ctx(ctx).Info().
+		Str("empresa_id", empresa.ID.String()).
+		Str("original_id", original.ID.String()).
+		Str("nova_id", nova.ID.String()).
+		Int64("numero_dps", numeroDPS).
+		Str("regime", empresa.RegimeTributario).
+		Bool("iss_retido", dpsResult.ISSRetido).
+		Msg("DPS de substituição criada, enviando para SEFIN Nacional")
+
+	if h.devMode {
+		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+			"nota_original_id":   original.ID,
+			"nota_substituta_id": nova.ID,
+			"status":             "PROCESSANDO",
+			"regime_tributario":  empresa.RegimeTributario,
+			"iss_retido":         dpsResult.ISSRetido,
+			"valor_iss":          dpsResult.ValorISS,
+			"valor_liquido":      dpsResult.ValorLiquido,
+			"mensagem":           "Substituição enviada para processamento [dev mode]",
+		})
+	}
+
+	envioResp, envErr := h.adapter.Enviar(ctx, signedXML, cert)
+	if envErr != nil {
+		log.Ctx(ctx).Warn().Err(envErr).
+			Str("nota_id", nova.ID.String()).
+			Msg("envio DPS substituição falhou, mantendo PROCESSANDO (retry automático)")
+		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+			"nota_original_id":   original.ID,
+			"nota_substituta_id": nova.ID,
+			"status":             "PROCESSANDO",
+			"regime_tributario":  empresa.RegimeTributario,
+			"mensagem":           "Substituição enviada para processamento (retry automático)",
+		})
+	}
+
+	if len(envioResp.Erros) > 0 {
+		codigo := envioResp.Erros[0].Codigo
+		descricao := envioResp.Erros[0].Descricao
+		_, _ = h.notaRepo.Rejeitar(ctx, nova.ID, codigo, descricao)
+		h.publishEvent(ctx, nova, webhook.EventRejeitada, "", "", codigo, descricao)
+		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+			"nota_original_id":   original.ID,
+			"nota_substituta_id": nova.ID,
+			"status":             "REJEITADA",
+			"erro_codigo":        codigo,
+			"erro_descricao":     descricao,
+		})
+	}
+
+	if envioResp.NumeroNFSe != "" {
+		_, _ = h.notaRepo.Autorizar(ctx, nova.ID, envioResp.NumeroNFSe, envioResp.CodVerificacao, "")
+		// Substitution does NOT increment emissoes_mensais — it replaces an existing emission.
+		h.publishEvent(ctx, nova, webhook.EventAutorizada, envioResp.NumeroNFSe, envioResp.CodVerificacao, "", "")
+	} else if envioResp.Protocolo != "" {
+		_ = h.notaRepo.SetProtocolo(ctx, nova.ID, envioResp.Protocolo)
+	}
+
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+		"nota_original_id":   original.ID,
+		"nota_substituta_id": nova.ID,
+		"status":             "PROCESSANDO",
+		"regime_tributario":  empresa.RegimeTributario,
+		"iss_retido":         dpsResult.ISSRetido,
+		"valor_iss":          dpsResult.ValorISS,
+		"valor_liquido":      dpsResult.ValorLiquido,
+		"mensagem":           "Substituição enviada para processamento",
 	})
 }
 
@@ -641,6 +1189,18 @@ func (h *NFSeHandler) reportOverageIfNeeded(
 	}
 }
 
+// loadCertEmpresa loads the ME/EPP empresa's A1 certificate from AWS Secrets Manager.
+func (h *NFSeHandler) loadCertEmpresa(ctx context.Context, empresa *auth.Empresa) (*tls.Certificate, error) {
+	if empresa.CertSecretARN == nil || *empresa.CertSecretARN == "" {
+		if h.devMode {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("empresa %s não possui certificado A1 configurado; "+
+			"envie o certificado via POST /v1/auth/certificate", empresa.ID)
+	}
+	return h.certProv.GetCert(ctx, *empresa.CertSecretARN)
+}
+
 // loadCert loads the MEI's A1 certificate from AWS Secrets Manager.
 // The ARN is stored in meis.cert_secret_arn and set when the MEI uploads
 // their certificate via POST /v1/auth/certificate (or during registration).
@@ -719,6 +1279,11 @@ func validateEmissaoRequest(r document.EmissaoRequest) []fiber.Map {
 	}
 	if r.Competencia == "" {
 		errs = append(errs, fiber.Map{"field": "competencia", "message": "obrigatório (formato YYYY-MM)"})
+	}
+	if r.Tomador.TipoOrgao != "" &&
+		r.Tomador.TipoOrgao != "PRIVADO" &&
+		r.Tomador.TipoOrgao != "ORGAO_PUBLICO" {
+		errs = append(errs, fiber.Map{"field": "tomador.tipo_orgao", "message": "deve ser PRIVADO ou ORGAO_PUBLICO"})
 	}
 	return errs
 }
@@ -799,4 +1364,15 @@ func notFound(c *fiber.Ctx) error {
 func isNotFound(err error) bool {
 	_, ok := err.(nfse.ErrNotaNotFound)
 	return ok
+}
+
+// issRetidoPtr returns nil for MEI/SN regimes (ISS retention is not applicable —
+// those regimes collect ISS via DAS) and a pointer to v for LP/LR companies
+// where ISS withholding by the tomador is meaningful.
+func issRetidoPtr(regime string, v bool) *bool {
+	if regime == "" || regime == "SIMPLES_MEI" || regime == "SIMPLES_NACIONAL" {
+		return nil
+	}
+	b := v
+	return &b
 }

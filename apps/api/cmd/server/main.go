@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -118,6 +119,7 @@ func main() {
 	// ── Adapters & builders ────────────────────────────────────────────────
 	adapter := nfse.NewAdapter(cfg.ReceitaAPIURL)
 	builder := document.NewBuilder()
+	dpsBuilder := document.NewDPSBuilder()
 
 	// XMLDSigSigner is used in staging/production where a real A1 certificate
 	// is loaded from AWS Secrets Manager.  NoopSigner is kept for local
@@ -166,11 +168,12 @@ func main() {
 	emailSvc := email.NewService(emailClient, log.Logger)
 
 	registerH := handler.NewRegisterHandler(authRepo).WithCNPJValidator(cnpjValidator).WithEmailService(emailSvc)
+	registerMEH := handler.NewRegisterMEHandler(authRepo).WithCNPJValidator(cnpjValidator).WithEmailService(emailSvc)
 	certH := handler.NewCertificateHandler(certProv, authRepo, db)
 	seedH := handler.NewSeedHandler(auth.NewSeeder(db))
 
 	nfseH := handler.NewNFSeHandler(
-		notaRepo, adapter, builder, signer, certProv,
+		notaRepo, adapter, builder, dpsBuilder, signer, certProv,
 		billingRepo, billingGrd, publisher,
 		apiBase, cfg.WebhookHMACSecret,
 	).WithNBSValidator(nbsValidator).WithISSLookup(issLookup).WithStripeClient(sc).WithStorage(objectStore)
@@ -265,6 +268,28 @@ func main() {
 	// MEI registration — public, no Bearer token required.
 	app.Post("/v1/auth/register", registerH.Register)
 
+	// ME/EPP registration — public, no Bearer token required.
+	// Inserts into empresas table with tipo='ME'|'EPP' and regime_tributario.
+	app.Post("/v1/auth/register/me", registerMEH.RegisterME)
+
+	// Municipalities list — public, no auth required (ME-21 / ME-20).
+	if issLookup != nil {
+		municipioH := handler.NewMunicipioHandler(issLookup)
+		app.Get("/v1/municipios", municipioH.ListMunicipios)
+	}
+
+	// Admin: ME/EPP relatorio CSV — IP-whitelist protected (ME-52).
+	// Only accessible from the Railway internal network (127.0.0.1 / 10.x.x.x).
+	adminRelatorioH := handler.NewAdminRelatorioMEHandler(db.Pool())
+	adminGroup := app.Group("/v1/admin", func(c *fiber.Ctx) error {
+		ip := c.IP()
+		if ip != "127.0.0.1" && !isRailwayPrivateIP(ip) && cfg.AppEnv != "development" {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "FORBIDDEN"})
+		}
+		return c.Next()
+	})
+	adminGroup.Get("/relatorio-me", adminRelatorioH.RelatorioME)
+
 	// Stripe webhook — raw body needed for signature verification.
 	app.Post("/v1/webhooks/stripe", stripeWH.Handle)
 
@@ -326,6 +351,7 @@ func main() {
 	v1.Get("/nfse", nfseH.ListarNotas)
 	v1.Get("/nfse/:id", nfseH.ConsultarNota)
 	v1.Delete("/nfse/:id", nfseH.CancelarNota)
+	v1.Post("/nfse/:id/substituir", nfseH.SubstituirNota) // ME-32: 9-day substitution window (ME/EPP only)
 	v1.Get("/nfse/:id/xml", nfseH.DownloadXML)
 	v1.Get("/nfse/:id/pdf", nfseH.DownloadPDF)
 
@@ -381,4 +407,13 @@ func main() {
 			log.Fatal().Err(err).Msg("server error")
 		}
 	}
+}
+
+// isRailwayPrivateIP reports whether the given IP is in Railway's private network range.
+// Railway uses 10.0.0.0/8 for internal service communication.
+func isRailwayPrivateIP(ip string) bool {
+	return strings.HasPrefix(ip, "10.") ||
+		strings.HasPrefix(ip, "172.16.") ||
+		strings.HasPrefix(ip, "172.17.") ||
+		strings.HasPrefix(ip, "192.168.")
 }

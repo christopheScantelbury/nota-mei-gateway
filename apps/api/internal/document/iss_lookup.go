@@ -60,3 +60,26 @@ func (l *ISSLookup) Resolve(municipioIBGE string, aliquotaOverride float64) floa
 	}
 	return l.GetAliquota(municipioIBGE)
 }
+
+// IsHabilitado reports whether a municipality is mapped in the ISS table,
+// meaning it participates in NFS-e Nacional. Any municipality present in the
+// aliquotas_iss table is considered enabled for emission.
+func (l *ISSLookup) IsHabilitado(municipioIBGE string) bool {
+	_, ok := l.rates[municipioIBGE]
+	return ok
+}
+
+// MunicipioInfo holds the ISS rate and IBGE code for a municipality.
+type MunicipioInfo struct {
+	IBGE     string
+	Aliquota float64
+}
+
+// ListAll returns all municipalities in the lookup table sorted by IBGE code.
+func (l *ISSLookup) ListAll() []MunicipioInfo {
+	out := make([]MunicipioInfo, 0, len(l.rates))
+	for ibge, aliq := range l.rates {
+		out = append(out, MunicipioInfo{IBGE: ibge, Aliquota: aliq})
+	}
+	return out
+}

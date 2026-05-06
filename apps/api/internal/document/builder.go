@@ -11,11 +11,17 @@ import (
 type Builder struct{}
 
 // EmissaoRequest is the API-level request to emit an NFS-e.
+// Fields added for ME/EPP (IssRetido, Emit) are ignored for MEI requests.
 type EmissaoRequest struct {
 	Servico     ServicoRequest `json:"servico"`
 	Tomador     TomadorRequest `json:"tomador"`
-	Competencia string         `json:"competencia"` // YYYY-MM
-	WebhookURL  string         `json:"webhook_url,omitempty"`
+	Emit        EmitRequest    `json:"emit,omitempty"` // ME/EPP only: overrides for emitente
+	Competencia string         `json:"competencia"`    // YYYY-MM
+	// IssRetido is required for Lucro Presumido / Lucro Real — must be set explicitly.
+	// Ignored for Simples Nacional (SN always recolhe via DAS).
+	// When Tomador.TipoOrgao == "ORGAO_PUBLICO", this is forced to true regardless.
+	IssRetido  *bool  `json:"iss_retido,omitempty"`
+	WebhookURL string `json:"webhook_url,omitempty"`
 }
 
 // ServicoRequest holds the service details from the JSON request.
@@ -23,7 +29,7 @@ type ServicoRequest struct {
 	CodigoNBS     string  `json:"codigo_nbs"`
 	Discriminacao string  `json:"discriminacao"`
 	Valor         float64 `json:"valor"`
-	AliquotaISS   float64 `json:"aliquota_iss"` // percentage e.g. 2.0 = 2%
+	AliquotaISS   float64 `json:"aliquota_iss"` // percentage e.g. 2.0 = 2%; 0 = lookup from ISS table
 }
 
 // TomadorRequest holds the service recipient details.
@@ -33,6 +39,16 @@ type TomadorRequest struct {
 	RazaoSocial   string `json:"razao_social"`
 	Email         string `json:"email,omitempty"`
 	MunicipioIBGE string `json:"municipio_ibge,omitempty"`
+	CEP           string `json:"cep,omitempty"`
+	// TipoOrgao identifies the tomador's nature (ME/EPP DPS only).
+	// "PRIVADO" (default) or "ORGAO_PUBLICO" (forces ISS retention, Art. 6 LC 116/2003).
+	TipoOrgao string `json:"tipo_orgao,omitempty"` // PRIVADO | ORGAO_PUBLICO
+}
+
+// EmitRequest carries optional overrides for the emitente block in a DPS.
+// For MEI requests, this struct is ignored. For ME/EPP, CEP is required.
+type EmitRequest struct {
+	CEP string `json:"cep,omitempty"` // emitente's postal code (8 digits)
 }
 
 // NewBuilder creates a document Builder.

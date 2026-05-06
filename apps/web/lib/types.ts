@@ -7,9 +7,17 @@ export type NotaStatus =
   | 'CANCELADA'
   | 'ERRO_TEMPORARIO'
 
+export type RegimeTributario =
+  | 'SIMPLES_MEI'
+  | 'SIMPLES_NACIONAL'
+  | 'LUCRO_PRESUMIDO'
+  | 'LUCRO_REAL'
+  | null
+
 export interface Nota {
   id: string
-  mei_id: string
+  mei_id: string | null
+  empresa_id: string | null
   numero_rps: number
   status: NotaStatus
   protocolo_receita: string | null
@@ -29,6 +37,12 @@ export interface Nota {
   emitida_em: string | null
   created_at: string
   updated_at: string
+  /** substituida_por: UUID of the replacement nota when cancelled via substituição (ME-32) */
+  substituida_por: string | null
+  /** regime_tributario: tax regime — stored on the nota for reporting/badge display (ME-42) */
+  regime_tributario: RegimeTributario
+  /** iss_retido: true when ISS was withheld by the tomador (LP/LR companies only, ME-42) */
+  iss_retido: boolean | null
 }
 
 export interface EmissaoMensal {

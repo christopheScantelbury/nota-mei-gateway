@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/server'
 import StatusBadge from '@/components/ui/StatusBadge'
 import NotasFilterBar from '@/components/dashboard/NotasFilterBar'
 import ExportCSVButton from '@/components/dashboard/ExportCSVButton'
+import ISSBadge from '@/components/nota/ISSBadge'
+import SubstituicaoDeadline from '@/components/nota/SubstituicaoDeadline'
 import type { Nota, NotaStatus } from '@/lib/types'
 
 const PAGE_SIZE = 20
@@ -181,7 +183,19 @@ export default async function NotasPage({
                     </td>
                     <td className="px-4 py-3 font-mono">{formatBRL(n.valor_servico)}</td>
                     <td className="px-4 py-3 text-text-2">{n.competencia ?? '—'}</td>
-                    <td className="px-4 py-3"><StatusBadge status={n.status} /></td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1">
+                        <StatusBadge status={n.status} />
+                        {/* ME-42: ISS recolhimento badge (compact) */}
+                        <ISSBadge regime={n.regime_tributario} issRetido={n.iss_retido} compact />
+                        {/* ME-43: substitution deadline (compact) */}
+                        <SubstituicaoDeadline
+                          status={n.status}
+                          emitidaEm={n.emitida_em}
+                          regime={n.regime_tributario}
+                        />
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-text-2">{formatDate(n.emitida_em ?? n.created_at)}</td>
                     <td className="px-4 py-3">
                       <Link href={`/notas/${n.id}`} className="text-xs text-brand-cyan hover:underline">

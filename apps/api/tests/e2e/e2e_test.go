@@ -210,10 +210,10 @@ func TestEmitirNotaFluxo(t *testing.T) {
 
 	payload := map[string]any{
 		"servico": map[string]any{
-			"codigo_nbs":     "01.01.01.10",
-			"discriminacao":  "Desenvolvimento de software — teste E2E",
-			"valor":          1000.00,
-			"aliquota_iss":   2.0,
+			"codigo_nbs":    "01.01.01.10",
+			"discriminacao": "Desenvolvimento de software — teste E2E",
+			"valor":         1000.00,
+			"aliquota_iss":  2.0,
 		},
 		"tomador": map[string]any{
 			"tipo":           "PJ",
@@ -222,8 +222,8 @@ func TestEmitirNotaFluxo(t *testing.T) {
 			"email":          "teste@empresa.com",
 			"municipio_ibge": "3550308",
 		},
-		"competencia":  "2026-04",
-		"webhook_url":  fmt.Sprintf("%s/v1/sandbox/webhook", baseURL),
+		"competencia": "2026-04",
+		"webhook_url": fmt.Sprintf("%s/v1/sandbox/webhook", baseURL),
 	}
 
 	resp, body := post(t, "/v1/nfse", key, payload)

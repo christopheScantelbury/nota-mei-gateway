@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/auth"
+	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/cert"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/supabase"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -20,10 +22,13 @@ type certManager interface {
 	UpdateCert(ctx context.Context, secretARN string, pfxData []byte, password string) error
 }
 
-// arnSaver persists the cert_secret_arn back to the database.
+// arnSaver persists cert data back to the database.
 // Satisfied by *auth.Repository; inject a stub in tests.
 type arnSaver interface {
 	SaveCertSecretARN(ctx context.Context, meiID uuid.UUID, arn string) error
+	// ME/EPP equivalents:
+	SaveEmpresaCertARN(ctx context.Context, empresaID uuid.UUID, arn string) error
+	SaveEmpresaCertValidUntil(ctx context.Context, empresaID uuid.UUID, validUntil time.Time) error
 }
 
 // CertificateHandler handles POST /v1/auth/certificate.
@@ -43,15 +48,15 @@ func NewCertificateHandler(cp certManager, saver arnSaver, db *supabase.Client) 
 // Renew handles POST /v1/auth/certificate.
 //
 // Expects multipart/form-data with:
-//   - certificado      — PFX/P12 file (binary)
+//   - certificado       — PFX/P12 file (binary)
 //   - senha_certificado — plaintext password for the PFX
 //
-// It replaces the certificate stored in AWS Secrets Manager under the MEI's
-// cert_secret_arn. If the MEI has no cert_secret_arn yet (i.e. was registered
-// before this endpoint existed), the request is rejected with 409.
+// Works for both MEI (resolves via meis table) and ME/EPP (resolves via empresas table).
+// For ME/EPP: cert_valid_until is persisted after a successful upload.
 func (h *CertificateHandler) Renew(c *fiber.Ctx) error {
 	mei := auth.GetMEI(c)
-	if mei == nil {
+	empresa := auth.GetEmpresa(c)
+	if mei == nil && empresa == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error":      "INVALID_API_KEY",
 			"message":    "não autenticado",
@@ -117,24 +122,45 @@ func (h *CertificateHandler) Renew(c *fiber.Ctx) error {
 		})
 	}
 
-	// ── 2. Lookup cert ARN for this MEI ──────────────────────────────────────
-	secretARN, err := h.getCertARN(c.Context(), mei.ID)
-	if err != nil {
-		log.Ctx(c.Context()).Error().Err(err).Str("mei_id", mei.ID.String()).Msg("lookup cert ARN failed")
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error":      "INTERNAL_ERROR",
-			"message":    "não foi possível consultar o ARN do certificado",
-			"request_id": c.Locals("request_id"),
-		})
+	// ── 2. Determine entity (MEI or Empresa) and existing ARN ───────────────
+	var (
+		entityID  uuid.UUID
+		isEmpresa bool
+		secretARN string
+	)
+	if empresa != nil {
+		entityID = empresa.ID
+		isEmpresa = true
+		if empresa.CertSecretARN != nil {
+			secretARN = *empresa.CertSecretARN
+		}
+	} else {
+		entityID = mei.ID
+		var lookupErr error
+		secretARN, lookupErr = h.getCertARN(c.Context(), mei.ID)
+		if lookupErr != nil {
+			log.Ctx(c.Context()).Error().Err(lookupErr).Str("mei_id", mei.ID.String()).Msg("lookup cert ARN failed")
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error":      "INTERNAL_ERROR",
+				"message":    "não foi possível consultar o ARN do certificado",
+				"request_id": c.Locals("request_id"),
+			})
+		}
 	}
 
 	// ── 3. Store or update the secret in AWS Secrets Manager ─────────────────
 	if secretARN == "" {
-		// First upload: create a new secret and persist the ARN.
-		secretName := fmt.Sprintf("nota-mei-gateway/certs/%s", mei.ID)
+		// First upload: create new secret and persist the ARN.
+		var secretName string
+		if isEmpresa {
+			secretName = fmt.Sprintf("nota-mei-gateway/me/%s", entityID)
+		} else {
+			secretName = fmt.Sprintf("nota-mei-gateway/certs/%s", entityID)
+		}
+
 		newARN, storeErr := h.certProvider.StoreCert(c.Context(), secretName, pfxData, password)
 		if storeErr != nil {
-			log.Ctx(c.Context()).Error().Err(storeErr).Str("mei_id", mei.ID.String()).Msg("StoreCert failed")
+			log.Ctx(c.Context()).Error().Err(storeErr).Str("entity_id", entityID.String()).Msg("StoreCert failed")
 			if isCertParseError(storeErr) {
 				return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 					"error":      "INVALID_CERTIFICATE",
@@ -148,21 +174,35 @@ func (h *CertificateHandler) Renew(c *fiber.Ctx) error {
 				"request_id": c.Locals("request_id"),
 			})
 		}
-		if saveErr := h.arnSaver.SaveCertSecretARN(c.Context(), mei.ID, newARN); saveErr != nil {
-			// Secret was stored but ARN save failed — log the inconsistency.
-			log.Ctx(c.Context()).Error().Err(saveErr).
-				Str("mei_id", mei.ID.String()).
-				Str("arn", newARN).
-				Msg("cert stored but ARN save failed — manual remediation required")
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error":      "INTERNAL_ERROR",
-				"message":    "certificado armazenado mas ARN não foi salvo; tente novamente",
-				"request_id": c.Locals("request_id"),
-			})
+
+		if isEmpresa {
+			if saveErr := h.arnSaver.SaveEmpresaCertARN(c.Context(), entityID, newARN); saveErr != nil {
+				log.Ctx(c.Context()).Error().Err(saveErr).
+					Str("empresa_id", entityID.String()).Str("arn", newARN).
+					Msg("cert stored but ARN save failed — manual remediation required")
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error":      "INTERNAL_ERROR",
+					"message":    "certificado armazenado mas ARN não foi salvo; tente novamente",
+					"request_id": c.Locals("request_id"),
+				})
+			}
+			// Persist cert_valid_until for dashboard expiry alert.
+			h.persistValidUntil(c.Context(), pfxData, password, entityID)
+		} else {
+			if saveErr := h.arnSaver.SaveCertSecretARN(c.Context(), entityID, newARN); saveErr != nil {
+				log.Ctx(c.Context()).Error().Err(saveErr).
+					Str("mei_id", entityID.String()).Str("arn", newARN).
+					Msg("cert stored but ARN save failed — manual remediation required")
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error":      "INTERNAL_ERROR",
+					"message":    "certificado armazenado mas ARN não foi salvo; tente novamente",
+					"request_id": c.Locals("request_id"),
+				})
+			}
 		}
+
 		log.Ctx(c.Context()).Info().
-			Str("mei_id", mei.ID.String()).
-			Str("arn", newARN).
+			Str("entity_id", entityID.String()).Str("arn", newARN).Bool("is_empresa", isEmpresa).
 			Msg("certificado A1 armazenado (primeiro upload)")
 		return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 			"mensagem": "Certificado cadastrado com sucesso",
@@ -172,7 +212,6 @@ func (h *CertificateHandler) Renew(c *fiber.Ctx) error {
 	// Subsequent upload: replace the existing secret in-place.
 	if err := h.certProvider.UpdateCert(c.Context(), secretARN, pfxData, password); err != nil {
 		log.Ctx(c.Context()).Error().Err(err).Str("arn", secretARN).Msg("UpdateCert failed")
-		// Surface PFX parse errors as 422 so the client knows to send a valid cert.
 		if isCertParseError(err) {
 			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 				"error":      "INVALID_CERTIFICATE",
@@ -187,14 +226,33 @@ func (h *CertificateHandler) Renew(c *fiber.Ctx) error {
 		})
 	}
 
+	if isEmpresa {
+		h.persistValidUntil(c.Context(), pfxData, password, entityID)
+	}
+
 	log.Ctx(c.Context()).Info().
-		Str("mei_id", mei.ID.String()).
-		Str("arn", secretARN).
+		Str("entity_id", entityID.String()).Str("arn", secretARN).Bool("is_empresa", isEmpresa).
 		Msg("certificado A1 renovado")
 
 	return c.JSON(fiber.Map{
 		"mensagem": "Certificado atualizado com sucesso",
 	})
+}
+
+// persistValidUntil parses the PFX in-memory to extract the leaf certificate's
+// NotAfter date and persists it on the empresa row. Errors are logged but do not
+// fail the request — the cert was already stored successfully.
+func (h *CertificateHandler) persistValidUntil(ctx context.Context, pfxData []byte, password string, empresaID uuid.UUID) {
+	validUntil, err := cert.PFXNotAfter(pfxData, password)
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Str("empresa_id", empresaID.String()).
+			Msg("could not parse cert NotAfter — cert_valid_until not updated")
+		return
+	}
+	if saveErr := h.arnSaver.SaveEmpresaCertValidUntil(ctx, empresaID, validUntil); saveErr != nil {
+		log.Ctx(ctx).Warn().Err(saveErr).Str("empresa_id", empresaID.String()).
+			Msg("cert_valid_until save failed")
+	}
 }
 
 // getCertARN returns the cert_secret_arn for the given MEI, or "" if not set.
