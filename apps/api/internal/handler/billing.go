@@ -40,29 +40,52 @@ func NewBillingHandler(
 }
 
 // GetUsage handles GET /v1/billing/usage.
+// ME-51: returns trial:true for ME/EPP companies still on the trial plan.
 func (h *BillingHandler) GetUsage(c *fiber.Ctx) error {
 	mei := auth.GetMEI(c)
-	if mei == nil {
-		return internalError(c, "MEI not in context")
+	empresa := auth.GetEmpresa(c)
+
+	if mei == nil && empresa == nil {
+		return internalError(c, "nenhuma empresa autenticada no contexto")
 	}
 
-	utilizadas := mei.TotalEmitidas
-	limite := mei.PlanoLimite
-	disponiveis := max(0, limite-utilizadas)
+	var utilizadas, limite int
+	var planoNome string
+	var precExcedente float64
+	var trial bool
 
-	excedente := math.Max(0, float64(utilizadas-limite)) * mei.PlanoPrecExcedente
+	if empresa != nil {
+		utilizadas = empresa.TotalEmitidas
+		limite = empresa.PlanoLimite
+		planoNome = empresa.PlanoNome
+		precExcedente = empresa.PlanoPrecExcedente
+		trial = empresa.TrialMe
+	} else {
+		utilizadas = mei.TotalEmitidas
+		limite = mei.PlanoLimite
+		planoNome = mei.PlanoNome
+		precExcedente = mei.PlanoPrecExcedente
+	}
+
+	disponiveis := max(0, limite-utilizadas)
+	excedente := math.Max(0, float64(utilizadas-limite)) * precExcedente
 
 	now := time.Now().UTC()
 	renovacaoEm := time.Date(now.Year(), now.Month()+1, 1, 0, 0, 0, 0, time.UTC)
 
-	return c.JSON(fiber.Map{
-		"plano":                    mei.PlanoNome,
+	resp := fiber.Map{
+		"plano":                    planoNome,
 		"emissoes_limite":          limite,
 		"emissoes_utilizadas":      utilizadas,
 		"emissoes_disponiveis":     disponiveis,
 		"renovacao_em":             renovacaoEm.Format(time.RFC3339),
 		"excedente_estimado_reais": math.Round(excedente*100) / 100,
-	})
+	}
+	if trial {
+		resp["trial"] = true
+		resp["trial_info"] = "acesso trial — plano comercial disponível em breve"
+	}
+	return c.JSON(resp)
 }
 
 func max(a, b int) int {
