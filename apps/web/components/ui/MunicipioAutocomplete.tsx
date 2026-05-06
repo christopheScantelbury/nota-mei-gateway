@@ -7,12 +7,10 @@ import { Spinner } from './Spinner'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface IbgeMunicipio {
-  id: number
-  nome: string
-  microrregiao: { mesorregiao: { UF: { sigla: string } } }
-}
-
+// O proxy /api/municipios já transforma a resposta do IBGE server-side e
+// devolve apenas { id, nome, uf } — o cliente nunca precisa navegar a cadeia
+// aninhada microrregiao.mesorregiao.UF.sigla, que é undefined em territórios
+// especiais e causava TypeError abortando o map() inteiro.
 interface Municipio {
   id: number
   nome: string
@@ -36,30 +34,20 @@ async function fetchMunicipios(): Promise<Municipio[]> {
   if (cachedMunicipios) return cachedMunicipios
   if (fetchPromise) return fetchPromise
 
-  // Usa proxy interno para evitar CORS e melhorar confiabilidade
+  // O proxy /api/municipios transforma server-side e devolve { id, nome, uf }[].
+  // O cliente nunca toca na cadeia aninhada do IBGE — sem risco de TypeError.
   fetchPromise = fetch('/api/municipios')
     .then((res) => {
-      if (!res.ok) throw new Error('Falha ao carregar municípios')
+      if (!res.ok) throw new Error(`Falha ao carregar municípios (HTTP ${res.status})`)
       return res.json()
     })
     .then((raw: unknown) => {
-      // Garante que a resposta é um array (defesa contra shape inesperado da API)
-      const data: IbgeMunicipio[] = Array.isArray(raw) ? raw : []
-
-      // Optional chaining em toda a cadeia: alguns territórios especiais do
-      // IBGE podem não ter microrregiao/mesorregiao/UF na estrutura padrão.
-      // Um TypeError em qualquer item abortava o map() inteiro e causava
-      // fetchError = true mesmo com a API retornando HTTP 200.
-      cachedMunicipios = data
-        .map((m) => ({
-          id: m.id,
-          nome: m.nome,
-          uf: m.microrregiao?.mesorregiao?.UF?.sigla ?? '',
-        }))
-        .filter((m) => m.nome && m.uf)
+      // Defesa extra: garante que é um array e descarta entradas incompletas.
+      const data: Municipio[] = Array.isArray(raw) ? (raw as Municipio[]) : []
+      cachedMunicipios = data.filter((m) => m.id && m.nome && m.uf)
 
       if (cachedMunicipios.length === 0) {
-        throw new Error('Lista de municípios vazia ou estrutura inesperada')
+        throw new Error('Lista de municípios vazia ou formato inesperado')
       }
       return cachedMunicipios
     })

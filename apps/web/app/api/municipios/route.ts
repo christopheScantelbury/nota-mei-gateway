@@ -6,9 +6,28 @@ export const revalidate = 86400
 const IBGE_URL =
   'https://servicodados.ibge.gov.br/api/v1/localidades/municipios?orderBy=nome'
 
+// Estrutura aninhada retornada pelo IBGE (usada apenas aqui no servidor)
+interface IbgeRaw {
+  id: number
+  nome: string
+  microrregiao?: { mesorregiao?: { UF?: { sigla?: string } } }
+}
+
+// Estrutura simplificada devolvida ao cliente
+export interface MunicipioSimples {
+  id: number
+  nome: string
+  uf: string
+}
+
 /**
  * Proxy da API do IBGE para evitar problemas de CORS e timeouts no cliente.
- * GET /api/municipios → retorna todos os municípios brasileiros ordenados por nome.
+ * GET /api/municipios → retorna array simplificado { id, nome, uf }[].
+ *
+ * A transformação ocorre aqui no servidor para que o cliente nunca precise
+ * navegar a cadeia aninhada microrregiao.mesorregiao.UF.sigla, que é
+ * undefined em alguns territórios especiais do IBGE e causava TypeError
+ * no cliente, ativando o modo de erro mesmo com HTTP 200 válido.
  *
  * Estratégia de resiliência:
  * - AbortController com timeout de 8 s por tentativa
@@ -43,9 +62,19 @@ async function fetchWithRetry(url: string, maxAttempts = 3): Promise<Response> {
 export async function GET() {
   try {
     const res = await fetchWithRetry(IBGE_URL)
-    const data = await res.json()
+    const raw: unknown = await res.json()
 
-    return NextResponse.json(data, {
+    // Transforma server-side: o cliente recebe apenas { id, nome, uf }[]
+    const data: IbgeRaw[] = Array.isArray(raw) ? (raw as IbgeRaw[]) : []
+    const municipios: MunicipioSimples[] = data
+      .map((m) => ({
+        id: m.id,
+        nome: m.nome ?? '',
+        uf: m.microrregiao?.mesorregiao?.UF?.sigla ?? '',
+      }))
+      .filter((m) => m.nome && m.uf)
+
+    return NextResponse.json(municipios, {
       headers: {
         'Cache-Control': 'public, max-age=86400, stale-while-revalidate=3600',
       },
