@@ -3,6 +3,7 @@ export const metadata = { title: 'Painel' }
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { firstWord } from '@/lib/strings'
 import StatusBadge from '@/components/ui/StatusBadge'
 import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist'
 import PrimeiraNotaCelebration from '@/components/dashboard/PrimeiraNotaCelebration'
@@ -139,7 +140,7 @@ export default async function DashboardHome() {
 
   // Usa o primeiro nome/palavra da razão social ou o prefixo do e-mail
   const rawName = mei?.razao_social || user.email?.split('@')[0] || 'você'
-  const displayName = rawName.split(' ')[0]
+  const displayName = firstWord(rawName)
 
   const totalEmitidas = emissao?.total_emitidas ?? 0
   const limite = emissao?.planos?.emissoes_limite ?? 5

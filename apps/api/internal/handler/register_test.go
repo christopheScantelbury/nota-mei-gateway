@@ -196,6 +196,83 @@ func TestRegister_InvalidJSON(t *testing.T) {
 	}
 }
 
+// capturingRegistrar is a test double that records the params passed to RegisterMEI.
+type capturingRegistrar struct {
+	captured auth.RegisterMEIParams
+	result   *auth.RegisterMEIResult
+	err      error
+}
+
+func (c *capturingRegistrar) RegisterMEI(_ context.Context, p auth.RegisterMEIParams) (*auth.RegisterMEIResult, error) {
+	c.captured = p
+	return c.result, c.err
+}
+
+func newCapturingApp(cap *capturingRegistrar) *fiber.App {
+	app := fiber.New(fiber.Config{DisableStartupMessage: true})
+	h := handler.NewRegisterHandler(cap)
+	app.Post("/v1/auth/register", h.Register)
+	return app
+}
+
+func TestRegister_ProdutoMei_PassesTipoUsuario(t *testing.T) {
+	meiID := uuid.New()
+	cap := &capturingRegistrar{
+		result: &auth.RegisterMEIResult{MeiID: meiID, APIKey: "sk_live_abc"},
+	}
+	app := newCapturingApp(cap)
+
+	body := `{"cnpj":"12345678000190","razao_social":"Empresa Teste","email":"a@b.com","municipio_ibge":"3550308","produto":"mei"}`
+	resp := mustTest(t, app, registerReq(body)) //nolint:bodyclose
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("status = %d, want 201", resp.StatusCode)
+	}
+	if cap.captured.TipoUsuario != "mei" {
+		t.Errorf("TipoUsuario = %q, want %q", cap.captured.TipoUsuario, "mei")
+	}
+}
+
+func TestRegister_ProdutoGateway_PassesTipoUsuario(t *testing.T) {
+	meiID := uuid.New()
+	cap := &capturingRegistrar{
+		result: &auth.RegisterMEIResult{MeiID: meiID, APIKey: "sk_live_abc"},
+	}
+	app := newCapturingApp(cap)
+
+	body := `{"cnpj":"12345678000190","razao_social":"Empresa Teste","email":"a@b.com","municipio_ibge":"3550308","produto":"gateway"}`
+	resp := mustTest(t, app, registerReq(body)) //nolint:bodyclose
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("status = %d, want 201", resp.StatusCode)
+	}
+	if cap.captured.TipoUsuario != "gateway" {
+		t.Errorf("TipoUsuario = %q, want %q", cap.captured.TipoUsuario, "gateway")
+	}
+}
+
+func TestRegister_ProdutoOmitted_PassesEmpty(t *testing.T) {
+	meiID := uuid.New()
+	cap := &capturingRegistrar{
+		result: &auth.RegisterMEIResult{MeiID: meiID, APIKey: "sk_live_abc"},
+	}
+	app := newCapturingApp(cap)
+
+	// No "produto" field — handler passes empty string; repository normalises to "gateway".
+	body := `{"cnpj":"12345678000190","razao_social":"Empresa Teste","email":"a@b.com","municipio_ibge":"3550308"}`
+	resp := mustTest(t, app, registerReq(body)) //nolint:bodyclose
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("status = %d, want 201", resp.StatusCode)
+	}
+	if cap.captured.TipoUsuario != "" {
+		t.Errorf("TipoUsuario = %q, want %q (empty — repository normalises to gateway)", cap.captured.TipoUsuario, "")
+	}
+}
+
 // assertRegFieldError checks that the response body contains a "fields" array
 // with at least one entry whose "field" value matches name.
 // Renamed to avoid conflict with any other assertFieldError in the package.

@@ -2,6 +2,7 @@
 
 import * as React from 'react'
 import { cn } from '@/lib/utils'
+import { normalize, toCode } from '@/lib/municipio'
 import { Spinner } from './Spinner'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -56,20 +57,6 @@ async function fetchMunicipios(): Promise<Municipio[]> {
     })
 
   return fetchPromise
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function normalize(s: string): string {
-  return s
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')  // strip combining diacritics
-    .toLowerCase()
-}
-
-/** Zero-pad IBGE id to 7 digits */
-function toCode(id: number): string {
-  return String(id).padStart(7, '0')
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────

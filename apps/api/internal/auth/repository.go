@@ -129,10 +129,7 @@ func (r *Repository) RegisterMEI(ctx context.Context, p RegisterMEIParams) (*Reg
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	tipoUsuario := p.TipoUsuario
-	if tipoUsuario != "mei" && tipoUsuario != "gateway" {
-		tipoUsuario = "gateway"
-	}
+	tipoUsuario := SanitizeTipoUsuario(p.TipoUsuario)
 
 	var meiID uuid.UUID
 	err = tx.QueryRow(ctx, `
