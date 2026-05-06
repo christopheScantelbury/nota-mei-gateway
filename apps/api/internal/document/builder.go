@@ -15,8 +15,8 @@ type Builder struct{}
 type EmissaoRequest struct {
 	Servico     ServicoRequest `json:"servico"`
 	Tomador     TomadorRequest `json:"tomador"`
-	Emit        EmitRequest    `json:"emit,omitempty"`   // ME/EPP only: overrides for emitente
-	Competencia string         `json:"competencia"`       // YYYY-MM
+	Emit        EmitRequest    `json:"emit,omitempty"` // ME/EPP only: overrides for emitente
+	Competencia string         `json:"competencia"`    // YYYY-MM
 	// IssRetido is required for Lucro Presumido / Lucro Real — must be set explicitly.
 	// Ignored for Simples Nacional (SN always recolhe via DAS).
 	// When Tomador.TipoOrgao == "ORGAO_PUBLICO", this is forced to true regardless.
@@ -34,8 +34,8 @@ type ServicoRequest struct {
 
 // TomadorRequest holds the service recipient details.
 type TomadorRequest struct {
-	Tipo          string `json:"tipo"`                    // PF | PJ
-	Documento     string `json:"documento"`               // CPF or CNPJ digits only
+	Tipo          string `json:"tipo"`      // PF | PJ
+	Documento     string `json:"documento"` // CPF or CNPJ digits only
 	RazaoSocial   string `json:"razao_social"`
 	Email         string `json:"email,omitempty"`
 	MunicipioIBGE string `json:"municipio_ibge,omitempty"`

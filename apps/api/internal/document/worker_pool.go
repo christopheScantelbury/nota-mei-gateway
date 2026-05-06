@@ -31,7 +31,7 @@ const DefaultWorkerPoolSize = 50
 type PooledSigner struct {
 	inner   Signer
 	sem     chan struct{} // buffered channel used as counting semaphore
-	waiting atomic.Int64 // goroutines currently blocked waiting for a slot
+	waiting atomic.Int64  // goroutines currently blocked waiting for a slot
 }
 
 // NewPooledSigner wraps inner with a concurrency semaphore.

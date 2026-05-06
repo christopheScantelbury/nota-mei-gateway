@@ -38,10 +38,10 @@ type Nota struct {
 	Competencia       *string
 	ErroCodigo        *string
 	ErroDescricao     *string
-	CanceladaEm  *time.Time
-	EmitidaEm    *time.Time
-	CreatedAt    time.Time
-	UpdatedAt    time.Time
+	CanceladaEm       *time.Time
+	EmitidaEm         *time.Time
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 	// SubstituidaPor is the UUID of the replacement nota when this nota was
 	// cancelled via the 9-day substituição window (ME-32). NULL means not substituted.
 	SubstituidaPor *uuid.UUID
@@ -111,15 +111,15 @@ type CreateNotaInput struct {
 	// MeiID is the MEI's UUID. Zero for ME/EPP companies.
 	MeiID uuid.UUID
 	// EmpresaID must always be set. For MEI it equals MeiID (same UUID after ARCH-03).
-	EmpresaID        uuid.UUID
-	NumeroRPS        int64
-	XMLEnviado       string
-	WebhookURL       string
-	IdempotencyKey   string
-	TomadorDoc       string
-	TomadorNome      string
-	ValorServico     float64
-	Competencia      string
+	EmpresaID      uuid.UUID
+	NumeroRPS      int64
+	XMLEnviado     string
+	WebhookURL     string
+	IdempotencyKey string
+	TomadorDoc     string
+	TomadorNome    string
+	ValorServico   float64
+	Competencia    string
 	// ME-42: stored for dashboard badge display — empty string means unset (MEI historical rows).
 	RegimeTributario string
 	// ME-42: nil for MEI/SN; true/false for LP/LR companies.
