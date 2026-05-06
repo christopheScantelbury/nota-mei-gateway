@@ -40,18 +40,32 @@ async function fetchMunicipios(): Promise<Municipio[]> {
   fetchPromise = fetch('/api/municipios')
     .then((res) => {
       if (!res.ok) throw new Error('Falha ao carregar municípios')
-      return res.json() as Promise<IbgeMunicipio[]>
+      return res.json()
     })
-    .then((data) => {
-      cachedMunicipios = data.map((m) => ({
-        id: m.id,
-        nome: m.nome,
-        uf: m.microrregiao.mesorregiao.UF.sigla,
-      }))
-      return cachedMunicipios!
+    .then((raw: unknown) => {
+      // Garante que a resposta é um array (defesa contra shape inesperado da API)
+      const data: IbgeMunicipio[] = Array.isArray(raw) ? raw : []
+
+      // Optional chaining em toda a cadeia: alguns territórios especiais do
+      // IBGE podem não ter microrregiao/mesorregiao/UF na estrutura padrão.
+      // Um TypeError em qualquer item abortava o map() inteiro e causava
+      // fetchError = true mesmo com a API retornando HTTP 200.
+      cachedMunicipios = data
+        .map((m) => ({
+          id: m.id,
+          nome: m.nome,
+          uf: m.microrregiao?.mesorregiao?.UF?.sigla ?? '',
+        }))
+        .filter((m) => m.nome && m.uf)
+
+      if (cachedMunicipios.length === 0) {
+        throw new Error('Lista de municípios vazia ou estrutura inesperada')
+      }
+      return cachedMunicipios
     })
     .catch((err) => {
       // Reset so the next attempt can retry instead of reusing the rejected promise
+      console.error('[MunicipioAutocomplete] erro ao carregar municípios:', err)
       fetchPromise = null
       throw err
     })

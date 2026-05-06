@@ -32,7 +32,12 @@ export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
   title: {
     default: 'Nota MEI Gateway — Emissão de NFS-e para MEI',
-    template: '%s · Nota MEI Gateway',
+    // Sem template global: cada layout aninhado (dashboard, admin) define o
+    // próprio template com o nome do produto correto. Um template no root
+    // seria aplicado sobre o `default` do dashboard para páginas sem título
+    // próprio (Client Components), resultando em sufixo duplo como
+    // "Painel — Nota Fácil MEI · Nota MEI Gateway".
+    template: '%s',
   },
   description:
     'API REST para emissão automatizada de NFS-e para MEI via Receita Federal Nacional. Integre em minutos, emita com confiança.',
