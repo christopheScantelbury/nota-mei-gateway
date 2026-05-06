@@ -19,6 +19,10 @@ type Empresa struct {
 	RazaoSocial        string
 	Email              string
 	MunicipioIBGE      string
+	// CNAE is the empresa's primary CNAE activity code (7 digits), required for DPS.
+	CNAE               string
+	// CEP is the empresa's postal code (8 digits), required for the DPS enderNac block.
+	CEP                string
 	InscricaoMunicipal *string
 	CertSecretARN      *string
 	CertValidUntil     *time.Time
@@ -41,6 +45,8 @@ type RegisterEmpresaParams struct {
 	RazaoSocial        string
 	Email              string
 	MunicipioIBGE      string
+	CNAE               string // 7-digit CNAE activity code — required for DPS
+	CEP                string // 8-digit postal code — required for DPS enderNac
 	InscricaoMunicipal string // optional
 }
 
@@ -61,6 +67,8 @@ func (r *Repository) FindEmpresa(ctx context.Context, empresaID uuid.UUID) (*Emp
 			e.razao_social,
 			e.email,
 			e.municipio_ibge,
+			COALESCE(e.cnae, '')              AS cnae,
+			COALESCE(e.cep, '')               AS cep,
 			e.inscricao_municipal,
 			e.cert_secret_arn,
 			e.cert_valid_until,
@@ -68,10 +76,10 @@ func (r *Repository) FindEmpresa(ctx context.Context, empresaID uuid.UUID) (*Emp
 			e.trial_me,
 			em.stripe_subscription_id,
 			em.stripe_subscription_status,
-			COALESCE(p.nome, 'Trial ME')           AS plano_nome,
-			COALESCE(p.emissoes_limite, 9999)      AS plano_limite,
-			COALESCE(p.preco_excedente_brl, 0)     AS plano_prec_excedente,
-			COALESCE(em.total_emitidas, 0)         AS total_emitidas
+			COALESCE(p.nome, 'Trial ME')      AS plano_nome,
+			COALESCE(p.emissoes_limite, 9999) AS plano_limite,
+			COALESCE(p.preco_excedente_brl, 0) AS plano_prec_excedente,
+			COALESCE(em.total_emitidas, 0)    AS total_emitidas
 		FROM empresas e
 		LEFT JOIN emissoes_mensais em
 			ON em.empresa_id = e.id
@@ -84,6 +92,7 @@ func (r *Repository) FindEmpresa(ctx context.Context, empresaID uuid.UUID) (*Emp
 	if err := row.Scan(
 		&e.ID, &e.Tipo, &e.RegimeTributario,
 		&e.CNPJ, &e.RazaoSocial, &e.Email, &e.MunicipioIBGE,
+		&e.CNAE, &e.CEP,
 		&e.InscricaoMunicipal,
 		&e.CertSecretARN, &e.CertValidUntil,
 		&e.StripeCustomerID,
@@ -115,14 +124,23 @@ func (r *Repository) RegisterEmpresa(ctx context.Context, p RegisterEmpresaParam
 		inscricaoMunicipal = &p.InscricaoMunicipal
 	}
 
+	var cnae *string
+	if p.CNAE != "" {
+		cnae = &p.CNAE
+	}
+	var cep *string
+	if p.CEP != "" {
+		cep = &p.CEP
+	}
+
 	var empresaID uuid.UUID
 	err = tx.QueryRow(ctx, `
 		INSERT INTO empresas (tipo, regime_tributario, cnpj, razao_social, email,
-		                      municipio_ibge, inscricao_municipal, trial_me, tipo_usuario)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, true, 'gateway')
+		                      municipio_ibge, cnae, cep, inscricao_municipal, trial_me, tipo_usuario)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, 'gateway')
 		RETURNING id
 	`, p.Tipo, p.RegimeTributario, p.CNPJ, p.RazaoSocial, p.Email,
-		p.MunicipioIBGE, inscricaoMunicipal).Scan(&empresaID)
+		p.MunicipioIBGE, cnae, cep, inscricaoMunicipal).Scan(&empresaID)
 	if err != nil {
 		return nil, err
 	}

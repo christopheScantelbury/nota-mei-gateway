@@ -118,6 +118,7 @@ func main() {
 	// ── Adapters & builders ────────────────────────────────────────────────
 	adapter := nfse.NewAdapter(cfg.ReceitaAPIURL)
 	builder := document.NewBuilder()
+	dpsBuilder := document.NewDPSBuilder()
 
 	// XMLDSigSigner is used in staging/production where a real A1 certificate
 	// is loaded from AWS Secrets Manager.  NoopSigner is kept for local
@@ -171,7 +172,7 @@ func main() {
 	seedH := handler.NewSeedHandler(auth.NewSeeder(db))
 
 	nfseH := handler.NewNFSeHandler(
-		notaRepo, adapter, builder, signer, certProv,
+		notaRepo, adapter, builder, dpsBuilder, signer, certProv,
 		billingRepo, billingGrd, publisher,
 		apiBase, cfg.WebhookHMACSecret,
 	).WithNBSValidator(nbsValidator).WithISSLookup(issLookup).WithStripeClient(sc).WithStorage(objectStore)

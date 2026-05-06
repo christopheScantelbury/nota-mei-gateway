@@ -64,6 +64,8 @@ type registerMERequest struct {
 	RazaoSocial        string `json:"razao_social"`
 	Email              string `json:"email"`
 	MunicipioIBGE      string `json:"municipio_ibge"`
+	CNAE               string `json:"cnae"`                // 7-digit CNAE code — required for DPS
+	CEP                string `json:"cep"`                 // 8-digit CEP — required for DPS
 	InscricaoMunicipal string `json:"inscricao_municipal"` // optional
 }
 
@@ -107,6 +109,12 @@ func (h *RegisterMEHandler) RegisterME(c *fiber.Ctx) error {
 	if !regexp.MustCompile(`^\d{7}$`).MatchString(req.MunicipioIBGE) {
 		fields = append(fields, fieldErr{"municipio_ibge", "deve conter 7 dígitos numéricos"})
 	}
+	if req.CNAE != "" && !regexp.MustCompile(`^\d{7}$`).MatchString(strings.NewReplacer("-", "", "/", "").Replace(req.CNAE)) {
+		fields = append(fields, fieldErr{"cnae", "deve conter 7 dígitos numéricos (ex: 6201500)"})
+	}
+	if req.CEP != "" && !regexp.MustCompile(`^\d{8}$`).MatchString(strings.NewReplacer("-", "").Replace(req.CEP)) {
+		fields = append(fields, fieldErr{"cep", "deve conter 8 dígitos numéricos"})
+	}
 	if len(fields) > 0 {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"error":      "VALIDATION_ERROR",
@@ -140,6 +148,8 @@ func (h *RegisterMEHandler) RegisterME(c *fiber.Ctx) error {
 		RazaoSocial:        strings.TrimSpace(req.RazaoSocial),
 		Email:              strings.TrimSpace(strings.ToLower(req.Email)),
 		MunicipioIBGE:      req.MunicipioIBGE,
+		CNAE:               strings.NewReplacer("-", "", "/", "").Replace(strings.TrimSpace(req.CNAE)),
+		CEP:                strings.NewReplacer("-", "").Replace(strings.TrimSpace(req.CEP)),
 		InscricaoMunicipal: strings.TrimSpace(req.InscricaoMunicipal),
 	})
 	if err != nil {
