@@ -91,6 +91,17 @@ jobs:
           # 5 planos MEI (Trial/Starter/Basic/Pro/Business) + 1 plano ME (Trial ME)
           # adicionado pela migration 20260506000002_me_ep1_empresas_extras.sql
           test "$count" = "6"
+      - name: Verificar tabelas ME-EP3 municipios_nfse + iss_aliquotas
+        run: |
+          # municipios_nfse deve existir com pelo menos 10 municípios (seed da migration)
+          muni_count=$(psql -tAc "SELECT COUNT(*) FROM municipios_nfse WHERE ativo = true")
+          test "$muni_count" -ge 10 || (echo "municipios_nfse: expected >= 10 rows, got $muni_count" && exit 1)
+          # iss_aliquotas deve ter Manaus + SP + demais com alíquota padrão
+          aliq_count=$(psql -tAc "SELECT COUNT(*) FROM iss_aliquotas")
+          test "$aliq_count" -ge 10 || (echo "iss_aliquotas: expected >= 10 rows, got $aliq_count" && exit 1)
+          # Manaus deve ter alíquotas NBS mapeadas (codigo_nbs NOT NULL)
+          nbs_count=$(psql -tAc "SELECT COUNT(*) FROM iss_aliquotas WHERE ibge='1302603' AND codigo_nbs IS NOT NULL")
+          test "$nbs_count" -ge 5 || (echo "Manaus NBS rates: expected >= 5, got $nbs_count" && exit 1)
 
   test-api:
     name: Go lint + test

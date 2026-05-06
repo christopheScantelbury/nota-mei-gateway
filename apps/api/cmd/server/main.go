@@ -27,6 +27,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/valyala/fasthttp/fasthttpadaptor"
@@ -142,10 +143,20 @@ func main() {
 		log.Warn().Err(err).Msg("NBS warm failed — validator will fall back to DB")
 	}
 
-	// ── ISS rate lookup (in-memory, loaded from DB at startup) ────────────
-	issLookup, err := document.NewISSLookup(ctx, db.Pool())
+	// ── ISS rate lookup (DB + Redis, lazy — no memory pre-load) ──────────
+	// A dedicated Redis client is created for the ISS lookup.  The billing
+	// guard uses its own internal client; sharing would require refactoring.
+	var issRedis *redis.Client
+	if cfg.RedisURL != "" {
+		if opt, parseErr := redis.ParseURL(cfg.RedisURL); parseErr != nil {
+			log.Warn().Err(parseErr).Msg("ISS Redis: invalid URL — cache disabled")
+		} else {
+			issRedis = redis.NewClient(opt)
+		}
+	}
+	issLookup, err := document.NewISSLookup(ctx, db.Pool(), issRedis)
 	if err != nil {
-		log.Warn().Err(err).Msg("ISS lookup unavailable — ISS rates will not be validated at startup")
+		log.Warn().Err(err).Msg("ISS lookup unavailable — ISS rates will not be validated")
 		issLookup = nil
 	}
 
@@ -272,9 +283,11 @@ func main() {
 	// Inserts into empresas table with tipo='ME'|'EPP' and regime_tributario.
 	app.Post("/v1/auth/register/me", registerMEH.RegisterME)
 
-	// Municipalities list — public, no auth required (ME-21 / ME-20).
-	if issLookup != nil {
-		municipioH := handler.NewMunicipioHandler(issLookup)
+	// Municipalities list — public, no auth required (ME-20 / ME-22).
+	// Uses the new DB-backed handler that queries municipios_nfse + iss_aliquotas.
+	{
+		lister := handler.NewDBMunicipioLister(db.Pool(), issRedis)
+		municipioH := handler.NewMunicipioHandler(lister)
 		app.Get("/v1/municipios", municipioH.ListMunicipios)
 	}
 
