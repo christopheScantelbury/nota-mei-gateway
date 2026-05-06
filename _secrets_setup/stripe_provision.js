@@ -26,7 +26,7 @@ if (!STRIPE_KEY) {
   process.exit(1);
 }
 
-const WEBHOOK_URL = 'https://api.notameigateway.com.br/v1/webhooks/stripe';
+const WEBHOOK_URL = 'https://api.emitirnotafacil.com.br/v1/webhooks/stripe';
 
 // Flatten nested objects into Stripe's bracket notation: { a: { b: 1 } } → "a[b]=1"
 function flattenParams(obj, prefix) {
