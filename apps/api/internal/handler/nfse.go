@@ -222,16 +222,17 @@ func (h *NFSeHandler) emitirNotaMEI(c *fiber.Ctx, req document.EmissaoRequest, m
 	// ── 7. Persist nota ───────────────────────────────────────────────────
 	// After ARCH-03, empresa_id = mei_id for all MEI rows — pass both.
 	nota, err := h.notaRepo.Create(c.Context(), nfse.CreateNotaInput{
-		MeiID:          mei.ID,
-		EmpresaID:      mei.ID, // empresa_id = mei_id for MEI (ARCH-03 invariant)
-		NumeroRPS:      numeroRPS,
-		XMLEnviado:     string(signedXML),
-		WebhookURL:     req.WebhookURL,
-		TomadorDoc:     req.Tomador.Documento,
-		TomadorNome:    req.Tomador.RazaoSocial,
-		ValorServico:   req.Servico.Valor,
-		Competencia:    req.Competencia,
-		IdempotencyKey: c.Get("Idempotency-Key"),
+		MeiID:            mei.ID,
+		EmpresaID:        mei.ID, // empresa_id = mei_id for MEI (ARCH-03 invariant)
+		NumeroRPS:        numeroRPS,
+		XMLEnviado:       string(signedXML),
+		WebhookURL:       req.WebhookURL,
+		TomadorDoc:       req.Tomador.Documento,
+		TomadorNome:      req.Tomador.RazaoSocial,
+		ValorServico:     req.Servico.Valor,
+		Competencia:      req.Competencia,
+		IdempotencyKey:   c.Get("Idempotency-Key"),
+		RegimeTributario: "SIMPLES_MEI", // MEI is always Simples MEI
 	})
 	if err != nil {
 		return internalError(c, "erro ao salvar nota")
@@ -371,15 +372,17 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 	// ── 7. Persist nota ───────────────────────────────────────────────────
 	// MeiID is intentionally uuid.Nil — ME/EPP companies have no row in meis.
 	nota, err := h.notaRepo.Create(ctx, nfse.CreateNotaInput{
-		EmpresaID:      empresa.ID,
-		NumeroRPS:      numeroDPS,
-		XMLEnviado:     string(signedXML),
-		WebhookURL:     req.WebhookURL,
-		TomadorDoc:     req.Tomador.Documento,
-		TomadorNome:    req.Tomador.RazaoSocial,
-		ValorServico:   req.Servico.Valor,
-		Competencia:    req.Competencia,
-		IdempotencyKey: c.Get("Idempotency-Key"),
+		EmpresaID:        empresa.ID,
+		NumeroRPS:        numeroDPS,
+		XMLEnviado:       string(signedXML),
+		WebhookURL:       req.WebhookURL,
+		TomadorDoc:       req.Tomador.Documento,
+		TomadorNome:      req.Tomador.RazaoSocial,
+		ValorServico:     req.Servico.Valor,
+		Competencia:      req.Competencia,
+		IdempotencyKey:   c.Get("Idempotency-Key"),
+		RegimeTributario: empresa.RegimeTributario, // ME-42: stored for dashboard badge
+		ISSRetido:        issRetidoPtr(empresa.RegimeTributario, dpsResult.ISSRetido), // ME-42
 	})
 	if err != nil {
 		return internalError(c, "erro ao salvar nota")
@@ -727,7 +730,7 @@ func (h *NFSeHandler) cancelarNotaME(c *fiber.Ctx, nota *nfse.Nota, empresa *aut
 	}
 
 	// DPS cancellation uses the same ABRASF cancellation XML for now.
-	// TODO(ME-32): replace with DPS-native cancellation when ADN endpoint is confirmed.
+	// TODO(ME-32): replace with DPS-native cancellation when ADN endpoint is confirmed. //nolint:misspell
 	xmlCancel, err := h.builder.BuildCancelamento(*nota.NumeroNFSe, empresa.CNPJ, empresa.MunicipioIBGE)
 	if err != nil {
 		return internalError(c, "erro ao construir XML de cancelamento")
@@ -895,14 +898,16 @@ func (h *NFSeHandler) SubstituirNota(c *fiber.Ctx) error {
 	}
 
 	nova, err := h.notaRepo.Create(ctx, nfse.CreateNotaInput{
-		EmpresaID:    empresa.ID,
-		NumeroRPS:    numeroDPS,
-		XMLEnviado:   string(signedXML),
-		WebhookURL:   req.WebhookURL,
-		TomadorDoc:   req.Tomador.Documento,
-		TomadorNome:  req.Tomador.RazaoSocial,
-		ValorServico: req.Servico.Valor,
-		Competencia:  req.Competencia,
+		EmpresaID:        empresa.ID,
+		NumeroRPS:        numeroDPS,
+		XMLEnviado:       string(signedXML),
+		WebhookURL:       req.WebhookURL,
+		TomadorDoc:       req.Tomador.Documento,
+		TomadorNome:      req.Tomador.RazaoSocial,
+		ValorServico:     req.Servico.Valor,
+		Competencia:      req.Competencia,
+		RegimeTributario: empresa.RegimeTributario,
+		ISSRetido:        issRetidoPtr(empresa.RegimeTributario, dpsResult.ISSRetido),
 		// IdempotencyKey intentionally empty for substitutions.
 	})
 	if err != nil {
@@ -1359,4 +1364,15 @@ func notFound(c *fiber.Ctx) error {
 func isNotFound(err error) bool {
 	_, ok := err.(nfse.ErrNotaNotFound)
 	return ok
+}
+
+// issRetidoPtr returns nil for MEI/SN regimes (ISS retention is not applicable —
+// those regimes collect ISS via DAS) and a pointer to v for LP/LR companies
+// where ISS withholding by the tomador is meaningful.
+func issRetidoPtr(regime string, v bool) *bool {
+	if regime == "" || regime == "SIMPLES_MEI" || regime == "SIMPLES_NACIONAL" {
+		return nil
+	}
+	b := v
+	return &b
 }

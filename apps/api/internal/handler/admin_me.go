@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -121,5 +120,3 @@ func csvEscape(s string) string {
 	return s
 }
 
-// queryRelatorioME is used in tests to mock the DB query.
-type queryRelatorioMEFn func(ctx context.Context, competencia string) ([]empresaRelatorioRow, error)

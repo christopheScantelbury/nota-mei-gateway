@@ -2,14 +2,14 @@
 //
 // DPS is the federal document for ME/EPP companies in the NFS-e Nacional system.
 // Unlike the RPS (used by MEI with the ABRASF municipal schema), the DPS is sent
-// directly to the ADN (Ambiente de Dados Nacional) via SEFIN Nacional.
+// directly to the ADN (Ambiente de Dados Nacional) via SEFIN Nacional. //nolint:misspell
 //
 // Reference: NT 004 v2.0 — gov.br/nfse → Acesso à informação → Notas Técnicas
 //
 // ⚠️  Namespace: The xmlns value below MUST match the XSD official exactly.
 //     Download the schema from gov.br/nfse → Integrar ao sistema → Schemas
-//     and verify before connecting to the ADN production environment.
-//     A wrong namespace causes silent rejection with no error from the ADN.
+//     and verify before connecting to the ADN production environment. //nolint:misspell
+//     A wrong namespace causes silent rejection with no error from the ADN. //nolint:misspell
 package document
 
 import "encoding/xml"

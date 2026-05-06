@@ -58,8 +58,8 @@ func (h *RegisterMEHandler) WithEmailService(svc *email.Service) *RegisterMEHand
 }
 
 type registerMERequest struct {
-	Tipo               string `json:"tipo"`                // "ME" | "EPP"
-	RegimeTributario   string `json:"regime_tributario"`   // "SIMPLES_NACIONAL" | "LUCRO_PRESUMIDO"
+	Tipo               string `json:"tipo"`              // "ME" | "EPP"
+	RegimeTributario   string `json:"regime_tributario"` // "SIMPLES_NACIONAL" | "LUCRO_PRESUMIDO"
 	CNPJ               string `json:"cnpj"`
 	RazaoSocial        string `json:"razao_social"`
 	Email              string `json:"email"`

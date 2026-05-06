@@ -124,9 +124,9 @@ func (h *CertificateHandler) Renew(c *fiber.Ctx) error {
 
 	// ── 2. Determine entity (MEI or Empresa) and existing ARN ───────────────
 	var (
-		entityID   uuid.UUID
-		isEmpresa  bool
-		secretARN  string
+		entityID  uuid.UUID
+		isEmpresa bool
+		secretARN string
 	)
 	if empresa != nil {
 		entityID = empresa.ID

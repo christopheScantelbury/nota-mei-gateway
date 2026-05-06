@@ -56,7 +56,7 @@ func (h *MunicipioHandler) ListMunicipios(c *fiber.Ctx) error {
 	items := make([]fiber.Map, 0, len(all))
 	for _, m := range all {
 		items = append(items, fiber.Map{
-			"ibge":        m.IBGE,
+			"ibge":         m.IBGE,
 			"aliquota_iss": m.Aliquota,
 		})
 	}

@@ -118,9 +118,7 @@ func TestPooledSigner_ConcurrencyLimit(t *testing.T) {
 	var (
 		wg         sync.WaitGroup
 		peakActive atomic.Int64
-		mu         sync.Mutex
 	)
-	_ = mu // suppresses "unused" warning
 
 	for i := 0; i < totalCallers; i++ {
 		wg.Add(1)
