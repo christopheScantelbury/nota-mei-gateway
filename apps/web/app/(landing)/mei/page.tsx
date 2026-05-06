@@ -14,7 +14,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Nota Fácil MEI — Emita sua NFS-e em 30 segundos',
     description: 'Nota fiscal de MEI sem complicação. Você preenche 3 campos, a gente cuida do resto.',
-    url: 'https://notafacilmei.com.br',
+    url: 'https://emitirnotafacil.com.br/mei',
     siteName: 'Nota Fácil MEI',
     images: [{ url: '/og/og-nfm-1200x630.png', width: 1200, height: 630, alt: 'Nota Fácil MEI — Emita sua NFS-e em 30 segundos' }],
     locale: 'pt_BR',

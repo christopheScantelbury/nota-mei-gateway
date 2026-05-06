@@ -64,7 +64,7 @@ const PLANS: Plan[] = [
     desc: 'High volume, SLA dedicado, suporte prioritário.',
     extra: null,
     cta: 'Falar com vendas',
-    ctaHref: 'mailto:vendas@notameigateway.com.br',
+    ctaHref: 'mailto:vendas@emitirnotafacil.com.br',
     highlight: false,
   },
 ]

@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Nota MEI Gateway — A API de NFS-e para seu produto',
     description: 'Emita NFS-e de MEI via API REST. Um POST, webhook, PDF e XML automáticos.',
-    url: 'https://notameigateway.com.br',
+    url: 'https://emitirnotafacil.com.br/gateway',
     siteName: 'Nota MEI Gateway',
     images: [{ url: '/og/og-gateway-1200x630.png', width: 1200, height: 630, alt: 'Nota MEI Gateway — API de NFS-e para MEI' }],
     locale: 'pt_BR',
@@ -507,8 +507,8 @@ export default function GatewayLandingPage() {
           </div>
           <p className="text-text-2 text-sm mt-6">
             Dúvidas de integração?{' '}
-            <a href="mailto:dev@notameigateway.com.br" className="underline hover:text-text-1 transition">
-              dev@notameigateway.com.br
+            <a href="mailto:dev@emitirnotafacil.com.br" className="underline hover:text-text-1 transition">
+              dev@emitirnotafacil.com.br
             </a>
           </p>
         </div>
