@@ -500,7 +500,14 @@ status-cancelada.png    → #6473A0 (cinza)
                               · ISSLookup: GetAliquota(ctx) + MunicipioAtivo(ctx) com Redis 30d/24h
                               · DBMunicipioLister + GET /v1/municipios reescrito (nome/uf/nbs_mapeadas)
                               · cmd/jobs/update_municipios.go — job mensal NFS-e Nacional
-✅ Supabase db push           20 migrations aplicadas em prod (2026-05-06) — municipios_iss incluída
+✅ ME-EP6 (#220)              Billing placeholder ME — trial ilimitado, plano limit, IP whitelist
+                              · migration 20260615000001_billing_me.sql aplicada em prod
+                              · BillingGuard.Check: trial bypass → Redis 5min → plano limit
+                              · ErrPlanLimitReached + Guard.WithRepository + InvalidateEmpresa
+                              · GetEmpresaBillingInfo + GetPlano (fallback Trial por tipo_empresa)
+                              · middleware.IPWhitelist + ADMIN_ALLOWED_IPS env var
+                              · 13 novos testes unitários (guard_check_test + ip_whitelist_test)
+✅ Supabase db push           22 migrations aplicadas em prod (2026-06-15) — billing_me incluída
 ⏳ QA-01                      E2E tests contra homologação Receita Federal
 ```
 
@@ -637,7 +644,7 @@ vercel --prod               # deploy manual produção
 ---
 
 ## 13. ESTADO ATUAL
-> Última atualização: 2026-06-08 · branch `main` · commit `1f42117` (ME-EP3) · CI ✅ Deploy ✅ Migrations: 20/20 aplicadas em prod
+> Última atualização: 2026-06-15 · branch `main` · commit `82868d5` (ME-EP6) · CI ✅ Deploy ✅ Migrations: 22/22 aplicadas em prod
 
 ### Código — 100% concluído
 
