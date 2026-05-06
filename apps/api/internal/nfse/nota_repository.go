@@ -45,6 +45,12 @@ type Nota struct {
 	// SubstituidaPor is the UUID of the replacement nota when this nota was
 	// cancelled via the 9-day substituição window (ME-32). NULL means not substituted.
 	SubstituidaPor *uuid.UUID
+	// RegimeTributario is the tax regime at time of emission (ME-42 dashboard badge).
+	// Empty string for historical MEI rows.
+	RegimeTributario *string
+	// ISSRetido is true when ISS was withheld at source by the tomador.
+	// NULL for MEI/SN rows (ME-42).
+	ISSRetido *bool
 }
 
 // ErrNotaNotFound is returned when a nota does not exist or does not belong to the MEI.
@@ -105,15 +111,19 @@ type CreateNotaInput struct {
 	// MeiID is the MEI's UUID. Zero for ME/EPP companies.
 	MeiID uuid.UUID
 	// EmpresaID must always be set. For MEI it equals MeiID (same UUID after ARCH-03).
-	EmpresaID      uuid.UUID
-	NumeroRPS      int64
-	XMLEnviado     string
-	WebhookURL     string
-	IdempotencyKey string
-	TomadorDoc     string
-	TomadorNome    string
-	ValorServico   float64
-	Competencia    string
+	EmpresaID        uuid.UUID
+	NumeroRPS        int64
+	XMLEnviado       string
+	WebhookURL       string
+	IdempotencyKey   string
+	TomadorDoc       string
+	TomadorNome      string
+	ValorServico     float64
+	Competencia      string
+	// ME-42: stored for dashboard badge display — empty string means unset (MEI historical rows).
+	RegimeTributario string
+	// ME-42: nil for MEI/SN; true/false for LP/LR companies.
+	ISSRetido *bool
 }
 
 // Create inserts a new nota with status PROCESSANDO and returns it.
@@ -130,19 +140,26 @@ func (r *NotaRepository) Create(ctx context.Context, in CreateNotaInput) (*Nota,
 		meiIDParam = in.MeiID
 	} // else nil → NULL in DB (ME/EPP — no entry in meis table)
 
+	var regimeParam interface{}
+	if in.RegimeTributario != "" {
+		regimeParam = in.RegimeTributario
+	}
+
 	var id uuid.UUID
 	err := r.db.Pool().QueryRow(ctx, `
 		INSERT INTO notas_fiscais (
 			mei_id, empresa_id, numero_rps, status, xml_enviado,
 			webhook_url, idempotency_key,
-			tomador_doc, tomador_nome, valor_servico, competencia
-		) VALUES ($1,$2,$3,'PROCESSANDO',$4,$5,$6,$7,$8,$9,$10)
+			tomador_doc, tomador_nome, valor_servico, competencia,
+			regime_tributario, iss_retido
+		) VALUES ($1,$2,$3,'PROCESSANDO',$4,$5,$6,$7,$8,$9,$10,$11,$12)
 		RETURNING id
 	`,
 		meiIDParam, empresaID, in.NumeroRPS, nullStr(in.XMLEnviado),
 		nullStr(in.WebhookURL), nullStr(in.IdempotencyKey),
 		nullStr(in.TomadorDoc), nullStr(in.TomadorNome),
 		in.ValorServico, nullStr(in.Competencia),
+		regimeParam, in.ISSRetido,
 	).Scan(&id)
 	if err != nil {
 		return nil, err
@@ -166,7 +183,7 @@ func (r *NotaRepository) FindByID(ctx context.Context, notaID, meiID uuid.UUID) 
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at, substituida_por
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido
 		FROM notas_fiscais
 		WHERE id = $1 AND mei_id = $2
 	`, notaID, meiID)
@@ -185,7 +202,7 @@ func (r *NotaRepository) FindByIDForEmpresa(ctx context.Context, notaID, empresa
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at, substituida_por
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido
 		FROM notas_fiscais
 		WHERE id = $1 AND empresa_id = $2
 	`, notaID, empresaID)
@@ -204,7 +221,7 @@ func (r *NotaRepository) ListByEmpresa(ctx context.Context, empresaID uuid.UUID,
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at, substituida_por
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido
 		FROM notas_fiscais
 		WHERE empresa_id = $1
 		ORDER BY created_at DESC
@@ -248,7 +265,7 @@ func (r *NotaRepository) ListByMEI(ctx context.Context, meiID uuid.UUID, limit, 
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at, substituida_por
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido
 		FROM notas_fiscais
 		WHERE mei_id = $1
 		ORDER BY created_at DESC
@@ -294,7 +311,7 @@ func (r *NotaRepository) FindProcessandoSemProtocolo(ctx context.Context, olderT
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at, substituida_por
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido
 		FROM notas_fiscais
 		WHERE status = 'PROCESSANDO'
 		  AND protocolo_receita IS NULL
@@ -505,7 +522,7 @@ func (r *NotaRepository) FindPendingWebhooks(ctx context.Context, limit int) ([]
 		       valor_servico, competencia,
 		       erro_codigo, erro_descricao,
 		       cancelada_em, emitida_em,
-		       created_at, updated_at, substituida_por
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido
 		FROM notas_fiscais
 		WHERE webhook_url IS NOT NULL
 		  AND webhook_entregue = false
@@ -551,7 +568,7 @@ func (r *NotaRepository) FindProcessandoComProtocolo(ctx context.Context, limit 
 		       n.valor_servico, n.competencia,
 		       n.erro_codigo, n.erro_descricao,
 		       n.cancelada_em, n.emitida_em,
-		       n.created_at, n.updated_at, n.substituida_por,
+		       n.created_at, n.updated_at, n.substituida_por, n.regime_tributario, n.iss_retido,
 		       m.cnpj, m.municipio_ibge, m.cert_secret_arn
 		FROM notas_fiscais n
 		JOIN meis m ON m.id = n.mei_id
@@ -577,7 +594,7 @@ func (r *NotaRepository) FindProcessandoComProtocolo(ctx context.Context, limit 
 			&nc.ValorServico, &nc.Competencia,
 			&nc.ErroCodigo, &nc.ErroDescricao,
 			&nc.CanceladaEm, &nc.EmitidaEm,
-			&nc.CreatedAt, &nc.UpdatedAt, &nc.SubstituidaPor,
+			&nc.CreatedAt, &nc.UpdatedAt, &nc.SubstituidaPor, &nc.RegimeTributario, &nc.ISSRetido,
 			&nc.CNPJ, &nc.MunicipioIBGE, &nc.CertSecretARN,
 		)
 		if err != nil {
@@ -606,7 +623,7 @@ func scanNota(row scanner) (*Nota, error) {
 		&n.ValorServico, &n.Competencia,
 		&n.ErroCodigo, &n.ErroDescricao,
 		&n.CanceladaEm, &n.EmitidaEm,
-		&n.CreatedAt, &n.UpdatedAt, &n.SubstituidaPor,
+		&n.CreatedAt, &n.UpdatedAt, &n.SubstituidaPor, &n.RegimeTributario, &n.ISSRetido,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

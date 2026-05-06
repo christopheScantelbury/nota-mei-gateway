@@ -7,6 +7,8 @@ import NotaTimeline from '@/components/dashboard/NotaTimeline'
 import CancelarNotaButton from '@/components/dashboard/CancelarNotaButton'
 import WebhookDeliveryLog from '@/components/dashboard/WebhookDeliveryLog'
 import EnviarNotaEmail from '@/components/dashboard/EnviarNotaEmail'
+import ISSBadge from '@/components/nota/ISSBadge'
+import SubstituicaoDeadline from '@/components/nota/SubstituicaoDeadline'
 import type { Nota } from '@/lib/types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
@@ -67,9 +69,17 @@ export default async function NotaDetailPage({ params }: { params: { id: string 
             </p>
           )}
         </div>
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex flex-col items-end gap-2">
           <StatusBadge status={nota.status} />
           <NotaStatusPoller notaId={nota.id} status={nota.status} />
+          {/* ME-42: ISS recolhimento badge */}
+          <ISSBadge regime={nota.regime_tributario} issRetido={nota.iss_retido} />
+          {/* ME-43: substitution deadline countdown */}
+          <SubstituicaoDeadline
+            status={nota.status}
+            emitidaEm={nota.emitida_em}
+            regime={nota.regime_tributario}
+          />
         </div>
       </div>
 
