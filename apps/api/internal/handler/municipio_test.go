@@ -14,7 +14,6 @@ import (
 // newMunicipioApp builds a minimal Fiber app with the municipio endpoint wired.
 func newMunicipioApp(t *testing.T) *fiber.App {
 	t.Helper()
-	// document.NewISSLookupFromRates is exported via export_test.go in the document package.
 	issLookup := document.NewISSLookupFromRates(map[string]float64{
 		// AM — Amazonas (prefix 13)
 		"1302603": 2.0, // Manaus
@@ -39,7 +38,7 @@ func TestListMunicipios_NoFilter_ReturnsAll(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test: %v", err)
 	}
-	defer resp.Body.Close()
+	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -68,7 +67,7 @@ func TestListMunicipios_FilterByUF_AM(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test: %v", err)
 	}
-	defer resp.Body.Close()
+	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -93,7 +92,7 @@ func TestListMunicipios_FilterByUF_Lowercase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test: %v", err)
 	}
-	defer resp.Body.Close()
+	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200 for lowercase uf, got %d", resp.StatusCode)
@@ -118,7 +117,7 @@ func TestListMunicipios_InvalidUF_Returns400(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test: %v", err)
 	}
-	defer resp.Body.Close()
+	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("expected 400 for invalid UF, got %d", resp.StatusCode)
@@ -143,7 +142,7 @@ func TestListMunicipios_NilLookup_ReturnsEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test: %v", err)
 	}
-	defer resp.Body.Close()
+	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200 for nil lookup, got %d", resp.StatusCode)
@@ -158,7 +157,7 @@ func TestListMunicipios_SortedByIBGE(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test: %v", err)
 	}
-	defer resp.Body.Close()
+	t.Cleanup(func() { _ = resp.Body.Close() })
 
 	var body struct {
 		Municipios []struct {
