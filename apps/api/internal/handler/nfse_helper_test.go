@@ -4,6 +4,8 @@ import (
 	"testing"
 )
 
+// Package handler white-box tests — access unexported symbols directly.
+
 // ─── issRetidoPtr ─────────────────────────────────────────────────────────────
 
 func TestIssRetidoPtr_SimplesNacionalMEI_ReturnsNil(t *testing.T) {
