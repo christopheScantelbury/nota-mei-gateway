@@ -119,3 +119,28 @@ func (s *Service) SendPagamentoFalhou(
 	l.Info().Str("email_id", id).Msg("email: sent")
 	return nil
 }
+
+// SendBoasVindasME sends the welcome email to a new ME/EPP empresa with
+// ISS recolhimento guidance tailored to the regime tributário.
+func (s *Service) SendBoasVindasME(
+	ctx context.Context,
+	toEmail, razaoSocial, apiKey, regimeTributario string,
+) error {
+	html := BoasVindasMEHTML(BoasVindasMEParams{
+		RazaoSocial:      razaoSocial,
+		APIKey:           apiKey,
+		RegimeTributario: regimeTributario,
+	})
+	id, err := s.client.Send(ctx, SendRequest{
+		To:      []string{toEmail},
+		Subject: "Bem-vindo ao Nota MEI Gateway — sua empresa ME foi cadastrada",
+		HTML:    html,
+	})
+	l := s.log.With().Str("to_email", toEmail).Str("type", "boas_vindas_me").Logger()
+	if err != nil {
+		l.Error().Err(err).Msg("email: send failed")
+		return err
+	}
+	l.Info().Str("email_id", id).Msg("email: sent")
+	return nil
+}

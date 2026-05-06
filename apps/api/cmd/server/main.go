@@ -166,6 +166,7 @@ func main() {
 	emailSvc := email.NewService(emailClient, log.Logger)
 
 	registerH := handler.NewRegisterHandler(authRepo).WithCNPJValidator(cnpjValidator).WithEmailService(emailSvc)
+	registerMEH := handler.NewRegisterMEHandler(authRepo).WithCNPJValidator(cnpjValidator).WithEmailService(emailSvc)
 	certH := handler.NewCertificateHandler(certProv, authRepo, db)
 	seedH := handler.NewSeedHandler(auth.NewSeeder(db))
 
@@ -264,6 +265,10 @@ func main() {
 
 	// MEI registration — public, no Bearer token required.
 	app.Post("/v1/auth/register", registerH.Register)
+
+	// ME/EPP registration — public, no Bearer token required.
+	// Inserts into empresas table with tipo='ME'|'EPP' and regime_tributario.
+	app.Post("/v1/auth/register/me", registerMEH.RegisterME)
 
 	// Stripe webhook — raw body needed for signature verification.
 	app.Post("/v1/webhooks/stripe", stripeWH.Handle)
