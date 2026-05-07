@@ -315,18 +315,11 @@ export default function MeiLandingPage() {
             <div className="sm:col-span-1 flex flex-col gap-3">
               <Link href="/mei" className="inline-flex items-center">
                 <Image
-                  src="/logos/nfm-logo-navbar-dark-clean.svg"
-                  alt="Nota Fácil MEI"
-                  width={140}
+                  src="/brand/notafacil-mei.svg"
+                  alt="NotaFácil MEI"
+                  width={200}
                   height={38}
-                  className="h-8 w-auto dark:block hidden"
-                />
-                <Image
-                  src="/logos/nfm-logo-navbar-light.svg"
-                  alt="Nota Fácil MEI"
-                  width={140}
-                  height={38}
-                  className="h-8 w-auto block dark:hidden"
+                  className="h-8 w-auto"
                 />
               </Link>
               <p className="text-text-2 text-xs leading-relaxed">

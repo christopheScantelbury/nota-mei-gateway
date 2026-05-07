@@ -42,17 +42,17 @@ export default function NavbarMei() {
       >
         <div className="mx-auto max-w-6xl px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
 
-          <Link href="/mei" className="flex items-center shrink-0">
+          <Link href="/mei" className="flex items-center shrink-0" aria-label="NotaFácil MEI">
             <LogoAdaptive
-              lightSrc="/logos/nfm-logo-navbar-light.svg"
-              darkSrc="/logos/nfm-logo-navbar-dark-clean.svg"
-              iconLightSrc="/logos/nfm-icon-only.svg"
-              iconDarkSrc="/logos/nfm-icon-only.svg"
-              alt="Nota Fácil MEI"
-              width={160}
+              lightSrc="/brand/notafacil-mei.svg"
+              darkSrc="/brand/notafacil-mei.svg"
+              iconLightSrc="/brand/notafacil-icon.svg"
+              iconDarkSrc="/brand/notafacil-icon.svg"
+              alt="NotaFácil MEI"
+              width={200}
               height={44}
               priority
-              className="w-[120px] sm:w-[150px] md:w-[160px] h-auto"
+              className="w-auto h-9 sm:h-10"
             />
           </Link>
 
@@ -64,7 +64,7 @@ export default function NavbarMei() {
             <ThemeToggle />
             <Link
               href="/cadastro?produto=mei"
-              className="bg-brand-cyan text-navy-900 text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition"
+              className="bg-persona-mei text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-persona-mei-dark transition-colors"
             >
               Emitir nota grátis
             </Link>

@@ -42,17 +42,17 @@ export default function NavbarGateway() {
       >
         <div className="mx-auto max-w-6xl px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
 
-          <Link href="/gateway" className="flex items-center shrink-0">
+          <Link href="/gateway" className="flex items-center shrink-0" aria-label="NotaFácil API">
             <LogoAdaptive
-              lightSrc="/logos/gateway-logo-navbar-light.svg"
-              darkSrc="/logos/gateway-logo-navbar-dark.svg"
-              iconLightSrc="/logos/gateway-icon-only.svg"
-              iconDarkSrc="/logos/gateway-icon-only.svg"
-              alt="Nota MEI Gateway"
-              width={180}
+              lightSrc="/brand/notafacil-api.svg"
+              darkSrc="/brand/notafacil-api.svg"
+              iconLightSrc="/brand/notafacil-icon.svg"
+              iconDarkSrc="/brand/notafacil-icon.svg"
+              alt="NotaFácil API"
+              width={195}
               height={43}
               priority
-              className="w-[130px] sm:w-[160px] md:w-[180px] h-auto"
+              className="w-auto h-9 sm:h-10"
             />
           </Link>
 
@@ -64,7 +64,7 @@ export default function NavbarGateway() {
             <ThemeToggle />
             <Link
               href="/cadastro?produto=gateway"
-              className="bg-brand-cyan text-navy-900 text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition"
+              className="bg-persona-api text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-persona-api-dark transition-colors"
             >
               Criar conta de teste
             </Link>

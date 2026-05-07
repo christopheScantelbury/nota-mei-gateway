@@ -2,10 +2,44 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { Menu } from 'lucide-react'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 import LogoAdaptive from '@/components/ui/LogoAdaptive'
 import MobileMenu from '@/components/landing/MobileMenu'
+
+// ── Persona por pathname ─────────────────────────────────────────────────────
+// Cada página de produto tem sua variante de logo + cor de CTA. Páginas neutras
+// (home, /precos, /docs, /status, /cadastro, /login) usam a logo principal.
+type Persona = {
+  logoSrc: string
+  alt: string
+  width: number
+  ctaClass: string
+}
+
+const PERSONA_DEFAULT: Persona = {
+  logoSrc: '/brand/notafacil-logo.svg',
+  alt: 'NotaFácil',
+  width: 170,
+  ctaClass: 'bg-brand-blue text-white shadow-sm hover:bg-brand-blue-dark',
+}
+
+function getPersonaForPath(pathname: string): Persona {
+  if (pathname.startsWith('/mei')) {
+    return { logoSrc: '/brand/notafacil-mei.svg', alt: 'NotaFácil MEI', width: 200,
+             ctaClass: 'bg-persona-mei text-white shadow-sm hover:bg-persona-mei-dark' }
+  }
+  if (pathname.startsWith('/me')) {
+    return { logoSrc: '/brand/notafacil-empresa.svg', alt: 'NotaFácil Empresa', width: 240,
+             ctaClass: 'bg-persona-emp text-white shadow-sm hover:bg-persona-emp-dark' }
+  }
+  if (pathname.startsWith('/gateway')) {
+    return { logoSrc: '/brand/notafacil-api.svg', alt: 'NotaFácil API', width: 195,
+             ctaClass: 'bg-persona-api text-white shadow-sm hover:bg-persona-api-dark' }
+  }
+  return PERSONA_DEFAULT
+}
 
 const mobileLinks = [
   { label: 'MEI',           href: '/mei',     isAnchor: false },
@@ -19,6 +53,8 @@ const mobileLinks = [
 export default function Navbar() {
   const [scrolled,  setScrolled]  = useState(false)
   const [menuOpen,  setMenuOpen]  = useState(false)
+  const pathname = usePathname() ?? '/'
+  const persona = getPersonaForPath(pathname)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60)
@@ -45,18 +81,18 @@ export default function Navbar() {
         {/* h-14 mobile (56px) · h-16 desktop (64px) */}
         <div className="mx-auto max-w-7xl px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-4">
 
-          {/* Logo */}
-          <Link href="/" className="flex items-center shrink-0" aria-label="NotaFácil — página inicial">
+          {/* Logo — adapta-se ao contexto da página (MEI / Empresa / API / principal) */}
+          <Link href="/" className="flex items-center shrink-0" aria-label={`${persona.alt} — página inicial`}>
             <LogoAdaptive
-              lightSrc="/brand/notafacil-logo.svg"
-              darkSrc="/brand/notafacil-logo-dark.svg"
+              lightSrc={persona.logoSrc}
+              darkSrc={persona.logoSrc}
               iconLightSrc="/brand/notafacil-icon.svg"
               iconDarkSrc="/brand/notafacil-icon.svg"
-              alt="NotaFácil"
-              width={180}
+              alt={persona.alt}
+              width={persona.width}
               height={42}
               priority
-              className="w-[140px] sm:w-[155px] md:w-[170px] h-auto"
+              className="w-auto h-9 sm:h-10"
             />
           </Link>
 
@@ -79,7 +115,7 @@ export default function Navbar() {
             </Link>
             <Link
               href="/cadastro"
-              className="bg-brand-blue text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-brand-blue-dark transition-colors"
+              className={`text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${persona.ctaClass}`}
             >
               Cadastrar grátis
             </Link>

@@ -522,18 +522,11 @@ export default function GatewayLandingPage() {
             <div className="sm:col-span-1 flex flex-col gap-3">
               <Link href="/gateway" className="inline-flex items-center">
                 <Image
-                  src="/logos/gateway-logo-navbar-dark.svg"
-                  alt="Nota MEI Gateway"
-                  width={140}
+                  src="/brand/notafacil-api.svg"
+                  alt="NotaFácil API"
+                  width={195}
                   height={34}
-                  className="h-7 w-auto dark:block hidden"
-                />
-                <Image
-                  src="/logos/gateway-logo-navbar-light.svg"
-                  alt="Nota MEI Gateway"
-                  width={140}
-                  height={34}
-                  className="h-7 w-auto block dark:hidden"
+                  className="h-7 w-auto"
                 />
               </Link>
               <p className="text-text-2 text-xs leading-relaxed">
