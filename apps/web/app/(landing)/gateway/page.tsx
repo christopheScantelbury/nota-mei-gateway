@@ -101,12 +101,12 @@ export default function GatewayLandingPage() {
         <div className="mx-auto max-w-6xl flex flex-col lg:flex-row items-start gap-12">
           {/* Texto */}
           <div className="flex-1">
-            <span className="inline-block bg-navy-700 border border-navy-600 text-brand-cyan text-xs font-semibold px-3 py-1 rounded-full mb-6">
+            <span className="inline-block bg-navy-700 border border-navy-600 text-persona-api text-xs font-semibold px-3 py-1 rounded-full mb-6">
               Nota MEI Gateway — by ScantelburyDevs
             </span>
             <h1 className="font-display text-4xl md:text-5xl font-extrabold leading-tight mb-5">
               A API de NFS-e que{' '}
-              <span className="text-brand-cyan">seu produto precisa.</span>
+              <span className="text-persona-api">seu produto precisa.</span>
             </h1>
             <p className="text-text-2 text-xl mb-4 leading-relaxed">
               Integre emissão de nota fiscal de MEI ao seu SaaS, ERP ou marketplace
@@ -119,13 +119,13 @@ export default function GatewayLandingPage() {
             <div className="flex flex-col sm:flex-row gap-4">
               <Link
                 href="/docs"
-                className="bg-brand-cyan text-navy-900 font-semibold px-8 py-4 rounded-xl text-lg hover:opacity-90 transition text-center"
+                className="bg-persona-api text-white font-semibold px-8 py-4 rounded-xl text-lg hover:opacity-90 transition text-center"
               >
                 Ler a documentação
               </Link>
               <Link
                 href="/cadastro?produto=gateway"
-                className="border border-navy-600 text-text-1 font-semibold px-8 py-4 rounded-xl text-lg hover:border-brand-cyan transition text-center"
+                className="border border-navy-600 text-text-1 font-semibold px-8 py-4 rounded-xl text-lg hover:border-persona-api transition text-center"
               >
                 Criar conta de teste
               </Link>
@@ -185,7 +185,7 @@ export default function GatewayLandingPage() {
               },
             ].map(({ step, title, desc }) => (
               <div key={step} className="bg-navy-700 border border-navy-600 rounded-2xl p-6">
-                <span className="text-brand-cyan font-mono text-sm font-bold">{step}</span>
+                <span className="text-persona-api font-mono text-sm font-bold">{step}</span>
                 <h3 className="font-display text-xl font-bold mt-2 mb-3">{title}</h3>
                 <p className="text-text-2 text-sm leading-relaxed">{desc}</p>
               </div>
@@ -327,13 +327,13 @@ export default function GatewayLandingPage() {
                 {sdk.type === 'package' ? (
                   <>
                     <div className="bg-navy-900 rounded-lg px-3 py-2 overflow-x-auto">
-                      <code className="text-xs font-mono text-brand-cyan whitespace-nowrap">
+                      <code className="text-xs font-mono text-persona-api whitespace-nowrap">
                         {sdk.install}
                       </code>
                     </div>
                     <Link
                       href={sdk.docsHref}
-                      className="text-xs text-brand-cyan font-semibold hover:underline mt-auto"
+                      className="text-xs text-persona-api font-semibold hover:underline mt-auto"
                     >
                       Ver documentação →
                     </Link>
@@ -344,7 +344,7 @@ export default function GatewayLandingPage() {
                     <div className="flex-1" />
                   <Link
                     href={sdk.cadastroHref}
-                    className="text-center text-sm font-semibold py-2 rounded-lg border border-navy-600 text-text-1 hover:border-brand-cyan transition"
+                    className="text-center text-sm font-semibold py-2 rounded-lg border border-navy-600 text-text-1 hover:border-persona-api transition"
                   >
                     Acessar SDK →
                   </Link>
@@ -360,13 +360,13 @@ export default function GatewayLandingPage() {
             <div className="flex gap-3 justify-center flex-wrap">
               <Link
                 href="/cadastro?produto=gateway"
-                className="bg-brand-cyan text-navy-900 font-semibold px-6 py-2.5 rounded-lg text-sm hover:opacity-90 transition"
+                className="bg-persona-api text-white font-semibold px-6 py-2.5 rounded-lg text-sm hover:opacity-90 transition"
               >
                 Criar conta e acessar SDKs →
               </Link>
               <Link
                 href="/docs/sdks"
-                className="border border-navy-600 text-text-1 font-semibold px-6 py-2.5 rounded-lg text-sm hover:border-brand-cyan transition"
+                className="border border-navy-600 text-text-1 font-semibold px-6 py-2.5 rounded-lg text-sm hover:border-persona-api transition"
               >
                 Ver documentação completa
               </Link>
@@ -401,7 +401,7 @@ export default function GatewayLandingPage() {
                   <th className="py-4 px-5 text-center text-text-2 font-semibold text-xs uppercase tracking-wider whitespace-nowrap">
                     APIs genéricas
                   </th>
-                  <th className="py-4 px-5 text-center text-brand-cyan font-bold text-xs uppercase tracking-wider whitespace-nowrap">
+                  <th className="py-4 px-5 text-center text-persona-api font-bold text-xs uppercase tracking-wider whitespace-nowrap">
                     Nota MEI Gateway
                   </th>
                 </tr>
@@ -473,7 +473,7 @@ export default function GatewayLandingPage() {
               <details key={q} className="bg-navy-700 border border-navy-600 rounded-xl p-5 group">
                 <summary className="font-semibold cursor-pointer list-none flex justify-between items-center gap-4">
                   <span>{q}</span>
-                  <span className="text-brand-cyan text-lg shrink-0 group-open:rotate-45 transition-transform">+</span>
+                  <span className="text-persona-api text-lg shrink-0 group-open:rotate-45 transition-transform">+</span>
                 </summary>
                 <p className="text-text-2 text-sm leading-relaxed mt-3">{a}</p>
               </details>
@@ -494,13 +494,13 @@ export default function GatewayLandingPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/docs"
-              className="bg-brand-cyan text-navy-900 font-semibold px-10 py-4 rounded-xl text-lg hover:opacity-90 transition"
+              className="bg-persona-api text-white font-semibold px-10 py-4 rounded-xl text-lg hover:opacity-90 transition"
             >
               Ler a documentação
             </Link>
             <Link
               href="/cadastro?produto=gateway"
-              className="border border-navy-600 text-text-1 font-semibold px-10 py-4 rounded-xl text-lg hover:border-brand-cyan transition"
+              className="border border-navy-600 text-text-1 font-semibold px-10 py-4 rounded-xl text-lg hover:border-persona-api transition"
             >
               Testar no sandbox
             </Link>

@@ -39,7 +39,7 @@ const faqs = [
     a: (
       <>
         É uma assinatura eletrônica obrigatória para emitir notas fiscais. Você pode adquirir em certificadoras credenciadas (Certisign, Serasa, etc.) por cerca de R$ 100–200/ano — ou gratuitamente na Receita Federal para e-CPF.{' '}
-        <Link href="/certificado-a1" className="text-brand-cyan hover:underline">
+        <Link href="/certificado-a1" className="text-persona-mei hover:underline">
           Veja o guia completo →
         </Link>
       </>
@@ -73,12 +73,12 @@ export default function MeiLandingPage() {
         <div className="mx-auto max-w-6xl flex flex-col lg:flex-row items-center gap-12">
           {/* Texto */}
           <div className="flex-1 text-center lg:text-left">
-            <span className="inline-block bg-navy-700 border border-navy-600 text-brand-cyan text-xs font-semibold px-3 py-1 rounded-full mb-6">
+            <span className="inline-block bg-navy-700 border border-navy-600 text-persona-mei text-xs font-semibold px-3 py-1 rounded-full mb-6">
               Nota Fácil MEI — by ScantelburyDevs
             </span>
             <h1 className="font-display text-4xl md:text-5xl font-extrabold leading-tight mb-5">
               Sua nota fiscal de MEI{' '}
-              <span className="text-brand-cyan">emitida em 30 segundos.</span>{' '}
+              <span className="text-persona-mei">emitida em 30 segundos.</span>{' '}
               Pelo celular.
             </h1>
             <p className="text-text-2 text-lg mb-8 leading-relaxed">
@@ -88,13 +88,13 @@ export default function MeiLandingPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <Link
                 href="/cadastro?produto=mei"
-                className="bg-brand-cyan text-navy-900 font-semibold px-8 py-4 rounded-xl text-lg hover:opacity-90 transition text-center"
+                className="bg-persona-mei text-white font-semibold px-8 py-4 rounded-xl text-lg hover:opacity-90 transition text-center"
               >
                 Emitir minha primeira nota grátis
               </Link>
               <a
                 href="#como-funciona"
-                className="border border-navy-600 text-text-1 font-semibold px-8 py-4 rounded-xl text-lg hover:border-brand-cyan transition text-center"
+                className="border border-navy-600 text-text-1 font-semibold px-8 py-4 rounded-xl text-lg hover:border-persona-mei transition text-center"
               >
                 Ver como funciona (1 min)
               </a>
@@ -112,7 +112,7 @@ export default function MeiLandingPage() {
                 Prévia do app
               </span>
               <div className="w-16 h-1.5 bg-navy-600 rounded-full mx-auto mb-5" />
-              <p className="text-brand-cyan text-xs font-semibold mb-4 text-center uppercase tracking-widest">
+              <p className="text-persona-mei text-xs font-semibold mb-4 text-center uppercase tracking-widest">
                 Nova Nota Fiscal
               </p>
               <div className="flex flex-col gap-3">
@@ -131,7 +131,7 @@ export default function MeiLandingPage() {
               </div>
               <Link
                 href="/cadastro?produto=mei"
-                className="mt-5 block w-full bg-brand-cyan text-navy-900 text-sm font-bold py-3 rounded-xl text-center hover:opacity-90 transition"
+                className="mt-5 block w-full bg-persona-mei text-white text-sm font-bold py-3 rounded-xl text-center hover:opacity-90 transition"
               >
                 Emitir nota →
               </Link>
@@ -173,7 +173,7 @@ export default function MeiLandingPage() {
             ].map(({ step, emoji, title, desc }) => (
               <div key={step} className="bg-navy-700 border border-navy-600 rounded-2xl p-6 text-center">
                 <span className="text-4xl">{emoji}</span>
-                <span className="block text-brand-cyan font-mono text-xs font-bold mt-3 mb-1">{step}</span>
+                <span className="block text-persona-mei font-mono text-xs font-bold mt-3 mb-1">{step}</span>
                 <h3 className="font-display text-lg font-bold mb-3">{title}</h3>
                 <p className="text-text-2 text-sm leading-relaxed">{desc}</p>
               </div>
@@ -264,7 +264,7 @@ export default function MeiLandingPage() {
               <details key={q} className="bg-navy-700 border border-navy-600 rounded-xl p-5 group">
                 <summary className="font-semibold cursor-pointer list-none flex justify-between items-center gap-4">
                   <span>{q}</span>
-                  <span className="text-brand-cyan text-lg shrink-0 group-open:rotate-45 transition-transform">+</span>
+                  <span className="text-persona-mei text-lg shrink-0 group-open:rotate-45 transition-transform">+</span>
                 </summary>
                 <p className="text-text-2 text-sm leading-relaxed mt-3">{a}</p>
               </details>
@@ -284,7 +284,7 @@ export default function MeiLandingPage() {
           </p>
           <Link
             href="/cadastro?produto=mei"
-            className="bg-brand-cyan text-navy-900 font-semibold px-10 py-4 rounded-xl text-lg hover:opacity-90 transition"
+            className="bg-persona-mei text-white font-semibold px-10 py-4 rounded-xl text-lg hover:opacity-90 transition"
           >
             Começar grátis — trial de 30 dias
           </Link>
@@ -293,13 +293,13 @@ export default function MeiLandingPage() {
               href="https://wa.me/5547997352380"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 border border-navy-600 text-text-2 text-sm font-medium px-5 py-2.5 rounded-lg hover:border-brand-cyan hover:text-text-1 transition"
+              className="flex items-center justify-center gap-2 border border-navy-600 text-text-2 text-sm font-medium px-5 py-2.5 rounded-lg hover:border-persona-mei hover:text-text-1 transition"
             >
               <span>💬</span> WhatsApp (47) 99735-2380
             </a>
             <a
               href="mailto:suporte@emitirnotafacil.com.br"
-              className="flex items-center justify-center gap-2 border border-navy-600 text-text-2 text-sm font-medium px-5 py-2.5 rounded-lg hover:border-brand-cyan hover:text-text-1 transition"
+              className="flex items-center justify-center gap-2 border border-navy-600 text-text-2 text-sm font-medium px-5 py-2.5 rounded-lg hover:border-persona-mei hover:text-text-1 transition"
             >
               <span>✉️</span> suporte@emitirnotafacil.com.br
             </a>
