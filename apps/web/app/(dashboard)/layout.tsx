@@ -102,6 +102,16 @@ export default async function DashboardLayout({
           razaoSocial={empresaAtiva.razao_social}
           isAdmin={isAdmin}
           empresaTipo={empresaAtiva.tipo}
+          empresaAtiva={{
+            id: empresaAtiva.id,
+            tipo: empresaAtiva.tipo,
+            razao_social: empresaAtiva.razao_social,
+          }}
+          todasEmpresas={(empresas as EmpresaRow[]).map((e) => ({
+            id: e.id,
+            tipo: e.tipo,
+            razao_social: e.razao_social,
+          }))}
           notificationBell={<NotificationBell />}
         />
         <main

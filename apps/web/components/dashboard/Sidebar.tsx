@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import ThemeToggle from '@/components/ui/ThemeToggle'
+import { EmpresaSwitcher } from '@/components/dashboard/EmpresaSwitcher'
 
 // ── Nav item definitions ────────────────────────────────────────────────────
 
@@ -82,11 +83,15 @@ function SidebarLogo({
 
 // ── Nav content (shared between desktop sidebar and mobile drawer) ───────────
 
+type SwitcherEmpresa = { id: string; tipo: string; razao_social: string }
+
 function NavContent({
   razaoSocial,
   isAdmin,
   tipoUsuario,
   empresaTipo,
+  empresaAtiva,
+  todasEmpresas,
   onNavClick,
   notificationBell,
 }: {
@@ -94,6 +99,8 @@ function NavContent({
   isAdmin: boolean
   tipoUsuario?: 'mei' | 'gateway'
   empresaTipo?: EmpresaTipo
+  empresaAtiva?: SwitcherEmpresa
+  todasEmpresas?: SwitcherEmpresa[]
   onNavClick?: () => void
   notificationBell?: React.ReactNode
 }) {
@@ -110,8 +117,14 @@ function NavContent({
       {/* Logo */}
       <SidebarLogo tipoUsuario={tipoUsuario} empresaTipo={empresaTipo} onClick={onNavClick} />
 
-      {/* Razão social */}
-      <p className="px-5 pt-3 pb-1 text-xs text-text-2 truncate">{razaoSocial}</p>
+      {/* Empresa: switcher se múltiplas, texto estático se única */}
+      <div className="px-5 pt-3 pb-1">
+        {empresaAtiva && todasEmpresas && todasEmpresas.length > 1 ? (
+          <EmpresaSwitcher empresaAtiva={empresaAtiva} todasEmpresas={todasEmpresas} />
+        ) : (
+          <p className="text-xs text-text-2 truncate">{razaoSocial}</p>
+        )}
+      </div>
 
       {/* Nav principal */}
       <nav className="flex-1 py-3 px-3 space-y-1" aria-label="Menu principal">
@@ -187,12 +200,16 @@ export default function Sidebar({
   isAdmin = false,
   tipoUsuario = 'gateway',
   empresaTipo,
+  empresaAtiva,
+  todasEmpresas,
   notificationBell,
 }: {
   razaoSocial: string
   isAdmin?: boolean
   tipoUsuario?: 'mei' | 'gateway'
   empresaTipo?: EmpresaTipo
+  empresaAtiva?: SwitcherEmpresa
+  todasEmpresas?: SwitcherEmpresa[]
   notificationBell?: React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
@@ -205,7 +222,7 @@ export default function Sidebar({
     return () => { document.body.style.overflow = '' }
   }, [open])
 
-  const navProps = { razaoSocial, isAdmin, tipoUsuario, empresaTipo, notificationBell }
+  const navProps = { razaoSocial, isAdmin, tipoUsuario, empresaTipo, empresaAtiva, todasEmpresas, notificationBell }
 
   return (
     <>
