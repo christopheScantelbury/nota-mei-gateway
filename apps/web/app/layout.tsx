@@ -1,5 +1,5 @@
 ﻿import type { Metadata, Viewport } from 'next'
-import { Outfit, Inter, DM_Mono } from 'next/font/google'
+import { Outfit, Inter, DM_Sans, DM_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { ThemeProvider } from 'next-themes'
 import './globals.css'
@@ -16,6 +16,14 @@ const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
   display: 'swap',
+})
+
+// DM Sans — nova tipografia oficial (brand-kit v2.0)
+const dmSans = DM_Sans({
+  subsets: ['latin'],
+  variable: '--font-dm-sans',
+  display: 'swap',
+  weight: ['300', '400', '500', '600', '700'],
 })
 
 const dmMono = DM_Mono({
@@ -91,7 +99,7 @@ export const viewport: Viewport = {
   // themeColor adapts per scheme — browsers use the matching entry
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#F8FAFC' },
-    { media: '(prefers-color-scheme: dark)',  color: '#0A0F1E' },
+    { media: '(prefers-color-scheme: dark)',  color: '#0F172A' },
   ],
 }
 
@@ -103,7 +111,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       // suppressHydrationWarning evita mismatch entre SSR (sem classe) e
       // client (next-themes adiciona "light" ou "dark" antes de pintar)
       suppressHydrationWarning
-      className={`${outfit.variable} ${inter.variable} ${dmMono.variable}`}
+      className={`${outfit.variable} ${inter.variable} ${dmSans.variable} ${dmMono.variable}`}
     >
       <body className="font-body antialiased">
         <ThemeProvider

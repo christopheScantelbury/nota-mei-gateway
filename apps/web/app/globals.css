@@ -2,57 +2,110 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Design tokens — RGB channels para suporte a Tailwind opacity modifiers ──
-   Exemplo: bg-navy-700/50 → rgb(var(--navy-700) / 0.5)
-   ThemeProvider (next-themes) adiciona class="dark" em <html> para dark mode. */
+/* ── NotaFácil Design Tokens (v2.0 — brand-kit-completo)
+   RGB channels enable Tailwind opacity modifiers:
+     bg-navy-700/50 → rgb(var(--navy-700) / 0.5)
+   Light theme is default; ThemeProvider adds class="dark" on <html>. */
 
 :root {
-  /* Light theme (padrão) */
+  /* ─────────── Surfaces (Light) ─────────── */
+  --navy-900: 248 250 252;       /* slate-50  · page background      */
+  --navy-700: 255 255 255;       /* white     · card surface         */
+  --navy-600: 226 232 240;       /* slate-200 · border               */
+  --navy-500: 203 213 225;       /* slate-300 · stronger border      */
+  --navy-50:  241 245 249;       /* slate-100 · subtle bg / hover    */
 
-  /* Superfícies */
-  --navy-900: 248 250 252;    /* #F8FAFC — page background */
-  --navy-700: 255 255 255;    /* #FFFFFF — card */
-  --navy-600: 226 232 240;    /* #E2E8F0 — border */
+  /* ─────────── Text ─────────── */
+  --text-1: 15 23 42;            /* slate-900 · primary  */
+  --text-2: 100 116 139;         /* slate-500 · secondary */
+  --text-3: 148 163 184;         /* slate-400 · tertiary  */
 
-  /* Texto */
-  --text-1: 15 23 42;         /* #0F172A — primary */
-  --text-2: 100 116 139;      /* #64748B — secondary */
+  /* ─────────── Brand Blue (primary) ─────────── */
+  --brand-cyan:  59 130 246;     /* #3B82F6 — kept token name for backwards compat */
+  --brand-blue:  59 130 246;     /* #3B82F6 — primary CTAs, links     */
+  --brand-blue-dark: 29 78 216;  /* #1D4ED8 — hover                   */
+  --brand-blue-50:   239 246 255;/* #EFF6FF — bg sutil                */
+  --brand-blue-100:  219 234 254;/* #DBEAFE — bg / hover badge        */
+  --brand-blue-200:  191 219 254;/* #BFDBFE — bordas claras           */
 
-  /* Brand — versão escura para contraste sobre fundo claro (AA ≥ 4.5:1) */
-  --brand-cyan: 0 118 163;    /* #0076A3 — teal escuro */
+  /* ─────────── Persona MEI · Teal ─────────── */
+  --persona-mei:        20 184 166;   /* #14B8A6 */
+  --persona-mei-dark:   15 118 110;   /* #0F766E */
+  --persona-mei-50:     240 253 250;  /* #F0FDFA */
+  --persona-mei-100:    204 251 241;  /* #CCFBF1 */
+  --persona-mei-200:    153 246 228;  /* #99F6E4 */
 
-  /* Status de nota — tons escuros para contraste WCAG AA sobre fundo claro */
-  --nota-autorizada:  22 101 52;    /* #166534 */
-  --nota-processando: 146 64 14;    /* #92400E */
-  --nota-rejeitada:   153 27 27;    /* #991B1B */
-  --nota-cancelada:   71 85 105;    /* #475569 */
-  --nota-upgrade:     109 40 217;   /* #6D28D9 */
+  /* ─────────── Persona Empresa · Coral ─────────── */
+  --persona-emp:        249 115 22;   /* #F97316 */
+  --persona-emp-dark:   194 65 12;    /* #C2410C */
+  --persona-emp-50:     255 247 237;  /* #FFF7ED */
+  --persona-emp-100:    255 237 213;  /* #FFEDD5 */
+  --persona-emp-200:    254 215 170;  /* #FED7AA */
+
+  /* ─────────── Persona API · Purple ─────────── */
+  --persona-api:        139 92 246;   /* #8B5CF6 */
+  --persona-api-dark:   109 40 217;   /* #6D28D9 */
+  --persona-api-50:     245 243 255;  /* #F5F3FF */
+  --persona-api-100:    237 233 254;  /* #EDE9FE */
+  --persona-api-200:    221 214 254;  /* #DDD6FE */
+
+  /* ─────────── Status semântico (notas fiscais) ─────────── */
+  --nota-autorizada:  22 163 74;     /* #16A34A success */
+  --nota-processando: 217 119 6;     /* #D97706 warning */
+  --nota-rejeitada:   220 38 38;     /* #DC2626 danger  */
+  --nota-cancelada:   100 116 139;   /* #64748B neutral */
+  --nota-upgrade:     139 92 246;    /* #8B5CF6 purple  */
 }
 
 .dark {
-  /* Dark theme */
+  /* Dark theme retains the same TOKEN NAMES so all components work
+     unchanged. Values are tuned to match the brand-kit aesthetic on dark. */
 
-  --navy-900: 10 15 30;       /* #0A0F1E */
-  --navy-700: 20 32 53;       /* #142035 */
-  --navy-600: 30 48 80;       /* #1E3050 */
+  --navy-900: 15 23 42;          /* slate-900 */
+  --navy-700: 30 41 59;          /* slate-800 */
+  --navy-600: 51 65 85;          /* slate-700 */
+  --navy-500: 71 85 105;         /* slate-600 */
+  --navy-50:  30 41 59;          /* slate-800 */
 
-  --text-1: 238 244 255;      /* #EEF4FF */
-  --text-2: 138 160 184;      /* #8AA0B8 */
+  --text-1: 248 250 252;         /* slate-50  */
+  --text-2: 148 163 184;         /* slate-400 */
+  --text-3: 100 116 139;         /* slate-500 */
 
-  --brand-cyan: 0 232 255;    /* #00E8FF */
+  --brand-cyan:      96 165 250; /* blue-400  — better contrast on dark */
+  --brand-blue:      96 165 250;
+  --brand-blue-dark: 59 130 246;
+  --brand-blue-50:   30 58 138;  /* blue-900 — used as bg accent     */
+  --brand-blue-100:  30 64 175;  /* blue-800 */
+  --brand-blue-200:  37 99 235;  /* blue-600 */
 
-  --nota-autorizada:  0 200 90;     /* #00C85A */
-  --nota-processando: 240 180 20;   /* #F0B414 */
-  --nota-rejeitada:   255 50 50;    /* #FF3232 */
-  --nota-cancelada:   100 115 160;  /* #6473A0 */
-  --nota-upgrade:     124 111 255;  /* #7C6FFF */
+  --persona-mei:      45 212 191;  /* teal-400 */
+  --persona-mei-dark: 20 184 166;  /* teal-500 */
+  --persona-mei-50:   19 78 74;    /* teal-900 — bg darker            */
+  --persona-mei-100:  17 94 89;    /* teal-800 */
+  --persona-mei-200:  15 118 110;  /* teal-700 */
+
+  --persona-emp:      251 146 60;  /* orange-400 */
+  --persona-emp-dark: 249 115 22;  /* orange-500 */
+  --persona-emp-50:   124 45 18;   /* orange-900 */
+  --persona-emp-100:  154 52 18;   /* orange-800 */
+  --persona-emp-200:  194 65 12;   /* orange-700 */
+
+  --persona-api:      167 139 250; /* violet-400 */
+  --persona-api-dark: 139 92 246;  /* violet-500 */
+  --persona-api-50:   46 16 101;   /* violet-900 */
+  --persona-api-100:  76 29 149;   /* violet-800 */
+  --persona-api-200:  91 33 182;   /* violet-700 */
+
+  --nota-autorizada:  74 222 128;
+  --nota-processando: 251 191 36;
+  --nota-rejeitada:   248 113 113;
+  --nota-cancelada:   148 163 184;
+  --nota-upgrade:     167 139 250;
 }
 
 /* ── Base ─────────────────────────────────────────────────────────────────── */
 @layer base {
-  *, *::before, *::after {
-    @apply box-border;
-  }
+  *, *::before, *::after { @apply box-border; }
 
   html {
     @apply scroll-smooth;
@@ -65,7 +118,7 @@
   body {
     background-color: rgb(var(--navy-900));
     color: rgb(var(--text-1));
-    font-family: var(--font-inter, 'Inter', sans-serif);
+    font-family: var(--font-inter, 'Inter', system-ui, sans-serif);
     transition: background-color 0.2s ease, color 0.2s ease;
   }
 
@@ -76,7 +129,7 @@
     background: rgb(var(--navy-600));
     border-radius: 3px;
   }
-  ::-webkit-scrollbar-thumb:hover { background: rgb(var(--navy-600) / 0.8); }
+  ::-webkit-scrollbar-thumb:hover { background: rgb(var(--navy-500)); }
 }
 
 /* ── Animations ───────────────────────────────────────────────────────────── */
@@ -84,26 +137,19 @@
   from { opacity: 0; transform: translateY(24px); }
   to   { opacity: 1; transform: translateY(0);    }
 }
-
-.animate-fade-up {
-  animation: fadeUpIn 0.55s ease-out both;
-}
-
-/* Respect reduced-motion preference */
-@media (prefers-reduced-motion: reduce) {
-  .animate-fade-up { animation: none; }
-}
+.animate-fade-up { animation: fadeUpIn 0.55s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .animate-fade-up { animation: none; } }
 
 /* ── Utilities ────────────────────────────────────────────────────────────── */
 @layer utilities {
   .text-gradient-brand {
-    background: linear-gradient(135deg, rgb(var(--brand-cyan)) 0%, rgb(var(--nota-upgrade)) 100%);
+    background: linear-gradient(135deg, rgb(var(--brand-blue)) 0%, rgb(var(--persona-api)) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
-  /* Grid de fundo — adapta cor por tema */
+  /* Grid sutil de fundo — usado em hero */
   .bg-grid {
     background-image:
       linear-gradient(rgb(var(--navy-600) / 0.4) 1px, transparent 1px),
@@ -111,11 +157,9 @@
     background-size: 40px 40px;
   }
 
-  .glow-cyan {
-    box-shadow: 0 0 20px rgb(var(--brand-cyan) / 0.15);
-  }
+  .glow-cyan { box-shadow: 0 0 20px rgb(var(--brand-blue) / 0.15); }
+  .glow-blue { box-shadow: 0 0 20px rgb(var(--brand-blue) / 0.15); }
 
-  /* Transição suave ao trocar tema — evita flash nos elementos com shadow/border */
   .theme-transition {
     transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
   }

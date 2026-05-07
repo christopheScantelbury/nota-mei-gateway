@@ -46,17 +46,17 @@ export default function Navbar() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-4">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center shrink-0">
+          <Link href="/" className="flex items-center shrink-0" aria-label="NotaFácil — página inicial">
             <LogoAdaptive
-              lightSrc="/logos/nfm-logo-navbar-light.svg"
-              darkSrc="/logos/nfm-logo-navbar-dark-clean.svg"
-              iconLightSrc="/logos/nfm-icon-only.svg"
-              iconDarkSrc="/logos/nfm-icon-only.svg"
-              alt="Nota Fácil MEI"
-              width={160}
-              height={44}
+              lightSrc="/brand/notafacil-logo.svg"
+              darkSrc="/brand/notafacil-logo-dark.svg"
+              iconLightSrc="/brand/notafacil-icon.svg"
+              iconDarkSrc="/brand/notafacil-icon.svg"
+              alt="NotaFácil"
+              width={180}
+              height={42}
               priority
-              className="w-[120px] sm:w-[140px] md:w-[155px] h-auto"
+              className="w-[140px] sm:w-[155px] md:w-[170px] h-auto"
             />
           </Link>
 
@@ -79,7 +79,7 @@ export default function Navbar() {
             </Link>
             <Link
               href="/cadastro"
-              className="bg-brand-cyan text-navy-900 text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition"
+              className="bg-brand-blue text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm hover:bg-brand-blue-dark transition-colors"
             >
               Cadastrar grátis
             </Link>

@@ -39,6 +39,8 @@ const ADMIN_ITEM = { href: '/admin', label: 'Painel Admin', icon: '🛡️' }
 
 // ── Logo by product ─────────────────────────────────────────────────────────
 
+// Logo por persona — MEI usa variante teal, ME/EPP usa variante coral.
+// Cada persona tem versão light + dark.
 function SidebarLogo({
   tipoUsuario,
   empresaTipo,
@@ -49,49 +51,30 @@ function SidebarLogo({
   onClick?: () => void
 }) {
   const isMei = empresaTipo === 'MEI' || tipoUsuario === 'mei'
+  const lightSrc = isMei ? '/brand/notafacil-mei.svg' : '/brand/notafacil-empresa.svg'
+  const darkSrc  = isMei ? '/brand/notafacil-mei.svg' : '/brand/notafacil-empresa.svg'
+  const alt      = isMei ? 'NotaFácil MEI' : 'NotaFácil Empresa'
+  const width    = isMei ? 170 : 200
 
   return (
     <div className="px-5 py-5 border-b border-navy-600">
       <Link href="/home" className="block" onClick={onClick}>
-        {isMei ? (
-          <>
-            <Image
-              src="/logos/nfm-logo-navbar-dark-clean.svg"
-              alt="Nota Fácil MEI"
-              width={140}
-              height={32}
-              className="hidden dark:block h-8 w-auto"
-              priority
-            />
-            <Image
-              src="/logos/nfm-logo-navbar-light.svg"
-              alt="Nota Fácil MEI"
-              width={140}
-              height={32}
-              className="block dark:hidden h-8 w-auto"
-              priority
-            />
-          </>
-        ) : (
-          <>
-            <Image
-              src="/logos/gateway-logo-navbar-dark.svg"
-              alt="Nota MEI Gateway"
-              width={148}
-              height={32}
-              className="hidden dark:block h-8 w-auto"
-              priority
-            />
-            <Image
-              src="/logos/gateway-logo-navbar-light.svg"
-              alt="Nota MEI Gateway"
-              width={148}
-              height={32}
-              className="block dark:hidden h-8 w-auto"
-              priority
-            />
-          </>
-        )}
+        <Image
+          src={lightSrc}
+          alt={alt}
+          width={width}
+          height={32}
+          className="block dark:hidden h-8 w-auto"
+          priority
+        />
+        <Image
+          src={darkSrc}
+          alt={alt}
+          width={width}
+          height={32}
+          className="hidden dark:block h-8 w-auto"
+          priority
+        />
       </Link>
     </div>
   )
@@ -234,45 +217,15 @@ export default function Sidebar({
       {/* ── Mobile top bar ── */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between h-14 px-4 bg-navy-700 border-b border-navy-600">
         <Link href="/home" className="flex items-center">
-          {(empresaTipo === 'MEI' || tipoUsuario === 'mei') ? (
-            <>
-              <Image
-                src="/logos/nfm-logo-navbar-dark-clean.svg"
-                alt="Nota Fácil MEI"
-                width={120}
-                height={28}
-                className="hidden dark:block h-7 w-auto"
-                priority
-              />
-              <Image
-                src="/logos/nfm-logo-navbar-light.svg"
-                alt="Nota Fácil MEI"
-                width={120}
-                height={28}
-                className="block dark:hidden h-7 w-auto"
-                priority
-              />
-            </>
-          ) : (
-            <>
-              <Image
-                src="/logos/gateway-logo-navbar-dark.svg"
-                alt="Nota MEI Gateway"
-                width={128}
-                height={28}
-                className="hidden dark:block h-7 w-auto"
-                priority
-              />
-              <Image
-                src="/logos/gateway-logo-navbar-light.svg"
-                alt="Nota MEI Gateway"
-                width={128}
-                height={28}
-                className="block dark:hidden h-7 w-auto"
-                priority
-              />
-            </>
-          )}
+          {(() => {
+            const isMei = empresaTipo === 'MEI' || tipoUsuario === 'mei'
+            const src   = isMei ? '/brand/notafacil-mei.svg' : '/brand/notafacil-empresa.svg'
+            const alt   = isMei ? 'NotaFácil MEI' : 'NotaFácil Empresa'
+            const width = isMei ? 145 : 175
+            return (
+              <Image src={src} alt={alt} width={width} height={28} className="h-7 w-auto" priority />
+            )
+          })()}
         </Link>
         <button
           onClick={() => setOpen(true)}
