@@ -385,7 +385,7 @@ function CadastroPageInner() {
             <Input
               label="Razão Social"
               type="text"
-              placeholder="Nome Empresa ME"
+              placeholder="Nome do MEI ou empresa"
               value={form.razaoSocial}
               onChange={(e) => setField('razaoSocial', e.target.value)}
               error={fieldErrors.razaoSocial}

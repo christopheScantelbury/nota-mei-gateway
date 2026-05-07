@@ -54,7 +54,7 @@ export function UrgencyBannerME() {
         )}
         {' · '}
         <a
-          href="/me/cadastro"
+          href="/cadastro/me"
           className="underline underline-offset-2 hover:no-underline"
         >
           Cadastre sua ME gratuitamente

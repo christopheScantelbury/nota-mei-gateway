@@ -22,7 +22,7 @@ export function MEHero() {
 
       <div className="flex flex-col sm:flex-row gap-4 justify-center">
         <a
-          href="/me/cadastro"
+          href="/cadastro/me"
           className="rounded-xl bg-brand-cyan px-8 py-4 text-navy-900 font-semibold
                      text-base hover:opacity-90 transition-opacity"
         >

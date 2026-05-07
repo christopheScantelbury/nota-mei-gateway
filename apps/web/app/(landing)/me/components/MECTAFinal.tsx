@@ -10,7 +10,7 @@ export function MECTAFinal() {
           Sem cartão de crédito. Cancele quando quiser.
         </p>
         <a
-          href="/me/cadastro"
+          href="/cadastro/me"
           className="inline-block rounded-xl bg-brand-cyan px-10 py-4 text-navy-900
                      font-semibold text-lg hover:opacity-90 transition-opacity"
         >

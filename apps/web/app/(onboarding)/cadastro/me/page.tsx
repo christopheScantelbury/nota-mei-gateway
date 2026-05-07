@@ -416,7 +416,7 @@ export default function CadastroMEPage() {
             {/* CNAE */}
             <Field
               label="CNAE Principal"
-              hint="Código Nacional de Atividades Econômicas (7 dígitos)"
+              hint="Código Nacional de Atividades Econômicas — ex: 6201-5/01"
               error={errors.cnae}
             >
               <input

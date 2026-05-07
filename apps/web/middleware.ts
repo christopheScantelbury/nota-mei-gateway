@@ -69,7 +69,9 @@ export async function middleware(request: NextRequest) {
   if (isProtected && !user) {
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'
-    loginUrl.searchParams.set('next', pathname)
+    loginUrl.search = ''
+    const nextPath = pathname + (request.nextUrl.search || '')
+    loginUrl.searchParams.set('next', nextPath)
     return NextResponse.redirect(loginUrl)
   }
 
@@ -77,9 +79,12 @@ export async function middleware(request: NextRequest) {
   const isAuthRoute = AUTH_ROUTES.some((p) => pathname.startsWith(p))
   if (isAuthRoute && user) {
     const nextParam = request.nextUrl.searchParams.get('next')
-    const pathTarget = nextParam && nextParam.startsWith('/') ? nextParam : '/notas'
+    if (nextParam && nextParam.startsWith('/')) {
+      const dest = new URL(nextParam, request.nextUrl.origin)
+      return NextResponse.redirect(dest)
+    }
     const dest = request.nextUrl.clone()
-    dest.pathname = pathTarget
+    dest.pathname = '/notas'
     dest.search = ''
     return NextResponse.redirect(dest)
   }
