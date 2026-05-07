@@ -227,9 +227,14 @@ func main() {
 	})
 
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "https://emitirnotafacil.com.br,https://www.emitirnotafacil.com.br,https://nota-mei-gateway-web.vercel.app",
-		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
-		AllowHeaders: "Origin,Content-Type,Accept,Authorization,X-Request-ID,X-Idempotency-Key",
+		// Origins exatos (Vercel prod + custom domains). Quando AllowCredentials
+		// é true, AllowOrigins NÃO pode ser "*" — precisa listar cada origem.
+		AllowOrigins:     "https://emitirnotafacil.com.br,https://www.emitirnotafacil.com.br,https://nota-mei-gateway-web.vercel.app",
+		AllowMethods:     "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+		AllowHeaders:     "Origin,Content-Type,Accept,Authorization,X-Request-ID,X-Idempotency-Key",
+		ExposeHeaders:    "X-Request-ID,X-RateLimit-Remaining,X-RateLimit-Limit",
+		AllowCredentials: true,
+		MaxAge:           300,
 	}))
 	app.Use(middleware.PanicRecovery())
 	app.Use(middleware.RequestLogger())

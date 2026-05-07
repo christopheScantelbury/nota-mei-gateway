@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/browser'
 
 type Empresa = { id: string; tipo: string; razao_social: string; cnpj: string }
 
@@ -70,10 +71,17 @@ export default function MigrarMEClient({ empresa }: { empresa: Empresa }) {
     setError(null)
 
     try {
+      // Endpoint requires Supabase JWT em Authorization. Buscamos a sessão atual.
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('Sessão expirada — faça login novamente')
+
       const res = await fetch(`${API_BASE}/v1/auth/migrar`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        headers: {
+          'Content-Type':  'application/json',
+          Authorization:   `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({
           empresa_id:          empresa.id,
           para_tipo:           'ME',
