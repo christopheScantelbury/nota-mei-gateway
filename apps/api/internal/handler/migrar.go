@@ -108,7 +108,7 @@ func (h *MigrarHandler) MigrarMEI(c *fiber.Ctx) error {
 
 	_, err = tx.Exec(c.Context(),
 		`INSERT INTO empresa_migracoes (empresa_id, de_tipo, para_tipo, status)
-		 VALUES ($1, 'MEI', 'ME', 'CONCLUIDO')`,
+		 VALUES ($1, 'MEI', 'ME', 'CONCLUIDA')`,
 		empresaID,
 	)
 	if err != nil {
