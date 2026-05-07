@@ -358,7 +358,25 @@ func main() {
 		app.Post("/v1/sandbox/seed", seedH.Seed)
 	}
 
-	// ── Authenticated endpoints ────────────────────────────────────────────
+	// ── JWT-authenticated endpoints (Supabase session — humans/dashboard) ──
+	// IMPORTANTE: Estes precisam ser registrados ANTES do v1 group com authMw,
+	// porque app.Group("/v1", authMw) em Fiber intercepta TODAS as rotas /v1/*,
+	// incluindo as registradas depois com middlewares diferentes. Sem essa
+	// ordem, /v1/auth/api-keys e /v1/auth/migrar caem no auth.Middleware
+	// (API key) em vez do jwtMw.
+	apiKeyH := auth.NewAPIKeyHandler(authRepo)
+	jwtMw := auth.JWTMiddleware(cfg.SupabaseURL, cfg.SupabaseServiceKey)
+	apiKeys := app.Group("/v1/auth/api-keys", jwtMw)
+	apiKeys.Get("/", apiKeyH.ListKeys)
+	apiKeys.Post("/", apiKeyH.CreateKey)
+	apiKeys.Delete("/:id", apiKeyH.RevokeKey)
+
+	// MEI → ME migration — authenticated via Supabase JWT (dashboard action)
+	auditor := audit.New(db.Pool())
+	migrarH := handler.NewMigrarHandler(db.Pool(), auditor)
+	app.Post("/v1/auth/migrar", jwtMw, migrarH.MigrarMEI)
+
+	// ── API-key authenticated endpoints (machine-to-machine) ───────────────
 	authMw := auth.Middleware(authRepo)
 
 	var rlMw fiber.Handler
@@ -380,19 +398,6 @@ func main() {
 
 	// Auth (authenticated — certificate renewal)
 	v1.Post("/auth/certificate", certH.Renew)
-
-	// API Key CRUD — authenticated via Supabase JWT (human users from the dashboard)
-	apiKeyH := auth.NewAPIKeyHandler(authRepo)
-	jwtMw := auth.JWTMiddleware(cfg.SupabaseURL, cfg.SupabaseServiceKey)
-	apiKeys := app.Group("/v1/auth/api-keys", jwtMw)
-	apiKeys.Get("/", apiKeyH.ListKeys)
-	apiKeys.Post("/", apiKeyH.CreateKey)
-	apiKeys.Delete("/:id", apiKeyH.RevokeKey)
-
-	// MEI → ME migration — authenticated via Supabase JWT (dashboard action)
-	auditor := audit.New(db.Pool())
-	migrarH := handler.NewMigrarHandler(db.Pool(), auditor)
-	app.Post("/v1/auth/migrar", jwtMw, migrarH.MigrarMEI)
 
 	// Billing
 	v1.Get("/billing/usage", billingH.GetUsage)
