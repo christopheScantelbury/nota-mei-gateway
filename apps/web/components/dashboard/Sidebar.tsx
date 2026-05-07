@@ -8,24 +8,32 @@ import ThemeToggle from '@/components/ui/ThemeToggle'
 
 // ── Nav item definitions ────────────────────────────────────────────────────
 
+type EmpresaTipo = 'MEI' | 'ME' | 'EPP'
+
 type NavItem = {
   href: string
   label: string
   icon: string
   badge: string | null
-  /** 'all' = aparece para mei e gateway; 'gateway' = só para devs */
-  audience: 'all' | 'gateway'
+  /** which empresa types see this item */
+  tipos: EmpresaTipo[] | 'all'
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: '/notas',         label: 'Notas Fiscais',       icon: '🧾', badge: null,        audience: 'all'     },
-  { href: '/templates',     label: 'Templates',           icon: '📄', badge: 'PRO',       audience: 'all'     },
-  { href: '/recorrencias',  label: 'Automação',           icon: '🔄', badge: 'BUSINESS',  audience: 'gateway' },
-  { href: '/api-keys',      label: 'API Keys',            icon: '🔑', badge: null,        audience: 'gateway' },
-  { href: '/webhooks',      label: 'Webhooks',            icon: '🔗', badge: null,        audience: 'gateway' },
-  { href: '/billing',       label: 'Plano & Faturamento', icon: '💳', badge: null,        audience: 'all'     },
-  { href: '/configuracoes', label: 'Configurações',       icon: '⚙️', badge: null,        audience: 'all'     },
+  { href: '/notas',         label: 'Notas Fiscais',       icon: '🧾', badge: null,       tipos: 'all'                },
+  { href: '/templates',     label: 'Templates',           icon: '📄', badge: 'PRO',      tipos: 'all'                },
+  { href: '/recorrencias',  label: 'Automação',           icon: '🔄', badge: 'BUSINESS', tipos: ['ME', 'EPP']        },
+  { href: '/api-keys',      label: 'API Keys',            icon: '🔑', badge: null,       tipos: 'all'                },
+  { href: '/webhooks',      label: 'Webhooks',            icon: '🔗', badge: null,       tipos: ['ME', 'EPP']        },
+  { href: '/billing',       label: 'Plano & Faturamento', icon: '💳', badge: null,       tipos: 'all'                },
+  { href: '/configuracoes', label: 'Configurações',       icon: '⚙️', badge: null,       tipos: 'all'                },
 ]
+
+function getVisibleItems(empresaTipo: EmpresaTipo): NavItem[] {
+  return NAV_ITEMS.filter(
+    (item) => item.tipos === 'all' || item.tipos.includes(empresaTipo),
+  )
+}
 
 const ADMIN_ITEM = { href: '/admin', label: 'Painel Admin', icon: '🛡️' }
 
@@ -33,12 +41,14 @@ const ADMIN_ITEM = { href: '/admin', label: 'Painel Admin', icon: '🛡️' }
 
 function SidebarLogo({
   tipoUsuario,
+  empresaTipo,
   onClick,
 }: {
-  tipoUsuario: 'mei' | 'gateway'
+  tipoUsuario?: 'mei' | 'gateway'
+  empresaTipo?: EmpresaTipo
   onClick?: () => void
 }) {
-  const isMei = tipoUsuario === 'mei'
+  const isMei = empresaTipo === 'MEI' || tipoUsuario === 'mei'
 
   return (
     <div className="px-5 py-5 border-b border-navy-600">
@@ -93,25 +103,29 @@ function NavContent({
   razaoSocial,
   isAdmin,
   tipoUsuario,
+  empresaTipo,
   onNavClick,
   notificationBell,
 }: {
   razaoSocial: string
   isAdmin: boolean
-  tipoUsuario: 'mei' | 'gateway'
+  tipoUsuario?: 'mei' | 'gateway'
+  empresaTipo?: EmpresaTipo
   onNavClick?: () => void
   notificationBell?: React.ReactNode
 }) {
   const pathname = usePathname()
 
-  const visibleItems = NAV_ITEMS.filter(
-    (item) => item.audience === 'all' || item.audience === tipoUsuario,
-  )
+  // Resolve effective tipo: new prop takes precedence over legacy prop
+  const effectiveTipo: EmpresaTipo = empresaTipo
+    ?? (tipoUsuario === 'mei' ? 'MEI' : 'ME')
+
+  const visibleItems = getVisibleItems(effectiveTipo)
 
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <SidebarLogo tipoUsuario={tipoUsuario} onClick={onNavClick} />
+      <SidebarLogo tipoUsuario={tipoUsuario} empresaTipo={empresaTipo} onClick={onNavClick} />
 
       {/* Razão social */}
       <p className="px-5 pt-3 pb-1 text-xs text-text-2 truncate">{razaoSocial}</p>
@@ -189,26 +203,26 @@ export default function Sidebar({
   razaoSocial,
   isAdmin = false,
   tipoUsuario = 'gateway',
+  empresaTipo,
   notificationBell,
 }: {
   razaoSocial: string
   isAdmin?: boolean
   tipoUsuario?: 'mei' | 'gateway'
+  empresaTipo?: EmpresaTipo
   notificationBell?: React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
 
-  // Close drawer on route change
   useEffect(() => { setOpen(false) }, [pathname])
 
-  // Trap scroll when drawer is open
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [open])
 
-  const navProps = { razaoSocial, isAdmin, tipoUsuario, notificationBell }
+  const navProps = { razaoSocial, isAdmin, tipoUsuario, empresaTipo, notificationBell }
 
   return (
     <>
@@ -220,7 +234,7 @@ export default function Sidebar({
       {/* ── Mobile top bar ── */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between h-14 px-4 bg-navy-700 border-b border-navy-600">
         <Link href="/home" className="flex items-center">
-          {tipoUsuario === 'mei' ? (
+          {(empresaTipo === 'MEI' || tipoUsuario === 'mei') ? (
             <>
               <Image
                 src="/logos/nfm-logo-navbar-dark-clean.svg"

@@ -1,16 +1,17 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { CadastroPageInner } from './CadastroPageClient'
+import CadastroSeletor from './CadastroSeletor'
 
-// Título dinâmico por produto — server component tem acesso ao searchParams
 export async function generateMetadata({
   searchParams,
 }: {
   searchParams: { produto?: string }
 }): Promise<Metadata> {
   const isMei = searchParams.produto === 'mei'
-  // absolute bypasses the root layout template so MEI users don't see the
-  // Gateway suffix: 'Cadastrar — Nota Fácil MEI · Nota MEI Gateway'
+  if (!searchParams.produto) {
+    return { title: { absolute: 'Criar conta — Nota Fácil MEI' } }
+  }
   return {
     title: {
       absolute: isMei ? 'Cadastrar — Nota Fácil MEI' : 'Cadastrar — Nota MEI Gateway',
@@ -18,7 +19,16 @@ export async function generateMetadata({
   }
 }
 
-export default function CadastroPage() {
+export default function CadastroPage({
+  searchParams,
+}: {
+  searchParams: { produto?: string }
+}) {
+  // No produto param → show type selector
+  if (!searchParams.produto) {
+    return <CadastroSeletor />
+  }
+
   return (
     <Suspense>
       <CadastroPageInner />

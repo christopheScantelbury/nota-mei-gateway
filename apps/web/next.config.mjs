@@ -11,9 +11,17 @@ const nextConfig = {
   },
   async redirects() {
     return [
-      { source: '/microempresa',    destination: '/me', permanent: true },
-      { source: '/epp',             destination: '/me', permanent: true },
-      { source: '/simples-nacional', destination: '/me', permanent: true },
+      // Produto aliases — SEO
+      { source: '/microempresa',      destination: '/me',       permanent: true },
+      { source: '/epp',               destination: '/me',       permanent: true },
+      { source: '/simples-nacional',  destination: '/me',       permanent: true },
+      { source: '/desenvolvedor',     destination: '/gateway',  permanent: true },
+      { source: '/developer',         destination: '/gateway',  permanent: true },
+      // Auth aliases
+      { source: '/entrar',            destination: '/login',    permanent: true },
+      { source: '/registrar',         destination: '/cadastro', permanent: true },
+      // Cadastro aliases (manter compatibilidade com links antigos)
+      { source: '/mei/cadastro',      destination: '/cadastro?produto=mei', permanent: false },
     ]
   },
   images: {

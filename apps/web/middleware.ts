@@ -5,6 +5,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 const PROTECTED_PREFIXES = [
   '/home', '/notas', '/billing', '/configuracoes',
   '/templates', '/recorrencias', '/api-keys', '/webhooks',
+  '/seletor-empresa',
 ]
 
 // Routes that require admin role (app_metadata.role === 'admin').

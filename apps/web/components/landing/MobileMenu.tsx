@@ -15,9 +15,10 @@ interface MobileMenuProps {
   onClose: () => void
   links: NavLink[]
   cta: { label: string; href: string }
+  secondaryCta?: { label: string; href: string }
 }
 
-export default function MobileMenu({ isOpen, onClose, links, cta }: MobileMenuProps) {
+export default function MobileMenu({ isOpen, onClose, links, cta, secondaryCta }: MobileMenuProps) {
   if (!isOpen) return null
 
   return (
@@ -69,6 +70,15 @@ export default function MobileMenu({ isOpen, onClose, links, cta }: MobileMenuPr
             <span className="text-sm text-text-2">Tema</span>
             <ThemeToggle />
           </div>
+          {secondaryCta && (
+            <Link
+              href={secondaryCta.href}
+              onClick={onClose}
+              className="w-full border border-navy-600 text-text-1 text-base font-semibold px-6 py-3 rounded-xl text-center hover:border-brand-cyan transition"
+            >
+              {secondaryCta.label}
+            </Link>
+          )}
           <Link
             href={cta.href}
             onClick={onClose}

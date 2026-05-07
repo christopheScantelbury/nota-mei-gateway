@@ -8,10 +8,12 @@ import LogoAdaptive from '@/components/ui/LogoAdaptive'
 import MobileMenu from '@/components/landing/MobileMenu'
 
 const mobileLinks = [
-  { label: 'Planos',        href: '#planos',       isAnchor: true },
-  { label: 'FAQ',           href: '#faq',           isAnchor: true },
-  { label: 'Documentação',  href: '/docs',          isAnchor: false },
-  { label: 'Status da API', href: '/status',        isAnchor: false },
+  { label: 'MEI',           href: '/mei',     isAnchor: false },
+  { label: 'ME / EPP',      href: '/me',      isAnchor: false },
+  { label: 'Gateway API',   href: '/gateway', isAnchor: false },
+  { label: 'Preços',        href: '/precos',  isAnchor: false },
+  { label: 'Documentação',  href: '/docs',    isAnchor: false },
+  { label: 'Status',        href: '/status',  isAnchor: false },
 ]
 
 export default function Navbar() {
@@ -24,7 +26,6 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  // Fechar menu ao pressionar Escape
   useEffect(() => {
     if (!menuOpen) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false) }
@@ -42,7 +43,7 @@ export default function Navbar() {
         }`}
       >
         {/* h-14 mobile (56px) · h-16 desktop (64px) */}
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-4">
 
           {/* Logo */}
           <Link href="/" className="flex items-center shrink-0">
@@ -55,25 +56,36 @@ export default function Navbar() {
               width={160}
               height={44}
               priority
-              className="w-[120px] sm:w-[150px] md:w-[160px] h-auto"
+              className="w-[120px] sm:w-[140px] md:w-[155px] h-auto"
             />
           </Link>
 
-          {/* Links — desktop only */}
-          <div className="hidden sm:flex items-center gap-4">
-            <a href="#planos" className="text-sm text-text-2 hover:text-text-1 transition">Planos</a>
-            <a href="#faq"    className="text-sm text-text-2 hover:text-text-1 transition">FAQ</a>
-            <a href="/docs"   className="text-sm text-text-2 hover:text-text-1 transition">Docs</a>
+          {/* Produto links — centro, desktop only (lg+) */}
+          <div className="hidden lg:flex items-center gap-6 flex-1 justify-center">
+            <Link href="/mei"     className="text-sm text-text-2 hover:text-text-1 transition-colors">MEI</Link>
+            <Link href="/me"      className="text-sm text-text-2 hover:text-text-1 transition-colors">ME / EPP</Link>
+            <Link href="/gateway" className="text-sm text-text-2 hover:text-text-1 transition-colors">Gateway API</Link>
+            <Link href="/precos"  className="text-sm text-text-2 hover:text-text-1 transition-colors">Preços</Link>
+          </div>
+
+          {/* CTAs — desktop only (sm+) */}
+          <div className="hidden sm:flex items-center gap-2 shrink-0">
             <ThemeToggle />
+            <Link
+              href="/login"
+              className="text-sm font-medium text-text-2 hover:text-text-1 transition-colors px-3 py-2 rounded-lg hover:bg-navy-700/50 dark:hover:bg-navy-700"
+            >
+              Entrar
+            </Link>
             <Link
               href="/cadastro"
               className="bg-brand-cyan text-navy-900 text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition"
             >
-              Começar grátis
+              Cadastrar grátis
             </Link>
           </div>
 
-          {/* Mobile: ThemeToggle compacto + hambúrguer */}
+          {/* Mobile: ThemeToggle + hambúrguer */}
           <div className="flex sm:hidden items-center gap-2">
             <ThemeToggle />
             <button
@@ -93,7 +105,8 @@ export default function Navbar() {
         isOpen={menuOpen}
         onClose={() => setMenuOpen(false)}
         links={mobileLinks}
-        cta={{ label: 'Começar grátis', href: '/cadastro' }}
+        cta={{ label: 'Cadastrar grátis', href: '/cadastro' }}
+        secondaryCta={{ label: 'Entrar', href: '/login' }}
       />
     </>
   )

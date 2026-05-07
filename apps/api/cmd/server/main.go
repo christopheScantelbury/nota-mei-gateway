@@ -7,6 +7,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/audit"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/auth"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/billing"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/config"
@@ -382,6 +383,11 @@ func main() {
 	apiKeys.Get("/", apiKeyH.ListKeys)
 	apiKeys.Post("/", apiKeyH.CreateKey)
 	apiKeys.Delete("/:id", apiKeyH.RevokeKey)
+
+	// MEI → ME migration — authenticated via Supabase JWT (dashboard action)
+	auditor := audit.New(db.Pool())
+	migrarH := handler.NewMigrarHandler(db.Pool(), auditor)
+	app.Post("/v1/auth/migrar", jwtMw, migrarH.MigrarMEI)
 
 	// Billing
 	v1.Get("/billing/usage", billingH.GetUsage)
