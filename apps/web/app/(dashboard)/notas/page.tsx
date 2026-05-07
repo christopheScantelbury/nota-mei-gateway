@@ -9,6 +9,7 @@ import ExportCSVButton from '@/components/dashboard/ExportCSVButton'
 import ISSBadge from '@/components/nota/ISSBadge'
 import SubstituicaoDeadline from '@/components/nota/SubstituicaoDeadline'
 import { EmptyStateME } from './components/EmptyStateME'
+import { NotaActionsMenu } from './components/NotaActionsMenu'
 import type { Nota, NotaStatus } from '@/lib/types'
 
 const PAGE_SIZE = 20
@@ -221,9 +222,20 @@ export default async function NotasPage({
                     </td>
                     <td className="px-4 py-3 text-text-2">{formatDate(n.emitida_em ?? n.created_at)}</td>
                     <td className="px-4 py-3">
-                      <Link href={`/notas/${n.id}`} className="text-xs text-brand-cyan hover:underline">
-                        Detalhes →
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        <Link href={`/notas/${n.id}`} className="text-xs text-brand-cyan hover:underline">
+                          Detalhes →
+                        </Link>
+                        <NotaActionsMenu
+                          nota={{
+                            id: n.id,
+                            status: n.status,
+                            emitida_em: n.emitida_em,
+                            tomador_tipo: (n as any).tomador_tipo,
+                          }}
+                          empresaTipo={empresa?.tipo ?? 'MEI'}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}
