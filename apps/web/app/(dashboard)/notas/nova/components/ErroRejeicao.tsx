@@ -8,10 +8,11 @@ type Rejeicao = {
 type Props = {
   rejeicoes: Rejeicao[]
   notaId: string
-  onEmitirNova: () => void
+  onEmitirNova?: () => void
+  emitirNovaHref?: string
 }
 
-export function ErroRejeicao({ rejeicoes, notaId, onEmitirNova }: Props) {
+export function ErroRejeicao({ rejeicoes, notaId, onEmitirNova, emitirNovaHref = '/notas/nova' }: Props) {
   return (
     <div className="px-6 py-8 max-w-lg mx-auto">
       <div className="flex items-center gap-3 mb-6">
@@ -47,13 +48,23 @@ export function ErroRejeicao({ rejeicoes, notaId, onEmitirNova }: Props) {
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
-        <button
-          onClick={onEmitirNova}
-          className="flex-1 rounded-xl bg-brand-cyan px-6 py-3 text-navy-900
-                     font-semibold text-sm hover:opacity-90 transition-opacity"
-        >
-          Corrigir e emitir novamente
-        </button>
+        {onEmitirNova ? (
+          <button
+            onClick={onEmitirNova}
+            className="flex-1 rounded-xl bg-brand-cyan px-6 py-3 text-navy-900
+                       font-semibold text-sm hover:opacity-90 transition-opacity"
+          >
+            Corrigir e emitir novamente
+          </button>
+        ) : (
+          <a
+            href={emitirNovaHref}
+            className="flex-1 rounded-xl bg-brand-cyan px-6 py-3 text-navy-900
+                       font-semibold text-sm hover:opacity-90 transition-opacity text-center"
+          >
+            Corrigir e emitir novamente
+          </a>
+        )}
         <a
           href="/notas"
           className="flex-1 rounded-xl border border-navy-600 px-6 py-3

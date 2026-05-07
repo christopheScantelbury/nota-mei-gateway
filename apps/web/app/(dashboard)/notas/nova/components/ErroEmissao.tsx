@@ -34,7 +34,7 @@ const ERROS: Record<TipoErro, {
       'Seu certificado A1 não pôde ser validado. ' +
       'Verifique se a senha está correta ou se o certificado não foi corrompido.',
     acao: 'Atualizar certificado',
-    linkHref: '/dashboard/configuracoes/certificado',
+    linkHref: '/configuracoes?aba=certificado',
     linkLabel: 'Ir para configurações',
   },
   certificado_expirado: {
@@ -44,7 +44,7 @@ const ERROS: Record<TipoErro, {
       'Seu certificado A1 expirou. Renove junto à sua Autoridade Certificadora ' +
       'e atualize aqui antes de emitir novas notas.',
     acao: 'Renovar certificado',
-    linkHref: '/dashboard/configuracoes/certificado',
+    linkHref: '/configuracoes?aba=certificado',
     linkLabel: 'Atualizar certificado',
   },
   timeout_polling: {

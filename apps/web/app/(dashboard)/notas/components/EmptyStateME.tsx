@@ -16,7 +16,7 @@ export function EmptyStateME({ empresa }: Props) {
       id: 'cert',
       label: 'Certificado A1 cadastrado',
       concluido: certOk,
-      href: '/dashboard/configuracoes/certificado',
+      href: '/configuracoes?aba=certificado',
       cta: 'Cadastrar certificado',
     },
     {
@@ -30,7 +30,7 @@ export function EmptyStateME({ empresa }: Props) {
       id: 'webhook',
       label: 'Configurar webhook (opcional)',
       concluido: false,
-      href: '/dashboard/configuracoes/webhooks',
+      href: '/configuracoes?aba=webhook',
       cta: 'Configurar',
     },
   ]

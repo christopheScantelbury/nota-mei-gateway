@@ -10,7 +10,8 @@ import EnviarNotaEmail from '@/components/dashboard/EnviarNotaEmail'
 import ISSBadge from '@/components/nota/ISSBadge'
 import SubstituicaoDeadline from '@/components/nota/SubstituicaoDeadline'
 import ISSRecolhimentoCard from '@/components/nota/ISSRecolhimentoCard'
-import { AcoesDaNota } from './components/AcoesDaNota'
+import { AcoesDaNota }  from './components/AcoesDaNota'
+import { ErroRejeicao } from '@/app/(dashboard)/notas/nova/components/ErroRejeicao'
 import type { Nota } from '@/lib/types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
@@ -107,16 +108,31 @@ export default async function NotaDetailPage({
         </div>
       </div>
 
-      {/* Error banner */}
-      {(nota.status === 'REJEITADA' || nota.status === 'ERRO_TEMPORARIO') &&
-        nota.erro_descricao && (
-          <div className="mb-6 rounded-lg border border-nota-rejeitada/30 bg-nota-rejeitada/5 p-4">
-            <p className="text-sm font-semibold text-nota-rejeitada mb-1">
-              {nota.erro_codigo ? `Erro ${nota.erro_codigo}` : 'Rejeitada'}
-            </p>
-            <p className="text-sm text-text-2">{nota.erro_descricao}</p>
-          </div>
-        )}
+      {/* Rejeição SEFIN — componente rico com ação de correção */}
+      {nota.status === 'REJEITADA' && (
+        <div className="mb-6">
+          <ErroRejeicao
+            notaId={nota.id}
+            rejeicoes={nota.erro_codigo ? [{
+              codigo: nota.erro_codigo,
+              codigoReceita: nota.erro_codigo,
+              mensagem: nota.erro_descricao ?? 'Nota rejeitada pela Receita Federal.',
+              acao: 'Verifique os dados, corrija e emita uma nova nota.',
+            }] : []}
+            emitirNovaHref="/notas/nova"
+          />
+        </div>
+      )}
+
+      {/* Erro temporário — banner simples */}
+      {nota.status === 'ERRO_TEMPORARIO' && nota.erro_descricao && (
+        <div className="mb-6 rounded-lg border border-nota-processando/30 bg-nota-processando/5 p-4">
+          <p className="text-sm font-semibold text-nota-processando mb-1">
+            Erro temporário — nova tentativa em andamento
+          </p>
+          <p className="text-sm text-text-2">{nota.erro_descricao}</p>
+        </div>
+      )}
 
       {/* ME-42: ISS recolhimento card — aparece para notas autorizadas */}
       {nota.status === 'AUTORIZADA' && (
