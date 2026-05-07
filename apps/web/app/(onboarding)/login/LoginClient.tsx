@@ -226,13 +226,13 @@ export default function LoginClient() {
 
   const logo = isMei ? (
     <>
-      <Image src="/logos/nfm-logo-navbar-light.svg"      alt="Nota Fácil MEI"   width={160} height={44} className="h-9 w-auto block dark:hidden" priority />
-      <Image src="/logos/nfm-logo-navbar-dark-clean.svg" alt="Nota Fácil MEI"   width={160} height={44} className="h-9 w-auto hidden dark:block" priority />
+      <Image src="/brand/notafacil-logo.svg"      alt="Nota Fácil MEI"   width={160} height={44} className="h-9 w-auto block dark:hidden" priority />
+      <Image src="/brand/notafacil-logo.svg" alt="Nota Fácil MEI"   width={160} height={44} className="h-9 w-auto hidden dark:block" priority />
     </>
   ) : (
     <>
-      <Image src="/logos/gateway-logo-navbar-light.svg"  alt="Nota MEI Gateway" width={160} height={40} className="h-8 w-auto block dark:hidden" priority />
-      <Image src="/logos/gateway-logo-navbar-dark.svg"   alt="Nota MEI Gateway" width={160} height={40} className="h-8 w-auto hidden dark:block" priority />
+      <Image src="/brand/notafacil-logo.svg"  alt="Nota MEI Gateway" width={160} height={40} className="h-8 w-auto block dark:hidden" priority />
+      <Image src="/brand/notafacil-logo.svg"   alt="Nota MEI Gateway" width={160} height={40} className="h-8 w-auto hidden dark:block" priority />
     </>
   )
 

@@ -70,7 +70,7 @@ export default function CertificadoA1Page() {
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/mei" className="flex items-center shrink-0">
             <Image
-              src="/logos/nfm-logo-navbar-dark-clean.svg"
+              src="/brand/notafacil-logo.svg"
               alt="Nota Fácil MEI"
               width={140}
               height={38}
@@ -78,7 +78,7 @@ export default function CertificadoA1Page() {
               priority
             />
             <Image
-              src="/logos/nfm-logo-navbar-light.svg"
+              src="/brand/notafacil-logo.svg"
               alt="Nota Fácil MEI"
               width={140}
               height={38}

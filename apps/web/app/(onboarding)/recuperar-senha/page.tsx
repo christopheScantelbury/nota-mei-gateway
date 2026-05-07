@@ -68,7 +68,7 @@ export default function RecuperarSenhaPage() {
         <div className="mb-6 text-center">
           <Link href="/" className="inline-flex justify-center">
             <Image
-              src="/logos/gateway-logo-navbar-dark.svg"
+              src="/brand/notafacil-logo.svg"
               alt="Nota MEI Gateway"
               width={140}
               height={34}

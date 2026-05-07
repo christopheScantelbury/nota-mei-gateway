@@ -195,8 +195,8 @@ export default function SandboxPage() {
           <div className="flex items-center gap-3">
             <Link href="/gateway" className="flex items-center shrink-0">
               <LogoAdaptive
-                darkSrc="/logos/gateway-logo-navbar-dark.svg"
-                lightSrc="/logos/gateway-logo-navbar-light.svg"
+                darkSrc="/brand/notafacil-logo.svg"
+                lightSrc="/brand/notafacil-logo.svg"
                 alt="Nota MEI Gateway"
                 width={160}
                 height={40}

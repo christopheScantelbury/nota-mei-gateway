@@ -48,10 +48,10 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
           <div className="flex items-center gap-3 shrink-0 min-w-0">
             <Link href="/" className="shrink-0">
               <LogoAdaptive
-                lightSrc="/logos/gateway-logo-navbar-light.svg"
-                darkSrc="/logos/gateway-logo-navbar-dark.svg"
-                iconLightSrc="/logos/gateway-icon-only.svg"
-                iconDarkSrc="/logos/gateway-icon-only.svg"
+                lightSrc="/brand/notafacil-logo.svg"
+                darkSrc="/brand/notafacil-logo.svg"
+                iconLightSrc="/brand/notafacil-icon.svg"
+                iconDarkSrc="/brand/notafacil-icon.svg"
                 alt="Nota MEI Gateway"
                 width={160}
                 height={38}

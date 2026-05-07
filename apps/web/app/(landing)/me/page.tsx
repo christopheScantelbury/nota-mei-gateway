@@ -1,4 +1,5 @@
 import Navbar from '@/components/landing/Navbar'
+import LandingFooter from '@/components/landing/LandingFooter'
 import { UrgencyBannerME } from '@/components/landing/UrgencyBannerME'
 import { MEHero }         from './components/MEHero'
 import { MEBeneficios }   from './components/MEBeneficios'
@@ -18,6 +19,7 @@ export default function LandingME() {
         <MEFAQ />
         <MECTAFinal />
       </div>
+      <LandingFooter />
     </main>
   )
 }

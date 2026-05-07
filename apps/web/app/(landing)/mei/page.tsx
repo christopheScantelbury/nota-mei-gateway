@@ -4,6 +4,7 @@ import Image from 'next/image'
 import AnimatedSection from '@/components/landing/AnimatedSection'
 import UrgencyBanner from '@/components/landing/UrgencyBanner'
 import NavbarMei from '@/components/landing/NavbarMei'
+import LandingFooter from '@/components/landing/LandingFooter'
 import PricingToggleMei from '@/components/landing/PricingToggleMei'
 import TimeSavingsCalculator from '@/components/landing/TimeSavingsCalculator'
 
@@ -307,86 +308,7 @@ export default function MeiLandingPage() {
         </div>
       </AnimatedSection>
 
-      {/* Footer */}
-      <footer className="border-t border-navy-600 py-12 px-4">
-        <div className="mx-auto max-w-6xl">
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-10 mb-10">
-            {/* Marca */}
-            <div className="sm:col-span-1 flex flex-col gap-3">
-              <Link href="/mei" className="inline-flex items-center">
-                <Image
-                  src="/brand/notafacil-mei.svg"
-                  alt="NotaFácil MEI"
-                  width={200}
-                  height={38}
-                  className="h-8 w-auto"
-                />
-              </Link>
-              <p className="text-text-2 text-xs leading-relaxed">
-                Emissão de NFS-e simples para MEI.<br />
-                Build · Migrate · Innovate.
-              </p>
-            </div>
-
-            {/* Produtos */}
-            <div>
-              <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-2 mb-4">
-                Produtos
-              </h4>
-              <ul className="flex flex-col gap-2.5 text-sm text-text-2">
-                <li><Link href="/mei"          className="hover:text-text-1 transition">Nota Fácil MEI</Link></li>
-                <li><Link href="/gateway"      className="hover:text-text-1 transition">Nota MEI Gateway</Link></li>
-                <li><Link href="/mei#precos"   className="hover:text-text-1 transition">Planos e preços</Link></li>
-                <li><Link href="/status"       className="hover:text-text-1 transition">Status da API</Link></li>
-              </ul>
-            </div>
-
-            {/* Suporte */}
-            <div>
-              <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-2 mb-4">
-                Suporte
-              </h4>
-              <ul className="flex flex-col gap-2.5 text-sm text-text-2">
-                <li>
-                  <a
-                    href="https://wa.me/5547997352380"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-text-1 transition"
-                  >
-                    💬 WhatsApp (47) 99735-2380
-                  </a>
-                </li>
-                <li>
-                  <a href="mailto:suporte@emitirnotafacil.com.br" className="hover:text-text-1 transition">
-                    ✉️ suporte@emitirnotafacil.com.br
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Empresa */}
-            <div>
-              <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-2 mb-4">
-                Empresa
-              </h4>
-              <ul className="flex flex-col gap-2.5 text-sm text-text-2">
-                <li>
-                  <a href="https://scantelburydevs.com.br" target="_blank" rel="noopener noreferrer" className="hover:text-text-1 transition">
-                    ScantelburyDevs
-                  </a>
-                </li>
-                <li><Link href="/privacidade" className="hover:text-text-1 transition">Privacidade</Link></li>
-                <li><Link href="/termos"      className="hover:text-text-1 transition">Termos de uso</Link></li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t border-navy-600 pt-6 text-center text-xs text-text-2">
-            © {new Date().getFullYear()} ScantelburyDevs. Todos os direitos reservados.
-          </div>
-        </div>
-      </footer>
+      <LandingFooter />
     </main>
   )
 }

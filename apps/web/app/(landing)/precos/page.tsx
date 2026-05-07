@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import Navbar from '@/components/landing/Navbar'
+import LandingFooter from '@/components/landing/LandingFooter'
 
 export const metadata: Metadata = {
   title: 'Planos e Preços',
@@ -170,24 +172,9 @@ const FAQ = [
 export default function PrecosPage() {
   return (
     <main className="min-h-screen bg-navy-900 text-text-1">
-      {/* Nav */}
-      <nav className="border-b border-navy-600/50 px-6 py-4 flex items-center justify-between max-w-7xl mx-auto">
-        <Link href="/" className="font-display font-extrabold text-xl text-brand-cyan">
-          Nota MEI Gateway
-        </Link>
-        <div className="flex items-center gap-4">
-          <Link href="/docs" className="text-sm text-text-2 hover:text-text-1 transition">Docs</Link>
-          <Link href="/login" className="text-sm text-text-2 hover:text-text-1 transition">Entrar</Link>
-          <Link
-            href="/cadastro"
-            className="text-sm bg-brand-cyan text-navy-900 font-semibold px-4 py-1.5 rounded-lg hover:opacity-90 transition"
-          >
-            Começar grátis
-          </Link>
-        </div>
-      </nav>
+      <Navbar />
 
-      <div className="max-w-7xl mx-auto px-6 py-16">
+      <div className="max-w-7xl mx-auto px-6 py-16 pt-28">
         {/* Hero */}
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 bg-brand-cyan/8 border border-brand-cyan/20 rounded-full px-4 py-1.5 mb-6">
@@ -359,17 +346,7 @@ export default function PrecosPage() {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="border-t border-navy-600 mt-16 px-6 py-8 text-center text-xs text-text-2">
-        <p className="mb-2">
-          © {new Date().getFullYear()} ScantelburyDevs · Nota MEI Gateway
-        </p>
-        <div className="flex gap-4 justify-center">
-          <Link href="/termos" className="hover:text-brand-cyan transition">Termos de Uso</Link>
-          <Link href="/privacidade" className="hover:text-brand-cyan transition">Privacidade</Link>
-          <Link href="/docs" className="hover:text-brand-cyan transition">Documentação</Link>
-        </div>
-      </footer>
+      <LandingFooter />
     </main>
   )
 }

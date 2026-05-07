@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import AnimatedSection from '@/components/landing/AnimatedSection'
 import NavbarGateway from '@/components/landing/NavbarGateway'
+import LandingFooter from '@/components/landing/LandingFooter'
 import PricingToggleGateway from '@/components/landing/PricingToggleGateway'
 
 export const metadata: Metadata = {
@@ -514,80 +515,7 @@ export default function GatewayLandingPage() {
         </div>
       </AnimatedSection>
 
-      {/* Footer — 3 colunas */}
-      <footer className="border-t border-navy-600 py-12 px-4">
-        <div className="mx-auto max-w-6xl">
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-10 mb-10">
-            {/* Marca */}
-            <div className="sm:col-span-1 flex flex-col gap-3">
-              <Link href="/gateway" className="inline-flex items-center">
-                <Image
-                  src="/brand/notafacil-api.svg"
-                  alt="NotaFácil API"
-                  width={195}
-                  height={34}
-                  className="h-7 w-auto"
-                />
-              </Link>
-              <p className="text-text-2 text-xs leading-relaxed">
-                A API de NFS-e para devs e plataformas.<br />
-                Build · Migrate · Innovate.
-              </p>
-            </div>
-
-            {/* Produtos */}
-            <div>
-              <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-2 mb-4">
-                Produtos
-              </h4>
-              <ul className="flex flex-col gap-2.5 text-sm text-text-2">
-                <li><Link href="/mei"          className="hover:text-text-1 transition">Nota Fácil MEI</Link></li>
-                <li><Link href="/gateway"      className="hover:text-text-1 transition">Nota MEI Gateway</Link></li>
-                <li><Link href="/gateway#precos" className="hover:text-text-1 transition">Planos e preços</Link></li>
-              </ul>
-            </div>
-
-            {/* Desenvolvedores */}
-            <div>
-              <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-2 mb-4">
-                Desenvolvedores
-              </h4>
-              <ul className="flex flex-col gap-2.5 text-sm text-text-2">
-                <li><Link href="/docs"            className="hover:text-text-1 transition">Documentação</Link></li>
-                <li><Link href="/docs/quickstart" className="hover:text-text-1 transition">Quickstart</Link></li>
-                <li><Link href="/docs/sdks"       className="hover:text-text-1 transition">SDKs</Link></li>
-                <li><Link href="/sandbox"         className="hover:text-text-1 transition">Sandbox</Link></li>
-                <li><Link href="/status"          className="hover:text-text-1 transition">Status da API</Link></li>
-              </ul>
-            </div>
-
-            {/* Empresa */}
-            <div>
-              <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-2 mb-4">
-                Empresa
-              </h4>
-              <ul className="flex flex-col gap-2.5 text-sm text-text-2">
-                <li>
-                  <a href="https://scantelburydevs.com.br" target="_blank" rel="noopener noreferrer" className="hover:text-text-1 transition">
-                    ScantelburyDevs
-                  </a>
-                </li>
-                <li><Link href="/privacidade" className="hover:text-text-1 transition">Privacidade</Link></li>
-                <li><Link href="/termos"      className="hover:text-text-1 transition">Termos de uso</Link></li>
-                <li>
-                  <a href="mailto:suporte@emitirnotafacil.com.br" className="hover:text-text-1 transition">
-                    Suporte
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t border-navy-600 pt-6 text-center text-xs text-text-2">
-            © {new Date().getFullYear()} ScantelburyDevs. Todos os direitos reservados.
-          </div>
-        </div>
-      </footer>
+      <LandingFooter />
     </main>
   )
 }

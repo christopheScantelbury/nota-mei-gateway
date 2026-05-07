@@ -20,7 +20,7 @@ export default function PrivacidadePage() {
         <div className="max-w-3xl mx-auto px-6 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center shrink-0">
             <Image
-              src="/logos/gateway-logo-navbar-dark.svg"
+              src="/brand/notafacil-logo.svg"
               alt="Nota MEI Gateway"
               width={140}
               height={34}
