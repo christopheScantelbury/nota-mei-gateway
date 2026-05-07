@@ -10,6 +10,7 @@ import EnviarNotaEmail from '@/components/dashboard/EnviarNotaEmail'
 import ISSBadge from '@/components/nota/ISSBadge'
 import SubstituicaoDeadline from '@/components/nota/SubstituicaoDeadline'
 import ISSRecolhimentoCard from '@/components/nota/ISSRecolhimentoCard'
+import { AcoesDaNota } from './components/AcoesDaNota'
 import type { Nota } from '@/lib/types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
@@ -27,25 +28,47 @@ function formatDateFull(iso: string | null) {
   }).format(new Date(iso))
 }
 
-export default async function NotaDetailPage({ params }: { params: { id: string } }) {
+export default async function NotaDetailPage({
+  params,
+  searchParams,
+}: {
+  params: { id: string }
+  searchParams: { acao?: string }
+}) {
   const supabase = createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { data: nota } = await supabase
-    .from('notas_fiscais')
-    .select('*')
-    .eq('id', params.id)
-    .eq('mei_id', user.id)
-    .single<Nota>()
+  // Determine if ME/EPP or MEI
+  const { data: empresa } = await supabase
+    .from('empresas')
+    .select('id, tipo')
+    .eq('id', user.id)
+    .single()
+
+  // ME/EPP notes are linked by empresa_id; MEI notes by mei_id
+  let notaQuery = supabase.from('notas_fiscais').select('*').eq('id', params.id)
+  if (empresa) {
+    notaQuery = notaQuery.eq('empresa_id', empresa.id)
+  } else {
+    notaQuery = notaQuery.eq('mei_id', user.id)
+  }
+
+  const { data: nota } = await notaQuery.single<Nota>()
 
   if (!nota) notFound()
 
-  const canCancel = nota.status === 'AUTORIZADA'
+  const empresaTipo = empresa?.tipo ?? 'MEI'
+
+  // For ME/EPP, cancellation is handled by AcoesDaNota modal
+  const canCancel = nota.status === 'AUTORIZADA' && empresaTipo === 'MEI'
   const hasXML    = nota.status === 'AUTORIZADA' || nota.status === 'CANCELADA'
   const hasPDF    = nota.status === 'AUTORIZADA'
+  const abrirModal = (searchParams.acao === 'cancelar' || searchParams.acao === 'substituir')
+    ? (searchParams.acao as 'cancelar' | 'substituir')
+    : undefined
 
   return (
     <div className="p-8 max-w-3xl">
@@ -153,6 +176,19 @@ export default async function NotaDetailPage({ params }: { params: { id: string 
           tentativas={nota.webhook_tentativas}
         />
       )}
+
+      {/* ME/EPP actions (cancel / substitute with deadline display) */}
+      <AcoesDaNota
+        nota={{
+          id: nota.id,
+          numero_rps: nota.numero_rps,
+          status: nota.status,
+          emitida_em: nota.emitida_em,
+          tomador_tipo: (nota as any).tomador_tipo,
+        }}
+        empresaTipo={empresaTipo}
+        abrirModal={abrirModal}
+      />
 
       {/* Actions */}
       <div className="flex flex-wrap gap-3">

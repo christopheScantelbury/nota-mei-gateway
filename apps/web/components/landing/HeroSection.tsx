@@ -31,7 +31,7 @@ export default function HeroSection() {
         </p>
 
         <div
-          className="animate-fade-up grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-3xl mx-auto"
+          className="animate-fade-up grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto"
           {...delay(240)}
         >
           <ProductCard
@@ -41,6 +41,15 @@ export default function HeroSection() {
             cta="Quero usar →"
             href="/mei"
             primary
+          />
+          <ProductCard
+            emoji="🏢"
+            name="Nota ME / EPP"
+            desc="Sou Microempresa. NFS-e Nacional obrigatória em Set/2026. Simples Nacional e Lucro Presumido."
+            cta="Cadastrar minha ME →"
+            href="/me"
+            primary={false}
+            badge="Novo"
           />
           <ProductCard
             emoji="</>"
@@ -75,6 +84,7 @@ function ProductCard({
   cta,
   href,
   primary,
+  badge,
 }: {
   emoji: string
   name: string
@@ -82,9 +92,16 @@ function ProductCard({
   cta: string
   href: string
   primary: boolean
+  badge?: string
 }) {
   return (
-    <div className="bg-navy-700 border border-navy-600 rounded-2xl p-8 flex flex-col gap-4 text-left hover:border-brand-cyan transition-colors group">
+    <div className="bg-navy-700 border border-navy-600 rounded-2xl p-8 flex flex-col gap-4 text-left hover:border-brand-cyan transition-colors group relative">
+      {badge && (
+        <span className="absolute top-4 right-4 text-xs font-semibold bg-brand-cyan/20
+                         text-brand-cyan px-2 py-0.5 rounded-full border border-brand-cyan/30">
+          {badge}
+        </span>
+      )}
       <span className="font-mono text-brand-cyan text-2xl font-bold">{emoji}</span>
       <div>
         <p className="font-display text-xl font-extrabold text-text-1 group-hover:text-brand-cyan transition-colors">

@@ -8,6 +8,7 @@ import NotasFilterBar from '@/components/dashboard/NotasFilterBar'
 import ExportCSVButton from '@/components/dashboard/ExportCSVButton'
 import ISSBadge from '@/components/nota/ISSBadge'
 import SubstituicaoDeadline from '@/components/nota/SubstituicaoDeadline'
+import { EmptyStateME } from './components/EmptyStateME'
 import type { Nota, NotaStatus } from '@/lib/types'
 
 const PAGE_SIZE = 20
@@ -70,6 +71,13 @@ export default async function NotasPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // Check if user is a ME/EPP company
+  const { data: empresa } = await supabase
+    .from('empresas')
+    .select('id, razao_social, regime_tributario, trial_me, cert_secret_arn, tipo')
+    .eq('id', user.id)
+    .single()
+
   const page = Math.max(1, Number(searchParams.page ?? '1'))
   const from = (page - 1) * PAGE_SIZE
   const to   = from + PAGE_SIZE - 1
@@ -86,7 +94,13 @@ export default async function NotasPage({
   let query = supabase
     .from('notas_fiscais')
     .select('*', { count: 'exact' })
-    .eq('mei_id', user.id)
+
+  // ME/EPP companies use empresa_id; MEIs use mei_id
+  if (empresa) {
+    query = query.eq('empresa_id', empresa.id)
+  } else {
+    query = query.eq('mei_id', user.id)
+  }
 
   if (statusFilter)  query = query.eq('status', statusFilter)
   if (competencia)   query = query.eq('competencia', competencia)
@@ -142,7 +156,16 @@ export default async function NotasPage({
       />
 
       {rows.length === 0 ? (
-        <EmptyState hasFilters={!!(statusFilter || q || competencia)} />
+        empresa && !statusFilter && !q && !competencia ? (
+          <EmptyStateME empresa={{
+            razaoSocial: empresa.razao_social,
+            regimeTributario: empresa.regime_tributario ?? 'SIMPLES_NACIONAL',
+            trialMe: empresa.trial_me ?? false,
+            certSecretArn: empresa.cert_secret_arn,
+          }} />
+        ) : (
+          <EmptyState hasFilters={!!(statusFilter || q || competencia)} />
+        )
       ) : (
         <>
           <div className="overflow-x-auto rounded-xl border border-navy-600">

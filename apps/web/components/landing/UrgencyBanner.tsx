@@ -24,14 +24,14 @@ export default function UrgencyBanner() {
     <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
       <div className="mx-auto max-w-5xl flex items-center justify-between gap-4">
         <p className="text-amber-800 text-sm leading-snug">
-          <span className="font-semibold">⚠️ A partir de 2026,</span>{' '}
-          todo MEI prestador de serviço é obrigado a emitir NFS-e pela Receita Federal Nacional.
+          <span className="font-semibold">⚠️ A partir de 01/09/2026,</span>{' '}
+          MEI, ME e EPP prestadores de serviço são obrigados a emitir NFS-e pela Receita Federal Nacional.
           A gente já está pronto.{' '}
           <a
-            href="/obrigatoriedade-nfse-mei"
+            href="/me"
             className="underline font-semibold hover:text-amber-900 transition"
           >
-            Saiba mais →
+            Ver solução para ME →
           </a>
         </p>
         <button
