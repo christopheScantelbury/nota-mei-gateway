@@ -10,12 +10,14 @@ export default function LandingME() {
   return (
     <main className="bg-navy-900 min-h-screen text-text-1 font-body">
       <Navbar />
-      <UrgencyBannerME />
-      <MEHero />
-      <MEBeneficios />
-      <MEComoFunciona />
-      <MEFAQ />
-      <MECTAFinal />
+      <div className="pt-14 sm:pt-16">
+        <UrgencyBannerME />
+        <MEHero />
+        <MEBeneficios />
+        <MEComoFunciona />
+        <MEFAQ />
+        <MECTAFinal />
+      </div>
     </main>
   )
 }
