@@ -44,6 +44,9 @@ type Config struct {
 
 	WebhookHMACSecret string
 
+	// AI assistive features (NBS classifier, etc) — optional.
+	AnthropicAPIKey string
+
 	ReceitaAPIURL string
 	// SefinAPIURL is the base URL for the SEFIN Nacional endpoint used by ME/EPP companies.
 	// When empty the adapter falls back to ReceitaAPIURL (degraded mode — logs a warning on first call).
@@ -146,6 +149,8 @@ func Load() *Config {
 		StripePriceBusiness: os.Getenv("STRIPE_PRICE_BUSINESS"),
 
 		WebhookHMACSecret: os.Getenv("WEBHOOK_HMAC_SECRET"),
+
+		AnthropicAPIKey: os.Getenv("ANTHROPIC_API_KEY"),
 
 		ReceitaAPIURL: os.Getenv("RECEITA_API_URL"),
 		SefinAPIURL:   sefinURL(),

@@ -7,6 +7,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/ai"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/audit"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/auth"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/billing"
@@ -375,6 +376,18 @@ func main() {
 	auditor := audit.New(db.Pool())
 	migrarH := handler.NewMigrarHandler(db.Pool(), auditor)
 	app.Post("/v1/auth/migrar", jwtMw, migrarH.MigrarMEI)
+
+	// AI: classificador NBS (Claude Haiku 4.5). Disponível via JWT (dashboard).
+	// Mantemos o registro antes do v1 group authMw pelo mesmo motivo do migrar.
+	if cfg.AnthropicAPIKey != "" {
+		llm := ai.NewClient(cfg.AnthropicAPIKey)
+		nbsClassifier := ai.NewNBSClassifier(db.Pool(), issRedis, llm)
+		nbsH := handler.NewAINBSHandler(nbsClassifier)
+		app.Post("/v1/ai/nbs/sugerir", jwtMw, nbsH.Sugerir)
+		log.Info().Msg("AI: classificador NBS habilitado (Claude Haiku 4.5)")
+	} else {
+		log.Warn().Msg("AI: ANTHROPIC_API_KEY ausente — classificador NBS desabilitado")
+	}
 
 	// ── API-key authenticated endpoints (machine-to-machine) ───────────────
 	authMw := auth.Middleware(authRepo)
