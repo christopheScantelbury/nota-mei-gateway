@@ -3,6 +3,7 @@ import Link from 'next/link'
 import Navbar from '@/components/landing/Navbar'
 import LandingFooter from '@/components/landing/LandingFooter'
 import EcossistemaScantelbury from '@/components/landing/EcossistemaScantelbury'
+import { PlanosStructuredData } from '@/components/seo/StructuredData'
 
 export const metadata: Metadata = {
   title: 'Planos e Preços',
@@ -170,9 +171,20 @@ const FAQ = [
   },
 ]
 
+// Planos para JSON-LD ItemList (Google rich snippet em SERPs).
+// Mantém em sincronia com PLANS acima — preço numérico para schema.
+const planosSeo = [
+  { nome: 'Trial',    descricao: '5 notas/mês incluídas, API completa', precoBRL:    0 },
+  { nome: 'Starter',  descricao: '50 notas/mês, suporte por e-mail',     precoBRL:   29 },
+  { nome: 'Basic',    descricao: '200 notas/mês, suporte prioritário',   precoBRL:   79 },
+  { nome: 'Pro',      descricao: '1.000 notas/mês, SLA 99.9%',           precoBRL:  199 },
+  { nome: 'Business', descricao: '5.000 notas/mês, SLA dedicado',        precoBRL:  499 },
+]
+
 export default function PrecosPage() {
   return (
     <main className="min-h-screen bg-navy-900 text-text-1">
+      <PlanosStructuredData planos={planosSeo} />
       <Navbar />
 
       <div className="max-w-7xl mx-auto px-6 py-16 pt-28">

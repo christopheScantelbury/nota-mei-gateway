@@ -2,6 +2,7 @@
 import { Outfit, Inter, DM_Sans, DM_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { ThemeProvider } from 'next-themes'
+import { OrgStructuredData } from '@/components/seo/StructuredData'
 import './globals.css'
 
 // ── Fonts ──────────────────────────────────────────────────────────────────
@@ -91,6 +92,16 @@ export const metadata: Metadata = {
     creator: '@scantelburydevs',
   },
   manifest: '/manifest.json',
+  // Verificação Google Search Console (e Bing). Configure as envs no Vercel:
+  //   NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION=<código do GSC>
+  //   NEXT_PUBLIC_BING_SITE_VERIFICATION=<código do Bing>
+  // Sem env, o campo simplesmente não é renderizado.
+  verification: {
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
+    other: {
+      'msvalidate.01': process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION ?? '',
+    },
+  },
 }
 
 export const viewport: Viewport = {
@@ -113,6 +124,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
       className={`${outfit.variable} ${inter.variable} ${dmSans.variable} ${dmMono.variable}`}
     >
+      <head>
+        <OrgStructuredData />
+      </head>
       <body className="font-body antialiased">
         <ThemeProvider
           attribute="class"

@@ -5,6 +5,7 @@ import AnimatedSection from '@/components/landing/AnimatedSection'
 import Navbar from '@/components/landing/Navbar'
 import LandingFooter from '@/components/landing/LandingFooter'
 import EcossistemaScantelbury from '@/components/landing/EcossistemaScantelbury'
+import { SoftwareAppStructuredData, FAQStructuredData } from '@/components/seo/StructuredData'
 import PricingToggleGateway from '@/components/landing/PricingToggleGateway'
 
 export const metadata: Metadata = {
@@ -96,6 +97,13 @@ const faqs = [
 export default function GatewayLandingPage() {
   return (
     <main className="min-h-screen bg-navy-900 text-text-1 font-body">
+      <SoftwareAppStructuredData
+        name="NotaFácil API"
+        description="API REST para emissão programática de NFS-e Nacional. Integre seu SaaS, ERP ou marketplace com um POST."
+        url="https://emitirnotafacil.com.br/gateway"
+        category="DeveloperApplication"
+      />
+      <FAQStructuredData faqs={faqs} />
       <Navbar />
 
       {/* Hero */}

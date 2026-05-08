@@ -6,6 +6,7 @@ import UrgencyBanner from '@/components/landing/UrgencyBanner'
 import Navbar from '@/components/landing/Navbar'
 import LandingFooter from '@/components/landing/LandingFooter'
 import EcossistemaScantelbury from '@/components/landing/EcossistemaScantelbury'
+import { SoftwareAppStructuredData, FAQStructuredData } from '@/components/seo/StructuredData'
 import PricingToggleMei from '@/components/landing/PricingToggleMei'
 import TimeSavingsCalculator from '@/components/landing/TimeSavingsCalculator'
 
@@ -65,9 +66,33 @@ const faqs = [
   },
 ]
 
+// Plain-text version of the FAQs for JSON-LD (Google requires strings).
+// Mantém em sincronia com `faqs` acima — qualquer alteração lá precisa
+// ser refletida aqui (a versão exibida pode ter JSX, esta é só pra SEO).
+const faqsSeo = [
+  { q: 'Eu sou obrigado a emitir nota como MEI?',
+    a: 'Sim, se você presta serviços. A Receita Federal tornou obrigatória a emissão de NFS-e pela plataforma nacional para todos os MEI prestadores de serviço.' },
+  { q: 'O que é certificado digital A1 e onde consigo?',
+    a: 'É uma assinatura eletrônica obrigatória para emitir notas fiscais. Você pode adquirir em certificadoras credenciadas (Certisign, Serasa) por cerca de R$ 100–200/ano, ou gratuitamente na Receita Federal para e-CPF.' },
+  { q: 'Posso emitir nota para pessoa física (CPF)?',
+    a: 'Sim. Você pode emitir nota para CPF ou CNPJ. Basta informar o documento do tomador na emissão.' },
+  { q: 'E se eu errar uma nota, posso cancelar?',
+    a: 'Sim. Notas autorizadas podem ser canceladas em até 7 dias. Depois disso, é necessário emitir uma nota de substituição.' },
+  { q: 'Vocês declaram meu DAS também?',
+    a: 'Não. A NotaFácil MEI cuida só da emissão de NFS-e. O DAS é gerado separado pelo Portal do Empreendedor.' },
+  { q: 'Funciona para MEI de qualquer cidade?',
+    a: 'Funciona em todos os municípios que aderiram à NFS-e Nacional — mais de 5.000 cidades.' },
+]
+
 export default function MeiLandingPage() {
   return (
     <main className="min-h-screen bg-navy-900 text-text-1 font-body">
+      <SoftwareAppStructuredData
+        name="NotaFácil MEI"
+        description="App de emissão de NFS-e para MEI integrado à Receita Federal Nacional. Emita pelo celular em 30 segundos."
+        url="https://emitirnotafacil.com.br/mei"
+      />
+      <FAQStructuredData faqs={faqsSeo} />
       <Navbar />
 
       {/* Hero */}
