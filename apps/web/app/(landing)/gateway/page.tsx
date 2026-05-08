@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import Image from 'next/image'
 import AnimatedSection from '@/components/landing/AnimatedSection'
-import NavbarGateway from '@/components/landing/NavbarGateway'
+import Navbar from '@/components/landing/Navbar'
 import LandingFooter from '@/components/landing/LandingFooter'
 import PricingToggleGateway from '@/components/landing/PricingToggleGateway'
 
@@ -95,7 +95,7 @@ const faqs = [
 export default function GatewayLandingPage() {
   return (
     <main className="min-h-screen bg-navy-900 text-text-1 font-body">
-      <NavbarGateway />
+      <Navbar />
 
       {/* Hero */}
       <section className="pt-32 pb-16 px-4">

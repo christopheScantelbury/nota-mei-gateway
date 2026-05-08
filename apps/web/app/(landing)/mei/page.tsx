@@ -3,7 +3,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import AnimatedSection from '@/components/landing/AnimatedSection'
 import UrgencyBanner from '@/components/landing/UrgencyBanner'
-import NavbarMei from '@/components/landing/NavbarMei'
+import Navbar from '@/components/landing/Navbar'
 import LandingFooter from '@/components/landing/LandingFooter'
 import PricingToggleMei from '@/components/landing/PricingToggleMei'
 import TimeSavingsCalculator from '@/components/landing/TimeSavingsCalculator'
@@ -67,7 +67,7 @@ const faqs = [
 export default function MeiLandingPage() {
   return (
     <main className="min-h-screen bg-navy-900 text-text-1 font-body">
-      <NavbarMei />
+      <Navbar />
 
       {/* Hero */}
       <section className="pt-32 pb-16 px-4">
