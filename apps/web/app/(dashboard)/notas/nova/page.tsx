@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { CepMunicipioInput } from '@/components/ui/CepMunicipioInput'
 import { validarCNPJ } from '@/lib/cnpj'
 import ISSRecolhimentoCard from '@/components/nota/ISSRecolhimentoCard'
+import SugestorNBS from '@/components/nota/SugestorNBS'
 import type { NotaTemplate } from '@/app/api/templates/route'
 import type { RegimeTributario } from '@/lib/types'
 
@@ -358,6 +359,10 @@ export default function NovaNota() {
               onChange={e => setCodigoNbs(e.target.value)}
             />
             <p className="text-xs text-text-2">Código Nacional de Bens e Serviços da atividade prestada</p>
+            <SugestorNBS
+              descricao={discriminacao}
+              onSelect={(codigo) => setCodigoNbs(codigo)}
+            />
           </Field>
 
           <Field label="Discriminação do serviço" error={errors.discriminacao}>
