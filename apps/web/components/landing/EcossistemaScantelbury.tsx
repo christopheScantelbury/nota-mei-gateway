@@ -5,10 +5,10 @@ import Link from 'next/link'
 // produtos irmãos. Reutilize em qualquer landing antes do <LandingFooter />.
 
 type Produto = {
-  nome:     string
+  nome:      string
   subtitulo: string
-  href:     string | null  // null = card "você está aqui"
-  dotColor: string         // classe Tailwind para o pontinho
+  href:      string | null  // null = "você está aqui"
+  dotColor:  string         // classe Tailwind para o pontinho colorido
 }
 
 const PRODUTOS: Produto[] = [
@@ -16,19 +16,19 @@ const PRODUTOS: Produto[] = [
     nome:      'NotaFácil',
     subtitulo: 'Emissão de NFS-e Nacional',
     href:      null, // produto atual
-    dotColor:  'bg-brand-blue',
+    dotColor:  'bg-cyan-400',
   },
   {
     nome:      'EventGear',
-    subtitulo: 'Gestão de eventos e contratos',
-    href:      'https://eventgear-web.h1dq2d.easypanel.host/',
-    dotColor:  'bg-persona-emp', // coral
+    subtitulo: 'Gestão de equipamentos para eventos',
+    href:      'https://eventgear-web.h1dq2d.easypanel.host',
+    dotColor:  'bg-amber-400',
   },
   {
-    nome:      'AgendaInteligente',
+    nome:      'Agenda Inteligente',
     subtitulo: 'Agendamentos com IA',
-    href:      'https://agendainteligentefrontend.agendainteligenteapp.cloud/',
-    dotColor:  'bg-persona-api', // purple
+    href:      'https://agendainteligentefrontend.agendainteligenteapp.cloud',
+    dotColor:  'bg-violet-400',
   },
 ]
 
@@ -55,16 +55,18 @@ export default function EcossistemaScantelbury() {
                     : 'border-navy-600 hover:border-brand-blue/40 hover:-translate-y-0.5',
                 ].join(' ')}
               >
-                <div className="flex items-center gap-2 mb-2">
-                  <span className={`h-2.5 w-2.5 rounded-full ${p.dotColor}`} aria-hidden="true" />
-                  <span className="font-display text-base font-bold text-text-1">{p.nome}</span>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2.5 w-2.5 rounded-full ${p.dotColor}`} aria-hidden="true" />
+                    <span className="font-display text-base font-bold text-text-1">{p.nome}</span>
+                  </div>
+                  {isCurrent && (
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-brand-blue bg-brand-blue/10 px-2 py-0.5 rounded-full">
+                      Você está aqui
+                    </span>
+                  )}
                 </div>
                 <p className="text-sm text-text-2">{p.subtitulo}</p>
-                {isCurrent && (
-                  <p className="mt-3 text-xs font-medium text-brand-blue">
-                    Você está aqui
-                  </p>
-                )}
               </div>
             )
 
