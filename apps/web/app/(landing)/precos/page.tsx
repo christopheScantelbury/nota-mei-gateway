@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import Navbar from '@/components/landing/Navbar'
 import LandingFooter from '@/components/landing/LandingFooter'
+import EcossistemaScantelbury from '@/components/landing/EcossistemaScantelbury'
 
 export const metadata: Metadata = {
   title: 'Planos e Preços',
@@ -345,6 +346,8 @@ export default function PrecosPage() {
           </div>
         </div>
       </div>
+
+      <EcossistemaScantelbury />
 
       <LandingFooter />
     </main>

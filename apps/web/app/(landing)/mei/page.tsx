@@ -5,6 +5,7 @@ import AnimatedSection from '@/components/landing/AnimatedSection'
 import UrgencyBanner from '@/components/landing/UrgencyBanner'
 import Navbar from '@/components/landing/Navbar'
 import LandingFooter from '@/components/landing/LandingFooter'
+import EcossistemaScantelbury from '@/components/landing/EcossistemaScantelbury'
 import PricingToggleMei from '@/components/landing/PricingToggleMei'
 import TimeSavingsCalculator from '@/components/landing/TimeSavingsCalculator'
 
@@ -307,6 +308,8 @@ export default function MeiLandingPage() {
           </div>
         </div>
       </AnimatedSection>
+
+      <EcossistemaScantelbury />
 
       <LandingFooter />
     </main>
