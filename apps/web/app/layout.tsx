@@ -89,6 +89,7 @@ export const metadata: Metadata = {
     title: 'Nota MEI Gateway — Emissão de NFS-e para MEI',
     description: 'API REST para emissão automatizada de NFS-e para MEI via Receita Federal Nacional.',
     images: ['/og/og-gateway-1200x630.png'],
+    site:    '@scantelburydevs',
     creator: '@scantelburydevs',
   },
   manifest: '/manifest.json',

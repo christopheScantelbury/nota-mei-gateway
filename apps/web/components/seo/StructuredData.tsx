@@ -19,28 +19,47 @@ function jsonLd(data: object) {
 
 // ── Organization (cobre toda a marca, ideal no layout root) ─────────────────
 export function OrgStructuredData() {
-  return jsonLd({
-    '@context': 'https://schema.org',
-    '@type': 'Organization',
-    name: 'NotaFácil',
-    legalName: 'ScantelburyDevs',
-    url: BASE_URL,
-    logo: `${BASE_URL}/brand/notafacil-logo.svg`,
-    description:
-      'Plataforma de emissão de NFS-e Nacional para MEI, ME e EPP, integrada à Receita Federal.',
-    sameAs: [
-      'https://scantelburydevs.com.br',
-      'https://github.com/christopheScantelbury/nota-mei-gateway',
-    ],
-    contactPoint: [
-      {
-        '@type': 'ContactPoint',
-        contactType: 'customer support',
-        email: 'suporte@emitirnotafacil.com.br',
-        availableLanguage: ['Portuguese'],
-      },
-    ],
-  })
+  return (
+    <>
+      {jsonLd({
+        '@context': 'https://schema.org',
+        '@type': 'Organization',
+        name: 'NotaFácil',
+        legalName: 'ScantelburyDevs',
+        url: BASE_URL,
+        logo: `${BASE_URL}/brand/notafacil-logo.svg`,
+        description:
+          'Plataforma de emissão de NFS-e Nacional para MEI, ME e EPP, integrada à Receita Federal.',
+        sameAs: [
+          'https://scantelburydevs.com.br',
+          'https://github.com/christopheScantelbury/nota-mei-gateway',
+        ],
+        contactPoint: [
+          {
+            '@type': 'ContactPoint',
+            contactType: 'customer support',
+            email: 'suporte@emitirnotafacil.com.br',
+            availableLanguage: ['Portuguese'],
+          },
+        ],
+      })}
+      {/* WebSite + SearchAction → habilita "sitelinks search box" do Google
+          quando o site amadurece. Aponta para a busca interna do blog. */}
+      {jsonLd({
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        name: 'NotaFácil',
+        url: BASE_URL,
+        inLanguage: 'pt-BR',
+        publisher: { '@type': 'Organization', name: 'ScantelburyDevs' },
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: { '@type': 'EntryPoint', urlTemplate: `${BASE_URL}/blog?q={search_term_string}` },
+          'query-input': 'required name=search_term_string',
+        },
+      })}
+    </>
+  )
 }
 
 // ── SoftwareApplication (uma por landing de produto) ────────────────────────
