@@ -40,18 +40,18 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://emitirnotafacil.com.
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
+  applicationName: 'NotaFácil',
   title: {
-    default: 'Nota MEI Gateway — Emissão de NFS-e para MEI',
-    // Sem template global: cada layout aninhado (dashboard, admin) define o
-    // próprio template com o nome do produto correto. Um template no root
-    // seria aplicado sobre o `default` do dashboard para páginas sem título
-    // próprio (Client Components), resultando em sufixo duplo como
-    // "Painel — Nota Fácil MEI · Nota MEI Gateway".
+    // Default usado quando a página não define title — Chrome usa esse valor
+    // no diálogo de instalação do PWA, então precisa ser o nome curto da marca.
+    default: 'NotaFácil — Emissão de NFS-e Nacional',
+    // Template vazio (%s) deixa cada layout aninhado controlar o título sem
+    // duplicar sufixo — dashboard MEI vira "Painel — Nota Fácil MEI", etc.
     template: '%s',
   },
   description:
-    'API REST para emissão automatizada de NFS-e para MEI via Receita Federal Nacional. Integre em minutos, emita com confiança.',
-  keywords: ['NFS-e', 'MEI', 'nota fiscal', 'API', 'Receita Federal', 'emissão automática'],
+    'Emita NFS-e Nacional para MEI, ME e EPP em segundos. Pelo celular, sem complicação. Integração direta com a Receita Federal.',
+  keywords: ['NFS-e', 'MEI', 'ME', 'EPP', 'nota fiscal', 'API', 'Receita Federal', 'emissão automática', 'NotaFácil'],
   authors: [{ name: 'ScantelburyDevs', url: 'https://scantelburydevs.com.br' }],
   creator: 'ScantelburyDevs',
   publisher: 'ScantelburyDevs',
@@ -80,15 +80,15 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'pt_BR',
     url: APP_URL,
-    siteName: 'Nota MEI Gateway',
-    title: 'Nota MEI Gateway — Emissão de NFS-e para MEI',
-    description: 'API REST para emissão automatizada de NFS-e para MEI via Receita Federal Nacional.',
-    images: [{ url: '/og/og-gateway-1200x630.png', width: 1200, height: 630, alt: 'Nota MEI Gateway' }],
+    siteName: 'NotaFácil',
+    title: 'NotaFácil — Emissão de NFS-e Nacional',
+    description: 'Emita NFS-e Nacional para MEI, ME e EPP em segundos. Pelo celular, sem complicação.',
+    images: [{ url: '/og/og-gateway-1200x630.png', width: 1200, height: 630, alt: 'NotaFácil — Emissão de NFS-e Nacional' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Nota MEI Gateway — Emissão de NFS-e para MEI',
-    description: 'API REST para emissão automatizada de NFS-e para MEI via Receita Federal Nacional.',
+    title: 'NotaFácil — Emissão de NFS-e Nacional',
+    description: 'Emita NFS-e Nacional para MEI, ME e EPP em segundos. Pelo celular, sem complicação.',
     images: ['/og/og-gateway-1200x630.png'],
     site:    '@scantelburydevs',
     creator: '@scantelburydevs',

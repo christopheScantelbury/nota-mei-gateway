@@ -11,22 +11,24 @@ import HowItWorksToggle from '@/components/landing/HowItWorksToggle'
 import PricingToggle from '@/components/landing/PricingToggle'
 
 export const metadata: Metadata = {
-  title: 'Emissão de NFS-e para MEI — Nota Fácil MEI & Nota MEI Gateway',
+  // Title curto importa para o diálogo de instalação do PWA — Chrome usa
+  // o título da página como nome no prompt "Adicionar à tela inicial".
+  title: 'NotaFácil — Emissão de NFS-e Nacional para MEI, ME e EPP',
   description:
-    'Emita NFS-e do seu MEI em segundos. Para MEI: app simples sem burocracia. Para devs: API REST integrada à Receita Federal Nacional. ScantelburyDevs.',
+    'Emita NFS-e Nacional em segundos. Para MEI: app simples sem burocracia. Para ME/EPP: obrigatório a partir de set/2026. Para devs: API REST integrada à Receita Federal.',
   openGraph: {
-    title: 'Emissão de NFS-e para MEI — ScantelburyDevs',
-    description: 'Emita NFS-e do seu MEI em segundos. Simples para o MEI, poderoso para o dev.',
+    title: 'NotaFácil — Emissão de NFS-e Nacional',
+    description: 'Emita NFS-e Nacional em segundos. Simples para o MEI, robusto para a empresa, poderoso para o dev.',
     url: 'https://emitirnotafacil.com.br',
-    siteName: 'Nota MEI Gateway',
-    images: [{ url: '/og/og-gateway-1200x630.png', width: 1200, height: 630, alt: 'Nota MEI Gateway — Emissão de NFS-e para MEI' }],
+    siteName: 'NotaFácil',
+    images: [{ url: '/og/og-gateway-1200x630.png', width: 1200, height: 630, alt: 'NotaFácil — Emissão de NFS-e Nacional' }],
     locale: 'pt_BR',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Emissão de NFS-e para MEI — ScantelburyDevs',
-    description: 'Emita NFS-e do seu MEI em segundos. Simples para o MEI, poderoso para o dev.',
+    title: 'NotaFácil — Emissão de NFS-e Nacional',
+    description: 'Emita NFS-e Nacional em segundos. Simples para o MEI, robusto para a empresa, poderoso para o dev.',
     images: ['/og/og-gateway-1200x630.png'],
   },
   alternates: { canonical: 'https://emitirnotafacil.com.br' },
