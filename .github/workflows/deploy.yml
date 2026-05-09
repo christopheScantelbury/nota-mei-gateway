@@ -41,3 +41,45 @@ jobs:
   # deploy-web removido: Vercel Git integration já faz deploy automático no push.
   # Rodar vercel --prod via CLI em paralelo causava dois builds simultâneos com
   # cache conflict — o CLI restaurava cache antigo e sobrescrevia o build correto.
+
+  # ── Pós-deploy: notificar buscadores ──────────────────────────────────────
+  # IndexNow protocol — Bing, Yandex, Seznam, Naver indexam em minutos.
+  # Google não suporta IndexNow oficialmente (precisa Search Console manual).
+  # Roda apenas em main, depois de ~3min de margem para o Vercel terminar
+  # o deploy (Vercel Git integration é assíncrono — não bloqueamos o job
+  # da Railway para esperar).
+  indexnow:
+    name: IndexNow (Bing/Yandex)
+    needs: deploy-api
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Aguardar deploy do Vercel concluir
+        run: sleep 180
+
+      - name: Submeter URLs ao IndexNow
+        env:
+          INDEXNOW_URL: https://emitirnotafacil.com.br/api/indexnow
+        run: |
+          set -eo pipefail
+          echo "Disparando IndexNow em: $INDEXNOW_URL"
+
+          # Tenta até 3x em caso de cold start do endpoint
+          for i in 1 2 3; do
+            HTTP=$(curl -sL -o /tmp/resp.json -w "%{http_code}" -X POST "$INDEXNOW_URL")
+            BODY=$(cat /tmp/resp.json)
+            echo "Tentativa $i: HTTP $HTTP"
+            echo "Resposta: $BODY"
+
+            # 200 e payload contém "submitted" → sucesso
+            if [ "$HTTP" = "200" ] && echo "$BODY" | grep -q '"submitted"'; then
+              SUBMITTED=$(echo "$BODY" | grep -oE '"submitted":[0-9]+' | head -1 | grep -oE '[0-9]+')
+              echo "::notice title=IndexNow::$SUBMITTED URLs submetidas com sucesso"
+              exit 0
+            fi
+            sleep 30
+          done
+
+          echo "::warning title=IndexNow::Falhou após 3 tentativas — submissão será retomada no próximo deploy"
+          # Não falha o workflow — IndexNow não é crítico para o deploy
+          exit 0
