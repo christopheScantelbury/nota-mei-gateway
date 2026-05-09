@@ -2,33 +2,6 @@
   "name": "nota-facil-mobile",
   "version": "0.1.0",
   "private": true,
-  "description": "Wrapper Capacitor do NotaFácil para Play Store e App Store",
-  "scripts": {
-    "build:web": "cd ../web && next build && next export -o ../mobile/www || true",
-    "sync": "cap sync",
-    "android:open": "cap open android",
-    "android:run": "cap run android",
-    "android:build": "cd android && ./gradlew bundleRelease",
-    "ios:open": "cap open ios",
-    "ios:run": "cap run ios",
-    "icons": "capacitor-assets generate"
-  },
-  "dependencies": {
-    "@capacitor/android": "^6.1.2",
-    "@capacitor/app": "^6.0.1",
-    "@capacitor/browser": "^6.0.3",
-    "@capacitor/camera": "^6.1.0",
-    "@capacitor/core": "^6.1.2",
-    "@capacitor/haptics": "^6.0.1",
-    "@capacitor/ios": "^6.1.2",
-    "@capacitor/preferences": "^6.0.2",
-    "@capacitor/push-notifications": "^6.0.2",
-    "@capacitor/share": "^6.0.2",
-    "@capacitor/splash-screen": "^6.0.2",
-    "@capacitor/status-bar": "^6.0.1"
-  },
-  "devDependencies": {
-    "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "^6.1.2"
-  }
+  "description": "Wrapper Capacitor do NotaFácil para Play Store e App Store. ATIVAR via npm install (ver README.md).",
+  "comment": "Dependências do Capacitor estão documentadas no README, não declaradas aqui. Motivo: evitar npm ci do monorepo de tentar instalá-las em CI quando MOB-02 ainda não foi iniciado. Quando ativar: copiar a seção 'Setup inicial' do README e rodar npm install -E nesta pasta com as versões listadas."
 }

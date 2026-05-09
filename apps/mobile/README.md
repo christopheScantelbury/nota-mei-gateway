@@ -40,8 +40,26 @@
 ```bash
 cd apps/mobile
 
-# 1. Instalar deps
-npm install
+# 1. Adicionar dependências do Capacitor (essas linhas SUBSTITUEM um npm install
+#    direto — propositalmente NÃO declaradas no package.json para o lockfile do
+#    monorepo permanecer limpo enquanto MOB-02 não estiver ativo)
+npm install --save \
+  @capacitor/android@^6.1.2 \
+  @capacitor/app@^6.0.1 \
+  @capacitor/browser@^6.0.3 \
+  @capacitor/camera@^6.1.0 \
+  @capacitor/core@^6.1.2 \
+  @capacitor/haptics@^6.0.1 \
+  @capacitor/ios@^6.1.2 \
+  @capacitor/preferences@^6.0.2 \
+  @capacitor/push-notifications@^6.0.2 \
+  @capacitor/share@^6.0.2 \
+  @capacitor/splash-screen@^6.0.2 \
+  @capacitor/status-bar@^6.0.1
+
+npm install --save-dev \
+  @capacitor/assets@^3.0.5 \
+  @capacitor/cli@^6.1.2
 
 # 2. Build estático do Next.js para www/
 #    (precisa adaptar apps/web/next.config.mjs com output: 'export')
