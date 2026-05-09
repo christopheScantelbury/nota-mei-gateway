@@ -55,6 +55,7 @@ export default function LandingFooter() {
               <li><Link href="/me"      className="hover:text-text-1 transition">NotaFácil Empresa</Link></li>
               <li><Link href="/gateway" className="hover:text-text-1 transition">NotaFácil API</Link></li>
               <li><Link href="/precos"  className="hover:text-text-1 transition">Planos e preços</Link></li>
+              <li><Link href="/blog"    className="hover:text-text-1 transition">Blog</Link></li>
             </ul>
           </div>
 

@@ -1,10 +1,35 @@
 ﻿import type { MetadataRoute } from 'next'
+import { BLOG_POSTS } from '@/lib/blog/manifest'
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://emitirnotafacil.com.br'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date()
 
+  const blogIndex: MetadataRoute.Sitemap = [
+    {
+      url: `${BASE_URL}/blog`,
+      lastModified: now,
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
+  ]
+
+  const blogPosts: MetadataRoute.Sitemap = BLOG_POSTS.map((p) => ({
+    url: `${BASE_URL}/blog/${p.slug}`,
+    lastModified: new Date(p.updatedAt ?? p.publishedAt),
+    changeFrequency: 'monthly' as const,
+    priority: 0.7,
+  }))
+
+  return [
+    ...blogIndex,
+    ...blogPosts,
+    ...static_routes(now),
+  ]
+}
+
+function static_routes(now: Date): MetadataRoute.Sitemap {
   return [
     {
       url: BASE_URL,

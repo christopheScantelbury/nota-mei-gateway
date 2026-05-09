@@ -46,6 +46,7 @@ const mobileLinks = [
   { label: 'ME / EPP',      href: '/me',      isAnchor: false },
   { label: 'Gateway API',   href: '/gateway', isAnchor: false },
   { label: 'Preços',        href: '/precos',  isAnchor: false },
+  { label: 'Blog',          href: '/blog',    isAnchor: false },
   { label: 'Documentação',  href: '/docs',    isAnchor: false },
   { label: 'Status',        href: '/status',  isAnchor: false },
 ]
@@ -102,6 +103,7 @@ export default function Navbar() {
             <Link href="/me"      className="text-sm text-text-2 hover:text-text-1 transition-colors">ME / EPP</Link>
             <Link href="/gateway" className="text-sm text-text-2 hover:text-text-1 transition-colors">Gateway API</Link>
             <Link href="/precos"  className="text-sm text-text-2 hover:text-text-1 transition-colors">Preços</Link>
+            <Link href="/blog"    className="text-sm text-text-2 hover:text-text-1 transition-colors">Blog</Link>
           </div>
 
           {/* CTAs — desktop only (sm+) */}
