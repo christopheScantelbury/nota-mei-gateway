@@ -1,4 +1,4 @@
-# Backlog — Atividades de IA (futuras)
+# Backlog — Atividades futuras (IA + Mobile)
 
 > Última atualização: 2026-05-08
 > Lista mestre de atividades de IA não-iniciadas. Cada item está em

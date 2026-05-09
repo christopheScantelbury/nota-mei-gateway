@@ -3,6 +3,7 @@ import { Outfit, Inter, DM_Sans, DM_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { ThemeProvider } from 'next-themes'
 import { OrgStructuredData } from '@/components/seo/StructuredData'
+import PWAProvider from '@/components/pwa/PWAProvider'
 import './globals.css'
 
 // ── Fonts ──────────────────────────────────────────────────────────────────
@@ -93,6 +94,12 @@ export const metadata: Metadata = {
     creator: '@scantelburydevs',
   },
   manifest: '/manifest.json',
+  // PWA / iOS Safari — meta tags para o "Adicionar à Tela de Início"
+  appleWebApp: {
+    capable:    true,
+    title:      'NotaFácil',
+    statusBarStyle: 'default',
+  },
   // Verificação Google Search Console (e Bing). Configure as envs no Vercel:
   //   NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION=<código do GSC>
   //   NEXT_PUBLIC_BING_SITE_VERIFICATION=<código do Bing>
@@ -144,6 +151,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </a>
 
           {children}
+
+          <PWAProvider />
 
           <Toaster
             theme="system"
