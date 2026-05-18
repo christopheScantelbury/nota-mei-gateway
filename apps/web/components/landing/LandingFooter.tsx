@@ -80,7 +80,7 @@ export default function LandingFooter() {
             </h4>
             <ul className="flex flex-col gap-2.5 text-sm text-text-2">
               <li>
-                <a href="https://scantelburydevs.com.br" target="_blank" rel="noopener noreferrer" className="hover:text-text-1 transition">
+                <a href="https://www.scantelburydevs.com.br" target="_blank" rel="noopener noreferrer" className="hover:text-text-1 transition">
                   ScantelburyDevs ↗
                 </a>
               </li>
@@ -97,7 +97,14 @@ export default function LandingFooter() {
 
         <div className="border-t border-navy-600 pt-6 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-text-2">
           <span>© {new Date().getFullYear()} ScantelburyDevs · Todos os direitos reservados</span>
-          <span className="font-mono">emitirnotafacil.com.br</span>
+          <a
+            href="https://www.scantelburydevs.com.br"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-text-1 transition font-mono"
+          >
+            Desenvolvido por ScantelburyDevs ↗
+          </a>
         </div>
       </div>
     </footer>
