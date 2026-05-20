@@ -44,6 +44,12 @@ func main() {
 	if cfg.AppEnv == "development" {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	}
+	// Fallback logger for log.Ctx() when a context has no logger attached.
+	// Without this, calls like `log.Ctx(c.Context()).Error()...` silently drop
+	// the message because Fiber's `c.Context()` returns *fasthttp.RequestCtx,
+	// not the user context where our middleware stores the request-scoped logger.
+	// This made the "register MEI failed" error invisible in production logs.
+	zerolog.DefaultContextLogger = &log.Logger
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

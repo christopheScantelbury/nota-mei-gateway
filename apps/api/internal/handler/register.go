@@ -115,7 +115,7 @@ func (h *RegisterHandler) Register(c *fiber.Ctx) error {
 					"request_id": c.Locals("request_id"),
 				})
 			default:
-				log.Ctx(c.Context()).Error().Err(err).Str("cnpj", req.CNPJ).Msg("cnpj validation error")
+				log.Ctx(c.UserContext()).Error().Err(err).Str("cnpj", req.CNPJ).Msg("cnpj validation error")
 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 					"error":      "INTERNAL_ERROR",
 					"message":    "erro ao validar CNPJ",
@@ -141,7 +141,12 @@ func (h *RegisterHandler) Register(c *fiber.Ctx) error {
 				"request_id": c.Locals("request_id"),
 			})
 		}
-		log.Ctx(c.Context()).Error().Err(err).Str("cnpj", req.CNPJ).Msg("register MEI failed")
+		log.Ctx(c.UserContext()).Error().
+			Err(err).
+			Str("cnpj", req.CNPJ).
+			Str("email", req.Email).
+			Str("municipio_ibge", req.MunicipioIBGE).
+			Msg("register MEI failed")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error":      "INTERNAL_ERROR",
 			"message":    "erro ao cadastrar MEI",

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -43,16 +44,34 @@ func RequestLogger() fiber.Handler {
 		start := time.Now()
 		err := c.Next()
 
+		// When c.Next() returns a non-nil error, Fiber's ErrorHandler runs AFTER
+		// this middleware and is what actually sets the status code. Derive the
+		// final status from the error to avoid logging 200 for 4xx/5xx responses.
 		status := c.Response().StatusCode()
+		if err != nil {
+			var fe *fiber.Error
+			if errors.As(err, &fe) {
+				status = fe.Code
+			} else if status < 400 {
+				status = fiber.StatusInternalServerError
+			}
+		}
 		dur := time.Since(start)
 
 		event := logEvent(&logger, status)
 		event.
 			Str("method", c.Method()).
 			Str("path", c.Path()).
+			Str("ip", c.IP()).
 			Int("status", status).
-			Dur("duration_ms", dur).
-			Msg("request")
+			Int("body_bytes", len(c.Response().Body())).
+			Dur("duration_ms", dur)
+		// Include the error chain on failures so we don't have to guess at
+		// what went wrong from a generic "INTERNAL_ERROR" response body.
+		if err != nil {
+			event = event.Err(err)
+		}
+		event.Msgf("%s %s %d", c.Method(), c.Path(), status)
 
 		return err
 	}

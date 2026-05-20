@@ -26,6 +26,8 @@ func main() {
 	if cfg.AppEnv == "development" {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	}
+	// Fallback for log.Ctx() — same rationale as cmd/server/main.go.
+	zerolog.DefaultContextLogger = &log.Logger
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

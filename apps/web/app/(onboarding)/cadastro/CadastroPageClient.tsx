@@ -483,11 +483,20 @@ function CadastroPageInner() {
                 Certificado A1 (.pfx / .p12)
               </label>
               <div
-                className="w-full bg-navy-900 border border-dashed border-navy-600 rounded-lg px-3 py-4 text-center cursor-pointer hover:border-brand-cyan/50 transition-colors"
+                className="w-full bg-navy-900 border border-dashed border-navy-600 rounded-lg px-3 py-4 text-center cursor-pointer hover:border-brand-cyan/50 transition-colors overflow-hidden"
                 onClick={() => fileRef.current?.click()}
               >
                 {form.certFile ? (
-                  <span className="text-sm text-text-1">📎 {form.certFile.name}</span>
+                  // `min-w-0` lets the flex child shrink; `truncate` adds
+                  // overflow-hidden + text-ellipsis + whitespace-nowrap so very
+                  // long file names (e.g. 174031598_ALEF_HENRIQUE_DAS_CHAGAS_…)
+                  // don't blow past the container's right border.
+                  <div className="flex items-center justify-center gap-2 min-w-0" title={form.certFile.name}>
+                    <span aria-hidden="true">📎</span>
+                    <span className="text-sm text-text-1 truncate min-w-0 flex-1 text-left">
+                      {form.certFile.name}
+                    </span>
+                  </div>
                 ) : (
                   <span className="text-sm text-text-2">Clique para selecionar o arquivo</span>
                 )}

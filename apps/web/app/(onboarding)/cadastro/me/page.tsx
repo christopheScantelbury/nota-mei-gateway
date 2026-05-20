@@ -504,11 +504,17 @@ export default function CadastroMEPage() {
               <>
                 <Field label="Arquivo .pfx" error={certError}>
                   <div
-                    className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center cursor-pointer hover:border-brand-cyan/50 transition"
+                    className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center cursor-pointer hover:border-brand-cyan/50 transition overflow-hidden"
                     onClick={() => certFileRef.current?.click()}
                   >
                     {form.certFile ? (
-                      <p className="text-sm text-text-1 font-medium">{form.certFile.name}</p>
+                      // truncate keeps long file names from overflowing the dashed box.
+                      <p
+                        className="text-sm text-text-1 font-medium truncate"
+                        title={form.certFile.name}
+                      >
+                        {form.certFile.name}
+                      </p>
                     ) : (
                       <>
                         <p className="text-sm text-text-2">Clique para selecionar o arquivo .pfx</p>
