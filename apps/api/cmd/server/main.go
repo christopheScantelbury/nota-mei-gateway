@@ -136,6 +136,14 @@ func main() {
 
 	// ── Repositories ───────────────────────────────────────────────────────
 	authRepo := auth.NewRepository(db)
+	// Supabase Auth Admin — required by RegisterMEI to provision auth.users
+	// rows that satisfy the empresas.user_id FK (migration 20260620_multi_produto).
+	if cfg.SupabaseURL != "" && cfg.SupabaseServiceKey != "" {
+		authAdmin := supabase.NewAuthAdminClient(cfg.SupabaseURL, cfg.SupabaseServiceKey, 10*time.Second)
+		authRepo = authRepo.WithAuthAdmin(authAdmin)
+	} else {
+		log.Warn().Msg("Supabase Auth Admin: SUPABASE_URL ou SUPABASE_SERVICE_ROLE_KEY ausente — POST /v1/auth/register vai retornar 500")
+	}
 	billingRepo := billing.NewRepository(db)
 	notaRepo := nfse.NewNotaRepository(db)
 

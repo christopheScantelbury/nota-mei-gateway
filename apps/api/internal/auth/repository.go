@@ -57,12 +57,21 @@ type MEI struct {
 
 // Repository handles auth-related database operations.
 type Repository struct {
-	db *supabase.Client
+	db        *supabase.Client
+	authAdmin *supabase.AuthAdminClient // optional — required for RegisterMEI after migration 20260620
 }
 
 // NewRepository creates a Repository using the shared Supabase pool.
 func NewRepository(db *supabase.Client) *Repository {
 	return &Repository{db: db}
+}
+
+// WithAuthAdmin attaches a Supabase Auth Admin client so RegisterMEI can
+// provision auth.users rows (required since the multi_produto migration added
+// empresas.user_id NOT NULL REFERENCES auth.users(id)).
+func (r *Repository) WithAuthAdmin(c *supabase.AuthAdminClient) *Repository {
+	r.authAdmin = c
+	return r
 }
 
 // FindByHash looks up a non-revoked API key by its SHA-256 hash.
@@ -131,23 +140,73 @@ func (r *Repository) FindMEI(ctx context.Context, meiID uuid.UUID) (*MEI, error)
 	return &mei, nil
 }
 
-// RegisterMEI inserts a new MEI, assigns the Trial plan for the current month,
-// and creates a live API key — all inside a single transaction.
+// RegisterMEI provisions a new MEI end-to-end:
+//  1. Creates an auth.users row via the Supabase Auth Admin API (gives us a UUID
+//     that satisfies the empresas.user_id FK).
+//  2. Inserts mirror rows into meis and empresas using the same UUID.
+//  3. Inserts emissoes_mensais (Trial plan) and api_keys with empresa_id set.
+//
+// All DB writes happen in a single transaction. If the transaction fails after
+// the auth.users row is created, the auth row is rolled back via a best-effort
+// DeleteUser call so we don't leak orphan accounts.
 func (r *Repository) RegisterMEI(ctx context.Context, p RegisterMEIParams) (*RegisterMEIResult, error) {
+	if r.authAdmin == nil {
+		return nil, errors.New("RegisterMEI: AuthAdminClient not configured (call WithAuthAdmin)")
+	}
+
+	tipoUsuario := SanitizeTipoUsuario(p.TipoUsuario)
+
+	// ── 1. auth.users — must come first to satisfy empresas.user_id FK ─────────
+	userID, err := r.authAdmin.CreateUser(ctx, supabase.CreateUserParams{
+		Email:        p.Email,
+		EmailConfirm: true, // skip the magic-link step — MEI authenticates via API key
+		UserMetadata: map[string]interface{}{
+			"cnpj":         p.CNPJ,
+			"razao_social": p.RazaoSocial,
+			"tipo_usuario": tipoUsuario,
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Best-effort cleanup of the auth.users row when the DB transaction below fails.
+	committed := false
+	defer func() {
+		if committed {
+			return
+		}
+		// Use a fresh background context so the cleanup runs even if `ctx` is
+		// already cancelled (typical when the request times out).
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = r.authAdmin.DeleteUser(cleanupCtx, userID)
+	}()
+
+	// ── 2-5. Atomic DB transaction ─────────────────────────────────────────────
 	tx, err := r.db.Pool().Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
-	tipoUsuario := SanitizeTipoUsuario(p.TipoUsuario)
+	// meis — mirror of the legacy MEI-only model. id = userID so empresa.id = mei.id.
+	_, err = tx.Exec(ctx, `
+		INSERT INTO meis (id, cnpj, razao_social, email, municipio_ibge, tipo_usuario)
+		VALUES ($1, $2, $3, $4, $5, $6)
+	`, userID, p.CNPJ, p.RazaoSocial, p.Email, p.MunicipioIBGE, tipoUsuario)
+	if err != nil {
+		return nil, err
+	}
 
-	var meiID uuid.UUID
-	err = tx.QueryRow(ctx, `
-		INSERT INTO meis (cnpj, razao_social, email, municipio_ibge, tipo_usuario)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id
-	`, p.CNPJ, p.RazaoSocial, p.Email, p.MunicipioIBGE, tipoUsuario).Scan(&meiID)
+	// empresas — generalized model (MEI/ME/EPP). Same UUID keeps RLS + FKs consistent.
+	_, err = tx.Exec(ctx, `
+		INSERT INTO empresas (
+			id, user_id, tipo, regime_tributario,
+			cnpj, razao_social, email, municipio_ibge, tipo_usuario
+		)
+		VALUES ($1, $1, 'MEI', 'SIMPLES_MEI', $2, $3, $4, $5, $6)
+	`, userID, p.CNPJ, p.RazaoSocial, p.Email, p.MunicipioIBGE, tipoUsuario)
 	if err != nil {
 		return nil, err
 	}
@@ -162,9 +221,9 @@ func (r *Repository) RegisterMEI(ctx context.Context, p RegisterMEIParams) (*Reg
 
 	competencia := time.Now().UTC().Format("2006-01")
 	_, err = tx.Exec(ctx, `
-		INSERT INTO emissoes_mensais (mei_id, plano_id, competencia)
-		VALUES ($1, $2, $3)
-	`, meiID, planID, competencia)
+		INSERT INTO emissoes_mensais (mei_id, empresa_id, plano_id, competencia)
+		VALUES ($1, $1, $2, $3)
+	`, userID, planID, competencia)
 	if err != nil {
 		return nil, err
 	}
@@ -174,9 +233,9 @@ func (r *Repository) RegisterMEI(ctx context.Context, p RegisterMEIParams) (*Reg
 		return nil, err
 	}
 	_, err = tx.Exec(ctx, `
-		INSERT INTO api_keys (mei_id, key_hash, key_prefix, label)
-		VALUES ($1, $2, $3, 'default')
-	`, meiID, hash, PrefixOf(rawKey))
+		INSERT INTO api_keys (mei_id, empresa_id, key_hash, key_prefix, label)
+		VALUES ($1, $1, $2, $3, 'default')
+	`, userID, hash, PrefixOf(rawKey))
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +243,8 @@ func (r *Repository) RegisterMEI(ctx context.Context, p RegisterMEIParams) (*Reg
 	if err = tx.Commit(ctx); err != nil {
 		return nil, err
 	}
-	return &RegisterMEIResult{MeiID: meiID, APIKey: rawKey}, nil
+	committed = true
+	return &RegisterMEIResult{MeiID: userID, APIKey: rawKey}, nil
 }
 
 // SaveStripeCustomerID persists the Stripe Customer ID on the MEI row.
