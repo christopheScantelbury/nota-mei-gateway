@@ -26,6 +26,7 @@ type certManager interface {
 // Satisfied by *auth.Repository; inject a stub in tests.
 type arnSaver interface {
 	SaveCertSecretARN(ctx context.Context, meiID uuid.UUID, arn string) error
+	SaveMEICertValidUntil(ctx context.Context, meiID uuid.UUID, validUntil time.Time) error
 	// ME/EPP equivalents:
 	SaveEmpresaCertARN(ctx context.Context, empresaID uuid.UUID, arn string) error
 	SaveEmpresaCertValidUntil(ctx context.Context, empresaID uuid.UUID, validUntil time.Time) error
@@ -199,6 +200,9 @@ func (h *CertificateHandler) Renew(c *fiber.Ctx) error {
 					"request_id": c.Locals("request_id"),
 				})
 			}
+			// Persist cert_valid_until so the dashboard's expiry badge works
+			// for MEIs as well (previously this only ran for ME/EPP).
+			h.persistValidUntilMEI(c.Context(), pfxData, password, entityID)
 		}
 
 		log.Ctx(c.Context()).Info().
@@ -228,6 +232,8 @@ func (h *CertificateHandler) Renew(c *fiber.Ctx) error {
 
 	if isEmpresa {
 		h.persistValidUntil(c.Context(), pfxData, password, entityID)
+	} else {
+		h.persistValidUntilMEI(c.Context(), pfxData, password, entityID)
 	}
 
 	log.Ctx(c.Context()).Info().
@@ -252,6 +258,22 @@ func (h *CertificateHandler) persistValidUntil(ctx context.Context, pfxData []by
 	if saveErr := h.arnSaver.SaveEmpresaCertValidUntil(ctx, empresaID, validUntil); saveErr != nil {
 		log.Ctx(ctx).Warn().Err(saveErr).Str("empresa_id", empresaID.String()).
 			Msg("cert_valid_until save failed")
+	}
+}
+
+// persistValidUntilMEI is the MEI counterpart of persistValidUntil — writes the
+// PFX's NotAfter to meis.cert_valid_until so the dashboard expiry badge works
+// for legacy MEI accounts (not just ME/EPP).
+func (h *CertificateHandler) persistValidUntilMEI(ctx context.Context, pfxData []byte, password string, meiID uuid.UUID) {
+	validUntil, err := cert.PFXNotAfter(pfxData, password)
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Str("mei_id", meiID.String()).
+			Msg("could not parse cert NotAfter — meis.cert_valid_until not updated")
+		return
+	}
+	if saveErr := h.arnSaver.SaveMEICertValidUntil(ctx, meiID, validUntil); saveErr != nil {
+		log.Ctx(ctx).Warn().Err(saveErr).Str("mei_id", meiID.String()).
+			Msg("meis.cert_valid_until save failed")
 	}
 }
 

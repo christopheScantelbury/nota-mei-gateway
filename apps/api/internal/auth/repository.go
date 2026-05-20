@@ -267,3 +267,16 @@ func (r *Repository) SaveCertSecretARN(ctx context.Context, meiID uuid.UUID, arn
 	`, arn, meiID)
 	return err
 }
+
+// SaveMEICertValidUntil persists the certificate expiry date on the meis row.
+// The dashboard (configuracoes / home) reads meis.cert_valid_until to show the
+// "Certificado ativo até DD/MM/YYYY" badge and the expiry-soon warning. Without
+// this, MEI uploads would leave the column NULL.
+func (r *Repository) SaveMEICertValidUntil(ctx context.Context, meiID uuid.UUID, validUntil time.Time) error {
+	_, err := r.db.Pool().Exec(ctx, `
+		UPDATE meis
+		SET cert_valid_until = $1, updated_at = NOW()
+		WHERE id = $2
+	`, validUntil, meiID)
+	return err
+}

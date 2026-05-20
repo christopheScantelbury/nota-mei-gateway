@@ -63,6 +63,10 @@ func (s *stubARNSaver) SaveEmpresaCertValidUntil(_ context.Context, _ uuid.UUID,
 	return s.err
 }
 
+func (s *stubARNSaver) SaveMEICertValidUntil(_ context.Context, _ uuid.UUID, _ time.Time) error {
+	return s.err
+}
+
 func TestCertificateHandler_MissingPassword(t *testing.T) {
 	app := fiber.New()
 	certH := handler.NewCertificateHandler(&stubCertManager{}, &stubARNSaver{}, (*supabase.Client)(nil))
