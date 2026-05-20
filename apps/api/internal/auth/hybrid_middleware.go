@@ -61,25 +61,35 @@ func HybridMiddleware(repo *Repository, supabaseURL, serviceRoleKey string) fibe
 			})
 		}
 
-		// Resolve empresa (preferred — single source of truth post-multi_produto).
-		// empresa.id == user.id by registration invariant.
-		empresa, errE := repo.FindEmpresa(c.Context(), userID)
-		if errE == nil {
-			c.Locals(localsEmpresa, empresa)
-			return c.Next()
-		}
-
-		// Fallback to legacy meis lookup for accounts created before ARCH-03.
+		// Resolve which table holds this user.
+		//
+		// Routing rule: prefer the meis table when a row exists, because:
+		//   1. The dashboard (configuracoes/page.tsx, home/page.tsx) still reads
+		//      cert_valid_until and cert_secret_arn from `meis` for MEI accounts.
+		//   2. The cert handler routes via auth.GetMEI vs auth.GetEmpresa — if
+		//      we set Empresa for a MEI, the cert ARN would be saved to
+		//      empresas.cert_secret_arn and never reach the dashboard.
+		//   3. RegisterMEI populates BOTH tables with the same UUID for MEIs,
+		//      so FindMEI(user.id) succeeds for every MEI we own.
+		//
+		// ME/EPP accounts have no meis row → FindMEI errors → we fall through
+		// to the empresas path, which is the correct path for them.
 		mei, errM := repo.FindMEI(c.Context(), userID)
 		if errM == nil {
 			c.Locals(localsMEI, mei)
 			return c.Next()
 		}
 
+		empresa, errE := repo.FindEmpresa(c.Context(), userID)
+		if errE == nil {
+			c.Locals(localsEmpresa, empresa)
+			return c.Next()
+		}
+
 		log.Ctx(c.UserContext()).Error().
 			Str("user_id", userID.String()).
-			Err(errE).
-			AnErr("mei_err", errM).
+			Err(errM).
+			AnErr("empresa_err", errE).
 			Msg("hybrid auth: user has no MEI/Empresa row")
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error":      "NO_ACCOUNT",

@@ -15,7 +15,13 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
-	"golang.org/x/crypto/pkcs12"
+	// Use software.sslmate.com/src/go-pkcs12 instead of golang.org/x/crypto/pkcs12:
+	// the official x/crypto package only accepts PFX files with exactly two
+	// "safe bags" (cert + key), which rejects most Brazilian ICP-Brasil A1
+	// certificates (Certisign, Serasa, SOLUTI, etc.) because they bundle the
+	// intermediate + root CA chain = 3+ bags. The sslmate fork is the de-facto
+	// permissive parser used in production for real-world certificates.
+	pkcs12 "software.sslmate.com/src/go-pkcs12"
 )
 
 // CertProvider is the interface for retrieving and storing A1 certificates.
@@ -149,8 +155,11 @@ func PfxToSecretJSON(pfxData []byte, password string) (string, error) {
 }
 
 func pfxToSecretJSON(pfxData []byte, password string) (string, error) {
-	// Decode the PKCS#12 bundle — returns private key + leaf certificate.
-	privateKey, certificate, err := pkcs12.Decode(pfxData, password)
+	// DecodeChain returns the leaf cert + any intermediate certs bundled in the
+	// PFX. We need the chain for XMLDSig signatures: the Receita Federal NFS-e
+	// validator requires the leaf and (optionally) the intermediate ICP-Brasil
+	// cert in <X509Certificate> elements.
+	privateKey, certificate, caCerts, err := pkcs12.DecodeChain(pfxData, password)
 	if err != nil {
 		return "", fmt.Errorf("decode PKCS12: %w", err)
 	}
@@ -160,11 +169,18 @@ func pfxToSecretJSON(pfxData []byte, password string) (string, error) {
 		return "", fmt.Errorf("certificate private key must be RSA (got %T)", privateKey)
 	}
 
-	// Encode certificate to PEM.
+	// Encode leaf certificate to PEM, then append intermediate certs (chain order
+	// matters for ABRASF validators — leaf first, then issuing CA).
 	certPEM := pem.EncodeToMemory(&pem.Block{
 		Type:  "CERTIFICATE",
 		Bytes: certificate.Raw,
 	})
+	for _, ca := range caCerts {
+		certPEM = append(certPEM, pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: ca.Raw,
+		})...)
+	}
 
 	// Encode private key to PKCS#8 PEM.
 	keyDER, err := x509.MarshalPKCS8PrivateKey(privateKey)

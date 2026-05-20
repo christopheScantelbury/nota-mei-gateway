@@ -62,4 +62,5 @@ require (
 	golang.org/x/sys v0.43.0 // indirect
 	golang.org/x/text v0.36.0 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
+	software.sslmate.com/src/go-pkcs12 v0.7.1 // indirect
 )
