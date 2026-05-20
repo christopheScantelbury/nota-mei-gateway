@@ -42,3 +42,22 @@ enable_signup = true
 enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false
+
+# Brand-aligned email templates (NotaFácil).
+# ⚠️  Produção é configurada separadamente no Supabase Dashboard
+#     em Authentication → Email Templates — cole o HTML destes arquivos lá.
+[auth.email.template.magic_link]
+subject = "Seu código de acesso · NotaFácil"
+content_path = "./templates/magic_link.html"
+
+[auth.email.template.confirmation]
+subject = "Confirme seu e-mail · NotaFácil"
+content_path = "./templates/confirmation.html"
+
+[auth.email.template.recovery]
+subject = "Redefinir sua senha · NotaFácil"
+content_path = "./templates/recovery.html"
+
+[auth.email.template.email_change]
+subject = "Confirme seu novo e-mail · NotaFácil"
+content_path = "./templates/email_change.html"
