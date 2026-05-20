@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -94,18 +95,30 @@ func (v *CNPJValidator) Validate(ctx context.Context, cnpj string) error {
 
 // rfResponse is the subset of the cnpj.ws response we need.
 //
-// publica.cnpj.ws returns MEI status in two places depending on the endpoint:
-//   - simples.mei == "S"  → primary indicator (root CNPJ endpoint)
-//   - porte.descricao == "MEI" → some establishment-level responses
+// publica.cnpj.ws returns MEI status in simples.mei as the string "Sim" or "Não"
+// (verified against the live API in 2026-05). Older docs/snippets sometimes show
+// "S"/"N" — we accept both to be resilient.
 //
-// We check both to be resilient against API format variations.
+// porte.descricao is the company size ("Micro Empresa", "Demais", etc.) and is
+// kept only as a last-resort fallback for API variants that put "MEI" there.
 type rfResponse struct {
 	Porte struct {
 		Descricao string `json:"descricao"`
 	} `json:"porte"`
 	Simples struct {
-		MEI string `json:"mei"` // "S" = MEI, "N" = não MEI
+		MEI string `json:"mei"` // "Sim" | "Não" | "S" | "N"
 	} `json:"simples"`
+}
+
+// isMEIFlag reports whether the simples.mei value indicates a MEI company.
+// Accepts both the canonical cnpj.ws form ("Sim") and the abbreviated form ("S")
+// in a case-insensitive manner.
+func isMEIFlag(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "sim", "s", "true", "1":
+		return true
+	}
+	return false
 }
 
 // fetchPorte calls publica.cnpj.ws and returns a cache sentinel value.
@@ -141,7 +154,7 @@ func (v *CNPJValidator) fetchPorte(ctx context.Context, cnpj string) (string, er
 		return "", fmt.Errorf("cnpj_validator: unmarshal: %w", err)
 	}
 
-	if r.Simples.MEI == "S" || r.Porte.Descricao == "MEI" {
+	if isMEIFlag(r.Simples.MEI) || strings.EqualFold(r.Porte.Descricao, "MEI") {
 		return cacheValMEI, nil
 	}
 	return cacheValNotMEI, nil
