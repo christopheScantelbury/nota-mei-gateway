@@ -1,6 +1,11 @@
 package auth
 
-import "testing"
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
 
 // ─── checkDigits ──────────────────────────────────────────────────────────────
 
@@ -80,5 +85,81 @@ func TestSentinelToError(t *testing.T) {
 func TestErrorsAreDistinct(t *testing.T) {
 	if ErrInvalidCNPJ == ErrNotMEI {
 		t.Error("ErrInvalidCNPJ and ErrNotMEI must be distinct")
+	}
+}
+
+// ─── fetchPorte (MEI detection) ───────────────────────────────────────────────
+
+// TestFetchPorte_SimplesMEI verifies that a CNPJ whose publica.cnpj.ws response
+// has porte.descricao = "MICRO EMPRESA" but simples.mei = "S" is correctly
+// recognised as MEI. This is the real-world response format from cnpj.ws —
+// the old code only checked porte.descricao and missed these companies.
+func TestFetchPorte_SimplesMEI(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Simulate real cnpj.ws response for a MEI company.
+		resp := map[string]any{
+			"porte":    map[string]any{"id": "01", "descricao": "MICRO EMPRESA"},
+			"simples":  map[string]any{"simples": "S", "mei": "S"},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer srv.Close()
+
+	v := &CNPJValidator{
+		client: srv.Client(),
+		apiURL: srv.URL,
+	}
+	got, err := v.fetchPorte(t.Context(), "34488964000142")
+	if err != nil {
+		t.Fatalf("fetchPorte: unexpected error: %v", err)
+	}
+	if got != cacheValMEI {
+		t.Errorf("fetchPorte with simples.mei=S: got %q, want %q", got, cacheValMEI)
+	}
+}
+
+// TestFetchPorte_PorteDescricaoMEI verifies that the legacy porte.descricao=="MEI"
+// path still works (some endpoint variants return this).
+func TestFetchPorte_PorteDescricaoMEI(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := map[string]any{
+			"porte":   map[string]any{"id": "07", "descricao": "MEI"},
+			"simples": map[string]any{"mei": "N"},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer srv.Close()
+
+	v := &CNPJValidator{client: srv.Client(), apiURL: srv.URL}
+	got, err := v.fetchPorte(t.Context(), "34488964000142")
+	if err != nil {
+		t.Fatalf("fetchPorte: unexpected error: %v", err)
+	}
+	if got != cacheValMEI {
+		t.Errorf("fetchPorte with porte.descricao=MEI: got %q, want %q", got, cacheValMEI)
+	}
+}
+
+// TestFetchPorte_NotMEI verifies that a regular ME (not MEI) is correctly rejected.
+func TestFetchPorte_NotMEI(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := map[string]any{
+			"porte":   map[string]any{"id": "01", "descricao": "MICRO EMPRESA"},
+			"simples": map[string]any{"simples": "S", "mei": "N"},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer srv.Close()
+
+	v := &CNPJValidator{client: srv.Client(), apiURL: srv.URL}
+	got, err := v.fetchPorte(t.Context(), "11222333000181")
+	if err != nil {
+		t.Fatalf("fetchPorte: unexpected error: %v", err)
+	}
+	if got != cacheValNotMEI {
+		t.Errorf("fetchPorte for ME (not MEI): got %q, want %q", got, cacheValNotMEI)
 	}
 }

@@ -39,6 +39,7 @@ type CNPJValidator struct {
 }
 
 // NewCNPJValidator creates a validator connected to the given Redis URL.
+// Prefer NewCNPJValidatorWithClient when a shared *redis.Client already exists.
 func NewCNPJValidator(redisURL string) (*CNPJValidator, error) {
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
@@ -49,6 +50,16 @@ func NewCNPJValidator(redisURL string) (*CNPJValidator, error) {
 		client: &http.Client{Timeout: cnpjAPITimeout},
 		apiURL: "https://publica.cnpj.ws",
 	}, nil
+}
+
+// NewCNPJValidatorWithClient creates a validator using the provided Redis client.
+// Use this to share a single connection pool across multiple components.
+func NewCNPJValidatorWithClient(rdb *redis.Client) *CNPJValidator {
+	return &CNPJValidator{
+		rdb:    rdb,
+		client: &http.Client{Timeout: cnpjAPITimeout},
+		apiURL: "https://publica.cnpj.ws",
+	}
 }
 
 // Validate checks the CNPJ check digits and then confirms it is a MEI via
@@ -82,10 +93,19 @@ func (v *CNPJValidator) Validate(ctx context.Context, cnpj string) error {
 }
 
 // rfResponse is the subset of the cnpj.ws response we need.
+//
+// publica.cnpj.ws returns MEI status in two places depending on the endpoint:
+//   - simples.mei == "S"  → primary indicator (root CNPJ endpoint)
+//   - porte.descricao == "MEI" → some establishment-level responses
+//
+// We check both to be resilient against API format variations.
 type rfResponse struct {
 	Porte struct {
 		Descricao string `json:"descricao"`
 	} `json:"porte"`
+	Simples struct {
+		MEI string `json:"mei"` // "S" = MEI, "N" = não MEI
+	} `json:"simples"`
 }
 
 // fetchPorte calls publica.cnpj.ws and returns a cache sentinel value.
@@ -121,7 +141,7 @@ func (v *CNPJValidator) fetchPorte(ctx context.Context, cnpj string) (string, er
 		return "", fmt.Errorf("cnpj_validator: unmarshal: %w", err)
 	}
 
-	if r.Porte.Descricao == "MEI" {
+	if r.Simples.MEI == "S" || r.Porte.Descricao == "MEI" {
 		return cacheValMEI, nil
 	}
 	return cacheValNotMEI, nil
