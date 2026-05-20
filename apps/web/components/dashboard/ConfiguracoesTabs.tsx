@@ -135,8 +135,10 @@ function CertificadoTab({ cert_valid_until }: { cert_valid_until: string | null 
     setToast(null)
     try {
       const fd = new FormData()
-      fd.append('certificate', file)
-      fd.append('password', password)
+      // Field names must match the Go backend (apps/api/internal/handler/certificate.go):
+      //   form.File["certificado"]  + form.Value["senha_certificado"]
+      fd.append('certificado', file)
+      fd.append('senha_certificado', password)
       const res = await fetch('/api/certificate', { method: 'POST', body: fd })
       if (res.ok) {
         setToast({ msg: 'Certificado atualizado com sucesso.', type: 'success' })

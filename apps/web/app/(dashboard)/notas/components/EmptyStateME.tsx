@@ -11,10 +11,15 @@ export function EmptyStateME({ empresa }: Props) {
   const certOk  = !!empresa.certSecretArn
   const regime  = empresa.regimeTributario
 
+  // Labels are written in two voices:
+  //  - "concluido: false" voice is an imperative action ("Cadastrar…")
+  //  - "concluido: true"  voice is the completed past-participle state ("…cadastrado")
+  // Mixing them caused the UI to say "Certificado A1 cadastrado" with a
+  // "Cadastrar certificado →" link next to it, which read as contradictory.
   const steps = [
     {
       id: 'cert',
-      label: 'Certificado A1 cadastrado',
+      label: certOk ? 'Certificado A1 cadastrado' : 'Cadastrar certificado A1',
       concluido: certOk,
       href: '/configuracoes?aba=certificado',
       cta: 'Cadastrar certificado',

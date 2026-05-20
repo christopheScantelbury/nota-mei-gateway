@@ -448,6 +448,10 @@ func main() {
 
 	// ── API-key authenticated endpoints (machine-to-machine) ───────────────
 	authMw := auth.Middleware(authRepo)
+	// Hybrid middleware: accepts API keys (sk_…) for B2B integrations OR
+	// Supabase JWTs for the dashboard. Used by endpoints that must be
+	// reachable from both surfaces (e.g. cert upload from the settings page).
+	hybridMw := auth.HybridMiddleware(authRepo, cfg.SupabaseURL, cfg.SupabaseServiceKey)
 
 	var rlMw fiber.Handler
 	if rateLimiter != nil {
@@ -455,6 +459,12 @@ func main() {
 	} else {
 		rlMw = func(c *fiber.Ctx) error { return c.Next() } // no-op when Redis unavailable
 	}
+
+	// Cert upload — registered OUTSIDE the v1 group so it uses hybrid auth
+	// instead of API-key-only. Dashboard sends the user's Supabase JWT; the
+	// existing B2B integrations keep sending sk_… API keys. Both work.
+	app.Post("/v1/auth/certificate", hybridMw, rlMw, certH.Renew)
+
 	v1 := app.Group("/v1", authMw, rlMw)
 
 	// NFS-e
@@ -466,8 +476,8 @@ func main() {
 	v1.Get("/nfse/:id/xml", nfseH.DownloadXML)
 	v1.Get("/nfse/:id/pdf", nfseH.DownloadPDF)
 
-	// Auth (authenticated — certificate renewal)
-	v1.Post("/auth/certificate", certH.Renew)
+	// (Cert upload is registered above with hybrid auth — kept out of this group
+	// so it does not run authMw twice.)
 
 	// Billing
 	v1.Get("/billing/usage", billingH.GetUsage)
