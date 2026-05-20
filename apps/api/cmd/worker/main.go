@@ -88,7 +88,10 @@ func main() {
 	// ── Stuck nota poller ─────────────────────────────────────────────────────
 	// Marks PROCESSANDO notas that never received a protocol as ERRO_TEMPORARIO
 	// after 2 minutes, cycling every 30 seconds.
-	stuckPoller := nfse.NewStuckPoller(notaRepo, redisLocker, 2*time.Minute, 30*time.Second, 50)
+	// Interval matches the lock TTL (2 min) to avoid burning Redis SETNX calls
+	// on ticks that will always see the lock already held. Previously the interval
+	// was 30s with a 2-min TTL, wasting 75% of Redis round-trips.
+	stuckPoller := nfse.NewStuckPoller(notaRepo, redisLocker, 2*time.Minute, nfse.DefaultStuckInterval, 50)
 
 	// ── Webhook requeuer ───────────────────────────────────────────────────
 	// Sweeps the DB every 5 minutes for undelivered webhooks and re-publishes them.

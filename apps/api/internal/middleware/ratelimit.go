@@ -43,6 +43,7 @@ type RateLimiter struct {
 
 // NewRateLimiter parses redisURL and returns a RateLimiter with the given
 // requests-per-minute limit. If limit <= 0 the default of 100 req/min is used.
+// Prefer NewRateLimiterFromClient when a shared *redis.Client already exists.
 func NewRateLimiter(redisURL string, limit int) (*RateLimiter, error) {
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
@@ -55,6 +56,18 @@ func NewRateLimiter(redisURL string, limit int) (*RateLimiter, error) {
 		ctr:   &redisCounter{rdb: redis.NewClient(opt), ttl: 2 * time.Minute},
 		limit: limit,
 	}, nil
+}
+
+// NewRateLimiterFromClient returns a RateLimiter backed by the provided client.
+// Use this to avoid opening a separate connection pool when a shared client exists.
+func NewRateLimiterFromClient(rdb *redis.Client, limit int) *RateLimiter {
+	if limit <= 0 {
+		limit = 100
+	}
+	return &RateLimiter{
+		ctr:   &redisCounter{rdb: rdb, ttl: 2 * time.Minute},
+		limit: limit,
+	}
 }
 
 // NewRateLimiterWithCounter creates a RateLimiter using the provided Counter

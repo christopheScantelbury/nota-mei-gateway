@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
@@ -91,16 +92,36 @@ func main() {
 		objectStore = storage.NewNoopStore()
 	}
 
-	billingGrd, err := billing.NewGuard(cfg.RedisURL)
-	if err != nil {
-		log.Warn().Err(err).Msg("billing guard unavailable — emission limits not enforced")
-		billingGrd = nil
+	// ── Shared Redis client ────────────────────────────────────────────────
+	// A single *redis.Client is shared across all components that need Redis
+	// (billing guard, rate limiter, NBS validator, ISS lookup, CNPJ validator,
+	// recorrencia scheduler locker). Previously each component created its own
+	// redis.NewClient, opening ~6 separate connection pools (≈60 connections)
+	// to the same server per API instance. The shared client uses one pool
+	// (default 10 idle conns) — 2 replicas × 10 = 20 total, well within
+	// Railway Redis limits.
+	var sharedRedis *redis.Client
+	if cfg.RedisURL != "" {
+		if opt, parseErr := redis.ParseURL(cfg.RedisURL); parseErr != nil {
+			log.Warn().Err(parseErr).Msg("Redis: invalid URL — all Redis-backed features disabled")
+		} else {
+			sharedRedis = redis.NewClient(opt)
+			log.Info().Msg("Redis: shared client inicializado")
+		}
 	}
 
-	rateLimiter, err := middleware.NewRateLimiter(cfg.RedisURL, 100)
-	if err != nil {
-		log.Warn().Err(err).Msg("rate limiter unavailable — rate limiting disabled")
-		rateLimiter = nil
+	var billingGrd *billing.Guard
+	if sharedRedis != nil {
+		billingGrd = billing.NewGuardWithClient(sharedRedis)
+	} else {
+		log.Warn().Msg("billing guard unavailable — emission limits not enforced")
+	}
+
+	var rateLimiter *middleware.RateLimiter
+	if sharedRedis != nil {
+		rateLimiter = middleware.NewRateLimiterFromClient(sharedRedis, 100)
+	} else {
+		log.Warn().Msg("rate limiter unavailable — rate limiting disabled")
 	}
 
 	// RabbitMQ dials immediately; if not yet ready, API starts without webhook delivery.
@@ -141,27 +162,20 @@ func main() {
 	signer := document.NewPooledSigner(rawSigner, cfg.XMLSecWorkerPoolSize)
 	log.Info().Int("pool_size", signer.Capacity()).Msg("XMLDSig worker pool inicializado")
 
-	// ── NBS validator (Redis cache + DB fallback) ──────────────────────────
-	nbsValidator, err := document.NewNBSValidator(cfg.RedisURL, db.Pool())
-	if err != nil {
-		log.Warn().Err(err).Msg("NBS validator unavailable — NBS validation will use DB-only fallback")
-		nbsValidator = nil
-	} else if err := nbsValidator.Warm(ctx); err != nil {
-		log.Warn().Err(err).Msg("NBS warm failed — validator will fall back to DB")
+	// ── NBS validator (shared Redis + DB fallback) ─────────────────────────
+	var nbsValidator *document.NBSValidator
+	if sharedRedis != nil {
+		nbsValidator = document.NewNBSValidatorWithClient(sharedRedis, db.Pool())
+		if err := nbsValidator.Warm(ctx); err != nil {
+			log.Warn().Err(err).Msg("NBS warm failed — validator will fall back to DB")
+		}
+	} else {
+		log.Warn().Msg("NBS validator unavailable — NBS validation will use DB-only fallback")
 	}
 
-	// ── ISS rate lookup (DB + Redis, lazy — no memory pre-load) ──────────
-	// A dedicated Redis client is created for the ISS lookup.  The billing
-	// guard uses its own internal client; sharing would require refactoring.
-	var issRedis *redis.Client
-	if cfg.RedisURL != "" {
-		if opt, parseErr := redis.ParseURL(cfg.RedisURL); parseErr != nil {
-			log.Warn().Err(parseErr).Msg("ISS Redis: invalid URL — cache disabled")
-		} else {
-			issRedis = redis.NewClient(opt)
-		}
-	}
-	issLookup, err := document.NewISSLookup(ctx, db.Pool(), issRedis)
+	// ── ISS rate lookup (DB + shared Redis, lazy — no memory pre-load) ────
+	// sharedRedis is the same shared client — all Redis consumers share one pool.
+	issLookup, err := document.NewISSLookup(ctx, db.Pool(), sharedRedis)
 	if err != nil {
 		log.Warn().Err(err).Msg("ISS lookup unavailable — ISS rates will not be validated")
 		issLookup = nil
@@ -176,9 +190,11 @@ func main() {
 		apiBase = "http://localhost:" + cfg.Port
 	}
 
-	cnpjValidator, err := auth.NewCNPJValidator(cfg.RedisURL)
-	if err != nil {
-		log.Warn().Err(err).Msg("CNPJ validator unavailable — CNPJ dedup cache disabled")
+	var cnpjValidator *auth.CNPJValidator
+	if sharedRedis != nil {
+		cnpjValidator = auth.NewCNPJValidatorWithClient(sharedRedis)
+	} else {
+		log.Warn().Msg("CNPJ validator unavailable — CNPJ dedup cache disabled")
 	}
 
 	// ── Email service ──────────────────────────────────────────────────────
@@ -235,7 +251,10 @@ func main() {
 		AllowHeaders:     "Origin,Content-Type,Accept,Authorization,X-Request-ID,X-Idempotency-Key",
 		ExposeHeaders:    "X-Request-ID,X-RateLimit-Remaining,X-RateLimit-Limit",
 		AllowCredentials: true,
-		MaxAge:           300,
+		// 600 s = 10 min: the maximum Firefox honours (Chrome allows up to 7 200 s).
+		// At 300 s browsers were sending a preflight OPTIONS on every page navigation;
+		// doubling it halves OPTIONS traffic without impacting security.
+		MaxAge: 600,
 	}))
 	app.Use(middleware.PanicRecovery())
 	app.Use(middleware.RequestLogger())
@@ -245,14 +264,33 @@ func main() {
 	// Health check always returns 200 so Railway's liveness probe passes.
 	// DB reachability is reported in the response body (not as HTTP status)
 	// so a temporary DB blip doesn't take the service offline unnecessarily.
+
+	// healthSnapshot caches the result of the DB/Redis/RabbitMQ pings for 15 s
+	// to avoid hitting infrastructure on every Railway probe.
+	type healthSnapshot struct {
+		body      fiber.Map
+		expiresAt time.Time
+	}
+	var (
+		healthMu    sync.Mutex
+		healthCache *healthSnapshot
+	)
+
 	app.Get("/v1/health", func(c *fiber.Ctx) error {
-		// DB
+		healthMu.Lock()
+		if healthCache != nil && time.Now().Before(healthCache.expiresAt) {
+			snap := healthCache.body
+			healthMu.Unlock()
+			return c.JSON(snap)
+		}
+		healthMu.Unlock()
+
+		// Cache miss: perform real pings (at most once per 15 s).
 		dbStatus := "ok"
 		if err := db.Pool().Ping(c.Context()); err != nil {
 			dbStatus = "unreachable"
 		}
 
-		// Redis (via billing guard — shares the same connection pool)
 		redisStatus := "ok"
 		if billingGrd == nil {
 			redisStatus = "unreachable"
@@ -260,7 +298,6 @@ func main() {
 			redisStatus = "unreachable"
 		}
 
-		// RabbitMQ (via webhook publisher)
 		rabbitmqStatus := "ok"
 		if publisher == nil {
 			rabbitmqStatus = "unreachable"
@@ -268,7 +305,7 @@ func main() {
 			rabbitmqStatus = "unreachable"
 		}
 
-		return c.JSON(fiber.Map{
+		body := fiber.Map{
 			"status": "ok",
 			"env":    cfg.AppEnv,
 			"services": fiber.Map{
@@ -278,7 +315,13 @@ func main() {
 				"stripe":   fiber.Map{"status": "ok"},
 				"rabbitmq": fiber.Map{"status": rabbitmqStatus},
 			},
-		})
+		}
+
+		healthMu.Lock()
+		healthCache = &healthSnapshot{body: body, expiresAt: time.Now().Add(15 * time.Second)}
+		healthMu.Unlock()
+
+		return c.JSON(body)
 	})
 
 	// Prometheus metrics — scraped by Grafana Agent running in Railway.
@@ -298,7 +341,7 @@ func main() {
 	// Municipalities list — public, no auth required (ME-20 / ME-22).
 	// Uses the new DB-backed handler that queries municipios_nfse + iss_aliquotas.
 	{
-		lister := handler.NewDBMunicipioLister(db.Pool(), issRedis)
+		lister := handler.NewDBMunicipioLister(db.Pool(), sharedRedis)
 		municipioH := handler.NewMunicipioHandler(lister)
 		app.Get("/v1/municipios", municipioH.ListMunicipios)
 	}
@@ -381,7 +424,7 @@ func main() {
 	// Mantemos o registro antes do v1 group authMw pelo mesmo motivo do migrar.
 	if cfg.AnthropicAPIKey != "" {
 		llm := ai.NewClient(cfg.AnthropicAPIKey)
-		nbsClassifier := ai.NewNBSClassifier(db.Pool(), issRedis, llm)
+		nbsClassifier := ai.NewNBSClassifier(db.Pool(), sharedRedis, llm)
 		nbsH := handler.NewAINBSHandler(nbsClassifier)
 		app.Post("/v1/ai/nbs/sugerir", jwtMw, nbsH.Sugerir)
 		log.Info().Msg("AI: classificador NBS habilitado (Claude Haiku 4.5)")
@@ -427,8 +470,18 @@ func main() {
 	v1.Delete("/templates/:id", templateH.DeleteTemplate)
 
 	// Nota recorrências (BE-03)
+	// TODO(BE-04): replace NoopEmissor with a real emissor that calls the NFS-e
+	// service layer directly. While NoopEmissor is wired, recorrencias are saved
+	// to the database but never actually emit notas — this is intentional during
+	// the current sprint. Remove this comment once the real emissor is wired.
 	recRepo := recorrencia.NewRepository(db.Pool())
 	sched := recorrencia.NewScheduler(recRepo, &recorrencia.NoopEmissor{}, time.Hour)
+	if sharedRedis != nil {
+		sched = sched.WithLocker(billing.NewRedisLockerWithClient(sharedRedis))
+		log.Info().Msg("recorrencia scheduler: distributed lock configurado")
+	} else {
+		log.Warn().Msg("recorrencia scheduler: distributed lock unavailable — double-emission risk with multiple replicas")
+	}
 	go sched.Run(ctx)
 	recH := handler.NewRecorrenciaHandler(recRepo)
 	v1.Get("/recorrencias", recH.ListRecorrencias)

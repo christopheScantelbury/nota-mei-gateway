@@ -14,10 +14,14 @@ var (
 	}, []string{"method", "path", "status"})
 
 	// HTTPRequestDuration tracks latency percentiles per route.
+	// Custom buckets sized for a fiscal API where endpoints that call the
+	// Receita Federal (mTLS + XML) regularly take 2-10 s. The default Prometheus
+	// buckets start at 5 ms and have poor resolution above 1 s, making p99
+	// and p999 charts nearly useless for the NFS-e emission path.
 	HTTPRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "http_request_duration_seconds",
 		Help:    "HTTP request latency in seconds.",
-		Buckets: prometheus.DefBuckets,
+		Buckets: []float64{0.025, 0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 30},
 	}, []string{"method", "path", "status"})
 
 	// NotasPorStatus tracks the current number of NFS-e per status.
@@ -59,4 +63,46 @@ var (
 		Name: "cert_cache_misses_total",
 		Help: "Total number of A1 certificate cache misses (AWS SM was called).",
 	})
+
+	// WebhookDeliveredTotal counts successfully delivered webhook HTTP POSTs.
+	// A low ratio vs WebhookFailedTotal signals customer endpoint problems.
+	WebhookDeliveredTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "webhook_delivered_total",
+		Help: "Total number of webhook HTTP POSTs successfully delivered to customer endpoints.",
+	})
+
+	// WebhookFailedTotal counts failed webhook delivery attempts (non-2xx or network error).
+	// Alert when this exceeds ~5 % of WebhookDeliveredTotal in a rolling window.
+	WebhookFailedTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "webhook_failed_total",
+		Help: "Total number of failed webhook delivery attempts (all retry stages combined).",
+	})
+
+	// WebhookExhaustedTotal counts notas whose webhooks were abandoned after all retries.
+	// Should always be near zero — alert immediately on any increment.
+	WebhookExhaustedTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "webhook_exhausted_total",
+		Help: "Total number of notas whose webhook delivery was abandoned after all retry attempts.",
+	})
+
+	// PollerSweepDuration tracks how long each NFS-e poller sweep takes end-to-end.
+	// Useful to detect when Receita Federal is slow or the nota backlog is growing.
+	PollerSweepDuration = promauto.NewHistogram(prometheus.HistogramOpts{
+		Name:    "poller_sweep_duration_seconds",
+		Help:    "Duration of a single NFS-e poller sweep (query + all Receita Federal calls).",
+		Buckets: []float64{0.1, 0.5, 1, 2, 5, 10, 30, 60},
+	})
+
+	// PollerNotasProcessed counts notas finalised per sweep (AUTORIZADA + REJEITADA).
+	PollerNotasProcessed = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "poller_notas_processed_total",
+		Help: "Total number of notas finalized by the NFS-e poller.",
+	}, []string{"result"}) // result: "autorizada" | "rejeitada" | "erro"
+
+	// BillingGuardChecksTotal counts billing guard evaluations (ME/EPP path).
+	// Labels: result = "allowed" | "limit_reached" | "fail_open"
+	BillingGuardChecksTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "billing_guard_checks_total",
+		Help: "Total number of billing guard Check() evaluations.",
+	}, []string{"result"})
 )

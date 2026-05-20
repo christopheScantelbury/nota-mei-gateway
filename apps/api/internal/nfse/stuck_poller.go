@@ -10,7 +10,13 @@ import (
 
 const (
 	stuckLockKey = "nfs:stuck:lock"
-	stuckLockTTL = 2 * time.Minute
+	// stuckLockTTL must equal or exceed the sweep interval so that the lock
+	// held by one instance does not expire before the next tick fires.
+	// Previously the interval was 30s but the TTL was 2min, causing 3 out of
+	// every 4 ticks to burn a Redis SETNX round-trip that immediately returned
+	// "already held". Now both are 2 minutes — one Redis call per actual sweep.
+	stuckLockTTL      = 2 * time.Minute
+	DefaultStuckInterval = 2 * time.Minute
 )
 
 // StuckLocker acquires a distributed lock. Returns (true, nil) when the lock

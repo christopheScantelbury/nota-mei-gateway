@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/metrics"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/webhook"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
@@ -105,6 +106,8 @@ func (p *Poller) Run(ctx context.Context) {
 
 // sweep fetches up to 50 PROCESSANDO notas and queries the Receita Federal.
 func (p *Poller) sweep(ctx context.Context) {
+	start := time.Now()
+
 	notas, err := p.repo.FindProcessandoComProtocolo(ctx, 50)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Msg("poller: failed to query processando notas")
@@ -119,6 +122,8 @@ func (p *Poller) sweep(ctx context.Context) {
 	for _, nc := range notas {
 		p.consultaNota(ctx, nc)
 	}
+
+	metrics.PollerSweepDuration.Observe(time.Since(start).Seconds())
 }
 
 // consultaNota queries one nota and updates its status.
@@ -173,6 +178,7 @@ func (p *Poller) consultaNota(ctx context.Context, nc NotaParaConsulta) {
 	case "AUTORIZADA":
 		updated, err := p.repo.Autorizar(ctx, nc.ID, resp.NumeroNFSe, resp.CodVerificacao, resp.XMLRetorno)
 		if err != nil {
+			metrics.PollerNotasProcessed.WithLabelValues("erro").Inc()
 			l.Error().Err(err).Msg("poller: failed to autorizar nota in DB")
 			return
 		}
@@ -180,6 +186,7 @@ func (p *Poller) consultaNota(ctx context.Context, nc NotaParaConsulta) {
 			l.Debug().Msg("poller: nota already finalised by another instance — skipping counter/webhook")
 			return
 		}
+		metrics.PollerNotasProcessed.WithLabelValues("autorizada").Inc()
 		l.Info().Str("numero_nfse", resp.NumeroNFSe).Msg("poller: nota autorizada")
 		p.incrementCounter(ctx, nc.MeiID)
 		p.publishEvent(ctx, nc, webhook.EventAutorizada, resp.NumeroNFSe, resp.CodVerificacao, "", "")
@@ -197,6 +204,7 @@ func (p *Poller) consultaNota(ctx context.Context, nc NotaParaConsulta) {
 		}
 		updated, err := p.repo.Rejeitar(ctx, nc.ID, errCodigo, errDescricao)
 		if err != nil {
+			metrics.PollerNotasProcessed.WithLabelValues("erro").Inc()
 			l.Error().Err(err).Msg("poller: failed to rejeitar nota in DB")
 			return
 		}
@@ -204,6 +212,7 @@ func (p *Poller) consultaNota(ctx context.Context, nc NotaParaConsulta) {
 			l.Debug().Msg("poller: nota already finalised by another instance — skipping webhook")
 			return
 		}
+		metrics.PollerNotasProcessed.WithLabelValues("rejeitada").Inc()
 		l.Warn().Str("erro", errCodigo).Msg("poller: nota rejeitada")
 		p.publishEvent(ctx, nc, webhook.EventRejeitada, "", "", errCodigo, errDescricao)
 

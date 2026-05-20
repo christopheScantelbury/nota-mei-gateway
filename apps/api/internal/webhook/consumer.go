@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/metrics"
 	"github.com/google/uuid"
 	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/rs/zerolog/log"
@@ -133,11 +134,13 @@ func (c *Consumer) handle(ctx context.Context, d amqp.Delivery) {
 	body, _ := json.Marshal(payload)
 
 	if err := c.deliver(ctx, msg.WebhookURL, msg.WebhookSecret, body); err != nil {
+		metrics.WebhookFailedTotal.Inc()
 		l.Warn().Err(err).Int("retry_count", msg.RetryCount).Msg("webhook delivery failed")
 		_ = c.repo.IncrementWebhookTentativas(ctx, notaID)
 
 		nextQueue, ok := retryQueueFor(msg.RetryCount)
 		if !ok {
+			metrics.WebhookExhaustedTotal.Inc()
 			l.Error().
 				Str("nota_id", msg.NotaID).
 				Int("attempts", msg.RetryCount+1).
@@ -152,6 +155,7 @@ func (c *Consumer) handle(ctx context.Context, d amqp.Delivery) {
 		return
 	}
 
+	metrics.WebhookDeliveredTotal.Inc()
 	l.Info().Msg("webhook delivered")
 	_ = c.repo.MarcarWebhookEntregue(ctx, notaID)
 	_ = d.Ack(false)

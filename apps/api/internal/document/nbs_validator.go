@@ -33,12 +33,19 @@ type NBSValidator struct {
 }
 
 // NewNBSValidator creates a validator connected to the given Redis URL and DB pool.
+// Prefer NewNBSValidatorWithClient when a shared *redis.Client already exists.
 func NewNBSValidator(redisURL string, db *pgxpool.Pool) (*NBSValidator, error) {
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return nil, fmt.Errorf("nbs_validator: parse redis url: %w", err)
 	}
 	return &NBSValidator{rdb: redis.NewClient(opt), db: db}, nil
+}
+
+// NewNBSValidatorWithClient creates a validator using the provided Redis client and DB pool.
+// Use this to share a single connection pool across multiple components.
+func NewNBSValidatorWithClient(rdb *redis.Client, db *pgxpool.Pool) *NBSValidator {
+	return &NBSValidator{rdb: rdb, db: db}
 }
 
 // Warm loads all NBS codes from the database into the Redis SET.

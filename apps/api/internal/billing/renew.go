@@ -26,12 +26,19 @@ type RedisLocker struct {
 }
 
 // NewRedisLocker parses redisURL and returns a RedisLocker.
+// Prefer NewRedisLockerWithClient when a shared *redis.Client already exists.
 func NewRedisLocker(redisURL string) (*RedisLocker, error) {
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return nil, err
 	}
 	return &RedisLocker{rdb: redis.NewClient(opt)}, nil
+}
+
+// NewRedisLockerWithClient returns a RedisLocker using the provided client.
+// Use this to share a single Redis connection pool across multiple components.
+func NewRedisLockerWithClient(rdb *redis.Client) *RedisLocker {
+	return &RedisLocker{rdb: rdb}
 }
 
 // Acquire sets key with NX EX if it doesn't exist. Returns true on first call per month.

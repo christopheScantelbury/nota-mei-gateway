@@ -8,6 +8,20 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// SchedulerLocker is the minimal interface needed to acquire a distributed lock.
+// Satisfied by billing.RedisLocker (the same locker used by the Poller and Requeuer).
+type SchedulerLocker interface {
+	Acquire(ctx context.Context, key string, ttl time.Duration) (bool, error)
+}
+
+const (
+	schedulerLockKey = "rec:scheduler:lock"
+	// schedulerLockTTL must exceed the scheduler interval so only one API replica
+	// runs the tick at a time. With a 1 h interval the lock TTL is 55 min —
+	// short enough to self-heal if the holding instance crashes mid-tick.
+	schedulerLockTTL = 55 * time.Minute
+)
+
 // NotaEmissor is a minimal interface used by the Scheduler to emit notas.
 // The real implementation is provided by the nfse handler/service layer;
 // a NoopEmissor stub is used during development and tests.
@@ -30,11 +44,16 @@ type Scheduler struct {
 	emissor  NotaEmissor
 	log      zerolog.Logger
 	interval time.Duration
+	locker   SchedulerLocker // optional; nil disables distributed locking (not recommended in prod)
 }
 
 // NewScheduler creates a Scheduler.
 // interval controls how often the scheduler checks for due records.
 // Pass time.Hour for production usage.
+//
+// Always attach a locker via WithLocker when running more than one API replica;
+// without it both instances will query ListDue simultaneously and attempt to emit
+// the same recorrencias twice.
 func NewScheduler(repo *Repository, emissor NotaEmissor, interval time.Duration) *Scheduler {
 	return &Scheduler{
 		repo:     repo,
@@ -42,6 +61,13 @@ func NewScheduler(repo *Repository, emissor NotaEmissor, interval time.Duration)
 		log:      zerolog.Ctx(context.Background()).With().Str("component", "recorrencia_scheduler").Logger(),
 		interval: interval,
 	}
+}
+
+// WithLocker attaches a distributed lock so that only one API replica runs
+// the scheduler tick at a time (prevents double-emission with numReplicas > 1).
+func (s *Scheduler) WithLocker(l SchedulerLocker) *Scheduler {
+	s.locker = l
+	return s
 }
 
 // Run starts the scheduler loop. It blocks until ctx is cancelled.
@@ -68,6 +94,22 @@ func (s *Scheduler) Run(ctx context.Context) {
 
 // tick performs one scheduler cycle: query due records, attempt emission.
 func (s *Scheduler) tick(ctx context.Context) {
+	// Distributed lock: with numReplicas=2 both instances would fire simultaneously
+	// without this guard, causing each recorrencia to be emitted twice per cycle.
+	if s.locker != nil {
+		acquired, err := s.locker.Acquire(ctx, schedulerLockKey, schedulerLockTTL)
+		if err != nil {
+			s.log.Error().Err(err).Msg("scheduler: failed to acquire distributed lock — skipping tick")
+			return
+		}
+		if !acquired {
+			s.log.Debug().Msg("scheduler: another instance holds the lock — skipping tick")
+			return
+		}
+	} else {
+		s.log.Warn().Msg("scheduler: no distributed lock configured — double-emission risk with multiple replicas (wire WithLocker)")
+	}
+
 	due, err := s.repo.ListDue(ctx, time.Now())
 	if err != nil {
 		s.log.Error().Err(err).Msg("erro ao buscar recorrencias vencidas")

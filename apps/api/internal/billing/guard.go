@@ -41,12 +41,20 @@ type Guard struct {
 }
 
 // NewGuard parses redisURL and returns a Guard backed by that Redis instance.
+// Prefer NewGuardWithClient when a shared *redis.Client already exists to avoid
+// opening a redundant connection pool for the same Redis server.
 func NewGuard(redisURL string) (*Guard, error) {
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return nil, err
 	}
 	return &Guard{rdb: redis.NewClient(opt)}, nil
+}
+
+// NewGuardWithClient returns a Guard using the provided Redis client.
+// Use this when a shared client is available to avoid redundant connection pools.
+func NewGuardWithClient(rdb *redis.Client) *Guard {
+	return &Guard{rdb: rdb}
 }
 
 // WithRepository attaches a billing Repository so that Check (ME/EPP) can
@@ -140,14 +148,31 @@ func (g *Guard) Check(ctx context.Context, empresaID uuid.UUID) error {
 // InvalidateEmpresa removes the cached billing guard result for the given empresa,
 // forcing the next Check to re-query the DB.
 // Call from Stripe webhook handlers when a subscription changes plan or status.
+//
+// Uses SCAN instead of KEYS to avoid blocking the Redis server: KEYS is O(N)
+// and holds the server lock for the duration of the scan, causing latency spikes
+// for all other callers. SCAN iterates in small cursor steps — safe in production.
 func (g *Guard) InvalidateEmpresa(ctx context.Context, empresaID uuid.UUID) {
 	if g == nil {
 		return
 	}
 	pattern := fmt.Sprintf("billing:guard:%s:*", empresaID)
-	keys, _ := g.rdb.Keys(ctx, pattern).Result()
-	if len(keys) > 0 {
-		_ = g.rdb.Del(ctx, keys...).Err()
+
+	var cursor uint64
+	var toDelete []string
+	for {
+		keys, next, err := g.rdb.Scan(ctx, cursor, pattern, 100).Result()
+		if err != nil {
+			break
+		}
+		toDelete = append(toDelete, keys...)
+		cursor = next
+		if cursor == 0 {
+			break
+		}
+	}
+	if len(toDelete) > 0 {
+		_ = g.rdb.Del(ctx, toDelete...).Err()
 	}
 }
 
