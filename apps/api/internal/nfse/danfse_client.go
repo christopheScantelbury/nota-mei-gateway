@@ -58,19 +58,10 @@ func (a *Adapter) ProbeADN(ctx context.Context, chaveAcesso string, cert *tls.Ce
 	root := strings.TrimSuffix(base, "/danfse")
 
 	urls := []string{
-		base + "/" + chaveAcesso,
-		base + "/v1/" + chaveAcesso,
-		base + "/nfse/" + chaveAcesso,
-		base + "/docs/index.html",
-		base + "/swagger/docs/v1",
-		base + "/swagger",
-		base + "/api-docs",
+		// Fetch the contribuintes swagger spec first — it documents the real paths.
 		root + "/contribuintes/docs/index.html",
+		root + "/contribuintes//swagger/docs/v1", // ADN swagger pattern (//double-slash)
 		root + "/contribuintes/swagger/docs/v1",
-		root + "/contribuintes/" + chaveAcesso,
-		root + "/contribuintes/danfse/" + chaveAcesso,
-		root + "/contribuintes/nfse/" + chaveAcesso,
-		root + "/contribuintes/nfse/" + chaveAcesso + "/danfse",
 	}
 
 	tlsCfg := &tls.Config{
@@ -96,10 +87,11 @@ func (a *Adapter) ProbeADN(ctx context.Context, chaveAcesso string, cert *tls.Ce
 			results[url] = "http_error: " + err.Error()
 			continue
 		}
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 400))
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		_ = resp.Body.Close()
-		results[url] = fmt.Sprintf("HTTP %d  ct=%s  body=%.200s",
+		results[url] = fmt.Sprintf("HTTP %d  ct=%s  body=%.3500s",
 			resp.StatusCode, resp.Header.Get("Content-Type"), strings.TrimSpace(string(body)))
+		time.Sleep(800 * time.Millisecond) // avoid 429 rate limit
 	}
 	return results, nil
 }
