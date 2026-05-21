@@ -112,7 +112,7 @@ func TestXMLDSigSigner_EmissionContainsSignature(t *testing.T) {
 		{"DigestValue element", "<DigestValue>"},
 		{"Id attribute on signed element", `Id="InfDeclaracaoPrestacaoServico"`},
 		{"Reference URI", `URI="#InfDeclaracaoPrestacaoServico"`},
-		{"RSA-SHA1 algorithm", "rsa-sha1"},
+		{"RSA-SHA256 algorithm", "rsa-sha256"},
 	}
 	for _, c := range checks {
 		if !strings.Contains(s, c.snippet) {

@@ -19,7 +19,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha1" //nolint:gosec // SHA-1 is mandated by ABRASF spec
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -27,14 +27,19 @@ import (
 	"strings"
 )
 
-// W3C XMLDSig algorithm URIs required by ABRASF.
+// W3C XMLDSig algorithm URIs.
+//
+// NFS-e Nacional v1.01 (the unified DPS standard active in production at
+// sefin.nfse.gov.br) requires RSA-SHA256 + SHA-256 digest. The legacy
+// ABRASF v1.2 RPS spec used SHA-1, but that path is no longer reachable
+// (the recepcionar-lote-rps endpoint returns 404 in production).
 const (
 	// c14nAlgorithm is the Canonical XML 1.0 (inclusive) algorithm.
 	c14nAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
-	// sigAlgorithm is RSA with SHA-1 (mandatory for ABRASF NFS-e Nacional v1.2).
-	sigAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
-	// digestAlgorithm is SHA-1 digest method.
-	digestAlgorithm = "http://www.w3.org/2000/09/xmldsig#sha1"
+	// sigAlgorithm is RSA with SHA-256.
+	sigAlgorithm = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
+	// digestAlgorithm is SHA-256 digest method.
+	digestAlgorithm = "http://www.w3.org/2001/04/xmlenc#sha256"
 	// envelopedTransform removes the <Signature> element before hashing.
 	envelopedTransform = "http://www.w3.org/2000/09/xmldsig#enveloped-signature"
 	// xmlDSigNS is the XMLDSig namespace.
@@ -111,9 +116,8 @@ func (XMLDSigSigner) Sign(_ context.Context, xmlDoc []byte, cert *tls.Certificat
 		return nil, fmt.Errorf("xmldsig: c14n of %s: %w", elemName, err)
 	}
 
-	// Step 3 — SHA-1 digest.
-	//nolint:gosec // SHA-1 mandated by ABRASF
-	d := sha1.Sum(canonical)
+	// Step 3 — SHA-256 digest.
+	d := sha256.Sum256(canonical)
 	digestValue := base64.StdEncoding.EncodeToString(d[:])
 
 	// Step 4 — Build <SignedInfo> (compact canonical form).
@@ -121,11 +125,10 @@ func (XMLDSigSigner) Sign(_ context.Context, xmlDoc []byte, cert *tls.Certificat
 	signedInfo := buildSignedInfo(idValue, digestValue)
 	canonicalSI := []byte(signedInfo) // already canonical — no XML decl, compact
 
-	// Step 5 — RSA-SHA1 sign.
-	//nolint:gosec // SHA-1 mandated by ABRASF
-	h := sha1.New()
+	// Step 5 — RSA-SHA256 sign.
+	h := sha256.New()
 	h.Write(canonicalSI)
-	sigBytes, err := rsa.SignPKCS1v15(rand.Reader, rsaKey, crypto.SHA1, h.Sum(nil))
+	sigBytes, err := rsa.SignPKCS1v15(rand.Reader, rsaKey, crypto.SHA256, h.Sum(nil))
 	if err != nil {
 		return nil, fmt.Errorf("xmldsig: RSA sign: %w", err)
 	}

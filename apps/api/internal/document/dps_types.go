@@ -234,8 +234,8 @@ const (
 	// indTotTrib (único valor válido — Decreto 8.264/2014)
 	IndTotTribNaoInforma = 0
 
-	// Application version declared in <verAplic>.
-	DPSVerAplic = "NotaFacilGateway-1.01"
+	// Application version declared in <verAplic>. TSVerAplic limits to 20 chars.
+	DPSVerAplic = "NotaFacil-1.01"
 
 	// Default série DPS.
 	DPSSerie = "00001"
