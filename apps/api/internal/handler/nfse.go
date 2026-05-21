@@ -707,12 +707,7 @@ func (h *NFSeHandler) ConsultarNota(c *fiber.Ctx) error {
 		return notFound(c)
 	}
 
-	var nota *nfse.Nota
-	if empresa != nil {
-		nota, err = h.notaRepo.FindByIDForEmpresa(c.Context(), notaID, empresa.ID)
-	} else {
-		nota, err = h.notaRepo.FindByID(c.Context(), notaID, mei.ID)
-	}
+	nota, err := h.loadNotaForOwner(c.Context(), notaID, mei, empresa)
 	if err != nil {
 		if isNotFound(err) {
 			return notFound(c)
@@ -739,22 +734,7 @@ func (h *NFSeHandler) CancelarNota(c *fiber.Ctx) error {
 		return notFound(c)
 	}
 
-	// MEI emission now goes through the unified DPS path which only writes
-	// empresa_id (mei_id stays NULL — emitirNotaME doesn't fill it). The
-	// owner lookup must therefore consider both columns.
-	var nota *nfse.Nota
-	if empresa != nil {
-		nota, err = h.notaRepo.FindByIDForEmpresa(c.Context(), notaID, empresa.ID)
-	} else {
-		// For MEI: the empresa row mirrors the meis row (same UUID) so we
-		// look up via empresa_id using mei.ID directly.
-		nota, err = h.notaRepo.FindByIDForEmpresa(c.Context(), notaID, mei.ID)
-		if err != nil && isNotFound(err) {
-			// Fallback to legacy mei_id lookup for any rows created before
-			// the DPS migration.
-			nota, err = h.notaRepo.FindByID(c.Context(), notaID, mei.ID)
-		}
-	}
+	nota, err := h.loadNotaForOwner(c.Context(), notaID, mei, empresa)
 	if err != nil {
 		if isNotFound(err) {
 			return notFound(c)
@@ -1172,8 +1152,9 @@ func (h *NFSeHandler) SubstituirNota(c *fiber.Ctx) error {
 // DownloadXML handles GET /v1/nfse/:id/xml.
 func (h *NFSeHandler) DownloadXML(c *fiber.Ctx) error {
 	mei := auth.GetMEI(c)
-	if mei == nil {
-		return internalError(c, "MEI not in context")
+	empresa := auth.GetEmpresa(c)
+	if mei == nil && empresa == nil {
+		return internalError(c, "empresa not in context")
 	}
 
 	notaID, err := uuid.Parse(c.Params("id"))
@@ -1181,7 +1162,7 @@ func (h *NFSeHandler) DownloadXML(c *fiber.Ctx) error {
 		return notFound(c)
 	}
 
-	nota, err := h.notaRepo.FindByID(c.Context(), notaID, mei.ID)
+	nota, err := h.loadNotaForOwner(c.Context(), notaID, mei, empresa)
 	if err != nil {
 		if isNotFound(err) {
 			return notFound(c)
@@ -1223,8 +1204,9 @@ func (h *NFSeHandler) DownloadXML(c *fiber.Ctx) error {
 // (PDF generation itself is a separate background process.)
 func (h *NFSeHandler) DownloadPDF(c *fiber.Ctx) error {
 	mei := auth.GetMEI(c)
-	if mei == nil {
-		return internalError(c, "MEI not in context")
+	empresa := auth.GetEmpresa(c)
+	if mei == nil && empresa == nil {
+		return internalError(c, "empresa not in context")
 	}
 
 	notaID, err := uuid.Parse(c.Params("id"))
@@ -1232,7 +1214,7 @@ func (h *NFSeHandler) DownloadPDF(c *fiber.Ctx) error {
 		return notFound(c)
 	}
 
-	nota, err := h.notaRepo.FindByID(c.Context(), notaID, mei.ID)
+	nota, err := h.loadNotaForOwner(c.Context(), notaID, mei, empresa)
 	if err != nil {
 		if isNotFound(err) {
 			return notFound(c)
@@ -1261,6 +1243,38 @@ func (h *NFSeHandler) DownloadPDF(c *fiber.Ctx) error {
 	}
 
 	return c.Redirect(*nota.PDFPath, fiber.StatusTemporaryRedirect)
+}
+
+// loadNotaForOwner finds the nota using whichever ID is set in the auth
+// context. The DPS migration writes empresa_id for every nota (and mei_id
+// only when empresa.Tipo == MEI), so we try the empresa lookup first and
+// fall back to the legacy mei_id index when needed.
+func (h *NFSeHandler) loadNotaForOwner(
+	ctx context.Context,
+	notaID uuid.UUID,
+	mei *auth.MEI,
+	empresa *auth.Empresa,
+) (*nfse.Nota, error) {
+	// MEI keys and JWT-resolved empresa share the same UUID (ARCH-03), so
+	// FindByIDForEmpresa works for both.
+	ownerID := uuid.Nil
+	if empresa != nil {
+		ownerID = empresa.ID
+	} else if mei != nil {
+		ownerID = mei.ID
+	}
+	nota, err := h.notaRepo.FindByIDForEmpresa(ctx, notaID, ownerID)
+	if err == nil {
+		return nota, nil
+	}
+	if !isNotFound(err) {
+		return nil, err
+	}
+	// Fallback to legacy mei_id index (rows created before the DPS migration).
+	if mei != nil {
+		return h.notaRepo.FindByID(ctx, notaID, mei.ID)
+	}
+	return nil, err
 }
 
 // ─── helpers ───────────────────────────────────────────────────────────────
