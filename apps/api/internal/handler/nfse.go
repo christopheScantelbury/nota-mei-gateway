@@ -518,9 +518,8 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 	}
 
 	// ── 9. Process response ────────────────────────────────────────────────
-	if failure != nil && len(failure.Erros) > 0 {
-		codigo := failure.Erros[0].Codigo
-		descricao := failure.Erros[0].Descricao
+	if failure != nil && len(failure.Errors()) > 0 {
+		codigo, descricao := failure.FirstError()
 		if descricao == "" || descricao == codigo {
 			descricao = nfse.DescricaoRejeicao(codigo)
 		}
@@ -893,7 +892,7 @@ func (h *NFSeHandler) cancelarNotaME(c *fiber.Ctx, nota *nfse.Nota, empresa *aut
 			Msg("erro de comunicação com SEFIN no cancelamento")
 		return internalError(c, "erro ao comunicar cancelamento à SEFIN Nacional")
 	}
-	if failure != nil && len(failure.Erros) > 0 {
+	if failure != nil && len(failure.Errors()) > 0 {
 		codigo, descricao := failure.FirstError()
 		log.Ctx(c.UserContext()).Warn().
 			Str("nota_id", nota.ID.String()).

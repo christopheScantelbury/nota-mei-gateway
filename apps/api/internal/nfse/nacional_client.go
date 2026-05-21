@@ -40,8 +40,9 @@ type nfsePostRequest struct {
 // MensagemProcessamento mirrors the schema's MensagemProcessamento — used for
 // both `alertas` (success path) and `erros` (failure path).
 type MensagemProcessamento struct {
-	Codigo    string `json:"codigo"`
-	Descricao string `json:"descricao"`
+	Codigo      string `json:"codigo"`
+	Descricao   string `json:"descricao"`
+	Complemento string `json:"complemento,omitempty"`
 }
 
 // NFSeNacionalSuccess is the 201 Created response body.
@@ -56,20 +57,43 @@ type NFSeNacionalSuccess struct {
 }
 
 // NFSeNacionalError is the 4xx/5xx response body.
+//
+// Receita uses both "erros" (plural — DPS POST /nfse) and "erro" (singular —
+// evento POST /nfse/{ca}/eventos) in different endpoints. We accept both and
+// expose them via Errors().
 type NFSeNacionalError struct {
 	TipoAmbiente          int                     `json:"tipoAmbiente"`
 	VersaoAplicativo      string                  `json:"versaoAplicativo"`
 	DataHoraProcessamento string                  `json:"dataHoraProcessamento"`
 	IDDps                 string                  `json:"idDPS"`
 	Erros                 []MensagemProcessamento `json:"erros"`
+	Erro                  []MensagemProcessamento `json:"erro"`
 }
 
-// FirstError returns the first error codigo:descricao or empty string.
+// Errors returns the combined list from `erros` + `erro`.
+func (e *NFSeNacionalError) Errors() []MensagemProcessamento {
+	if e == nil {
+		return nil
+	}
+	out := make([]MensagemProcessamento, 0, len(e.Erros)+len(e.Erro))
+	out = append(out, e.Erros...)
+	out = append(out, e.Erro...)
+	return out
+}
+
+// FirstError returns the first error codigo:descricao (with complemento
+// appended when present) or empty strings.
 func (e *NFSeNacionalError) FirstError() (codigo, descricao string) {
-	if e == nil || len(e.Erros) == 0 {
+	msgs := e.Errors()
+	if len(msgs) == 0 {
 		return "", ""
 	}
-	return e.Erros[0].Codigo, e.Erros[0].Descricao
+	codigo = msgs[0].Codigo
+	descricao = msgs[0].Descricao
+	if msgs[0].Complemento != "" {
+		descricao += " — " + msgs[0].Complemento
+	}
+	return codigo, descricao
 }
 
 // EnviarNFSeNacional submits a signed DPS XML to the production NFS-e Nacional
@@ -131,7 +155,7 @@ func (a *Adapter) EnviarNFSeNacional(
 		case resp.StatusCode >= 400:
 			f := &NFSeNacionalError{}
 			// Some 4xx (auth) return text/HTML — capture verbatim.
-			if jsonErr := json.Unmarshal(body, f); jsonErr != nil || len(f.Erros) == 0 {
+			if jsonErr := json.Unmarshal(body, f); jsonErr != nil || len(f.Errors()) == 0 {
 				return fmt.Errorf("sefin client error %d: %.500s", resp.StatusCode, body)
 			}
 			failure = f
@@ -207,7 +231,7 @@ func (a *Adapter) CancelarNFSeNacional(
 			return nil
 		case resp.StatusCode >= 400:
 			f := &NFSeNacionalError{}
-			if jsonErr := json.Unmarshal(body, f); jsonErr != nil || len(f.Erros) == 0 {
+			if jsonErr := json.Unmarshal(body, f); jsonErr != nil || len(f.Errors()) == 0 {
 				return fmt.Errorf("sefin client error %d: %.500s", resp.StatusCode, body)
 			}
 			failure = f

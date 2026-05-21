@@ -96,13 +96,16 @@ func BuildCancelamentoEvent(p CancelamentoParams) ([]byte, error) {
 		return nil, fmt.Errorf("cancelamento: cMotivo inválido %d (use 1/2/9)", p.CodigoJustif)
 	}
 
+	// TSIdPedRegEvt: "PRE" + chaveAcesso(50) + tipoEvento(6) = 59 chars.
+	// For cancellation the tipo is "101101".
+	const tipoEventoCancelamento = "101101"
+	infPedRegID := "PRE" + chave + tipoEventoCancelamento
+
 	doc := PedRegEvento{
 		Xmlns:  DPSSefinNS,
 		Versao: DPSVersao,
 		InfPedReg: InfPedReg{
-			// Id is informational only — schema doesn't define it on infPedReg
-			// but having it lets the XMLDSig signer use a Reference URI.
-			ID:        "EVT" + chave + "101101" + "001",
+			ID:        infPedRegID,
 			TpAmb:     currentTpAmb(),
 			VerAplic:  DPSVerAplic,
 			DhEvento:  time.Now().In(fusoManaus()).Format("2006-01-02T15:04:05-07:00"),
