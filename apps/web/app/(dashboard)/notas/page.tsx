@@ -96,12 +96,11 @@ export default async function NotasPage({
     .from('notas_fiscais')
     .select('*', { count: 'exact' })
 
-  // ME/EPP companies use empresa_id; MEIs use mei_id
+  // ME/EPP: filter by empresa_id explicitly (RLS also enforces this)
   if (empresa) {
     query = query.eq('empresa_id', empresa.id)
-  } else {
-    query = query.eq('mei_id', user.id)
   }
+  // MEI: RLS policy filters by mei_id automatically — no explicit filter needed
 
   if (statusFilter)  query = query.eq('status', statusFilter)
   if (competencia)   query = query.eq('competencia', competencia)

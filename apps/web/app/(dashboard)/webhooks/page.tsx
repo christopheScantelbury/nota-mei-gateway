@@ -22,11 +22,10 @@ export default async function WebhooksPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Fetch plan info for gate
+  // Fetch plan info for gate — RLS restricts to the authenticated user's records
   const { data: usage } = await supabase
     .from('emissoes_mensais')
     .select('planos(nome)')
-    .eq('mei_id', user.id)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle<{ planos: { nome: string } | null }>()
@@ -36,7 +35,6 @@ export default async function WebhooksPage() {
   const { data: rows } = await supabase
     .from('notas_fiscais')
     .select('id, tomador_nome, valor_servico, webhook_url, webhook_entregue, webhook_tentativas, status, created_at, emitida_em')
-    .eq('mei_id', user.id)
     .not('webhook_url', 'is', null)
     .order('created_at', { ascending: false })
     .limit(50)

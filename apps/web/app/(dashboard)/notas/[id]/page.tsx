@@ -49,12 +49,10 @@ export default async function NotaDetailPage({
     .eq('id', user.id)
     .single()
 
-  // ME/EPP notes are linked by empresa_id; MEI notes by mei_id
+  // ME/EPP notes are linked by empresa_id; for MEI, RLS handles isolation automatically
   let notaQuery = supabase.from('notas_fiscais').select('*').eq('id', params.id)
   if (empresa) {
     notaQuery = notaQuery.eq('empresa_id', empresa.id)
-  } else {
-    notaQuery = notaQuery.eq('mei_id', user.id)
   }
 
   const { data: nota } = await notaQuery.single<Nota>()

@@ -102,14 +102,12 @@ export default async function DashboardHome() {
     supabase
       .from('emissoes_mensais')
       .select('total_emitidas, renovacao_em, stripe_subscription_id, planos(nome, emissoes_limite)')
-      .eq('mei_id', user.id)
       .eq('competencia', competencia)
       .single<EmissaoMensal>(),
 
     supabase
       .from('notas_fiscais')
       .select('id, numero_rps, status, tomador_nome, valor_servico, competencia, emitida_em, created_at')
-      .eq('mei_id', user.id)
       .order('created_at', { ascending: false })
       .limit(5)
       .overrideTypes<Pick<Nota, 'id' | 'numero_rps' | 'status' | 'tomador_nome' | 'valor_servico' | 'competencia' | 'emitida_em' | 'created_at'>[]>(),
@@ -117,7 +115,6 @@ export default async function DashboardHome() {
     supabase
       .from('api_keys')
       .select('key_prefix, label, created_at')
-      .eq('mei_id', user.id)
       .is('revoked_at', null)
       .limit(1)
       .single<{ key_prefix: string; label: string | null; created_at: string }>(),
@@ -125,7 +122,6 @@ export default async function DashboardHome() {
     supabase
       .from('notas_fiscais')
       .select('id')
-      .eq('mei_id', user.id)
       .eq('status', 'AUTORIZADA')
       .order('emitida_em', { ascending: true })
       .limit(1)

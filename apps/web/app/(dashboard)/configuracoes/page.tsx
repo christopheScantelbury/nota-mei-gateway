@@ -10,29 +10,41 @@ export default async function ConfiguracoesPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [meiResult, keysResult] = await Promise.all([
-    supabase
+  type ProfileData = {
+    cnpj: string
+    razao_social: string
+    email: string
+    municipio_ibge: string
+    cert_valid_until: string | null
+  }
+
+  // Try empresas first (ME/EPP), fall back to meis (MEI legacy)
+  const empresaResult = await supabase
+    .from('empresas')
+    .select('cnpj, razao_social, email, municipio_ibge, cert_valid_until')
+    .eq('user_id', user.id)
+    .maybeSingle<ProfileData>()
+
+  let profileData: ProfileData | null = empresaResult.data ?? null
+
+  if (!profileData) {
+    const meiResult = await supabase
       .from('meis')
       .select('cnpj, razao_social, email, municipio_ibge, cert_valid_until')
       .eq('id', user.id)
-      .single<{
-        cnpj: string
-        razao_social: string
-        email: string
-        municipio_ibge: string
-        cert_valid_until: string | null
-      }>(),
+      .single<ProfileData>()
+    profileData = meiResult.data ?? null
+  }
 
-    supabase
-      .from('api_keys')
-      .select('id, key_prefix, label, created_at')
-      .eq('mei_id', user.id)
-      .is('revoked_at', null)
-      .order('created_at', { ascending: false })
-      .returns<{ id: string; key_prefix: string; label: string | null; created_at: string }[]>(),
-  ])
+  if (!profileData) redirect('/login')
 
-  if (!meiResult.data) redirect('/login')
+  // RLS on api_keys filters by empresa_id (ME/EPP) or mei_id (MEI legacy) — no explicit filter needed
+  const keysResult = await supabase
+    .from('api_keys')
+    .select('id, key_prefix, label, created_at')
+    .is('revoked_at', null)
+    .order('created_at', { ascending: false })
+    .returns<{ id: string; key_prefix: string; label: string | null; created_at: string }[]>()
 
   return (
     <div className="p-8 max-w-3xl">
@@ -42,7 +54,7 @@ export default async function ConfiguracoesPage() {
       </div>
 
       <ConfiguracoesTabs
-        mei={meiResult.data}
+        mei={profileData}
         apiKeys={keysResult.data ?? []}
       />
     </div>

@@ -69,14 +69,12 @@ export default async function TemplatesPage() {
     supabase
       .from('emissoes_mensais')
       .select('planos(nome)')
-      .eq('mei_id', user.id)
       .eq('competencia', competencia)
       .single<{ planos: { nome: string } | null }>(),
 
     supabase
       .from('nota_templates')
       .select('*')
-      .eq('mei_id', user.id)
       .eq('ativo', true)
       .order('created_at', { ascending: false })
       .returns<NotaTemplate[]>(),

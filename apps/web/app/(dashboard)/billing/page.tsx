@@ -68,7 +68,6 @@ export default async function BillingPage() {
         stripe_subscription_id, stripe_subscription_status, renovacao_em,
         planos ( nome, emissoes_limite, preco_mensal_brl )
       `)
-      .eq('mei_id', user.id)
       .eq('competencia', competencia)
       .single<EmissaoMensal>(),
 
@@ -76,7 +75,6 @@ export default async function BillingPage() {
     supabase
       .from('emissoes_mensais')
       .select('competencia, total_emitidas, planos(nome, emissoes_limite)')
-      .eq('mei_id', user.id)
       .in('competencia', months6)
       .order('competencia', { ascending: false })
       .returns<{ competencia: string; total_emitidas: number; planos: { nome: string; emissoes_limite: number } | null }[]>(),

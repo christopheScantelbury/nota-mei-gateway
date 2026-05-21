@@ -17,10 +17,10 @@ export default async function RecorrenciasPage() {
   if (!user) redirect('/login')
 
   // Plan guard — automação is a Business-plan feature
+  // RLS restricts emissoes_mensais to the authenticated user's records automatically
   const { data: emissao } = await supabase
     .from('emissoes_mensais')
     .select('planos(nome)')
-    .eq('mei_id', user.id)
     .eq('competencia', currentCompetencia())
     .single<{ planos: { nome: string } | null }>()
 
