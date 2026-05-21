@@ -362,7 +362,8 @@ STRIPE_PRICE_PRO=price_...
 STRIPE_PRICE_BUSINESS=price_...
 
 # Receita Federal
-RECEITA_API_URL=https://www.nfse.gov.br/m/app/api/recepcionar-lote-rps/v1
+# NFS-e Nacional v1.01 (descoberto 2026-05-21 — o URL antigo /recepcionar-lote-rps/v1 retorna 404).
+RECEITA_API_URL=https://sefin.nfse.gov.br/SefinNacional
 
 # Armazenamento fiscal (STOR-01)
 S3_BUCKET_NOTAS=nota-mei-gateway-fiscal   # bucket S3 dedicado para XMLs/PDFs (lifecycle 5 anos)
@@ -384,7 +385,7 @@ DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres  # Supabase
 SUPABASE_SERVICE_ROLE_KEY=eyJ...                                       # supabase status
 REDIS_URL=redis://localhost:6379
 RABBITMQ_URL=amqp://guest:guest@localhost:5672/
-RECEITA_API_URL=https://homologacao.nfse.gov.br/m/app/api/recepcionar-lote-rps/v1
+RECEITA_API_URL=https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional   # homologação
 S3_BUCKET_NOTAS=nota-mei-gateway-fiscal-dev                            # bucket local/dev (ou usar NoopStore)
 WEBHOOK_HMAC_SECRET=dev-local-secret                                   # qualquer valor
 STRIPE_SECRET_KEY=sk_test_...
@@ -508,7 +509,35 @@ status-cancelada.png    → #6473A0 (cinza)
                               · middleware.IPWhitelist + ADMIN_ALLOWED_IPS env var
                               · 13 novos testes unitários (guard_check_test + ip_whitelist_test)
 ✅ Supabase db push           22 migrations aplicadas em prod (2026-06-15) — billing_me incluída
-⏳ QA-01                      E2E tests contra homologação Receita Federal
+
+✅ NFS-E-NAC (2026-05-21)     🏆 MIGRAÇÃO COMPLETA NFS-e NACIONAL v1.01 — primeira nota
+                              emitida + cancelada em prod com cert ICP-Brasil real.
+                              · URL real descoberto: https://sefin.nfse.gov.br/SefinNacional/nfse
+                                (o /m/app/api/recepcionar-lote-rps/v1 hardcoded retornava 404)
+                              · Wire format: gzip + base64 + JSON {dpsXmlGZipB64}
+                              · mTLS com tls.RenegotiateOnceAsClient (IIS exige)
+                              · XMLDSig migrado para RSA-SHA256 (era RSA-SHA1)
+                              · DPS XML v1.01 (XSD oficial 2026-02-09, em docs/nfse-schemas/)
+                                rewrite completo de dps_types.go + dps_builder.go
+                              · CRegTribMEI=4, opSimpNac=2 para MEI
+                              · MEI não envia pAliq (E0600), pTotTribSN (E0710), xNome/email (E0121)
+                              · cTribNac = 6 dígitos LC116/2003 (validados: 010101, 010701, 140101)
+                              · Cancelamento via evento e101101 em POST /nfse/{chave}/eventos
+                                · BuildCancelamentoEvent (pedRegEvento_v1.01.xsd)
+                                · TSIdPedRegEvt = "PRE" + chave(50) + tipoEvento(6) = 59 chars
+                                · Parser aceita "erro" (singular, eventos) E "erros" (plural, DPS)
+                                · Propaga "complemento" do response (XSD field hint)
+                              · Hybrid auth (API key + JWT Supabase) em /v1/auth/certificate
+                              · sslmate/go-pkcs12 (ICP-Brasil PFX com cadeia 3+ bags)
+                              · loadNotaForOwner unificado (FindByIDForEmpresa + fallback FindByID)
+                              · Roteamento MEI → emitirNotaME (todos usam DPS path)
+                              · Email templates NotaFácil aplicados via Management API
+                              Chave teste autorizada e cancelada:
+                                13026032234488964000142000000000000126056414682885
+
+⏳ DANFSE-PDF                 Geração de PDF do XML autorizado (renderer pendente)
+⏳ ME-SUBST                   POST /v1/nfse/:id/substituir migrar para evento e105102
+⏳ QA-01                      E2E tests contra homologação Receita Federal (cert A1 hom separado)
 ```
 
 ---
@@ -644,7 +673,10 @@ vercel --prod               # deploy manual produção
 ---
 
 ## 13. ESTADO ATUAL
-> Última atualização: 2026-06-15 · branch `main` · commit `82868d5` (ME-EP6) · CI ✅ Deploy ✅ Migrations: 22/22 aplicadas em prod
+> Última atualização: 2026-05-21 · branch `main` · commit `c75eefc` (NFS-E-NAC) · CI ✅ Deploy ✅ Migrations: 22/22
+>
+> **🏆 Marco:** primeira NFS-e Nacional emitida e cancelada em produção com cert ICP-Brasil real
+> Chave de teste: `13026032234488964000142000000000000126056414682885` (AUTORIZADA → CANCELADA)
 
 ### Código — 100% concluído
 
