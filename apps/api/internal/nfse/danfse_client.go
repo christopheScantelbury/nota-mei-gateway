@@ -58,10 +58,7 @@ func (a *Adapter) ProbeADN(ctx context.Context, chaveAcesso string, cert *tls.Ce
 	root := strings.TrimSuffix(base, "/danfse")
 
 	urls := []string{
-		// Fetch the contribuintes swagger spec first — it documents the real paths.
 		root + "/contribuintes/docs/index.html",
-		root + "/contribuintes//swagger/docs/v1", // ADN swagger pattern (//double-slash)
-		root + "/contribuintes/swagger/docs/v1",
 	}
 
 	tlsCfg := &tls.Config{
@@ -87,11 +84,11 @@ func (a *Adapter) ProbeADN(ctx context.Context, chaveAcesso string, cert *tls.Ce
 			results[url] = "http_error: " + err.Error()
 			continue
 		}
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 32*1024))
 		_ = resp.Body.Close()
-		results[url] = fmt.Sprintf("HTTP %d  ct=%s  body=%.3500s",
+		results[url] = fmt.Sprintf("HTTP %d  ct=%s  body=%.30000s",
 			resp.StatusCode, resp.Header.Get("Content-Type"), strings.TrimSpace(string(body)))
-		time.Sleep(800 * time.Millisecond) // avoid 429 rate limit
+		time.Sleep(3 * time.Second) // ADN rate limit is tight
 	}
 	return results, nil
 }
