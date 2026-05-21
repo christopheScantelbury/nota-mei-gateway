@@ -1282,13 +1282,13 @@ func (h *NFSeHandler) DownloadPDF(c *fiber.Ctx) error {
 		return c.Redirect(url, fiber.StatusTemporaryRedirect)
 	}
 
-	// ── ADN path: fetch DANFSE from Receita Federal (NFS-e Nacional) ─────
-	// The DANFSE remains available even after cancellation — the document
-	// shows the CANCELADA stamp. Triggered whenever we have a 50-digit
-	// chave de acesso and the nota isn't still PROCESSANDO.
+	// ── ADN DANFSE PDF: the dedicated PDF endpoint at adn.nfse.gov.br/danfse
+	// returns 502 in production (service not yet live). When/if it comes
+	// online, FetchDANFSE() will start succeeding and the code below will
+	// return real bytes; until then we silently fall through to the public
+	// consultation redirect.
 	if nota.NumeroNFSe != nil && len(*nota.NumeroNFSe) == 50 && nota.Status != "PROCESSANDO" {
 		chave := *nota.NumeroNFSe
-		// Resolve cert via empresa (MEI mirror or ME/EPP direct).
 		var cert *tls.Certificate
 		var certErr error
 		if empresa != nil {
@@ -1299,7 +1299,6 @@ func (h *NFSeHandler) DownloadPDF(c *fiber.Ctx) error {
 		if certErr == nil && cert != nil {
 			pdf, pdfErr := h.adapter.FetchDANFSE(c.Context(), chave, cert)
 			if pdfErr == nil && len(pdf) > 0 {
-				// Best-effort: cache the PDF in S3 for future hits.
 				if h.store != nil {
 					s3Key := storage.S3KeyForPDF(empresaIDForNota(nota).String(), nota.ID.String())
 					if uploadErr := h.store.Put(c.Context(), s3Key, "application/pdf", pdf); uploadErr == nil {
@@ -1310,10 +1309,20 @@ func (h *NFSeHandler) DownloadPDF(c *fiber.Ctx) error {
 				c.Set("Content-Disposition", fmt.Sprintf(`inline; filename="danfse-%s.pdf"`, notaID))
 				return c.Send(pdf)
 			}
-			log.Ctx(c.UserContext()).Warn().Err(pdfErr).
-				Str("chave", chave).
-				Msg("ADN DANFSE fetch failed — falling back to legacy paths")
+			// Don't spam Warn on every download — the service is known to be down.
+			log.Ctx(c.UserContext()).Debug().Err(pdfErr).Str("chave", chave).
+				Msg("ADN DANFSE fetch failed (expected — service indisponível) — fallback to public consulta")
 		}
+
+		// ── Fallback: Receita's public consultation page ────────────────────
+		// The official "Consulta Pública NFS-e Nacional" hosts the DANFSE
+		// renderer with the chaveAcesso as query param. Redirects work for
+		// both AUTORIZADA and CANCELADA — the page shows the cancellation
+		// stamp when applicable.
+		return c.Redirect(
+			"https://www.nfse.gov.br/consultapublica?chaveAcesso="+chave,
+			fiber.StatusTemporaryRedirect,
+		)
 	}
 
 	// ── Legacy path: redirect to Supabase Storage URL ─────────────────────
@@ -1331,50 +1340,6 @@ func (h *NFSeHandler) DownloadPDF(c *fiber.Ctx) error {
 // invariant) for S3 key generation.
 func empresaIDForNota(nota *nfse.Nota) uuid.UUID {
 	return nota.MeiID
-}
-
-// DebugProbeADN probes the Ambiente de Dados Nacional with multiple URL
-// patterns to discover the correct DANFSE endpoint. Returns the HTTP status
-// + body preview for each candidate. Temporary endpoint — remove after
-// discovery.
-func (h *NFSeHandler) DebugProbeADN(c *fiber.Ctx) error {
-	mei := auth.GetMEI(c)
-	empresa := auth.GetEmpresa(c)
-	if mei == nil && empresa == nil {
-		return internalError(c, "empresa not in context")
-	}
-
-	notaID, err := uuid.Parse(c.Params("id"))
-	if err != nil {
-		return notFound(c)
-	}
-	nota, err := h.loadNotaForOwner(c.Context(), notaID, mei, empresa)
-	if err != nil {
-		return notFound(c)
-	}
-	if nota.NumeroNFSe == nil {
-		return c.Status(fiber.StatusUnprocessableEntity).
-			JSON(fiber.Map{"error": "nota sem chave_acesso"})
-	}
-
-	var cert *tls.Certificate
-	if empresa != nil {
-		cert, err = h.loadCertEmpresa(c.Context(), empresa)
-	} else {
-		cert, err = h.loadCert(c.Context(), mei)
-	}
-	if err != nil {
-		return internalError(c, "cert load: "+err.Error())
-	}
-
-	results, err := h.adapter.ProbeADN(c.Context(), *nota.NumeroNFSe, cert)
-	if err != nil {
-		return internalError(c, "probe: "+err.Error())
-	}
-	return c.JSON(fiber.Map{
-		"chave_acesso": *nota.NumeroNFSe,
-		"probes":       results,
-	})
 }
 
 // loadNotaForOwner finds the nota using whichever ID is set in the auth

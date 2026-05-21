@@ -45,55 +45,6 @@ func (a *Adapter) adnBaseURL() string {
 	}
 }
 
-// ProbeADN tries a list of candidate ADN paths and returns the HTTP status +
-// body preview for each. Used to discover the correct DANFSE endpoint without
-// blind iteration on the production deploy cycle.
-//
-// Returns a map of "URL → status:body_preview" for every probed URL.
-func (a *Adapter) ProbeADN(ctx context.Context, chaveAcesso string, cert *tls.Certificate) (map[string]string, error) {
-	if cert == nil {
-		return nil, fmt.Errorf("probe: certificate is required (mTLS)")
-	}
-	base := a.adnBaseURL() // e.g. https://adn.nfse.gov.br/danfse
-	root := strings.TrimSuffix(base, "/danfse")
-
-	urls := []string{
-		root + "/danfse/swagger/v1/swagger.json",
-		root + "/danfse/docs/index.js",
-	}
-
-	tlsCfg := &tls.Config{
-		Certificates:  []tls.Certificate{*cert},
-		MinVersion:    tls.VersionTLS12,
-		Renegotiation: tls.RenegotiateOnceAsClient,
-	}
-	client := &http.Client{
-		Transport: &http.Transport{TLSClientConfig: tlsCfg},
-		Timeout:   12 * time.Second,
-	}
-
-	results := make(map[string]string, len(urls))
-	for _, url := range urls {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		if err != nil {
-			results[url] = "build_request_error: " + err.Error()
-			continue
-		}
-		req.Header.Set("Accept", "application/pdf, application/json, text/html")
-		resp, err := client.Do(req)
-		if err != nil {
-			results[url] = "http_error: " + err.Error()
-			continue
-		}
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 200*1024))
-		_ = resp.Body.Close()
-		results[url] = fmt.Sprintf("HTTP %d  ct=%s  body=%.200000s",
-			resp.StatusCode, resp.Header.Get("Content-Type"), strings.TrimSpace(string(body)))
-		time.Sleep(3 * time.Second) // ADN rate limit is tight
-	}
-	return results, nil
-}
-
 // FetchDANFSE retrieves the DANFSE PDF for the given chave de acesso.
 //
 // Endpoint: GET {adn}/{chaveAcesso} — returns application/pdf binary.

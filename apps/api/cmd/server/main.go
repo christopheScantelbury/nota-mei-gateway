@@ -486,7 +486,6 @@ func main() {
 	v1.Post("/nfse/:id/substituir", nfseH.SubstituirNota) // ME-32: 9-day substitution window (ME/EPP only)
 	v1.Get("/nfse/:id/xml", nfseH.DownloadXML)
 	v1.Get("/nfse/:id/pdf", nfseH.DownloadPDF)
-	v1.Get("/debug/adn-probe/:id", nfseH.DebugProbeADN) // TODO: remove after DANFSE discovery
 
 	// (Cert upload is registered above with hybrid auth — kept out of this group
 	// so it does not run authMw twice.)
