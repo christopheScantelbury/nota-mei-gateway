@@ -300,12 +300,17 @@ func buildDPSTomador(t TomadorRequest) *InfoPessoa {
 	return p
 }
 
-// buildTotTrib produces the minimum-valid <totTrib> block. For MEI / SN we
-// emit pTotTribSN with the canonical 5%/6% approximate rate. For other
-// regimes we use indTotTrib=0 (Decreto 8.264/2014 — emitente não estima).
+// buildTotTrib produces the minimum-valid <totTrib> block.
+//
+//   - MEI (opSimpNac=2): Receita Federal rejected pTotTribSN with code E0710
+//     "Para MEI o valor percentual aproximado do total dos tributos da
+//     alíquota do Simples Nacional (%) não pode ser informado." MEI pays a
+//     fixed DAS amount, not the percent-based SN aliquot. Emit indTotTrib=0.
+//   - ME/EPP optante SN (opSimpNac=3): pTotTribSN com 5% (anexos III/V).
+//   - Demais regimes (LP/LR): indTotTrib=0 (Decreto 8.264/2014).
 func buildTotTrib(opSimpNac int) TribTotal {
-	if opSimpNac == OpSimpNacMEI || opSimpNac == OpSimpNacMEEPP {
-		p := 5.0 // MEI: alíquota SIMEI 5% (serviços); ME/EPP: anexos III/V do SN.
+	if opSimpNac == OpSimpNacMEEPP {
+		p := 5.0 // ME/EPP optante SN: anexos III/V (~5%).
 		return TribTotal{PTotTribSN: &p}
 	}
 	z := IndTotTribNaoInforma
