@@ -42,6 +42,13 @@ type InfDPS struct {
 	NDPS     string `xml:"nDPS"`
 	DCompet  string `xml:"dCompet"` // AAAA-MM-DD (primeiro dia do mês de competência)
 
+	// Schema-required fields surfaced by Receita Federal rejection E1235
+	// (Falha no esquema XML do DF-e) on 2026-05-21:
+	//   - tpEmit  = 1 (prestador) | 2 (tomador) | 3 (intermediário)
+	//   - cLocEmiss = código IBGE do município onde a DPS foi gerada
+	TpEmit    int    `xml:"tpEmit"`
+	CLocEmiss string `xml:"cLocEmiss"`
+
 	Emit    DPSEmit    `xml:"emit"`
 	Toma    DPSTomador `xml:"toma"`
 	Serv    DPSServico `xml:"serv"`

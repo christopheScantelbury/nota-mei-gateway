@@ -107,6 +107,11 @@ func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS 
 			NDPS:     fmt.Sprintf("%06d", numeroDPS),
 			DCompet:  competenciaDate.Format("2006-01-02"),
 
+			// 1 = prestador. We always emit from the prestador side; tomador (2)
+			// and intermediário (3) emissions are out of scope for this MVP.
+			TpEmit:    1,
+			CLocEmiss: empresa.MunicipioIBGE,
+
 			Emit: DPSEmit{
 				CNPJ:    empresa.CNPJ,
 				RegTrib: regTrib,
