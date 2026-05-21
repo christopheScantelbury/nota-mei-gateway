@@ -242,6 +242,13 @@ func (a *Adapter) doJSON(ctx context.Context, method, url string, body []byte, c
 	tlsCfg := &tls.Config{
 		Certificates: []tls.Certificate{*cert},
 		MinVersion:   tls.VersionTLS12,
+		// SEFIN Nacional initiates a TLS renegotiation to request the client cert.
+		// Go disables renegotiation by default; enabling RenegotiateOnceAsClient
+		// is the documented workaround for IIS/.NET servers that don't request
+		// the cert in the initial ClientHello. Without this we get
+		//   "local error: tls: no renegotiation"
+		// on every emission attempt.
+		Renegotiation: tls.RenegotiateOnceAsClient,
 	}
 	transport := &http.Transport{TLSClientConfig: tlsCfg}
 	client := &http.Client{Transport: transport, Timeout: 30 * time.Second}
