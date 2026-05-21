@@ -1333,6 +1333,50 @@ func empresaIDForNota(nota *nfse.Nota) uuid.UUID {
 	return nota.MeiID
 }
 
+// DebugProbeADN probes the Ambiente de Dados Nacional with multiple URL
+// patterns to discover the correct DANFSE endpoint. Returns the HTTP status
+// + body preview for each candidate. Temporary endpoint — remove after
+// discovery.
+func (h *NFSeHandler) DebugProbeADN(c *fiber.Ctx) error {
+	mei := auth.GetMEI(c)
+	empresa := auth.GetEmpresa(c)
+	if mei == nil && empresa == nil {
+		return internalError(c, "empresa not in context")
+	}
+
+	notaID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return notFound(c)
+	}
+	nota, err := h.loadNotaForOwner(c.Context(), notaID, mei, empresa)
+	if err != nil {
+		return notFound(c)
+	}
+	if nota.NumeroNFSe == nil {
+		return c.Status(fiber.StatusUnprocessableEntity).
+			JSON(fiber.Map{"error": "nota sem chave_acesso"})
+	}
+
+	var cert *tls.Certificate
+	if empresa != nil {
+		cert, err = h.loadCertEmpresa(c.Context(), empresa)
+	} else {
+		cert, err = h.loadCert(c.Context(), mei)
+	}
+	if err != nil {
+		return internalError(c, "cert load: "+err.Error())
+	}
+
+	results, err := h.adapter.ProbeADN(c.Context(), *nota.NumeroNFSe, cert)
+	if err != nil {
+		return internalError(c, "probe: "+err.Error())
+	}
+	return c.JSON(fiber.Map{
+		"chave_acesso": *nota.NumeroNFSe,
+		"probes":       results,
+	})
+}
+
 // loadNotaForOwner finds the nota using whichever ID is set in the auth
 // context. The DPS migration writes empresa_id for every nota (and mei_id
 // only when empresa.Tipo == MEI), so we try the empresa lookup first and
