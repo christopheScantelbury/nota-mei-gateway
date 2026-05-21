@@ -170,7 +170,11 @@ func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS 
 			CServ: CServ{
 				CTribNac:  cTribNac,
 				XDescServ: strings.TrimSpace(req.Servico.Discriminacao),
-				CNBS:      stripDots(req.Servico.CodigoNBS),
+				// cNBS é opcional na schema (TSCodNBS exige 9 dígitos).
+				// Nossa base armazena códigos NBS de 8 dígitos (XX.XX.XX.XX
+				// sem o dígito verificador final). Omitimos quando o cliente
+				// não fornece um código de 9 dígitos.
+				CNBS: normalizeCNBS(req.Servico.CodigoNBS),
 			},
 		},
 
@@ -191,6 +195,7 @@ func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS 
 
 	doc := DPS{
 		Xmlns:  DPSSefinNS,
+		Versao: DPSVersao,
 		InfDPS: inf,
 	}
 
@@ -335,6 +340,17 @@ func padLeft(s string, n int) string {
 		return s
 	}
 	return strings.Repeat("0", n-len(s)) + s
+}
+
+// normalizeCNBS returns the NBS code only when it matches the 9-digit XSD
+// pattern (TSCodNBS = "[0-9]{9}"). Otherwise returns empty so the field is
+// omitted from the XML (it's optional in the schema).
+func normalizeCNBS(s string) string {
+	digits := stripDots(stripNonDigits(s))
+	if len(digits) == 9 {
+		return digits
+	}
+	return ""
 }
 
 // derefStr returns *s trimmed, or "" when s is nil.

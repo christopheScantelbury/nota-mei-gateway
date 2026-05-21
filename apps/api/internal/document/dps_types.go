@@ -28,11 +28,17 @@ const DPSSefinNS = "http://www.sped.fazenda.gov.br/nfse"
 
 // DPS is the root <DPS> element. It carries one <infDPS> child and the
 // XMLDSig <Signature> block (injected by the signer).
+//
+// versao is REQUIRED — TVerNFSe restricts to "1.00" or "1.01".
 type DPS struct {
 	XMLName xml.Name `xml:"DPS"`
 	Xmlns   string   `xml:"xmlns,attr"`
+	Versao  string   `xml:"versao,attr"`
 	InfDPS  InfDPS   `xml:"infDPS"`
 }
+
+// DPSVersao is the constant value emitted in the versao attribute.
+const DPSVersao = "1.01"
 
 // InfDPS — TCInfDPS in the XSD. Sequence is enforced; do not reorder fields.
 type InfDPS struct {
@@ -237,6 +243,7 @@ const (
 	// Application version declared in <verAplic>. TSVerAplic limits to 20 chars.
 	DPSVerAplic = "NotaFacil-1.01"
 
-	// Default série DPS.
-	DPSSerie = "00001"
+	// Default série DPS. Pattern allows 0–4 leading zeros + 1–5 digits but
+	// libxml2 v2.13 validates it more strictly with the unpadded form.
+	DPSSerie = "1"
 )
