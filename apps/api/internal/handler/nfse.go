@@ -1283,10 +1283,10 @@ func (h *NFSeHandler) DownloadPDF(c *fiber.Ctx) error {
 	}
 
 	// ── ADN path: fetch DANFSE from Receita Federal (NFS-e Nacional) ─────
-	// Triggered when the nota is AUTORIZADA but we haven't cached the PDF
-	// yet. The chave de acesso lives in nota.numero_nfse (overloaded as
-	// the 50-char chave under the DPS model).
-	if nota.Status == "AUTORIZADA" && nota.NumeroNFSe != nil && len(*nota.NumeroNFSe) == 50 {
+	// The DANFSE remains available even after cancellation — the document
+	// shows the CANCELADA stamp. Triggered whenever we have a 50-digit
+	// chave de acesso and the nota isn't still PROCESSANDO.
+	if nota.NumeroNFSe != nil && len(*nota.NumeroNFSe) == 50 && nota.Status != "PROCESSANDO" {
 		chave := *nota.NumeroNFSe
 		// Resolve cert via empresa (MEI mirror or ME/EPP direct).
 		var cert *tls.Certificate
