@@ -32,18 +32,17 @@ type PedRegEvento struct {
 //	tpAmb, verAplic, dhEvento, (CNPJAutor | CPFAutor), chNFSe, <evento>
 //
 // We always send CNPJAutor (prestador = MEI/ME/EPP/LP/LR are PJ).
+// Id é obrigatório (TSIdPedRegEvt: "PRE" + chave(50) + tipoEvento(6) = 59 chars).
 type InfPedReg struct {
-	// Id attribute is not in the schema for infPedReg, but XMLDSig needs a
-	// reference target. We add one anyway so the signer can wire URI="#..."
-	// — the validator ignores unknown attributes.
-	ID         string             `xml:"Id,attr,omitempty"`
-	TpAmb      int                `xml:"tpAmb"`
-	VerAplic   string             `xml:"verAplic"`
-	DhEvento   string             `xml:"dhEvento"`
-	CNPJAutor  string             `xml:"CNPJAutor,omitempty"`
-	CPFAutor   string             `xml:"CPFAutor,omitempty"`
-	ChNFSe     string             `xml:"chNFSe"`
+	ID         string              `xml:"Id,attr"`
+	TpAmb      int                 `xml:"tpAmb"`
+	VerAplic   string              `xml:"verAplic"`
+	DhEvento   string              `xml:"dhEvento"`
+	CNPJAutor  string              `xml:"CNPJAutor,omitempty"`
+	CPFAutor   string              `xml:"CPFAutor,omitempty"`
+	ChNFSe     string              `xml:"chNFSe"`
 	E101101    *EventoCancelamento `xml:"e101101,omitempty"`
+	E105102    *EventoSubstituicao `xml:"e105102,omitempty"`
 }
 
 // EventoCancelamento — TE101101 (cancelamento sem substituição).
@@ -51,6 +50,16 @@ type EventoCancelamento struct {
 	XDesc   string `xml:"xDesc"`   // fixed value "Cancelamento de NFS-e"
 	CMotivo int    `xml:"cMotivo"` // 1=Erro na Emissão | 2=Serviço não Prestado | 9=Outros
 	XMotivo string `xml:"xMotivo"` // 15-255 chars descrição
+}
+
+// EventoSubstituicao — TE105102 (cancelamento por substituição).
+// Sent against the ORIGINAL chave to mark it cancelled in favour of a new
+// DPS that already carries the <subst><chSubstda>{original}</subst> block.
+type EventoSubstituicao struct {
+	XDesc        string `xml:"xDesc"`               // fixed value "Cancelamento de NFS-e por Substituição"
+	CMotivo      string `xml:"cMotivo"`             // 01..05 | 99 per TSCodJustSubst
+	XMotivo      string `xml:"xMotivo,omitempty"`   // 15-255 chars
+	ChSubstituta string `xml:"chSubstituta"`        // 50-digit chave da NFS-e substituta
 }
 
 // Cancellation justification codes per TSCodJustCanc.
@@ -122,6 +131,75 @@ func BuildCancelamentoEvent(p CancelamentoParams) ([]byte, error) {
 	out, err := xml.MarshalIndent(doc, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("marshal pedRegEvento: %w", err)
+	}
+	return append([]byte(xml.Header), out...), nil
+}
+
+// SubstituicaoParams holds the input for BuildSubstituicaoEvent.
+type SubstituicaoParams struct {
+	ChaveOriginal   string // 50-digit chave da NFS-e a ser cancelada por substituição
+	ChaveSubstituta string // 50-digit chave da nova NFS-e que substitui a original
+	CNPJPrestador   string
+	CodigoMotivo    string // TSCodJustSubst: 01..05 | 99
+	DescricaoMotivo string // opcional 15-255 chars
+}
+
+// BuildSubstituicaoEvent assembles a signed-ready pedRegEvento with the
+// e105102 (cancelamento por substituição) event. POSTed to
+// /SefinNacional/nfse/{chaveOriginal}/eventos via adapter.CancelarNFSeNacional.
+//
+// The TWO chaves MUST differ and must each be exactly 50 digits.
+func BuildSubstituicaoEvent(p SubstituicaoParams) ([]byte, error) {
+	original := stripNonDigits(p.ChaveOriginal)
+	substituta := stripNonDigits(p.ChaveSubstituta)
+	if len(original) != 50 {
+		return nil, fmt.Errorf("substituição: chave_original deve ter 50 dígitos (recebi %d)", len(original))
+	}
+	if len(substituta) != 50 {
+		return nil, fmt.Errorf("substituição: chave_substituta deve ter 50 dígitos (recebi %d)", len(substituta))
+	}
+	if original == substituta {
+		return nil, fmt.Errorf("substituição: chave_original e chave_substituta não podem ser iguais")
+	}
+	cnpj := stripNonDigits(p.CNPJPrestador)
+	if len(cnpj) != 14 {
+		return nil, fmt.Errorf("substituição: CNPJ inválido")
+	}
+	if p.CodigoMotivo == "" {
+		return nil, fmt.Errorf("substituição: cMotivo é obrigatório")
+	}
+	xMotivo := strings.TrimSpace(p.DescricaoMotivo)
+	// xMotivo é OPCIONAL no e105102, mas se informado deve seguir TSMotivo (15-255).
+	if xMotivo != "" && (len(xMotivo) < MinXMotivoLen || len(xMotivo) > MaxXMotivoLen) {
+		return nil, fmt.Errorf("substituição: xMotivo deve ter entre %d e %d caracteres ou estar vazio",
+			MinXMotivoLen, MaxXMotivoLen)
+	}
+
+	const tipoEventoSubstituicao = "105102"
+	infPedRegID := "PRE" + original + tipoEventoSubstituicao
+
+	doc := PedRegEvento{
+		Xmlns:  DPSSefinNS,
+		Versao: DPSVersao,
+		InfPedReg: InfPedReg{
+			ID:        infPedRegID,
+			TpAmb:     currentTpAmb(),
+			VerAplic:  DPSVerAplic,
+			DhEvento:  time.Now().In(fusoManaus()).Format("2006-01-02T15:04:05-07:00"),
+			CNPJAutor: cnpj,
+			ChNFSe:    original,
+			E105102: &EventoSubstituicao{
+				XDesc:        "Cancelamento de NFS-e por Substituição",
+				CMotivo:      p.CodigoMotivo,
+				XMotivo:      xMotivo,
+				ChSubstituta: substituta,
+			},
+		},
+	}
+
+	out, err := xml.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("marshal pedRegEvento substituição: %w", err)
 	}
 	return append([]byte(xml.Header), out...), nil
 }

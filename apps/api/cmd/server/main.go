@@ -504,13 +504,21 @@ func main() {
 	v1.Put("/templates/:id", templateH.UpdateTemplate)
 	v1.Delete("/templates/:id", templateH.DeleteTemplate)
 
-	// Nota recorrências (BE-03)
-	// TODO(BE-04): replace NoopEmissor with a real emissor that calls the NFS-e
-	// service layer directly. While NoopEmissor is wired, recorrencias are saved
-	// to the database but never actually emit notas — this is intentional during
-	// the current sprint. Remove this comment once the real emissor is wired.
+	// Nota recorrências (BE-03 + BE-04 — RealEmissor wired 2026-05-21).
+	//
+	// RealEmissor exercises the unified DPS path used by POST /v1/nfse so a
+	// recurring nota is indistinguishable from a manually issued one. Falls
+	// back to NoopEmissor only when the cert provider isn't configured
+	// (development without AWS).
 	recRepo := recorrencia.NewRepository(db.Pool())
-	sched := recorrencia.NewScheduler(recRepo, &recorrencia.NoopEmissor{}, time.Hour)
+	var recEmissor recorrencia.NotaEmissor
+	if certProv != nil {
+		recEmissor = recorrencia.NewRealEmissor(authRepo, notaRepo, dpsBuilder, signer, certProv, adapter)
+	} else {
+		log.Warn().Msg("recorrencia: NoopEmissor ativo — certProv não disponível (sem AWS)")
+		recEmissor = &recorrencia.NoopEmissor{}
+	}
+	sched := recorrencia.NewScheduler(recRepo, recEmissor, time.Hour)
 	if sharedRedis != nil {
 		sched = sched.WithLocker(billing.NewRedisLockerWithClient(sharedRedis))
 		log.Info().Msg("recorrencia scheduler: distributed lock configurado")

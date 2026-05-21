@@ -134,6 +134,23 @@ func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS 
 
 	tomador := buildDPSTomador(req.Tomador)
 
+	// Substituição (opcional) — quando este DPS substitui uma nota já autorizada.
+	var subst *Substituicao
+	if req.Subst != nil {
+		chave := stripNonDigits(req.Subst.ChaveSubstituida)
+		if len(chave) != 50 {
+			return nil, &ErrValidation{
+				Field:   "subst.chave_substituida",
+				Message: "chave da NFS-e substituída deve ter 50 dígitos",
+			}
+		}
+		subst = &Substituicao{
+			ChSubstda: chave,
+			CMotivo:   req.Subst.CodigoMotivo,
+			XMotivo:   strings.TrimSpace(req.Subst.DescricaoMotivo),
+		}
+	}
+
 	inf := InfDPS{
 		ID:       infID,
 		TpAmb:    currentTpAmb(),
@@ -144,6 +161,7 @@ func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS 
 		DCompet:  competenciaDate.Format("2006-01-02"),
 		TpEmit:   TpEmitPrestador,
 		CLocEmi:  empresa.MunicipioIBGE,
+		Subst:    subst,
 
 		Prest: InfoPrestador{
 			CNPJ: empresa.CNPJ,

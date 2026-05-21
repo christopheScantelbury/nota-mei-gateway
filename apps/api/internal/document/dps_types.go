@@ -53,11 +53,36 @@ type InfDPS struct {
 	TpEmit    int    `xml:"tpEmit"`    // 1=Prestador 2=Tomador 3=Intermediário
 	CLocEmi   string `xml:"cLocEmi"`   // IBGE 7 dígitos do município de emissão
 
+	// Subst is populated when this DPS replaces a previously emitted NFS-e.
+	// Schema position: after cLocEmi, before prest (TCInfDPS sequence).
+	Subst   *Substituicao `xml:"subst,omitempty"`
 	Prest   InfoPrestador `xml:"prest"`
 	Toma    *InfoPessoa   `xml:"toma,omitempty"`
 	Serv    DPSServ       `xml:"serv"`
 	Valores InfoValores   `xml:"valores"`
 }
+
+// Substituicao — TCSubstituicao. Used in the DPS to declare it replaces a
+// previously authorised NFS-e.
+//
+//	chSubstda: 50-digit chave de acesso da NFS-e substituída.
+//	cMotivo:   01-99 — TSCodJustSubst (see CMotivoSubst* constants).
+//	xMotivo:   optional 15-255 chars explaining the substitution reason.
+type Substituicao struct {
+	ChSubstda string `xml:"chSubstda"`
+	CMotivo   string `xml:"cMotivo"`
+	XMotivo   string `xml:"xMotivo,omitempty"`
+}
+
+// Substitution justification codes (TSCodJustSubst).
+const (
+	CMotivoSubstDesenquadramentoSN = "01"
+	CMotivoSubstEnquadramentoSN    = "02"
+	CMotivoSubstInclusaoImunidade  = "03"
+	CMotivoSubstExclusaoImunidade  = "04"
+	CMotivoSubstRejeicaoTomador    = "05"
+	CMotivoSubstOutros             = "99"
+)
 
 // ── Prestador (emit) ──────────────────────────────────────────────────────────
 

@@ -13,15 +13,26 @@ type Builder struct{}
 // EmissaoRequest is the API-level request to emit an NFS-e.
 // Fields added for ME/EPP (IssRetido, Emit) are ignored for MEI requests.
 type EmissaoRequest struct {
-	Servico     ServicoRequest `json:"servico"`
-	Tomador     TomadorRequest `json:"tomador"`
-	Emit        EmitRequest    `json:"emit,omitempty"` // ME/EPP only: overrides for emitente
-	Competencia string         `json:"competencia"`    // YYYY-MM
+	Servico     ServicoRequest    `json:"servico"`
+	Tomador     TomadorRequest    `json:"tomador"`
+	Emit        EmitRequest       `json:"emit,omitempty"` // ME/EPP only: overrides for emitente
+	Competencia string            `json:"competencia"`    // YYYY-MM
 	// IssRetido is required for Lucro Presumido / Lucro Real — must be set explicitly.
 	// Ignored for Simples Nacional (SN always recolhe via DAS).
 	// When Tomador.TipoOrgao == "ORGAO_PUBLICO", this is forced to true regardless.
 	IssRetido  *bool  `json:"iss_retido,omitempty"`
 	WebhookURL string `json:"webhook_url,omitempty"`
+	// Subst is populated by the substituição flow — declares this DPS replaces
+	// a previously authorised NFS-e. NOT meant to be set via the public POST
+	// /v1/nfse body; the SubstituirNota handler injects it server-side.
+	Subst *SubstParams `json:"-"`
+}
+
+// SubstParams carries the data needed to emit a DPS-as-substitute.
+type SubstParams struct {
+	ChaveSubstituida string // 50-digit chave de acesso da NFS-e original
+	CodigoMotivo     string // 01-99 per TSCodJustSubst
+	DescricaoMotivo  string // optional 15-255 chars
 }
 
 // ServicoRequest holds the service details from the JSON request.

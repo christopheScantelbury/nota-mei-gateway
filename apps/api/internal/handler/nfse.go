@@ -904,23 +904,39 @@ func (h *NFSeHandler) cancelarNotaME(c *fiber.Ctx, nota *nfse.Nota, empresa *aut
 
 // ─── POST /v1/nfse/:id/substituir ─────────────────────────────────────────
 
-// SubstituirNota handles POST /v1/nfse/:id/substituir (ME-32).
+// SubstituirNota handles POST /v1/nfse/:id/substituir.
 //
-// Available only for ME/EPP companies. Within a 9-day window from emitida_em:
-//  1. Cancels the original AUTORIZADA nota at the Receita Federal.
-//  2. Emits a new DPS with the provided request body (same schema as POST /v1/nfse).
-//  3. Links the original nota to its substitute via notas_fiscais.substituida_por.
+// Available for any prestador (MEI/ME/EPP). Within a 9-day window from
+// emitida_em:
+//
+//  1. Builds and emits a NEW DPS carrying <subst><chSubstda>{original}</subst>
+//     — declares to Receita that this DPS replaces the original.
+//  2. On success (new chaveAcesso retorned), POSTs evento e105102 against the
+//     ORIGINAL chave with chSubstituta = new chave. This finalises the
+//     substitution at Receita's side and marks the original as cancelled.
+//  3. Persists both notas, links them via notas_fiscais.substituida_por,
+//     and updates statuses (original → CANCELADA, nova → AUTORIZADA).
 //
 // Substitution does NOT increment the monthly emissoes counter — the original
 // emission already consumed that slot.
+//
+// Body schema is the same as POST /v1/nfse, plus an optional substituicao block:
+//
+//	{"servico":{…},"tomador":{…},"competencia":"AAAA-MM",
+//	 "substituicao":{"codigo_motivo":"01","descricao_motivo":"…"}}
 func (h *NFSeHandler) SubstituirNota(c *fiber.Ctx) error {
+	mei := auth.GetMEI(c)
 	empresa := auth.GetEmpresa(c)
+	if mei == nil && empresa == nil {
+		return internalError(c, "nenhuma empresa autenticada no contexto")
+	}
+	// Resolve to empresa (MEI tem o mirror row).
 	if empresa == nil {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error":      "FORBIDDEN",
-			"message":    "substituição de nota disponível apenas para empresas ME/EPP",
-			"request_id": c.Locals("request_id"),
-		})
+		emp, lookupErr := h.authRepo.FindEmpresa(c.Context(), mei.ID)
+		if lookupErr != nil {
+			return internalError(c, "erro ao consultar dados da empresa")
+		}
+		empresa = emp
 	}
 
 	notaID, err := uuid.Parse(c.Params("id"))
@@ -960,10 +976,17 @@ func (h *NFSeHandler) SubstituirNota(c *fiber.Ctx) error {
 		}
 	}
 
-	var req document.EmissaoRequest
-	if err := c.BodyParser(&req); err != nil {
+	var reqBody struct {
+		document.EmissaoRequest
+		Substituicao struct {
+			CodigoMotivo    string `json:"codigo_motivo"`
+			DescricaoMotivo string `json:"descricao_motivo"`
+		} `json:"substituicao,omitempty"`
+	}
+	if err := c.BodyParser(&reqBody); err != nil {
 		return validationError(c, "corpo da requisição inválido: "+err.Error())
 	}
+	req := reqBody.EmissaoRequest
 	if errs := validateEmissaoRequest(req); len(errs) > 0 {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"error":      "VALIDATION_ERROR",
@@ -973,45 +996,27 @@ func (h *NFSeHandler) SubstituirNota(c *fiber.Ctx) error {
 		})
 	}
 
+	// Inject the substituição block server-side — the new DPS must reference
+	// the original's chave_acesso via <subst><chSubstda>...</subst>.
+	codigoMotivo := reqBody.Substituicao.CodigoMotivo
+	if codigoMotivo == "" {
+		codigoMotivo = document.CMotivoSubstOutros // "99"
+	}
+	req.Subst = &document.SubstParams{
+		ChaveSubstituida: *original.NumeroNFSe,
+		CodigoMotivo:     codigoMotivo,
+		DescricaoMotivo:  reqBody.Substituicao.DescricaoMotivo,
+	}
+
 	ctx := c.Context()
 
-	// Load certificate once — reused for cancellation and new DPS signing.
 	cert, err := h.loadCertEmpresa(ctx, empresa)
 	if err != nil {
 		log.Ctx(ctx).Error().Err(err).Str("empresa_id", empresa.ID.String()).Msg("certificate load failed")
 		return internalError(c, "erro ao carregar certificado digital")
 	}
 
-	// ── Step 1: Cancel the original nota at the Receita Federal ──────────────
-	xmlCancel, err := h.builder.BuildCancelamento(*original.NumeroNFSe, empresa.CNPJ, empresa.MunicipioIBGE)
-	if err != nil {
-		return internalError(c, "erro ao construir XML de cancelamento")
-	}
-	signedCancel, err := h.signer.Sign(ctx, xmlCancel, cert)
-	if err != nil {
-		return internalError(c, "erro ao assinar XML de cancelamento")
-	}
-
-	if !h.devMode {
-		cancelResp, cancelErr := h.adapter.Cancelar(ctx, signedCancel, cert)
-		if cancelErr != nil {
-			return internalError(c, "erro ao cancelar nota original na Receita Federal")
-		}
-		if !cancelResp.OK && len(cancelResp.Erros) > 0 {
-			return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
-				"error":   "RECEITA_REJECTION",
-				"message": cancelResp.Erros[0].Descricao,
-				"codigo":  cancelResp.Erros[0].Codigo,
-			})
-		}
-	}
-
-	if err := h.notaRepo.CancelarEmpresa(ctx, original.ID, empresa.ID); err != nil {
-		return internalError(c, "erro ao atualizar status da nota original")
-	}
-	h.publishEvent(ctx, original, webhook.EventCancelada, "", "", "", "")
-
-	// ── Step 2: Emit the replacement DPS ────────────────────────────────────
+	// ── Step 1: Emit the replacement DPS (with <subst> block) ───────────────
 	if h.issLookup != nil {
 		req.Servico.AliquotaISS = h.issLookup.Resolve(empresa.MunicipioIBGE, req.Servico.AliquotaISS)
 	}
@@ -1040,7 +1045,12 @@ func (h *NFSeHandler) SubstituirNota(c *fiber.Ctx) error {
 		return internalError(c, "erro ao assinar DPS de substituição")
 	}
 
+	var meiIDForRow uuid.UUID
+	if empresa.Tipo == "MEI" {
+		meiIDForRow = empresa.ID
+	}
 	nova, err := h.notaRepo.Create(ctx, nfse.CreateNotaInput{
+		MeiID:            meiIDForRow,
 		EmpresaID:        empresa.ID,
 		NumeroRPS:        numeroDPS,
 		XMLEnviado:       string(signedXML),
@@ -1051,13 +1061,11 @@ func (h *NFSeHandler) SubstituirNota(c *fiber.Ctx) error {
 		Competencia:      req.Competencia,
 		RegimeTributario: empresa.RegimeTributario,
 		ISSRetido:        issRetidoPtr(empresa.RegimeTributario, dpsResult.ISSRetido),
-		// IdempotencyKey intentionally empty for substitutions.
 	})
 	if err != nil {
 		return internalError(c, "erro ao salvar nota de substituição")
 	}
 
-	// Link original → substitute (non-fatal: audit trail only).
 	if linkErr := h.notaRepo.SetSubstituidaPor(ctx, original.ID, nova.ID); linkErr != nil {
 		log.Ctx(ctx).Warn().Err(linkErr).
 			Str("original_id", original.ID.String()).
@@ -1065,7 +1073,6 @@ func (h *NFSeHandler) SubstituirNota(c *fiber.Ctx) error {
 			Msg("failed to set substituida_por (non-fatal)")
 	}
 
-	// S3 upload for the new DPS XML (STOR-01, non-fatal).
 	if h.store != nil {
 		s3Key := storage.S3KeyForRPS(empresa.ID.String(), nova.ID.String())
 		if uploadErr := h.store.Put(ctx, s3Key, "application/xml", signedXML); uploadErr != nil {
@@ -1082,8 +1089,6 @@ func (h *NFSeHandler) SubstituirNota(c *fiber.Ctx) error {
 		Str("original_id", original.ID.String()).
 		Str("nova_id", nova.ID.String()).
 		Int64("numero_dps", numeroDPS).
-		Str("regime", empresa.RegimeTributario).
-		Bool("iss_retido", dpsResult.ISSRetido).
 		Msg("DPS de substituição criada, enviando para SEFIN Nacional")
 
 	if h.devMode {
@@ -1091,34 +1096,27 @@ func (h *NFSeHandler) SubstituirNota(c *fiber.Ctx) error {
 			"nota_original_id":   original.ID,
 			"nota_substituta_id": nova.ID,
 			"status":             "PROCESSANDO",
-			"regime_tributario":  empresa.RegimeTributario,
-			"iss_retido":         dpsResult.ISSRetido,
-			"valor_iss":          dpsResult.ValorISS,
-			"valor_liquido":      dpsResult.ValorLiquido,
-			"mensagem":           "Substituição enviada para processamento [dev mode]",
+			"mensagem":           "Substituição enviada [dev mode]",
 		})
 	}
 
-	envioResp, envErr := h.adapter.Enviar(ctx, signedXML, cert)
-	if envErr != nil {
-		log.Ctx(ctx).Warn().Err(envErr).
-			Str("nota_id", nova.ID.String()).
-			Msg("envio DPS substituição falhou, mantendo PROCESSANDO (retry automático)")
+	// ── Step 2: Send the new DPS to NFS-e Nacional ──────────────────────────
+	success, failure, envErr := h.adapter.EnviarNFSeNacional(ctx, signedXML, cert)
+	if envErr != nil && failure == nil {
+		log.Ctx(c.UserContext()).Warn().Err(envErr).Str("nota_id", nova.ID.String()).
+			Msg("envio DPS substituição falhou (transient)")
 		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
 			"nota_original_id":   original.ID,
 			"nota_substituta_id": nova.ID,
 			"status":             "PROCESSANDO",
-			"regime_tributario":  empresa.RegimeTributario,
 			"mensagem":           "Substituição enviada para processamento (retry automático)",
 		})
 	}
-
-	if len(envioResp.Erros) > 0 {
-		codigo := envioResp.Erros[0].Codigo
-		descricao := envioResp.Erros[0].Descricao
+	if failure != nil && len(failure.Errors()) > 0 {
+		codigo, descricao := failure.FirstError()
 		_, _ = h.notaRepo.Rejeitar(ctx, nova.ID, codigo, descricao)
 		h.publishEvent(ctx, nova, webhook.EventRejeitada, "", "", codigo, descricao)
-		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"nota_original_id":   original.ID,
 			"nota_substituta_id": nova.ID,
 			"status":             "REJEITADA",
@@ -1126,25 +1124,75 @@ func (h *NFSeHandler) SubstituirNota(c *fiber.Ctx) error {
 			"erro_descricao":     descricao,
 		})
 	}
-
-	if envioResp.NumeroNFSe != "" {
-		_, _ = h.notaRepo.Autorizar(ctx, nova.ID, envioResp.NumeroNFSe, envioResp.CodVerificacao, "")
-		// Substitution does NOT increment emissoes_mensais — it replaces an existing emission.
-		h.publishEvent(ctx, nova, webhook.EventAutorizada, envioResp.NumeroNFSe, envioResp.CodVerificacao, "", "")
-	} else if envioResp.Protocolo != "" {
-		_ = h.notaRepo.SetProtocolo(ctx, nova.ID, envioResp.Protocolo)
+	if success == nil || success.ChaveAcesso == "" {
+		return internalError(c, "SEFIN não retornou chave_acesso para a nota substituta")
 	}
 
-	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+	// Persist the new chave on the substitute and authorize it.
+	_, _ = h.notaRepo.Autorizar(ctx, nova.ID, success.ChaveAcesso, "", success.IDDps)
+
+	// ── Step 3: Emit evento e105102 against the ORIGINAL chave ──────────────
+	eventoXML, err := document.BuildSubstituicaoEvent(document.SubstituicaoParams{
+		ChaveOriginal:   *original.NumeroNFSe,
+		ChaveSubstituta: success.ChaveAcesso,
+		CNPJPrestador:   empresa.CNPJ,
+		CodigoMotivo:    codigoMotivo,
+		DescricaoMotivo: reqBody.Substituicao.DescricaoMotivo,
+	})
+	if err != nil {
+		// Nova já foi autorizada — original fica órfã (não cancelada). Loggamos
+		// para remediar manualmente via DELETE /v1/nfse/:id depois.
+		log.Ctx(c.UserContext()).Error().Err(err).
+			Str("original_chave", *original.NumeroNFSe).
+			Str("nova_chave", success.ChaveAcesso).
+			Msg("substituição parcial: nova autorizada mas evento e105102 não construiu — cancelar original manualmente")
+		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+			"nota_original_id":   original.ID,
+			"nota_substituta_id": nova.ID,
+			"chave_substituta":   success.ChaveAcesso,
+			"status":             "PARTIAL",
+			"aviso":              "nova nota autorizada mas evento e105102 falhou — cancele a original manualmente",
+		})
+	}
+	signedEvento, err := h.signer.Sign(ctx, eventoXML, cert)
+	if err != nil {
+		return internalError(c, "erro ao assinar evento e105102")
+	}
+	eventSuccess, eventFailure, eventErr := h.adapter.CancelarNFSeNacional(
+		ctx, *original.NumeroNFSe, signedEvento, cert,
+	)
+	if eventErr != nil && eventFailure == nil {
+		log.Ctx(c.UserContext()).Error().Err(eventErr).
+			Str("original_chave", *original.NumeroNFSe).
+			Msg("evento e105102 transient — cancele original manualmente")
+	} else if eventFailure != nil && len(eventFailure.Errors()) > 0 {
+		codigo, descricao := eventFailure.FirstError()
+		log.Ctx(c.UserContext()).Warn().
+			Str("erro_codigo", codigo).
+			Str("erro_descricao", descricao).
+			Msg("evento e105102 rejeitado pela SEFIN")
+	}
+
+	if err := h.notaRepo.CancelarEmpresa(ctx, original.ID, empresa.ID); err != nil {
+		log.Ctx(c.UserContext()).Warn().Err(err).Msg("erro ao atualizar status da original (non-fatal)")
+	}
+	h.publishEvent(ctx, original, webhook.EventCancelada, "", "", "", "")
+	h.publishEvent(ctx, nova, webhook.EventAutorizada, success.ChaveAcesso, "", "", "")
+
+	resp := fiber.Map{
 		"nota_original_id":   original.ID,
 		"nota_substituta_id": nova.ID,
-		"status":             "PROCESSANDO",
-		"regime_tributario":  empresa.RegimeTributario,
+		"chave_substituta":   success.ChaveAcesso,
+		"id_dps":             success.IDDps,
+		"status":             "AUTORIZADA",
 		"iss_retido":         dpsResult.ISSRetido,
 		"valor_iss":          dpsResult.ValorISS,
 		"valor_liquido":      dpsResult.ValorLiquido,
-		"mensagem":           "Substituição enviada para processamento",
-	})
+	}
+	if eventSuccess != nil {
+		resp["id_evento_cancelamento"] = eventSuccess.IDDps
+	}
+	return c.Status(fiber.StatusCreated).JSON(resp)
 }
 
 // ─── GET /v1/nfse/:id/xml ──────────────────────────────────────────────────
@@ -1234,6 +1282,40 @@ func (h *NFSeHandler) DownloadPDF(c *fiber.Ctx) error {
 		return c.Redirect(url, fiber.StatusTemporaryRedirect)
 	}
 
+	// ── ADN path: fetch DANFSE from Receita Federal (NFS-e Nacional) ─────
+	// Triggered when the nota is AUTORIZADA but we haven't cached the PDF
+	// yet. The chave de acesso lives in nota.numero_nfse (overloaded as
+	// the 50-char chave under the DPS model).
+	if nota.Status == "AUTORIZADA" && nota.NumeroNFSe != nil && len(*nota.NumeroNFSe) == 50 {
+		chave := *nota.NumeroNFSe
+		// Resolve cert via empresa (MEI mirror or ME/EPP direct).
+		var cert *tls.Certificate
+		var certErr error
+		if empresa != nil {
+			cert, certErr = h.loadCertEmpresa(c.Context(), empresa)
+		} else if mei != nil {
+			cert, certErr = h.loadCert(c.Context(), mei)
+		}
+		if certErr == nil && cert != nil {
+			pdf, pdfErr := h.adapter.FetchDANFSE(c.Context(), chave, cert)
+			if pdfErr == nil && len(pdf) > 0 {
+				// Best-effort: cache the PDF in S3 for future hits.
+				if h.store != nil {
+					s3Key := storage.S3KeyForPDF(empresaIDForNota(nota).String(), nota.ID.String())
+					if uploadErr := h.store.Put(c.Context(), s3Key, "application/pdf", pdf); uploadErr == nil {
+						_ = h.notaRepo.SetPDFS3Key(c.Context(), nota.ID, s3Key)
+					}
+				}
+				c.Set("Content-Type", "application/pdf")
+				c.Set("Content-Disposition", fmt.Sprintf(`inline; filename="danfse-%s.pdf"`, notaID))
+				return c.Send(pdf)
+			}
+			log.Ctx(c.UserContext()).Warn().Err(pdfErr).
+				Str("chave", chave).
+				Msg("ADN DANFSE fetch failed — falling back to legacy paths")
+		}
+	}
+
 	// ── Legacy path: redirect to Supabase Storage URL ─────────────────────
 	if nota.PDFPath == nil || *nota.PDFPath == "" {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -1243,6 +1325,12 @@ func (h *NFSeHandler) DownloadPDF(c *fiber.Ctx) error {
 	}
 
 	return c.Redirect(*nota.PDFPath, fiber.StatusTemporaryRedirect)
+}
+
+// empresaIDForNota returns the MEI ID (which equals empresa.id by the ARCH-03
+// invariant) for S3 key generation.
+func empresaIDForNota(nota *nfse.Nota) uuid.UUID {
+	return nota.MeiID
 }
 
 // loadNotaForOwner finds the nota using whichever ID is set in the auth
