@@ -30,10 +30,11 @@ type CertProvider interface {
 type NFSeHandler struct {
 	notaRepo     *nfse.NotaRepository
 	adapter      *nfse.Adapter
-	builder      *document.Builder    // MEI RPS builder
-	dpsBuilder   *document.DPSBuilder // ME/EPP DPS builder
+	builder      *document.Builder    // MEI RPS builder (legacy — kept for tests)
+	dpsBuilder   *document.DPSBuilder // unified DPS builder (MEI + ME/EPP)
 	signer       document.Signer
 	certProv     CertProvider
+	authRepo     *auth.Repository // required to look up MEI's mirror empresas row
 	billingRepo  *billing.Repository
 	billingGrd   *billing.Guard
 	publisher    *webhook.Publisher
@@ -81,6 +82,13 @@ func (h *NFSeHandler) WithDevMode() *NFSeHandler {
 	return h
 }
 
+// WithAuthRepo attaches the auth Repository so EmitirNota can resolve a MEI's
+// mirror empresas row before forwarding to the DPS emission path.
+func (h *NFSeHandler) WithAuthRepo(r *auth.Repository) *NFSeHandler {
+	h.authRepo = r
+	return h
+}
+
 // WithStripeClient sets the Stripe client for metered overage billing.
 // When set, EmitirNota will call stripe.UsageRecords.New for every note
 // authorized beyond the plan's included emission limit.
@@ -115,11 +123,16 @@ func (h *NFSeHandler) WithStorage(s storage.ObjectStore) *NFSeHandler {
 
 // EmitirNota handles POST /v1/nfse.
 //
-// Routes by company type:
-//   - MEI  → RPS builder (ABRASF/municipal) via the meis table
-//   - ME/EPP → DPS builder (SEFIN Nacional) via the empresas table
+// Routing changed 2026-05-21 after the discovery that the legacy ABRASF RPS
+// endpoint (https://www.nfse.gov.br/m/app/api/recepcionar-lote-rps/v1) does
+// not exist in production — the live NFS-e Nacional API at
+// https://sefin.nfse.gov.br/SefinNacional only accepts DPS. MEIs and ME/EPP
+// now share the same DPS emission path; the difference is only in the
+// resolved CRegTrib value (4 = SIMEI vs 1 = SN regular).
+//
+// We forward MEI requests through emitirNotaME by loading the matching
+// empresas row (RegisterMEI populates both tables with the same UUID).
 func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
-	// Detect company type from context locals set by auth.Middleware.
 	mei := auth.GetMEI(c)
 	empresa := auth.GetEmpresa(c)
 
@@ -140,12 +153,18 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 		})
 	}
 
-	// Route: ME/EPP uses the DPS path.
 	if empresa != nil {
 		return h.emitirNotaME(c, req, empresa)
 	}
-	// Legacy MEI path.
-	return h.emitirNotaMEI(c, req, mei)
+
+	// MEI: load the mirror empresas row (same UUID — see ARCH-03 invariant).
+	emp, lookupErr := h.authRepo.FindEmpresa(c.Context(), mei.ID)
+	if lookupErr != nil {
+		log.Ctx(c.UserContext()).Error().Err(lookupErr).Str("mei_id", mei.ID.String()).
+			Msg("MEI sem empresas mirror — corrija o cadastro antes de emitir")
+		return internalError(c, "MEI sem cadastro empresa correspondente")
+	}
+	return h.emitirNotaME(c, req, emp)
 }
 
 // emitirNotaMEI handles POST /v1/nfse for MEI companies (RPS/ABRASF path).
@@ -473,9 +492,9 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 		warnings = append(warnings, "ISS forçado para retido: tomador é órgão público (Art. 6 LC 116/2003)")
 	}
 
-	envioResp, envErr := h.adapter.EnviarDPS(ctx, signedXML, cert)
-	if envErr != nil {
-		log.Ctx(ctx).Warn().Err(envErr).Str("nota_id", nota.ID.String()).Msg("envio DPS falhou, mantendo PROCESSANDO")
+	success, failure, envErr := h.adapter.EnviarNFSeNacional(ctx, signedXML, cert)
+	if envErr != nil && failure == nil {
+		log.Ctx(ctx).Warn().Err(envErr).Str("nota_id", nota.ID.String()).Msg("envio DPS falhou (transient), mantendo PROCESSANDO")
 		resp := fiber.Map{
 			"nota_id":           nota.ID,
 			"status":            "PROCESSANDO",
@@ -492,14 +511,18 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 	}
 
 	// ── 9. Process response ────────────────────────────────────────────────
-	if len(envioResp.Erros) > 0 {
-		// ME-33: enrich rejection description with known SEFIN Nacional codes (E01-E09, E55, W01).
-		codigo := envioResp.Erros[0].Codigo
-		descricao := envioResp.Erros[0].Descricao
+	if failure != nil && len(failure.Erros) > 0 {
+		codigo := failure.Erros[0].Codigo
+		descricao := failure.Erros[0].Descricao
 		if descricao == "" || descricao == codigo {
 			descricao = nfse.DescricaoRejeicao(codigo)
 		}
 		_, _ = h.notaRepo.Rejeitar(ctx, nota.ID, codigo, descricao)
+		log.Ctx(ctx).Warn().
+			Str("nota_id", nota.ID.String()).
+			Str("erro_codigo", codigo).
+			Str("erro_descricao", descricao).
+			Msg("nota rejeitada pela SEFIN Nacional")
 		h.publishEvent(ctx, nota, webhook.EventRejeitada, "", "", codigo, descricao)
 		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
 			"nota_id":           nota.ID,
@@ -510,13 +533,34 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 		})
 	}
 
-	if envioResp.NumeroNFSe != "" {
-		_, _ = h.notaRepo.Autorizar(ctx, nota.ID, envioResp.NumeroNFSe, envioResp.CodVerificacao, "")
+	if success != nil && success.ChaveAcesso != "" {
+		// Store chaveAcesso (50-char NFS-e Nacional access key) in numero_nfse
+		// column for compatibility — the old "numero_nfse" semantic is replaced
+		// by chaveAcesso under the unified DPS model.
+		_, _ = h.notaRepo.Autorizar(ctx, nota.ID, success.ChaveAcesso, "", success.IDDps)
 		total, _ := h.billingRepo.IncrementEmitidasEmpresa(ctx, empresa.ID)
-		h.publishEvent(ctx, nota, webhook.EventAutorizada, envioResp.NumeroNFSe, envioResp.CodVerificacao, "", "")
+		log.Ctx(ctx).Info().
+			Str("nota_id", nota.ID.String()).
+			Str("chave_acesso", success.ChaveAcesso).
+			Str("id_dps", success.IDDps).
+			Msg("nota autorizada pela SEFIN Nacional")
+		h.publishEvent(ctx, nota, webhook.EventAutorizada, success.ChaveAcesso, "", "", "")
 		h.reportOverageIfNeeded(ctx, nota.ID.String(), total, empresa.PlanoLimite, em)
-	} else if envioResp.Protocolo != "" {
-		_ = h.notaRepo.SetProtocolo(ctx, nota.ID, envioResp.Protocolo)
+
+		resp := fiber.Map{
+			"nota_id":           nota.ID,
+			"status":            "AUTORIZADA",
+			"chave_acesso":      success.ChaveAcesso,
+			"id_dps":            success.IDDps,
+			"regime_tributario": empresa.RegimeTributario,
+			"iss_retido":        dpsResult.ISSRetido,
+			"valor_iss":         dpsResult.ValorISS,
+			"valor_liquido":     dpsResult.ValorLiquido,
+		}
+		if len(warnings) > 0 {
+			resp["avisos"] = warnings
+		}
+		return c.Status(fiber.StatusCreated).JSON(resp)
 	}
 
 	resp := fiber.Map{

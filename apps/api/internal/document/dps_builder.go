@@ -17,12 +17,26 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/auth"
 )
 
-// DPSBuilder assembles DPS XML envelopes for ME/EPP companies.
+// tpAmbOverride is set by SetTpAmb at startup to control the <tpAmb> tag value
+// across all DPS builds. Default behaviour (nil) is homologação (2).
+var tpAmbOverride atomic.Pointer[int]
+
+// SetTpAmb pins the tpAmb value emitted in every subsequent DPS build.
+// Must be called once at startup with 1 (produção) or 2 (homologação).
+func SetTpAmb(v int) {
+	if v != 1 && v != 2 {
+		return
+	}
+	tpAmbOverride.Store(&v)
+}
+
+// DPSBuilder assembles DPS XML envelopes for MEI / ME / EPP companies.
 type DPSBuilder struct{}
 
 // NewDPSBuilder creates a DPSBuilder.
@@ -184,8 +198,21 @@ func resolveISSRetido(req EmissaoRequest, empresa *auth.Empresa) (bool, error) {
 }
 
 // resolveRegimeTributario maps empresa.RegimeTributario to DPS tax regime fields.
+//
+// CRegTrib codes per the NFS-e Nacional schema:
+//
+//	1 = Simples Nacional (ME/EPP optante)
+//	3 = Regime Normal (Lucro Presumido / Real)
+//	4 = SIMEI (MEI — Sistema de Recolhimento em Valores Fixos Mensais)
 func resolveRegimeTributario(empresa *auth.Empresa) DPSRegimeTributario {
 	switch empresa.RegimeTributario {
+	case "SIMPLES_MEI":
+		// MEI is always optante SN with the SIMEI sub-regime.
+		return DPSRegimeTributario{
+			OpSimpNac: OpSimpNacSim,
+			CNAE:      empresa.CNAE,
+			CRegTrib:  CRegTribMEI,
+		}
 	case "SIMPLES_NACIONAL":
 		return DPSRegimeTributario{
 			OpSimpNac: OpSimpNacSim,
@@ -207,12 +234,13 @@ func resolveRegimeTributario(empresa *auth.Empresa) DPSRegimeTributario {
 	}
 }
 
-// resolveTpAmb returns 1 (produção) or 2 (homologação) based on the APP_ENV.
-// The builder receives the empresa but uses the global app environment setting.
-// In production builds this is always 1; in dev/staging always 2.
+// resolveTpAmb returns 1 (produção) or 2 (homologação).
+// Set via document.SetTpAmb at startup based on cfg.AppEnv. Default is 2
+// (homologação) for safety in case wiring is forgotten.
 func resolveTpAmb(_ *auth.Empresa) int {
-	// TODO: wire APP_ENV from config.Config when integrating into main.go.
-	// For now default to 2 (homologação) for safety — override via WithTpAmb option.
+	if tpAmb := tpAmbOverride.Load(); tpAmb != nil {
+		return *tpAmb
+	}
 	return 2
 }
 

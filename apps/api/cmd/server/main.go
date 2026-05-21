@@ -224,9 +224,20 @@ func main() {
 		notaRepo, adapter, builder, dpsBuilder, signer, certProv,
 		billingRepo, billingGrd, publisher,
 		apiBase, cfg.WebhookHMACSecret,
-	).WithNBSValidator(nbsValidator).WithISSLookup(issLookup).WithStripeClient(sc).WithStorage(objectStore)
+	).WithNBSValidator(nbsValidator).WithISSLookup(issLookup).WithStripeClient(sc).
+		WithStorage(objectStore).WithAuthRepo(authRepo)
 	if cfg.AppEnv == "development" {
 		nfseH = nfseH.WithDevMode()
+	}
+
+	// Pin DPS tpAmb based on environment. NFS-e Nacional rejects DPS with the
+	// wrong ambiente tag, so this must match the URL we POST to:
+	//   production    → tpAmb=1, sefin.nfse.gov.br
+	//   homologação   → tpAmb=2, sefin.producaorestrita.nfse.gov.br
+	if cfg.AppEnv == "production" {
+		document.SetTpAmb(1)
+	} else {
+		document.SetTpAmb(2)
 	}
 	billingH := handler.NewBillingHandler(
 		sc,
