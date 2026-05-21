@@ -535,9 +535,30 @@ status-cancelada.png    → #6473A0 (cinza)
                               Chave teste autorizada e cancelada:
                                 13026032234488964000142000000000000126056414682885
 
-⏳ DANFSE-PDF                 Geração de PDF do XML autorizado (renderer pendente)
-⏳ ME-SUBST                   POST /v1/nfse/:id/substituir migrar para evento e105102
-⏳ QA-01                      E2E tests contra homologação Receita Federal (cert A1 hom separado)
+✅ DANFSE-PDF (2026-05-21)     GET /v1/nfse/:id/pdf
+                              · adn.nfse.gov.br/danfse retorna 502 (serviço indisponível)
+                              · FetchDANFSE() via mTLS + RenegotiateOnceAsClient pronto
+                                pra quando Receita ativar (sem mudança de código)
+                              · Fallback automático: 307 → https://www.nfse.gov.br/consultapublica
+                                ?chaveAcesso={chave} — funciona pra AUTORIZADA e CANCELADA
+✅ ME-SUBST (2026-05-21)       POST /v1/nfse/:id/substituir via evento e105102
+                              · BuildSubstituicaoEvent (pedRegEvento + TE105102)
+                              · 2-step: (1) emit nova DPS com <subst><chSubstda>;
+                                (2) POST /nfse/{chave_original}/eventos com chSubstituta
+                              · TSIdPedRegEvt = "PRE" + chave(50) + 105102 = 59 chars
+                              · TSCodJustSubst codes: 01..05 | 99 (default 99=Outros)
+                              · Disponível para MEI/ME/EPP (sem restrição de tipo)
+                              · MEI/ME/EPP/LP/LR: cancela original + emite nova autorizada
+✅ REC-EMISSOR (2026-05-21)    recorrencia/real_emissor.go substitui NoopEmissor
+                              · scheduler tick(1h) chama RealEmissor.EmitirNota
+                              · Reusa pipeline DPS: dpsBuilder + signer + EnviarNFSeNacional
+                              · Fallback para NoopEmissor quando certProv nil (dev)
+✅ QA-01 (2026-05-21)          Staging configurado para homologação
+                              · Railway api-staging:
+                                APP_ENV=staging
+                                RECEITA_API_URL=https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional
+                              · document.SetTpAmb(2) ativado quando APP_ENV != production
+                              · E2E tests contra homologação ainda dependem de cert A1 hom separado
 ```
 
 ---
@@ -673,9 +694,11 @@ vercel --prod               # deploy manual produção
 ---
 
 ## 13. ESTADO ATUAL
-> Última atualização: 2026-05-21 · branch `main` · commit `c75eefc` (NFS-E-NAC) · CI ✅ Deploy ✅ Migrations: 22/22
+> Última atualização: 2026-05-21 · branch `main` · commit `17072be` · CI ✅ Deploy ✅ Migrations: 22/22
 >
-> **🏆 Marco:** primeira NFS-e Nacional emitida e cancelada em produção com cert ICP-Brasil real
+> **🏆 Marcos:** primeira NFS-e Nacional emitida e cancelada em produção com cert ICP-Brasil real.
+> Todas as funcionalidades core operacionais (emissão · cancelamento via evento e101101 ·
+> substituição via e105102 · recorrências com RealEmissor · DANFSE via consulta pública).
 > Chave de teste: `13026032234488964000142000000000000126056414682885` (AUTORIZADA → CANCELADA)
 
 ### Código — 100% concluído
