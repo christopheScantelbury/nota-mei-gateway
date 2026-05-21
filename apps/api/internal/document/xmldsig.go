@@ -47,11 +47,13 @@ const (
 )
 
 // signableElements are the element names we know how to sign, checked
-// in priority order (RPS emission first, then DPS, then cancellation).
+// in priority order (DPS emission first, then evento cancelamento, then
+// legacy ABRASF for compat).
 var signableElements = []string{
-	"InfDeclaracaoPrestacaoServico", // POST /nfse — MEI RPS emission (ABRASF)
-	"infDPS",                        // POST /nfse — ME/EPP DPS emission (SEFIN Nacional)
-	"InfPedidoCancelamento",         // DELETE /nfse/:id — cancellation
+	"infDPS",                        // POST /SefinNacional/nfse — DPS emission
+	"infPedReg",                     // POST /SefinNacional/nfse/{ca}/eventos — evento cancelamento
+	"InfDeclaracaoPrestacaoServico", // legacy ABRASF RPS emission (kept for tests)
+	"InfPedidoCancelamento",         // legacy ABRASF cancellation
 }
 
 // XMLDSigSigner signs RPS and cancellation XML documents according to

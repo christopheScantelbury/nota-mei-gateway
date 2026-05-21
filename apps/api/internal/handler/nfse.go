@@ -431,8 +431,15 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 	}
 
 	// ── 7. Persist nota ───────────────────────────────────────────────────
-	// MeiID is intentionally uuid.Nil — ME/EPP companies have no row in meis.
+	// For MEIs we also populate mei_id (same UUID as empresa_id) so the
+	// API-key middleware's GetMEI/FindByID path can still locate the row.
+	// Pure ME/EPP rows have no meis mirror so meiID stays zero.
+	var meiIDForRow uuid.UUID
+	if empresa.Tipo == "MEI" {
+		meiIDForRow = empresa.ID
+	}
 	nota, err := h.notaRepo.Create(ctx, nfse.CreateNotaInput{
+		MeiID:            meiIDForRow,
 		EmpresaID:        empresa.ID,
 		NumeroRPS:        numeroDPS,
 		XMLEnviado:       string(signedXML),
@@ -442,8 +449,8 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 		ValorServico:     req.Servico.Valor,
 		Competencia:      req.Competencia,
 		IdempotencyKey:   c.Get("Idempotency-Key"),
-		RegimeTributario: empresa.RegimeTributario,                                    // ME-42: stored for dashboard badge
-		ISSRetido:        issRetidoPtr(empresa.RegimeTributario, dpsResult.ISSRetido), // ME-42
+		RegimeTributario: empresa.RegimeTributario,
+		ISSRetido:        issRetidoPtr(empresa.RegimeTributario, dpsResult.ISSRetido),
 	})
 	if err != nil {
 		return internalError(c, "erro ao salvar nota")
@@ -733,12 +740,21 @@ func (h *NFSeHandler) CancelarNota(c *fiber.Ctx) error {
 		return notFound(c)
 	}
 
-	// Load the nota to get the NFS-e number for the cancellation XML.
+	// MEI emission now goes through the unified DPS path which only writes
+	// empresa_id (mei_id stays NULL — emitirNotaME doesn't fill it). The
+	// owner lookup must therefore consider both columns.
 	var nota *nfse.Nota
 	if empresa != nil {
 		nota, err = h.notaRepo.FindByIDForEmpresa(c.Context(), notaID, empresa.ID)
 	} else {
-		nota, err = h.notaRepo.FindByID(c.Context(), notaID, mei.ID)
+		// For MEI: the empresa row mirrors the meis row (same UUID) so we
+		// look up via empresa_id using mei.ID directly.
+		nota, err = h.notaRepo.FindByIDForEmpresa(c.Context(), notaID, mei.ID)
+		if err != nil && isNotFound(err) {
+			// Fallback to legacy mei_id lookup for any rows created before
+			// the DPS migration.
+			nota, err = h.notaRepo.FindByID(c.Context(), notaID, mei.ID)
+		}
 	}
 	if err != nil {
 		if isNotFound(err) {
@@ -778,10 +794,21 @@ func (h *NFSeHandler) CancelarNota(c *fiber.Ctx) error {
 	}
 
 	// Load certificate and build cancellation.
+	// After the NFS-e Nacional migration all cancellations go through the
+	// same evento path; the MEI vs ME/EPP distinction only changes which
+	// row provides the cert + CNPJ.
 	if empresa != nil {
 		return h.cancelarNotaME(c, nota, empresa)
 	}
-	return h.cancelarNotaMEI(c, nota, mei)
+	// MEI path: synthesize a minimal Empresa from the MEI for cancellation.
+	emp, lookupErr := h.authRepo.FindEmpresa(c.Context(), mei.ID)
+	if lookupErr != nil {
+		log.Ctx(c.UserContext()).Error().Err(lookupErr).
+			Str("mei_id", mei.ID.String()).
+			Msg("MEI sem empresas mirror — cancelamento bloqueado")
+		return internalError(c, "erro ao consultar dados da empresa")
+	}
+	return h.cancelarNotaME(c, nota, emp)
 }
 
 // cancelarNotaMEI cancels a MEI nota via the ABRASF RPS flow.
@@ -819,41 +846,81 @@ func (h *NFSeHandler) cancelarNotaMEI(c *fiber.Ctx, nota *nfse.Nota, mei *auth.M
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"nota_id": nota.ID, "status": "CANCELADA"})
 }
 
-// cancelarNotaME cancels a ME/EPP nota via the SEFIN Nacional DPS cancellation flow.
+// cancelarNotaME cancels a nota via the NFS-e Nacional evento path.
+//
+// Wire format (POST /SefinNacional/nfse/{chaveAcesso}/eventos):
+//
+//	gzip+base64+JSON envelope with the signed <pedRegEvento> containing a
+//	TE101101 cancellation event. The chaveAcesso is the 50-digit code we
+//	stored in nota.numero_nfse at emission time.
 func (h *NFSeHandler) cancelarNotaME(c *fiber.Ctx, nota *nfse.Nota, empresa *auth.Empresa) error {
-	cert, err := h.loadCertEmpresa(c.Context(), empresa)
+	ctx := c.Context()
+
+	cert, err := h.loadCertEmpresa(ctx, empresa)
 	if err != nil {
 		return internalError(c, "erro ao carregar certificado digital")
 	}
 
-	// DPS cancellation uses the same ABRASF cancellation XML for now.
-	// TODO(ME-32): replace with DPS-native cancellation when ADN endpoint is confirmed.
-	xmlCancel, err := h.builder.BuildCancelamento(*nota.NumeroNFSe, empresa.CNPJ, empresa.MunicipioIBGE)
-	if err != nil {
-		return internalError(c, "erro ao construir XML de cancelamento")
-	}
-	signedCancel, err := h.signer.Sign(c.Context(), xmlCancel, cert)
-	if err != nil {
-		return internalError(c, "erro ao assinar XML de cancelamento")
+	chaveAcesso := ""
+	if nota.NumeroNFSe != nil {
+		chaveAcesso = *nota.NumeroNFSe
 	}
 
-	resp, err := h.adapter.Cancelar(c.Context(), signedCancel, cert)
+	// Default xMotivo when none is supplied by the API client. Schema demands
+	// 15-255 chars (TSMotivo).
+	xMotivo := "Cancelamento solicitado pelo prestador via API NotaFacil Gateway"
+
+	eventoXML, err := document.BuildCancelamentoEvent(document.CancelamentoParams{
+		ChaveAcesso:     chaveAcesso,
+		CNPJPrestador:   empresa.CNPJ,
+		CodigoJustif:    document.CMotivoCancErroEmissao,
+		DescricaoMotivo: xMotivo,
+	})
 	if err != nil {
+		return validationError(c, "erro ao construir evento de cancelamento: "+err.Error())
+	}
+
+	signedXML, err := h.signer.Sign(ctx, eventoXML, cert)
+	if err != nil {
+		return internalError(c, "erro ao assinar evento de cancelamento")
+	}
+
+	success, failure, envErr := h.adapter.CancelarNFSeNacional(ctx, chaveAcesso, signedXML, cert)
+	if envErr != nil && failure == nil {
+		log.Ctx(c.UserContext()).Error().Err(envErr).
+			Str("nota_id", nota.ID.String()).
+			Str("chave_acesso", chaveAcesso).
+			Msg("erro de comunicação com SEFIN no cancelamento")
 		return internalError(c, "erro ao comunicar cancelamento à SEFIN Nacional")
 	}
-	if !resp.OK && len(resp.Erros) > 0 {
+	if failure != nil && len(failure.Erros) > 0 {
+		codigo, descricao := failure.FirstError()
+		log.Ctx(c.UserContext()).Warn().
+			Str("nota_id", nota.ID.String()).
+			Str("erro_codigo", codigo).
+			Str("erro_descricao", descricao).
+			Msg("cancelamento rejeitado pela SEFIN Nacional")
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"error":   "RECEITA_REJECTION",
-			"message": resp.Erros[0].Descricao,
-			"codigo":  resp.Erros[0].Codigo,
+			"message": descricao,
+			"codigo":  codigo,
 		})
 	}
 
-	if err := h.notaRepo.CancelarEmpresa(c.Context(), nota.ID, empresa.ID); err != nil {
+	if err := h.notaRepo.CancelarEmpresa(ctx, nota.ID, empresa.ID); err != nil {
 		return internalError(c, "erro ao atualizar status da nota")
 	}
-	h.publishEvent(c.Context(), nota, webhook.EventCancelada, "", "", "", "")
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"nota_id": nota.ID, "status": "CANCELADA"})
+	h.publishEvent(ctx, nota, webhook.EventCancelada, "", "", "", "")
+
+	resp := fiber.Map{
+		"nota_id":      nota.ID,
+		"status":       "CANCELADA",
+		"chave_acesso": chaveAcesso,
+	}
+	if success != nil {
+		resp["id_evento"] = success.IDDps
+	}
+	return c.Status(fiber.StatusOK).JSON(resp)
 }
 
 // ─── POST /v1/nfse/:id/substituir ─────────────────────────────────────────
