@@ -9,6 +9,7 @@ import (
 
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/auth"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/email"
+	supabasepkg "github.com/christopheScantelbury/nota-mei-gateway/api/pkg/supabase"
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/rs/zerolog/log"
@@ -133,11 +134,20 @@ func (h *RegisterHandler) Register(c *fiber.Ctx) error {
 		TipoUsuario:   req.Produto,
 	})
 	if err != nil {
+		// ErrUserExists: email already in auth.users (Supabase Auth constraint).
+		if errors.Is(err, supabasepkg.ErrUserExists) {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+				"error":      "CONFLICT",
+				"message":    "E-mail já cadastrado. Faça login ou use outro e-mail.",
+				"request_id": c.Locals("request_id"),
+			})
+		}
+		// 23505: unique constraint violation on cnpj or email in meis/empresas tables.
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
 				"error":      "CONFLICT",
-				"message":    "CNPJ ou e-mail já cadastrado",
+				"message":    "CNPJ ou e-mail já cadastrado. Faça login ou use outro e-mail.",
 				"request_id": c.Locals("request_id"),
 			})
 		}
