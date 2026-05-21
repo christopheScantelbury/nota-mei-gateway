@@ -55,12 +55,19 @@ func NewRepository(db *supabase.Client) *Repository {
 // separate SELECT round-trip and to remain safe under concurrent callers
 // (SCALE-01). The DO UPDATE touches no meaningful columns — it just forces
 // Postgres to return the existing row via RETURNING.
+//
+// Important: migration 20260615_billing_me dropped the legacy
+// emissoes_mensais_mei_id_competencia_key constraint as part of the move to
+// the unified empresas model. The ON CONFLICT now targets the surviving
+// uq_emissoes_empresa_competencia (empresa_id, competencia). For MEI accounts
+// empresa_id == mei_id by registration invariant, so we write both columns and
+// the conflict target still uniquely identifies the row.
 func (r *Repository) GetOrCreateEmissaoMensal(ctx context.Context, meiID uuid.UUID) (*EmissaoMensal, error) {
 	row := r.db.Pool().QueryRow(ctx, `
-		INSERT INTO emissoes_mensais (mei_id, competencia, total_emitidas)
-		VALUES ($1, to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM'), 0)
-		ON CONFLICT (mei_id, competencia) DO UPDATE
-		    SET mei_id = EXCLUDED.mei_id   -- no-op; forces RETURNING to fire
+		INSERT INTO emissoes_mensais (mei_id, empresa_id, competencia, total_emitidas)
+		VALUES ($1, $1, to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM'), 0)
+		ON CONFLICT (empresa_id, competencia) DO UPDATE
+		    SET empresa_id = EXCLUDED.empresa_id   -- no-op; forces RETURNING to fire
 		RETURNING id, mei_id, plano_id, competencia, total_emitidas,
 		          stripe_subscription_id, stripe_subscription_status,
 		          stripe_subscription_item_id
@@ -101,10 +108,15 @@ func (r *Repository) GetOrCreateEmissaoMensalEmpresa(ctx context.Context, empres
 
 // RenewMonth creates emissoes_mensais rows for all MEIs for the given competencia,
 // carrying each MEI's most recent plan forward. Returns the number of new rows inserted.
+//
+// Same constraint note as GetOrCreateEmissaoMensal: ON CONFLICT must target the
+// surviving (empresa_id, competencia) unique constraint. empresa_id is populated
+// from meis.id since for MEIs the two UUIDs are identical.
 func (r *Repository) RenewMonth(ctx context.Context, competencia string) (int, error) {
 	tag, err := r.db.Pool().Exec(ctx, `
-		INSERT INTO emissoes_mensais (mei_id, plano_id, competencia, total_emitidas)
+		INSERT INTO emissoes_mensais (mei_id, empresa_id, plano_id, competencia, total_emitidas)
 		SELECT
+			m.id,
 			m.id,
 			(
 				SELECT plano_id
@@ -116,7 +128,7 @@ func (r *Repository) RenewMonth(ctx context.Context, competencia string) (int, e
 			$1,
 			0
 		FROM meis m
-		ON CONFLICT (mei_id, competencia) DO NOTHING
+		ON CONFLICT (empresa_id, competencia) DO NOTHING
 	`, competencia)
 	if err != nil {
 		return 0, err
