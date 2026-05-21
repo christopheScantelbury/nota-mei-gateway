@@ -58,7 +58,7 @@ func (a *Adapter) ProbeADN(ctx context.Context, chaveAcesso string, cert *tls.Ce
 	root := strings.TrimSuffix(base, "/danfse")
 
 	urls := []string{
-		root + "/contribuintes/docs/index.html",
+		root + "/contribuintes/docs/index.js",
 	}
 
 	tlsCfg := &tls.Config{
