@@ -1,15 +1,15 @@
-// Package document — DPS builder for ME/EPP companies.
+// Package document — DPS builder for NFS-e Nacional v1.01.
 //
-// DPSBuilder assembles DPS XML envelopes for NFS-e emission for ME/EPP
-// companies (Simples Nacional and Lucro Presumido) according to NT 004 v2.0.
+// Builds DPS XML envelopes against the official XSD bundle dated 2026-02-09
+// (docs/nfse-schemas/Schemas/1.01/). The previous builder targeted an
+// outdated draft and was rejected by Receita Federal with E1235.
 //
-// # Endpoint SEFIN Nacional
+// Endpoint:
+//   POST https://sefin.nfse.gov.br/SefinNacional/nfse
+//   Production-restricted (homologação):
+//     https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional/nfse
 //
-//	Homologação: https://hom.nfse.gov.br/SefinNacional/nfse/v1/envioLoteDps
-//	Produção:    https://nfse.gov.br/SefinNacional/nfse/v1/envioLoteDps
-//
-// Confirm the exact URL with the MOC (Manual Integrado do SN NFS-e) at
-// gov.br/nfse before connecting to production.
+// Authentication: mTLS with ICP-Brasil A1 cert (mandatory).
 package document
 
 import (
@@ -23,12 +23,12 @@ import (
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/auth"
 )
 
-// tpAmbOverride is set by SetTpAmb at startup to control the <tpAmb> tag value
-// across all DPS builds. Default behaviour (nil) is homologação (2).
+// tpAmbOverride is set by SetTpAmb at startup. Default behaviour (nil) is
+// homologação (2) so production builds without an explicit setting fail safe.
 var tpAmbOverride atomic.Pointer[int]
 
-// SetTpAmb pins the tpAmb value emitted in every subsequent DPS build.
-// Must be called once at startup with 1 (produção) or 2 (homologação).
+// SetTpAmb pins the <tpAmb> tag emitted by every DPS build. Call once at
+// startup with 1 (production) or 2 (production-restricted/homologação).
 func SetTpAmb(v int) {
 	if v != 1 && v != 2 {
 		return
@@ -36,14 +36,27 @@ func SetTpAmb(v int) {
 	tpAmbOverride.Store(&v)
 }
 
-// DPSBuilder assembles DPS XML envelopes for MEI / ME / EPP companies.
-type DPSBuilder struct{}
+func currentTpAmb() int {
+	if v := tpAmbOverride.Load(); v != nil {
+		return *v
+	}
+	return 2
+}
 
-// NewDPSBuilder creates a DPSBuilder.
-func NewDPSBuilder() *DPSBuilder { return &DPSBuilder{} }
+// ── Errors ────────────────────────────────────────────────────────────────────
 
-// DPSBuildResult contains the generated XML bytes and the computed tax values,
-// used to populate the API response.
+// ErrValidation signals a client-side validation failure that should be
+// surfaced as HTTP 422 with a field-specific message.
+type ErrValidation struct {
+	Field   string
+	Message string
+}
+
+func (e *ErrValidation) Error() string { return e.Field + ": " + e.Message }
+
+// ── Result ────────────────────────────────────────────────────────────────────
+
+// DPSBuildResult is what the builder returns to the handler.
 type DPSBuildResult struct {
 	XML          []byte
 	ValorISS     float64
@@ -51,111 +64,128 @@ type DPSBuildResult struct {
 	ISSRetido    bool
 }
 
+// DPSBuilder assembles DPS XML envelopes for MEI / ME / EPP / LP / LR.
+type DPSBuilder struct{}
+
+// NewDPSBuilder creates a DPSBuilder.
+func NewDPSBuilder() *DPSBuilder { return &DPSBuilder{} }
+
 // Build constructs the DPS XML envelope from the emission request.
 //
-// empresa.Tipo must be "ME" or "EPP".
-// empresa.RegimeTributario must be "SIMPLES_NACIONAL" or "LUCRO_PRESUMIDO".
-// numeroRPS is repurposed as the DPS sequential number (same atomic counter).
+// empresa.Tipo must be "MEI" | "ME" | "EPP".
+// empresa.RegimeTributario must be "SIMPLES_MEI" | "SIMPLES_NACIONAL" |
+//   "LUCRO_PRESUMIDO" | "LUCRO_REAL".
+// numeroDPS is the atomic counter allocated upstream — reused as <nDPS>.
 func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS int64) (*DPSBuildResult, error) {
-	// ── 1. Parse competência ─────────────────────────────────────────────────
+	if empresa == nil {
+		return nil, fmt.Errorf("empresa is nil")
+	}
+
+	// 1. Parse competência
 	competenciaDate, err := parseCompetencia(req.Competencia)
 	if err != nil {
 		return nil, fmt.Errorf("competencia inválida: %w", err)
 	}
 
-	// ── 2. Resolve ISS retention rules ───────────────────────────────────────
+	// 2. Resolve ISS retention
 	issRetido, err := resolveISSRetido(req, empresa)
 	if err != nil {
 		return nil, err
 	}
 
-	// ── 3. Calculate values ──────────────────────────────────────────────────
+	// 3. Resolve alíquota + cálculo ISS
 	aliquota := req.Servico.AliquotaISS
 	if aliquota <= 0 {
 		aliquota = DefaultAliquotaISS
 	}
-	valorISS := roundHalfUp(req.Servico.Valor * aliquota / 100)
-	valorLiquido := req.Servico.Valor
+	valorServ := req.Servico.Valor
+	valorISS := roundHalfUp(valorServ * aliquota / 100)
+	valorLiquido := valorServ
 	if issRetido {
-		valorLiquido = req.Servico.Valor - valorISS
+		valorLiquido = valorServ - valorISS
 	}
 
-	// ── 4. Resolve regime tributário ─────────────────────────────────────────
-	regTrib := resolveRegimeTributario(empresa)
+	// 4. Map regime tributário → (opSimpNac, regEspTrib)
+	opSimpNac, regEspTrib := resolveRegime(empresa.RegimeTributario, empresa.Tipo)
 
-	// ── 5. Build infDPS Id ───────────────────────────────────────────────────
-	// Format: "DPS{serie}{nDPS:06d}" — unique per empresa, no special chars.
-	infID := fmt.Sprintf("DPS%s%06d", DPSSerie, numeroDPS)
-
-	// ── 6. Resolve ISS indISSRet + vISSRet ──────────────────────────────────
-	indISSRet := IndISSNaoRetido
-	var vISSRet float64
-	if issRetido {
-		indISSRet = IndISSRetido
-		vISSRet = valorISS
+	// 5. cTribNac obrigatório (LC116/2003 — 6 dígitos).
+	//    Cliente pode passar via req.Servico.CodigoTribNac; senão derivamos
+	//    do NBS truncando ou usamos um default.
+	cTribNac := resolveCTribNac(req.Servico)
+	if cTribNac == "" {
+		return nil, &ErrValidation{
+			Field:   "servico.codigo_tributacao_nacional",
+			Message: "obrigatório — código LC 116/2003 com 6 dígitos (ItemSubitemDesdobro)",
+		}
 	}
 
-	// ── 7. Build DPS struct ──────────────────────────────────────────────────
-	doc := DPS{
-		Xmlns: DPSSefinNS,
-		InfDPS: InfDPS{
-			ID:       infID,
-			TpAmb:    resolveTpAmb(empresa),
-			DhEmi:    time.Now().In(fusoManaus()).Format("2006-01-02T15:04:05-07:00"),
-			VerAplic: DPSVerAplic,
-			Serie:    DPSSerie,
-			NDPS:     fmt.Sprintf("%06d", numeroDPS),
-			DCompet:  competenciaDate.Format("2006-01-02"),
+	// 6. Build InfDPS
+	infID := fmt.Sprintf("DPS%08d", numeroDPS)
+	tpRetISSQN := TpRetISSQNNaoRetido
+	if issRetido {
+		tpRetISSQN = TpRetISSQNRetidoTomador
+	}
 
-			// 1 = prestador. We always emit from the prestador side; tomador (2)
-			// and intermediário (3) emissions are out of scope for this MVP.
-			TpEmit:    1,
-			CLocEmiss: empresa.MunicipioIBGE,
+	prestEmail := strings.TrimSpace(empresa.Email)
+	if prestEmail == "" {
+		prestEmail = ""
+	}
 
-			Emit: DPSEmit{
-				CNPJ:    empresa.CNPJ,
-				RegTrib: regTrib,
-				XNome:   empresa.RazaoSocial,
-				EnderNac: DPSEnderNac{
-					CMun: empresa.MunicipioIBGE,
-					CEP:  sanitizeCEP(req.Emit.CEP),
-				},
-				Email: empresa.Email,
-				// IM omitted entirely when not filled — never send empty tag.
-				IM: resolveIM(empresa),
-			},
+	tomador := buildDPSTomador(req.Tomador)
 
-			Toma: buildDPSTomador(req.Tomador),
+	inf := InfDPS{
+		ID:       infID,
+		TpAmb:    currentTpAmb(),
+		DhEmi:    time.Now().In(fusoManaus()).Format("2006-01-02T15:04:05-07:00"),
+		VerAplic: DPSVerAplic,
+		Serie:    DPSSerie,
+		NDPS:     fmt.Sprintf("%d", numeroDPS),
+		DCompet:  competenciaDate.Format("2006-01-02"),
+		TpEmit:   TpEmitPrestador,
+		CLocEmi:  empresa.MunicipioIBGE,
 
-			Serv: DPSServico{
-				LocPrest: DPSLocPrest{
-					CMunIni: empresa.MunicipioIBGE,
-					CMunFim: empresa.MunicipioIBGE,
-				},
-				CServ: DPSCServ{
-					CNBS:      req.Servico.CodigoNBS, // keep dots: "01.01.01.10"
-					XDescServ: req.Servico.Discriminacao,
-				},
-			},
-
-			Valores: DPSValores{
-				VServPrest: DPSVServPrest{
-					VReceb: req.Servico.Valor,
-				},
-				Trib: DPSTrib{
-					TribMun: DPSTribMun{
-						TribISSQN: DPSTribISSQN{
-							CLocIncid: empresa.MunicipioIBGE,
-							PAliq:     aliquota,
-							IndISSRet: indISSRet,
-							VISSRet:   vISSRet,
-						},
-						CNatOp:     CNatOpMunicipio,
-						IndIncFisc: IndIncFiscTributavel,
-					},
-				},
+		Prest: InfoPrestador{
+			CNPJ:  empresa.CNPJ,
+			IM:    derefStr(empresa.InscricaoMunicipal),
+			XNome: empresa.RazaoSocial,
+			Email: prestEmail,
+			RegTrib: RegimeTrib{
+				OpSimpNac:  opSimpNac,
+				RegEspTrib: regEspTrib,
 			},
 		},
+
+		Toma: tomador,
+
+		Serv: DPSServ{
+			LocPrest: LocPrest{
+				CLocPrestacao: empresa.MunicipioIBGE,
+			},
+			CServ: CServ{
+				CTribNac:  cTribNac,
+				XDescServ: strings.TrimSpace(req.Servico.Discriminacao),
+				CNBS:      stripDots(req.Servico.CodigoNBS),
+			},
+		},
+
+		Valores: InfoValores{
+			VServPrest: VServPrest{
+				VServ: valorServ,
+			},
+			Trib: InfoTributacao{
+				TribMun: TribMunicipal{
+					TribISSQN:  TribISSQNTributavel,
+					TpRetISSQN: tpRetISSQN,
+					PAliq:      aliquota,
+				},
+				TotTrib: buildTotTrib(opSimpNac),
+			},
+		},
+	}
+
+	doc := DPS{
+		Xmlns:  DPSSefinNS,
+		InfDPS: inf,
 	}
 
 	out, err := xml.MarshalIndent(doc, "", "  ")
@@ -173,147 +203,141 @@ func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS 
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// resolveISSRetido determines whether ISS is withheld by the tomador.
-//
-//   - Simples Nacional: always false — prestador recolhe via DAS.
-//   - Lucro Presumido: req.IssRetido must be explicitly set (nil → validation error).
-//   - Tomador órgão público in LP always forces retention (Art. 6 LC 116/2003).
+// resolveRegime maps empresa.RegimeTributario × empresa.Tipo to the schema enums.
+func resolveRegime(regime, tipo string) (opSimpNac, regEspTrib int) {
+	switch regime {
+	case "SIMPLES_MEI":
+		return OpSimpNacMEI, RegEspTribNenhum
+	case "SIMPLES_NACIONAL":
+		return OpSimpNacMEEPP, RegEspTribNenhum
+	case "LUCRO_PRESUMIDO", "LUCRO_REAL":
+		return OpSimpNacNaoOptante, RegEspTribNenhum
+	default:
+		// Conservative default: ME/EPP optante SN.
+		return OpSimpNacMEEPP, RegEspTribNenhum
+	}
+}
+
+// resolveISSRetido determines whether ISS is withheld at source.
+//   - Simples Nacional / MEI: ISS never withheld at source (DAS already recolhe).
+//   - Lucro Presumido / Real: req.IssRetido must be informed.
+//   - Tomador órgão público em LP/LR: força retenção (Art. 6 LC 116/2003).
 func resolveISSRetido(req EmissaoRequest, empresa *auth.Empresa) (bool, error) {
 	switch empresa.RegimeTributario {
-	case "SIMPLES_NACIONAL":
-		// SN: ISS never withheld at source — prestador recolhe via DAS.
+	case "SIMPLES_MEI", "SIMPLES_NACIONAL":
 		return false, nil
-
 	case "LUCRO_PRESUMIDO", "LUCRO_REAL":
-		if req.IssRetido == nil {
-			return false, &ErrValidation{
-				Field:   "iss_retido",
-				Message: "obrigatório para Lucro Presumido — informe se o ISS será retido pelo tomador",
-			}
-		}
-		// Art. 6 LC 116/2003: tomador órgão público always retains.
 		if req.Tomador.TipoOrgao == "ORGAO_PUBLICO" {
 			return true, nil
 		}
+		if req.IssRetido == nil {
+			return false, &ErrValidation{
+				Field:   "iss_retido",
+				Message: "obrigatório para Lucro Presumido/Real — informe se o ISS será retido pelo tomador",
+			}
+		}
 		return *req.IssRetido, nil
-
 	default:
 		return false, nil
 	}
 }
 
-// resolveRegimeTributario maps empresa.RegimeTributario to DPS tax regime fields.
+// resolveCTribNac decides the LC116/2003 6-digit code.
 //
-// CRegTrib codes per the NFS-e Nacional schema:
+//	Priority: req.Servico.CodigoTribNac (explicit) → derived from NBS prefix.
 //
-//	1 = Simples Nacional (ME/EPP optante)
-//	3 = Regime Normal (Lucro Presumido / Real)
-//	4 = SIMEI (MEI — Sistema de Recolhimento em Valores Fixos Mensais)
-func resolveRegimeTributario(empresa *auth.Empresa) DPSRegimeTributario {
-	switch empresa.RegimeTributario {
-	case "SIMPLES_MEI":
-		// MEI is always optante SN with the SIMEI sub-regime.
-		return DPSRegimeTributario{
-			OpSimpNac: OpSimpNacSim,
-			CNAE:      empresa.CNAE,
-			CRegTrib:  CRegTribMEI,
-		}
-	case "SIMPLES_NACIONAL":
-		return DPSRegimeTributario{
-			OpSimpNac: OpSimpNacSim,
-			CNAE:      empresa.CNAE,
-			CRegTrib:  CRegTribSN,
-		}
-	case "LUCRO_PRESUMIDO", "LUCRO_REAL":
-		return DPSRegimeTributario{
-			OpSimpNac: OpSimpNacNao,
-			CNAE:      empresa.CNAE,
-			CRegTrib:  CRegTribNormal,
-		}
-	default:
-		return DPSRegimeTributario{
-			OpSimpNac: OpSimpNacSim,
-			CNAE:      empresa.CNAE,
-			CRegTrib:  CRegTribSN,
-		}
+// NBS codes (XX.XX.XX.XX) and LC116/2003 codes (XX.XX) overlap on the first
+// two groups for most services, so when the client only provides the NBS we
+// derive the LC code by taking the first 2 groups + zero-padded desdobro.
+func resolveCTribNac(s ServicoRequest) string {
+	if v := strings.TrimSpace(s.CodigoTribNac); v != "" {
+		return v
 	}
-}
-
-// resolveTpAmb returns 1 (produção) or 2 (homologação).
-// Set via document.SetTpAmb at startup based on cfg.AppEnv. Default is 2
-// (homologação) for safety in case wiring is forgotten.
-func resolveTpAmb(_ *auth.Empresa) int {
-	if tpAmb := tpAmbOverride.Load(); tpAmb != nil {
-		return *tpAmb
-	}
-	return 2
-}
-
-// resolveIM returns the Inscrição Municipal when set, empty string otherwise.
-// The `xml:"IM,omitempty"` tag on DPSEmit ensures the tag is omitted when empty.
-func resolveIM(empresa *auth.Empresa) string {
-	if empresa.InscricaoMunicipal != nil {
-		return *empresa.InscricaoMunicipal
+	nbs := stripDots(s.CodigoNBS)
+	if len(nbs) >= 6 {
+		// Reuse the first 6 digits of the NBS — for many services NBS first 6
+		// align with the LC code (e.g. NBS 01010210 → LC 010102). The validator
+		// will reject mismatches, surfacing the right code via the error msg.
+		return nbs[:6]
 	}
 	return ""
 }
 
-// buildDPSTomador converts a TomadorRequest into a DPSTomador.
-func buildDPSTomador(t TomadorRequest) DPSTomador {
-	doc := strings.NewReplacer(".", "", "-", "", "/", "").Replace(t.Documento)
-	tomador := DPSTomador{
-		XNome: t.RazaoSocial,
-		Email: t.Email,
+// buildDPSTomador converts the API request tomador into the DPS InfoPessoa block.
+// Returns nil when the tomador is empty (allowed — toma is optional in the schema).
+func buildDPSTomador(t TomadorRequest) *InfoPessoa {
+	doc := stripNonDigits(t.Documento)
+	if doc == "" && strings.TrimSpace(t.RazaoSocial) == "" {
+		return nil
 	}
-	if t.Tipo == "PF" || len(doc) == 11 {
-		tomador.CPF = doc
-	} else {
-		tomador.CNPJ = doc
+	p := &InfoPessoa{
+		XNome: strings.TrimSpace(t.RazaoSocial),
+		Email: strings.TrimSpace(t.Email),
 	}
-	if t.MunicipioIBGE != "" {
-		tomador.EnderNac = &DPSEnderNac{
-			CMun: t.MunicipioIBGE,
-			CEP:  sanitizeCEP(t.CEP),
+	switch t.Tipo {
+	case "PJ":
+		p.CNPJ = doc
+	case "PF":
+		p.CPF = doc
+	default:
+		if len(doc) == 14 {
+			p.CNPJ = doc
+		} else {
+			p.CPF = doc
 		}
 	}
-	return tomador
+	return p
 }
 
-// fusoManaus returns the *time.Location for UTC-4 (America/Manaus — no DST).
-// The DPS dhEmi field must carry the explicit -04:00 offset.
-func fusoManaus() *time.Location {
-	loc, err := time.LoadLocation("America/Manaus")
-	if err != nil {
-		// Fallback: fixed -4h offset when timezone database is unavailable.
-		return time.FixedZone("UTC-4", -4*60*60)
+// buildTotTrib produces the minimum-valid <totTrib> block. For MEI / SN we
+// emit pTotTribSN with the canonical 5%/6% approximate rate. For other
+// regimes we use indTotTrib=0 (Decreto 8.264/2014 — emitente não estima).
+func buildTotTrib(opSimpNac int) TribTotal {
+	if opSimpNac == OpSimpNacMEI || opSimpNac == OpSimpNacMEEPP {
+		p := 5.0 // MEI: alíquota SIMEI 5% (serviços); ME/EPP: anexos III/V do SN.
+		return TribTotal{PTotTribSN: &p}
 	}
-	return loc
+	z := IndTotTribNaoInforma
+	return TribTotal{IndTotTrib: &z}
 }
 
-// sanitizeCEP strips non-digits from a CEP string.
-func sanitizeCEP(cep string) string {
-	return strings.Map(func(r rune) rune {
-		if r >= '0' && r <= '9' {
-			return r
-		}
-		return -1
-	}, cep)
-}
-
-// roundHalfUp rounds a float64 to 2 decimal places using "round half up" (banker's rounding).
-// Formula: math.Round(v * 100) / 100
-// Example: roundHalfUp(70.005) = 70.01; roundHalfUp(70.004) = 70.00
+// roundHalfUp rounds a value to 2 decimals using HALF_UP (banker's rounding
+// would underreport ISS on .005 boundaries — Receita expects HALF_UP).
 func roundHalfUp(v float64) float64 {
-	return math.Round(v*100) / 100
+	return math.Floor(v*100+0.5) / 100
 }
 
-// ErrValidation is a typed validation error returned by the DPS builder.
-// The handler maps this to a 422 VALIDATION_ERROR response.
-type ErrValidation struct {
-	Field   string
-	Message string
+// derefStr returns *s trimmed, or "" when s is nil.
+func derefStr(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return strings.TrimSpace(*s)
 }
 
-func (e *ErrValidation) Error() string {
-	return fmt.Sprintf("validation error: %s — %s", e.Field, e.Message)
+// stripDots removes dot separators from codes like "01.01.01.10".
+func stripDots(s string) string {
+	return strings.ReplaceAll(strings.TrimSpace(s), ".", "")
+}
+
+// stripNonDigits keeps only ASCII digits.
+func stripNonDigits(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if r >= '0' && r <= '9' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// parseCompetencia is defined in builder.go (legacy RPS file) and reused here.
+
+// fusoManaus returns America/Manaus (UTC-4, no DST). Fixed-zone fallback
+// avoids depending on the runtime image having a tz database.
+func fusoManaus() *time.Location {
+	if loc, err := time.LoadLocation("America/Manaus"); err == nil {
+		return loc
+	}
+	return time.FixedZone("BRT-4", -4*60*60)
 }

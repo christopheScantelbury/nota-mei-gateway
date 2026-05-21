@@ -26,7 +26,11 @@ type EmissaoRequest struct {
 
 // ServicoRequest holds the service details from the JSON request.
 type ServicoRequest struct {
-	CodigoNBS     string  `json:"codigo_nbs"`
+	CodigoNBS string `json:"codigo_nbs"`
+	// CodigoTribNac is the LC 116/2003 código de tributação nacional (6 digits:
+	// ItemSubitemDesdobro). Required by NFS-e Nacional DPS v1.01 — when empty
+	// the builder falls back to the first 6 digits of CodigoNBS.
+	CodigoTribNac string  `json:"codigo_tributacao_nacional,omitempty"`
 	Discriminacao string  `json:"discriminacao"`
 	Valor         float64 `json:"valor"`
 	AliquotaISS   float64 `json:"aliquota_iss"` // percentage e.g. 2.0 = 2%; 0 = lookup from ISS table
