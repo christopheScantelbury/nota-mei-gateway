@@ -119,8 +119,14 @@ func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS 
 		}
 	}
 
-	// 6. Build InfDPS
-	infID := fmt.Sprintf("DPS%08d", numeroDPS)
+	// 6. Build InfDPS Id (TSIdDPS).
+	//
+	// Schema-mandated format (45 chars total — pattern "DPS[0-9]{42}"):
+	//   "DPS" + cMun(7) + tpInscFed(1) + inscFed(14) + serie(5) + nDPS(15)
+	//
+	// tpInscFed: 1 = CPF, 2 = CNPJ. Prestador é sempre PJ no Nota Fácil
+	// (MEI/ME/EPP/LP/LR) então usamos sempre CNPJ.
+	infID := buildInfDPSId(empresa.MunicipioIBGE, empresa.CNPJ, DPSSerie, numeroDPS)
 	tpRetISSQN := TpRetISSQNNaoRetido
 	if issRetido {
 		tpRetISSQN = TpRetISSQNRetidoTomador
@@ -305,6 +311,30 @@ func buildTotTrib(opSimpNac int) TribTotal {
 // would underreport ISS on .005 boundaries — Receita expects HALF_UP).
 func roundHalfUp(v float64) float64 {
 	return math.Floor(v*100+0.5) / 100
+}
+
+// buildInfDPSId assembles the 45-char TSIdDPS string demanded by the XSD.
+//
+//	"DPS" + cMun(7) + tpInscFed(1) + inscFed(14, zero-padded if CPF)
+//	    + serie(5)  + nDPS(15)
+//
+// Only CNPJ is supported here (tpInscFed=2) because the prestador is always
+// a juridical person in Nota Fácil — MEI/ME/EPP/LP/LR all have CNPJ.
+func buildInfDPSId(cMun, cnpj, serie string, nDPS int64) string {
+	const tpInscFed = "2" // 2 = CNPJ
+	mun := padLeft(stripNonDigits(cMun), 7)
+	doc := padLeft(stripNonDigits(cnpj), 14)
+	ser := padLeft(stripNonDigits(serie), 5)
+	num := padLeft(fmt.Sprintf("%d", nDPS), 15)
+	return "DPS" + mun + tpInscFed + doc + ser + num
+}
+
+// padLeft left-pads s with "0" up to width n. Strings longer than n are returned unchanged.
+func padLeft(s string, n int) string {
+	if len(s) >= n {
+		return s
+	}
+	return strings.Repeat("0", n-len(s)) + s
 }
 
 // derefStr returns *s trimmed, or "" when s is nil.
