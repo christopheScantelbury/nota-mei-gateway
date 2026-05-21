@@ -132,11 +132,6 @@ func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS 
 		tpRetISSQN = TpRetISSQNRetidoTomador
 	}
 
-	prestEmail := strings.TrimSpace(empresa.Email)
-	if prestEmail == "" {
-		prestEmail = ""
-	}
-
 	tomador := buildDPSTomador(req.Tomador)
 
 	inf := InfDPS{
@@ -151,10 +146,11 @@ func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS 
 		CLocEmi:  empresa.MunicipioIBGE,
 
 		Prest: InfoPrestador{
-			CNPJ:  empresa.CNPJ,
-			IM:    derefStr(empresa.InscricaoMunicipal),
-			XNome: empresa.RazaoSocial,
-			Email: prestEmail,
+			CNPJ: empresa.CNPJ,
+			IM:   derefStr(empresa.InscricaoMunicipal),
+			// xNome and email are omitted when tpEmit=1 (próprio prestador
+			// emite a DPS) — Receita rejeita com E0121 porque o dado já está
+			// no cadastro associado ao CNPJ + cert.
 			RegTrib: RegimeTrib{
 				OpSimpNac:  opSimpNac,
 				RegEspTrib: regEspTrib,
