@@ -457,11 +457,12 @@ func main() {
 		log.Warn().Msg("AI: ANTHROPIC_API_KEY ausente — classificador NBS desabilitado")
 	}
 
-	// ── API-key authenticated endpoints (machine-to-machine) ───────────────
-	authMw := auth.Middleware(authRepo)
+	// ── Authenticated endpoints (machine-to-machine + dashboard) ───────────
 	// Hybrid middleware: accepts API keys (sk_…) for B2B integrations OR
-	// Supabase JWTs for the dashboard. Used by endpoints that must be
-	// reachable from both surfaces (e.g. cert upload from the settings page).
+	// Supabase JWTs for the dashboard. The whole /v1 group uses it so the
+	// dashboard can emit/list/cancel notas as the logged-in user (forwarding
+	// the user's JWT) while B2B integrations keep using sk_live_/sk_test_ keys.
+	// Resolves the same fiber locals (auth.GetMEI / auth.GetEmpresa) either way.
 	hybridMw := auth.HybridMiddleware(authRepo, cfg.SupabaseURL, cfg.SupabaseServiceKey)
 
 	var rlMw fiber.Handler
@@ -476,7 +477,7 @@ func main() {
 	// existing B2B integrations keep sending sk_… API keys. Both work.
 	app.Post("/v1/auth/certificate", hybridMw, rlMw, certH.Renew)
 
-	v1 := app.Group("/v1", authMw, rlMw)
+	v1 := app.Group("/v1", hybridMw, rlMw)
 
 	// NFS-e
 	v1.Post("/nfse", nfseH.EmitirNota)

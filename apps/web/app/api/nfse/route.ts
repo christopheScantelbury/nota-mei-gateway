@@ -3,9 +3,12 @@ import { createClient } from '@/lib/supabase/server'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
 
-// TODO(production): This endpoint should resolve the MEI's actual API key from a secure vault.
-// For now it uses INTERNAL_API_SECRET (defaults to sandbox demo key for development).
-// In production, store an encrypted copy of the raw key or use a service-account approach.
+// The dashboard emits notas AS THE LOGGED-IN USER by forwarding their Supabase
+// JWT to the backend. The /v1 group uses the hybrid middleware, which accepts
+// either an sk_… API key (B2B) or a Supabase JWT (dashboard) and resolves the
+// same MEI/empresa context. This guarantees the nota is persisted under the
+// user's own empresa_id — NOT a shared/sandbox key (which returns simulated,
+// non-persisted notas).
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const supabase = createClient()
@@ -22,15 +25,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'JSON inválido' }, { status: 422 })
   }
 
-  const apiKey = process.env.INTERNAL_API_SECRET ?? 'sk_test_sandbox_demo'
-
   let backendRes: Response
   try {
     backendRes = await fetch(`${API_BASE}/v1/nfse`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
+        Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify(body),
     })
