@@ -25,7 +25,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const env     = body.env === 'test' ? 'test' : 'live'
   const rawHex  = randomHex(32)
   const rawKey  = `sk_${env}_${rawHex}`
-  const prefix  = `sk_${env}_${rawHex.slice(0, 7)}`
+  const prefix  = `sk_${env}_`
   const hash    = await sha256Hex(rawKey)
 
   const { error } = await supabase
