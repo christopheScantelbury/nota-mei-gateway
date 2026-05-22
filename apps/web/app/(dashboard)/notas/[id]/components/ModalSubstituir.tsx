@@ -1,6 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
 
 type Props = {
   nota: { id: string; numero_rps: number }
@@ -39,21 +40,12 @@ export function ModalSubstituir({ nota, onClose }: Props) {
         </div>
 
         <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 rounded-xl border border-navy-600 px-4 py-3
-                       text-text-2 text-sm font-medium hover:border-navy-600/80
-                       transition-colors"
-          >
+          <Button variant="secondary" className="flex-1" onClick={onClose}>
             Voltar
-          </button>
-          <button
-            onClick={prosseguir}
-            className="flex-1 rounded-xl bg-brand-cyan px-4 py-3 text-navy-900
-                       text-sm font-semibold hover:opacity-90 transition-opacity"
-          >
+          </Button>
+          <Button variant="primary" className="flex-1" onClick={prosseguir}>
             Corrigir e substituir →
-          </button>
+          </Button>
         </div>
       </div>
     </div>

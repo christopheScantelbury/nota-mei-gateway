@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { Button } from '@/components/ui/Button'
 
 type Props = {
   nota: {
@@ -55,14 +56,14 @@ export function NotaActionsMenu({ nota, empresaTipo }: Props) {
 
   return (
     <div className="relative" ref={ref}>
-      <button
+      <Button
+        variant="ghost"
+        size="icon-sm"
         onClick={() => setAberto(!aberto)}
-        className="rounded-lg p-1.5 text-text-2 hover:text-text-1
-                   hover:bg-navy-600 transition-colors"
         aria-label="Ações da nota"
       >
         ⋯
-      </button>
+      </Button>
 
       {aberto && (
         <div className="absolute right-0 top-8 z-20 w-48 rounded-xl border

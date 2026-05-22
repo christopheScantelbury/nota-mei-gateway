@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/Button'
 
 interface Props {
   notaId: string
@@ -37,12 +38,9 @@ export default function EnviarNotaEmail({ notaId, defaultEmail = '' }: Props) {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="text-sm px-4 py-2 rounded-lg border border-navy-600 text-text-1 hover:border-brand-cyan hover:text-brand-cyan transition"
-      >
+      <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
         ✉ Enviar por e-mail
-      </button>
+      </Button>
 
       {open && (
         <div
@@ -73,23 +71,23 @@ export default function EnviarNotaEmail({ notaId, defaultEmail = '' }: Props) {
             />
 
             <div className="flex gap-3">
-              <button
+              <Button
+                variant="secondary"
+                className="flex-1"
                 onClick={() => setOpen(false)}
                 disabled={sending}
-                className="flex-1 text-sm font-semibold px-4 py-2 rounded-lg border border-navy-600 text-text-2 hover:text-text-1 transition disabled:opacity-50"
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
+                className="flex-1"
                 onClick={handleSend}
+                loading={sending}
                 disabled={sending || !email.trim()}
-                className="flex-1 flex items-center justify-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg bg-brand-cyan text-navy-900 hover:opacity-90 transition disabled:opacity-50"
               >
-                {sending && (
-                  <span className="w-3.5 h-3.5 rounded-full border-2 border-navy-900/40 border-t-navy-900 animate-spin" />
-                )}
                 Enviar
-              </button>
+              </Button>
             </div>
           </div>
         </div>

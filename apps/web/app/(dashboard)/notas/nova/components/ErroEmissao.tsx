@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/Button'
+
 type TipoErro =
   | 'api_indisponivel'
   | 'certificado_invalido'
@@ -94,14 +96,9 @@ export function ErroEmissao({ tipo, detalhe, onTentar }: Props) {
       )}
 
       <div className="flex flex-col sm:flex-row gap-3 mt-6 w-full">
-        <button
-          onClick={onTentar}
-          className="flex-1 rounded-xl border border-navy-600 px-6 py-3
-                     text-text-2 text-sm font-medium hover:border-brand-cyan/50
-                     hover:text-text-1 transition-colors"
-        >
+        <Button variant="secondary" className="flex-1" onClick={onTentar}>
           {erro.acao}
-        </button>
+        </Button>
         {erro.linkHref && (
           <a
             href={erro.linkHref}

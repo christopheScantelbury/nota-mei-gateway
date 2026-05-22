@@ -36,12 +36,9 @@ export default function CancelarNotaButton({ notaId, numeroRps }: Props) {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(true)}
-        className="text-sm px-4 py-2 rounded-lg border border-nota-rejeitada/40 text-nota-rejeitada hover:bg-nota-rejeitada/10 transition"
-      >
+      <Button variant="destructive" size="sm" onClick={() => setOpen(true)}>
         Cancelar nota
-      </button>
+      </Button>
 
       {open && (
         <div
@@ -68,16 +65,14 @@ export default function CancelarNotaButton({ notaId, numeroRps }: Props) {
               >
                 Voltar
               </Button>
-              <button
+              <Button
+                variant="danger"
+                className="flex-1"
                 onClick={handleCancel}
-                disabled={loading}
-                className="flex-1 flex items-center justify-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg bg-nota-rejeitada/90 hover:bg-nota-rejeitada text-white transition disabled:opacity-60"
+                loading={loading}
               >
-                {loading && (
-                  <span className="w-3.5 h-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-                )}
                 Confirmar cancelamento
-              </button>
+              </Button>
             </div>
           </div>
         </div>

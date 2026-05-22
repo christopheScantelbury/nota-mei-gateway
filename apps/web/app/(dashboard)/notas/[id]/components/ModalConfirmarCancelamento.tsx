@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
 
 const MOTIVOS = [
   { valor: 1, label: 'Erro na emissão' },
@@ -89,24 +90,12 @@ export function ModalConfirmarCancelamento({ nota, onClose }: Props) {
         )}
 
         <div className="flex gap-3">
-          <button
-            onClick={onClose}
-            disabled={loading}
-            className="flex-1 rounded-xl border border-navy-600 px-4 py-3
-                       text-text-2 text-sm font-medium hover:border-navy-600/80
-                       transition-colors disabled:opacity-50"
-          >
+          <Button variant="secondary" className="flex-1" onClick={onClose} disabled={loading}>
             Voltar
-          </button>
-          <button
-            onClick={confirmar}
-            disabled={loading}
-            className="flex-1 rounded-xl bg-nota-rejeitada px-4 py-3 text-white
-                       text-sm font-semibold hover:opacity-90 transition-opacity
-                       disabled:opacity-60 disabled:cursor-not-allowed"
-          >
+          </Button>
+          <Button variant="danger" className="flex-1" onClick={confirmar} loading={loading}>
             {loading ? 'Cancelando...' : 'Confirmar cancelamento'}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

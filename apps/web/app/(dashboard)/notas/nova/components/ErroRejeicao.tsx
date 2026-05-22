@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/Button'
+
 type Rejeicao = {
   codigo: string
   mensagem: string
@@ -49,13 +51,9 @@ export function ErroRejeicao({ rejeicoes, notaId, onEmitirNova, emitirNovaHref =
 
       <div className="flex flex-col sm:flex-row gap-3">
         {onEmitirNova ? (
-          <button
-            onClick={onEmitirNova}
-            className="flex-1 rounded-xl bg-brand-cyan px-6 py-3 text-navy-900
-                       font-semibold text-sm hover:opacity-90 transition-opacity"
-          >
+          <Button variant="primary" className="flex-1" onClick={onEmitirNova}>
             Corrigir e emitir novamente
-          </button>
+          </Button>
         ) : (
           <a
             href={emitirNovaHref}

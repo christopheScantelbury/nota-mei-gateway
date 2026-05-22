@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ModalConfirmarCancelamento } from './ModalConfirmarCancelamento'
 import { ModalSubstituir }           from './ModalSubstituir'
+import { Button } from '@/components/ui/Button'
 
 type Props = {
   nota: {
@@ -79,16 +80,14 @@ export function AcoesDaNota({ nota, empresaTipo, abrirModal }: Props) {
                 <p className="text-xs text-nota-cancelada mt-0.5">Prazo de 9 dias encerrado</p>
               )}
             </div>
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => setModalSubst(true)}
               disabled={!prazos.podeSubstituir}
-              className="rounded-lg border border-navy-600 px-4 py-2 text-xs
-                         font-medium text-text-2 hover:border-brand-cyan/50
-                         hover:text-text-1 transition-colors
-                         disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Substituir
-            </button>
+            </Button>
           </div>
 
           <div className="border-t border-navy-600" />
@@ -108,15 +107,14 @@ export function AcoesDaNota({ nota, empresaTipo, abrirModal }: Props) {
                 </p>
               )}
             </div>
-            <button
+            <Button
+              variant="destructive"
+              size="sm"
               onClick={() => setModalCancel(true)}
               disabled={!prazos.podeCancelar}
-              className="rounded-lg border border-nota-rejeitada/30 px-4 py-2 text-xs
-                         font-medium text-nota-rejeitada hover:bg-nota-rejeitada/10
-                         transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Cancelar
-            </button>
+            </Button>
           </div>
         </div>
 
