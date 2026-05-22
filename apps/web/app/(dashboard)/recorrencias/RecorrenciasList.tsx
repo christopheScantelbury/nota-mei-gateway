@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { Badge } from '@/components/ui/Badge'
 import RecorrenciaModal from '@/components/dashboard/RecorrenciaModal'
 import { formatBRL } from '@/lib/format'
+import { Button } from '@/components/ui/Button'
 
 interface Recorrencia {
   id: string
@@ -94,12 +95,9 @@ export default function RecorrenciasList({ initialData }: Props) {
             Regras de emissão recorrente — a nota é emitida automaticamente no dia configurado.
           </p>
         </div>
-        <button
-          onClick={() => setModal('new')}
-          className="text-sm font-semibold bg-brand-cyan text-navy-900 px-4 py-2 rounded-lg hover:opacity-90 transition"
-        >
+        <Button variant="primary" size="sm" onClick={() => setModal('new')}>
           + Nova regra
-        </button>
+        </Button>
       </div>
 
       {list.length === 0 ? (
@@ -109,12 +107,9 @@ export default function RecorrenciasList({ initialData }: Props) {
           <p className="text-text-2 text-sm mb-6">
             Crie uma regra e a nota será emitida automaticamente todo mês no dia escolhido.
           </p>
-          <button
-            onClick={() => setModal('new')}
-            className="text-sm font-semibold bg-brand-cyan text-navy-900 px-5 py-2.5 rounded-lg hover:opacity-90 transition"
-          >
+          <Button variant="primary" onClick={() => setModal('new')}>
             Criar primeira regra
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="rounded-xl border border-navy-600 overflow-hidden">
@@ -145,25 +140,20 @@ export default function RecorrenciasList({ initialData }: Props) {
                   {formatDate(rec.proxima_emissao)}
                 </span>
                 <div className="flex items-center gap-2 justify-end">
-                  <button
-                    onClick={() => handleToggle(rec)}
-                    className="text-xs px-2.5 py-1 rounded border border-navy-600 text-text-2 hover:text-text-1 hover:border-navy-600/60 transition"
-                  >
+                  <Button variant="secondary" size="sm" onClick={() => handleToggle(rec)}>
                     {rec.ativo ? 'Pausar' : 'Ativar'}
-                  </button>
-                  <button
-                    onClick={() => setModal(rec)}
-                    className="text-xs px-2.5 py-1 rounded border border-navy-600 text-text-2 hover:text-brand-cyan hover:border-brand-cyan/40 transition"
-                  >
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => setModal(rec)}>
                     Editar
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
                     onClick={() => handleDelete(rec.id)}
                     disabled={deleting === rec.id}
-                    className="text-xs px-2.5 py-1 rounded border border-nota-rejeitada/30 text-nota-rejeitada hover:bg-nota-rejeitada/10 transition disabled:opacity-50"
                   >
                     {deleting === rec.id ? '…' : 'Excluir'}
-                  </button>
+                  </Button>
                 </div>
               </li>
             ))}

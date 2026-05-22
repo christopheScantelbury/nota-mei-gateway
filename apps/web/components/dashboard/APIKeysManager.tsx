@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { APIKey } from '@/app/(dashboard)/api-keys/page'
+import { Button } from '@/components/ui/Button'
 
 type Env = 'live' | 'test'
 
@@ -49,20 +50,12 @@ function RevokeModal({
           ⚠️ Esta ação é irreversível. Qualquer integração que usar esta chave irá falhar.
         </p>
         <div className="flex gap-3">
-          <button
-            onClick={onConfirm}
-            disabled={loading}
-            className="flex-1 bg-nota-rejeitada text-white font-semibold text-sm py-2.5 rounded-lg hover:opacity-90 transition disabled:opacity-50"
-          >
+          <Button variant="danger" className="flex-1" onClick={onConfirm} loading={loading}>
             {loading ? 'Revogando...' : 'Revogar'}
-          </button>
-          <button
-            onClick={onCancel}
-            disabled={loading}
-            className="flex-1 border border-navy-600 text-text-2 font-semibold text-sm py-2.5 rounded-lg hover:border-brand-cyan hover:text-text-1 transition"
-          >
+          </Button>
+          <Button variant="secondary" className="flex-1" onClick={onCancel} disabled={loading}>
             Cancelar
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -131,20 +124,12 @@ function CreateModal({
         </div>
 
         <div className="flex gap-3 mt-5">
-          <button
-            onClick={() => onConfirm(label, env)}
-            disabled={loading}
-            className="flex-1 bg-brand-cyan text-navy-900 font-semibold text-sm py-2.5 rounded-lg hover:opacity-90 transition disabled:opacity-50"
-          >
+          <Button variant="primary" className="flex-1" onClick={() => onConfirm(label, env)} loading={loading}>
             {loading ? 'Criando...' : 'Criar chave'}
-          </button>
-          <button
-            onClick={onCancel}
-            disabled={loading}
-            className="flex-1 border border-navy-600 text-text-2 font-semibold text-sm py-2.5 rounded-lg hover:border-brand-cyan hover:text-text-1 transition"
-          >
+          </Button>
+          <Button variant="secondary" className="flex-1" onClick={onCancel} disabled={loading}>
             Cancelar
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -182,12 +167,14 @@ function KeyRow({
       </span>
 
       {!revoked && (
-        <button
+        <Button
+          variant="destructive"
+          size="sm"
           onClick={() => onRevoke(k)}
-          className="shrink-0 text-xs text-nota-rejeitada border border-nota-rejeitada/30 px-3 py-1 rounded-lg hover:bg-nota-rejeitada/10 transition opacity-0 group-hover:opacity-100 focus:opacity-100"
+          className="shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
         >
           Revogar
-        </button>
+        </Button>
       )}
     </div>
   )
@@ -372,12 +359,9 @@ export default function APIKeysManager({ initialKeys, planName, maxKeys }: Props
             <code className="flex-1 bg-navy-900 rounded-lg px-3 py-2 text-xs font-mono text-text-1 break-all">
               {newKey}
             </code>
-            <button
-              onClick={copyNewKey}
-              className="shrink-0 border border-brand-cyan text-brand-cyan text-xs font-semibold px-3 py-2 rounded-lg hover:bg-brand-cyan/10 transition"
-            >
+            <Button variant="outline" size="sm" className="shrink-0" onClick={copyNewKey}>
               {copied ? '✓ Copiado' : 'Copiar'}
-            </button>
+            </Button>
           </div>
           <p className="text-xs text-text-2 mt-2">
             ⚠️ Guarde-a agora — ela não será exibida novamente.
@@ -397,13 +381,13 @@ export default function APIKeysManager({ initialKeys, planName, maxKeys }: Props
 
       {/* Create button */}
       <div>
-        <button
+        <Button
+          variant="outline"
           onClick={() => setShowCreate(true)}
           disabled={activeCount >= maxKeys}
-          className="border border-brand-cyan text-brand-cyan font-semibold text-sm px-5 py-2.5 rounded-lg hover:bg-brand-cyan/10 transition disabled:opacity-40 disabled:cursor-not-allowed"
         >
           + Criar nova API Key
-        </button>
+        </Button>
         {activeCount >= maxKeys && (
           <p className="text-xs text-text-2 mt-2">
             Limite do plano atingido.{' '}
