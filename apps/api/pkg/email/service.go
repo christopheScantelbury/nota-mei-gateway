@@ -44,7 +44,7 @@ func (s *Service) SendNotaAutorizada(
 	})
 	l := s.log.With().Str("to_email", toEmail).Str("type", "nota_autorizada").Logger()
 	if err != nil {
-		l.Error().Err(err).Msg("email: send failed")
+		l.Error().Err(err).Msgf("email: send failed: %v", err)
 		return err
 	}
 	l.Info().Str("email_id", id).Msg("email: sent")
@@ -68,7 +68,7 @@ func (s *Service) SendNotaRejeitada(
 	})
 	l := s.log.With().Str("to_email", toEmail).Str("type", "nota_rejeitada").Logger()
 	if err != nil {
-		l.Error().Err(err).Msg("email: send failed")
+		l.Error().Err(err).Msgf("email: send failed: %v", err)
 		return err
 	}
 	l.Info().Str("email_id", id).Msg("email: sent")
@@ -92,7 +92,7 @@ func (s *Service) SendBoasVindas(
 	})
 	l := s.log.With().Str("to_email", toEmail).Str("type", "boas_vindas").Logger()
 	if err != nil {
-		l.Error().Err(err).Msg("email: send failed")
+		l.Error().Err(err).Msgf("email: send failed: %v", err)
 		return err
 	}
 	l.Info().Str("email_id", id).Msg("email: sent")
@@ -117,7 +117,7 @@ func (s *Service) SendPagamentoFalhou(
 	})
 	l := s.log.With().Str("to_email", toEmail).Str("type", "pagamento_falhou").Logger()
 	if err != nil {
-		l.Error().Err(err).Msg("email: send failed")
+		l.Error().Err(err).Msgf("email: send failed: %v", err)
 		return err
 	}
 	l.Info().Str("email_id", id).Msg("email: sent")
@@ -142,7 +142,7 @@ func (s *Service) SendBoasVindasME(
 	})
 	l := s.log.With().Str("to_email", toEmail).Str("type", "boas_vindas_me").Logger()
 	if err != nil {
-		l.Error().Err(err).Msg("email: send failed")
+		l.Error().Err(err).Msgf("email: send failed: %v", err)
 		return err
 	}
 	l.Info().Str("email_id", id).Msg("email: sent")
