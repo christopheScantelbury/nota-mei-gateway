@@ -1,45 +1,43 @@
-// Package email provides a lightweight SMTP email client for sending
+// Package email provides a Brevo HTTP API client for sending
 // transactional emails from the Nota MEI Gateway.
 //
-// Compatible with any SMTP server:
-//   - Brevo (smtp-relay.brevo.com:587) — 300 emails/day FREE
-//   - Gmail  (smtp.gmail.com:587)       — 500/day with App Password
-//   - Mailjet, SendGrid, AWS SES, etc.
+// Uses the Brevo transactional email API (api.brevo.com/v3/smtp/email)
+// over HTTPS (port 443) instead of SMTP (port 587) to avoid Railway's
+// outbound SMTP port block.
 //
 // Required environment variables:
 //
-//	SMTP_HOST     smtp relay hostname  (e.g. smtp-relay.brevo.com)
-//	SMTP_PORT     port, default 587    (STARTTLS)
-//	SMTP_USER     authentication login (usually your account email)
-//	SMTP_PASS     authentication password / API key
-//	EMAIL_FROM    display address      (e.g. "NotaFácil MEI <nao-responda@emitirnotafacil.com.br>")
+//	SMTP_HOST     kept for backward compat — value ignored (uses Brevo API)
+//	SMTP_USER     kept for backward compat — value ignored (uses SMTP_PASS as API key)
+//	SMTP_PASS     Brevo API key (same key used for SMTP auth)
+//	EMAIL_FROM    display address (e.g. "NotaFácil MEI <nao-responda@emitirnotafacil.com.br>")
 package email
 
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
+	"encoding/json"
 	"fmt"
-	"mime"
-	"mime/multipart"
-	"mime/quotedprintable"
-	"net"
-	"net/smtp"
-	"net/textproto"
+	"io"
+	"net/http"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
 )
 
-// Client sends transactional emails via SMTP.
-// When host is empty the client runs in dev-noop mode: emails are logged
-// but no SMTP connection is made.
+const brevoAPIURL = "https://api.brevo.com/v3/smtp/email"
+
+// Client sends transactional emails via the Brevo HTTP API.
+// When apiKey is empty the client runs in dev-noop mode: emails are logged
+// but no HTTP request is made.
 type Client struct {
-	host string
-	port string
-	user string
-	pass string
-	from string
+	host   string // kept for Enabled() compat — not used for sending
+	port   string // kept for compat — not used
+	user   string // kept for compat — not used
+	pass   string // Brevo API key
+	from   string // display address e.g. "Name <email@domain>"
+	hc     *http.Client
 }
 
 // New creates a Client.
@@ -49,7 +47,14 @@ func New(host, port, user, pass, from string) *Client {
 	if port == "" {
 		port = "587"
 	}
-	return &Client{host: host, port: port, user: user, pass: pass, from: from}
+	return &Client{
+		host: host,
+		port: port,
+		user: user,
+		pass: pass,
+		from: from,
+		hc:   &http.Client{Timeout: 15 * time.Second},
+	}
 }
 
 // NewFromEnv is a convenience wrapper — call it with the values loaded from
@@ -60,7 +65,7 @@ func NewFromEnv(host, port, user, pass, from string) *Client {
 }
 
 // Enabled reports whether the client is configured to actually send emails.
-func (c *Client) Enabled() bool { return c.host != "" && c.user != "" && c.pass != "" }
+func (c *Client) Enabled() bool { return c.host != "" && c.pass != "" }
 
 // SendRequest holds the data for one outbound email.
 type SendRequest struct {
@@ -69,163 +74,100 @@ type SendRequest struct {
 	HTML    string
 }
 
-// Send delivers one email via SMTP.
-// In dev-noop mode (empty host/user/pass) the email is logged only.
+// brevoRequest is the JSON body for POST /v3/smtp/email.
+type brevoRequest struct {
+	Sender      brevoAddr   `json:"sender"`
+	To          []brevoAddr `json:"to"`
+	Subject     string      `json:"subject"`
+	HTMLContent string      `json:"htmlContent"`
+}
+
+type brevoAddr struct {
+	Name  string `json:"name,omitempty"`
+	Email string `json:"email"`
+}
+
+type brevoResponse struct {
+	MessageID string `json:"messageId"`
+}
+
+// Send delivers one email via the Brevo HTTP API.
+// In dev-noop mode (empty host/pass) the email is logged only.
 func (c *Client) Send(ctx context.Context, req SendRequest) (string, error) {
 	if !c.Enabled() {
 		log.Ctx(ctx).Info().
 			Strs("to", req.To).
 			Str("subject", req.Subject).
-			Msg("email: dev-noop mode — SMTP não configurado, email não enviado")
+			Msg("email: dev-noop mode — não configurado, email não enviado")
 		return "dev-noop", nil
 	}
 
-	msg, err := buildMIME(c.from, req.To, req.Subject, req.HTML)
+	senderName, senderEmail := parseFromAddr(c.from)
+
+	toAddrs := make([]brevoAddr, 0, len(req.To))
+	for _, addr := range req.To {
+		name, email := parseFromAddr(addr)
+		toAddrs = append(toAddrs, brevoAddr{Name: name, Email: email})
+	}
+
+	payload := brevoRequest{
+		Sender:      brevoAddr{Name: senderName, Email: senderEmail},
+		To:          toAddrs,
+		Subject:     req.Subject,
+		HTMLContent: req.HTML,
+	}
+
+	body, err := json.Marshal(payload)
 	if err != nil {
-		return "", fmt.Errorf("email: build MIME: %w", err)
+		return "", fmt.Errorf("email: marshal request: %w", err)
 	}
 
-	addr := net.JoinHostPort(c.host, c.port)
-	auth := smtp.PlainAuth("", c.user, c.pass, c.host)
-
-	// Use STARTTLS (port 587 standard). Some providers (e.g. Gmail port 465)
-	// use implicit TLS — handled below via tlsDialer fallback.
-	tlsCfg := &tls.Config{ServerName: c.host, MinVersion: tls.VersionTLS12}
-
-	// Attempt STARTTLS first (port 587, most providers).
-	conn, err := net.DialTimeout("tcp", addr, 10*time.Second)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, brevoAPIURL, bytes.NewReader(body))
 	if err != nil {
-		return "", fmt.Errorf("email: dial %s: %w", addr, err)
+		return "", fmt.Errorf("email: build request: %w", err)
 	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("api-key", c.pass)
+	httpReq.Header.Set("Accept", "application/json")
 
-	smtpClient, err := smtp.NewClient(conn, c.host)
+	resp, err := c.hc.Do(httpReq)
 	if err != nil {
-		_ = conn.Close()
-		return "", fmt.Errorf("email: smtp client: %w", err)
+		return "", fmt.Errorf("email: HTTP request: %w", err)
 	}
-	defer func() { _ = smtpClient.Quit() }()
+	defer resp.Body.Close()
 
-	if ok, _ := smtpClient.Extension("STARTTLS"); ok {
-		if err = smtpClient.StartTLS(tlsCfg); err != nil {
-			return "", fmt.Errorf("email: STARTTLS: %w", err)
-		}
-	}
+	respBody, _ := io.ReadAll(resp.Body)
 
-	if err = smtpClient.Auth(auth); err != nil {
-		return "", fmt.Errorf("email: AUTH: %w", err)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return "", fmt.Errorf("email: Brevo API returned %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	if err = smtpClient.Mail(extractAddr(c.from)); err != nil {
-		return "", fmt.Errorf("email: MAIL FROM: %w", err)
-	}
-	for _, to := range req.To {
-		if err = smtpClient.Rcpt(to); err != nil {
-			return "", fmt.Errorf("email: RCPT TO %s: %w", to, err)
-		}
-	}
-
-	wc, err := smtpClient.Data()
-	if err != nil {
-		return "", fmt.Errorf("email: DATA: %w", err)
-	}
-	if _, err = wc.Write(msg); err != nil {
-		_ = wc.Close()
-		return "", fmt.Errorf("email: write body: %w", err)
-	}
-	if err = wc.Close(); err != nil {
-		return "", fmt.Errorf("email: close DATA: %w", err)
+	var brevoResp brevoResponse
+	if err := json.Unmarshal(respBody, &brevoResp); err != nil {
+		// non-fatal — API returned 2xx but body isn't JSON we expect
+		return "ok", nil
 	}
 
 	log.Ctx(ctx).Info().
 		Strs("to", req.To).
 		Str("subject", req.Subject).
-		Msg("email: enviado com sucesso via SMTP")
+		Str("message_id", brevoResp.MessageID).
+		Msg("email: enviado via Brevo API")
 
-	return "ok", nil
+	return brevoResp.MessageID, nil
 }
 
-// ─── MIME builder ────────────────────────────────────────────────────────────
-
-// buildMIME assembles a multipart/alternative MIME message with a text/plain
-// fallback and a text/html part (quoted-printable encoded).
-func buildMIME(from string, to []string, subject, html string) ([]byte, error) {
-	var buf bytes.Buffer
-
-	// Headers
-	fmt.Fprintf(&buf, "From: %s\r\n", from)
-	fmt.Fprintf(&buf, "To: %s\r\n", joinAddrs(to))
-	fmt.Fprintf(&buf, "Subject: %s\r\n", mime.QEncoding.Encode("utf-8", subject))
-	fmt.Fprintf(&buf, "MIME-Version: 1.0\r\n")
-	fmt.Fprintf(&buf, "Date: %s\r\n", time.Now().UTC().Format("Mon, 02 Jan 2006 15:04:05 +0000"))
-
-	mw := multipart.NewWriter(&buf)
-	fmt.Fprintf(&buf, "Content-Type: multipart/alternative; boundary=%q\r\n\r\n", mw.Boundary())
-
-	// ── plain text fallback ──
-	ptHeader := textproto.MIMEHeader{}
-	ptHeader.Set("Content-Type", "text/plain; charset=utf-8")
-	ptHeader.Set("Content-Transfer-Encoding", "quoted-printable")
-	ptPart, err := mw.CreatePart(ptHeader)
-	if err != nil {
-		return nil, err
-	}
-	ptQP := quotedprintable.NewWriter(ptPart)
-	_, _ = ptQP.Write([]byte(htmlToPlain(html)))
-	_ = ptQP.Close()
-
-	// ── HTML part ──
-	htmlHeader := textproto.MIMEHeader{}
-	htmlHeader.Set("Content-Type", "text/html; charset=utf-8")
-	htmlHeader.Set("Content-Transfer-Encoding", "quoted-printable")
-	htmlPart, err := mw.CreatePart(htmlHeader)
-	if err != nil {
-		return nil, err
-	}
-	htmlQP := quotedprintable.NewWriter(htmlPart)
-	_, _ = htmlQP.Write([]byte(html))
-	_ = htmlQP.Close()
-
-	_ = mw.Close()
-	return buf.Bytes(), nil
-}
-
-// htmlToPlain returns a very simple plain-text version of an HTML string
-// (strips tags, collapses whitespace). Used as the text/plain fallback.
-func htmlToPlain(html string) string {
-	out := bytes.NewBuffer(nil)
-	inTag := false
-	for _, r := range html {
-		switch {
-		case r == '<':
-			inTag = true
-		case r == '>':
-			inTag = false
-			out.WriteRune('\n')
-		case !inTag:
-			out.WriteRune(r)
+// parseFromAddr parses "Display Name <email@domain>" → (name, email).
+// Falls back to ("", addr) for plain addresses.
+func parseFromAddr(addr string) (name, email string) {
+	addr = strings.TrimSpace(addr)
+	if i := strings.Index(addr, "<"); i >= 0 {
+		name = strings.TrimSpace(addr[:i])
+		rest := addr[i+1:]
+		if j := strings.Index(rest, ">"); j >= 0 {
+			email = strings.TrimSpace(rest[:j])
 		}
+		return
 	}
-	return out.String()
-}
-
-// extractAddr returns the bare email address from strings like
-// "Display Name <addr@host>" or "addr@host".
-func extractAddr(s string) string {
-	if i := bytes.IndexByte([]byte(s), '<'); i >= 0 {
-		if j := bytes.IndexByte([]byte(s[i:]), '>'); j >= 0 {
-			return s[i+1 : i+j]
-		}
-	}
-	return s
-}
-
-func joinAddrs(addrs []string) string {
-	b := &bytes.Buffer{}
-	for i, a := range addrs {
-		if i > 0 {
-			b.WriteString(", ")
-		}
-		b.WriteString(a)
-	}
-	return b.String()
+	return "", addr
 }
