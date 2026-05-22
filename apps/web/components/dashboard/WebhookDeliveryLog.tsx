@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/Button'
 
 interface Props {
   notaId: string
@@ -48,16 +49,9 @@ export default function WebhookDeliveryLog({
           Entrega do Webhook
         </h2>
         {!localState.entregue && (
-          <button
-            onClick={handleResend}
-            disabled={sending}
-            className="flex items-center gap-1.5 text-xs font-semibold text-brand-cyan border border-brand-cyan/30 rounded-lg px-3 py-1.5 hover:bg-brand-cyan/10 transition disabled:opacity-50"
-          >
-            {sending && (
-              <span className="w-3 h-3 rounded-full border-2 border-brand-cyan/40 border-t-brand-cyan animate-spin" />
-            )}
+          <Button variant="outline" size="sm" loading={sending} onClick={handleResend}>
             Reenviar agora
-          </button>
+          </Button>
         )}
       </div>
 

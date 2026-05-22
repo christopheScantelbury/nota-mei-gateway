@@ -306,12 +306,9 @@ function CadastroPageInner() {
               {success.apiKey}
             </p>
           </div>
-          <button
-            onClick={copyKey}
-            className="w-full text-sm bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/30 font-semibold px-4 py-2 rounded-lg hover:bg-brand-cyan/20 transition mb-6"
-          >
+          <Button variant="outline" fullWidth onClick={copyKey} className="mb-6">
             {copied ? '✅ Copiado!' : '📋 Copiar API Key'}
-          </button>
+          </Button>
 
           <div className="border-t border-navy-600 pt-4 flex flex-col gap-2">
             <a
@@ -530,14 +527,16 @@ function CadastroPageInner() {
                 {loading ? 'Cadastrando…' : 'Criar conta →'}
               </Button>
 
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 disabled={loading}
                 onClick={() => submitForm(true)}
-                className="w-full text-sm text-text-2 hover:text-text-1 py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full"
               >
                 Pular por agora
-              </button>
+              </Button>
             </div>
 
             <Button

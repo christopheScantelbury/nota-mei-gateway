@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { CepMunicipioInput } from '@/components/ui/CepMunicipioInput'
 import { maskCNPJ as formatCNPJ } from '@/lib/format'
+import { Button } from '@/components/ui/Button'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
 
@@ -327,12 +328,9 @@ export default function CadastroMEPage() {
               />
             </Field>
 
-            <button
-              onClick={nextStep1}
-              className="w-full bg-brand-cyan text-navy-900 font-bold py-3 rounded-xl text-sm hover:opacity-90 transition"
-            >
+            <Button variant="primary" className="w-full" onClick={nextStep1}>
               Continuar →
-            </button>
+            </Button>
 
             <p className="text-center text-xs text-text-2">
               Já possui conta?{' '}
@@ -458,20 +456,12 @@ export default function CadastroMEPage() {
             )}
 
             <div className="flex gap-3">
-              <button
-                onClick={() => setStep(1)}
-                className="flex-1 border border-gray-200 text-text-2 font-semibold py-3 rounded-xl text-sm hover:border-brand-cyan/50 transition"
-              >
+              <Button variant="secondary" className="flex-1" onClick={() => setStep(1)}>
                 ← Voltar
-              </button>
-              <button
-                onClick={submitRegistration}
-                disabled={submitting}
-                className="flex-1 bg-brand-cyan text-navy-900 font-bold py-3 rounded-xl text-sm hover:opacity-90 transition disabled:opacity-60 flex items-center justify-center gap-2"
-              >
-                {submitting && <Spinner />}
-                {submitting ? 'Cadastrando...' : 'Cadastrar empresa'}
-              </button>
+              </Button>
+              <Button variant="primary" className="flex-1" loading={submitting} disabled={submitting} onClick={submitRegistration}>
+                {submitting ? 'Cadastrando…' : 'Cadastrar empresa'}
+              </Button>
             </div>
           </div>
         )}
@@ -533,23 +523,15 @@ export default function CadastroMEPage() {
                   />
                 </Field>
 
-                <button
-                  onClick={uploadCert}
-                  disabled={!form.certFile || certUploading}
-                  className="w-full bg-brand-cyan text-navy-900 font-bold py-3 rounded-xl text-sm hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {certUploading && <Spinner />}
-                  {certUploading ? 'Enviando...' : 'Enviar certificado'}
-                </button>
+                <Button variant="primary" className="w-full" loading={certUploading} disabled={!form.certFile || certUploading} onClick={uploadCert}>
+                  {certUploading ? 'Enviando…' : 'Enviar certificado'}
+                </Button>
               </>
             )}
 
-            <button
-              onClick={() => setStep(4)}
-              className="w-full border border-gray-200 text-text-2 font-semibold py-3 rounded-xl text-sm hover:border-brand-cyan/50 transition"
-            >
+            <Button variant="secondary" className="w-full" onClick={() => setStep(4)}>
               {certUploaded ? 'Continuar →' : 'Pular por agora →'}
-            </button>
+            </Button>
           </div>
         )}
 
@@ -583,12 +565,9 @@ export default function CadastroMEPage() {
                 <code className="flex-1 text-xs text-brand-cyan font-mono break-all select-all">
                   {success.apiKey}
                 </code>
-                <button
-                  onClick={copyKey}
-                  className="shrink-0 text-xs bg-navy-700 hover:bg-navy-600 text-text-2 px-3 py-1.5 rounded-lg transition"
-                >
+                <Button variant="secondary" size="sm" className="shrink-0" onClick={copyKey}>
                   {copied ? '✓ Copiado' : 'Copiar'}
-                </button>
+                </Button>
               </div>
               <p className="text-xs text-nota-rejeitada mt-2 font-medium">
                 ⚠ Guarde esta chave agora — ela não será exibida novamente.

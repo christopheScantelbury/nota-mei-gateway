@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import type { CadastroMEState } from '../actions'
+import { Button } from '@/components/ui/Button'
 
 interface Props {
   state: CadastroMEState
@@ -164,32 +165,19 @@ export function StepCertificado({ state, onChange, onSubmit, onBack, loading }: 
       )}
 
       <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={onBack}
-          disabled={loading}
-          className="border border-navy-600 text-text-2 font-semibold px-6 py-3 rounded-xl hover:border-brand-cyan hover:text-text-1 transition disabled:opacity-50"
-        >
+        <Button type="button" variant="secondary" disabled={loading} onClick={onBack}>
           ← Voltar
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
-          onClick={onSubmit}
+          variant="primary"
+          className="flex-1"
+          loading={loading}
           disabled={!canSubmit}
-          className="flex-1 flex items-center justify-center gap-2 bg-brand-cyan text-navy-900 font-semibold px-8 py-3 rounded-xl hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={onSubmit}
         >
-          {loading ? (
-            <>
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-              </svg>
-              Cadastrando...
-            </>
-          ) : (
-            'Finalizar cadastro'
-          )}
-        </button>
+          Finalizar cadastro
+        </Button>
       </div>
     </div>
   )

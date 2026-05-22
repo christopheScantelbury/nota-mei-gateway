@@ -1,6 +1,7 @@
 'use client'
 
 import type { CadastroMEState } from '../actions'
+import { Button } from '@/components/ui/Button'
 
 interface Props {
   state: CadastroMEState
@@ -96,20 +97,12 @@ export function StepRegime({ state, onChange, onNext, onBack }: Props) {
       </div>
 
       <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className="border border-navy-600 text-text-2 font-semibold px-6 py-3 rounded-xl hover:border-brand-cyan hover:text-text-1 transition"
-        >
+        <Button type="button" variant="secondary" onClick={onBack}>
           ← Voltar
-        </button>
-        <button
-          type="button"
-          onClick={onNext}
-          className="flex-1 bg-brand-cyan text-navy-900 font-semibold px-8 py-3 rounded-xl hover:opacity-90 transition"
-        >
+        </Button>
+        <Button type="button" variant="primary" className="flex-1" onClick={onNext}>
           Continuar →
-        </button>
+        </Button>
       </div>
     </div>
   )

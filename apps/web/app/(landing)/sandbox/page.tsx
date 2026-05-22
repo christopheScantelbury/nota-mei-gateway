@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import LogoAdaptive from '@/components/ui/LogoAdaptive'
 import ThemeToggle from '@/components/ui/ThemeToggle'
+import { Button } from '@/components/ui/Button'
 
 const DEMO_KEY = 'sk_test_sandbox_demo'
 // NEXT_PUBLIC_API_URL is set in Vercel env vars.
@@ -238,9 +239,9 @@ export default function SandboxPage() {
               {rateLeft} req restantes/h
             </span>
           )}
-          <button onClick={copyKey} className="px-3 py-2 text-xs font-semibold border border-brand-cyan/30 text-brand-cyan rounded-lg hover:bg-brand-cyan/10 transition">
+          <Button variant="outline" size="sm" onClick={copyKey}>
             {keyCopied ? '✓ Copiado' : 'Copiar'}
-          </button>
+          </Button>
         </div>
 
         {/* Main playground — 2 columns on lg */}
@@ -250,13 +251,9 @@ export default function SandboxPage() {
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="font-semibold text-text-1">Body da requisição</h2>
-              <button
-                onClick={runDemo}
-                disabled={loading || !!bodyError}
-                className="px-5 py-2 bg-brand-cyan hover:opacity-90 text-navy-900 font-semibold rounded-lg text-sm transition disabled:opacity-50"
-              >
+              <Button variant="primary" size="sm" loading={loading} disabled={loading || !!bodyError} onClick={runDemo}>
                 {loading ? '⏳ Aguardando…' : '▶ Executar'}
-              </button>
+              </Button>
             </div>
             <textarea
               className={`w-full h-72 bg-navy-900 border rounded-xl px-4 py-3 text-sm font-mono text-text-1 focus:outline-none resize-none transition ${
@@ -362,12 +359,9 @@ export default function SandboxPage() {
                 <code className="text-xs font-mono">{WEBHOOK_URL}</code>
               </p>
             </div>
-            <button
-              onClick={fetchWebhooks}
-              className="text-xs text-text-2 border border-navy-600 px-3 py-1.5 rounded-lg hover:border-brand-cyan hover:text-text-1 transition"
-            >
+            <Button variant="secondary" size="sm" onClick={fetchWebhooks}>
               ↻ Atualizar
-            </button>
+            </Button>
           </div>
 
           {webhooks.length === 0 ? (

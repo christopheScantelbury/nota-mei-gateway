@@ -131,20 +131,24 @@ export default function TemplatesList({ initialTemplates }: Props) {
 
               {/* Actions */}
               <div className="flex items-center gap-2 pt-1 border-t border-navy-600">
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => openEdit(t)}
-                  className="text-xs text-text-2 hover:text-brand-cyan transition"
+                  className="text-xs px-2"
                 >
                   ✏️ Editar
-                </button>
+                </Button>
                 <span className="text-navy-600">·</span>
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => handleDelete(t.id)}
                   disabled={deletingId === t.id}
-                  className="text-xs text-text-2 hover:text-nota-rejeitada transition disabled:opacity-50"
+                  className="text-xs px-2 hover:text-nota-rejeitada"
                 >
                   {deletingId === t.id ? 'Excluindo…' : '🗑 Excluir'}
-                </button>
+                </Button>
                 <div className="flex-1" />
                 <a
                   href={`/notas/nova?template=${t.id}`}

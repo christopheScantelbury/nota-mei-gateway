@@ -7,6 +7,7 @@ import { Menu } from 'lucide-react'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 import LogoAdaptive from '@/components/ui/LogoAdaptive'
 import MobileMenu from '@/components/landing/MobileMenu'
+import { Button } from '@/components/ui/Button'
 
 // ── Persona por pathname ─────────────────────────────────────────────────────
 // Cada página de produto tem sua variante de logo + cor de CTA. Páginas neutras
@@ -126,14 +127,16 @@ export default function Navbar() {
           {/* Mobile: ThemeToggle + hambúrguer */}
           <div className="flex sm:hidden items-center gap-2">
             <ThemeToggle />
-            <button
+            <Button
+              variant="ghost"
+              size="icon-sm"
               onClick={() => setMenuOpen(v => !v)}
-              className="p-2 rounded-lg text-text-2 hover:text-text-1 hover:bg-slate-100 dark:hover:bg-navy-700 transition"
               aria-label={menuOpen ? 'Fechar menu' : 'Abrir menu'}
               aria-expanded={menuOpen}
+              className="hover:bg-slate-100 dark:hover:bg-navy-700"
             >
               <Menu className="w-5 h-5" />
-            </button>
+            </Button>
           </div>
         </div>
       </nav>

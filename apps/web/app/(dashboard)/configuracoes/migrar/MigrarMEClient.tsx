@@ -4,6 +4,7 @@ import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/browser'
 import { formatCNPJ } from '@/lib/format'
+import { Button } from '@/components/ui/Button'
 
 type Empresa = { id: string; tipo: string; razao_social: string; cnpj: string }
 
@@ -134,12 +135,9 @@ export default function MigrarMEClient({ empresa }: { empresa: Empresa }) {
             </ul>
           </div>
 
-          <button
-            onClick={() => setStep(2)}
-            className="w-full bg-brand-cyan text-navy-900 font-semibold py-3 rounded-xl hover:opacity-90 transition"
-          >
+          <Button variant="primary" className="w-full" onClick={() => setStep(2)}>
             Continuar →
-          </button>
+          </Button>
         </div>
       )}
 
@@ -199,23 +197,12 @@ export default function MigrarMEClient({ empresa }: { empresa: Empresa }) {
           )}
 
           <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              disabled={loading}
-              className="flex-1 border border-navy-600 text-text-2 font-semibold py-3 rounded-xl
-                         hover:border-brand-cyan/30 hover:text-text-1 transition disabled:opacity-50"
-            >
+            <Button type="button" variant="secondary" className="flex-1" disabled={loading} onClick={() => setStep(1)}>
               ← Voltar
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-brand-cyan text-navy-900 font-semibold py-3 rounded-xl
-                         hover:opacity-90 transition disabled:opacity-50"
-            >
+            </Button>
+            <Button type="submit" variant="primary" className="flex-1" loading={loading}>
               {loading ? 'Migrando…' : 'Confirmar migração'}
-            </button>
+            </Button>
           </div>
         </form>
       )}
@@ -232,12 +219,9 @@ export default function MigrarMEClient({ empresa }: { empresa: Empresa }) {
             <strong>{REGIME_OPTIONS.find(r => r.value === regime)?.label}</strong>.
             O histórico de notas foi preservado.
           </p>
-          <button
-            onClick={() => router.push('/notas')}
-            className="mt-2 bg-brand-cyan text-navy-900 font-semibold px-8 py-3 rounded-xl hover:opacity-90 transition"
-          >
+          <Button variant="primary" className="mt-2" onClick={() => router.push('/notas')}>
             Ir para as notas →
-          </button>
+          </Button>
         </div>
       )}
     </div>

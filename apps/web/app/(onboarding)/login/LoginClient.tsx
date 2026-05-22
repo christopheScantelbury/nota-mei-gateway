@@ -317,13 +317,14 @@ export default function LoginClient() {
             <ResendButton onResend={handleResend} disabled={loading} />
 
             <div className="text-center">
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => { setStep('email'); setError(null); setOtp(Array(OTP_LENGTH).fill('')) }}
-                className="text-xs text-text-2 hover:text-text-1 transition"
               >
                 ← Usar outro e-mail
-              </button>
+              </Button>
             </div>
           </form>
         )}

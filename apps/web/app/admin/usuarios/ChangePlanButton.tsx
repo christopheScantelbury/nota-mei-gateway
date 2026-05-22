@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/Button'
 import type { PlanName } from '@/lib/plans'
 
 interface Props {
@@ -84,20 +85,12 @@ export default function ChangePlanButton({ userId, currentPlan, plans }: Props) 
             {error && <p className="text-xs text-nota-rejeitada mb-3">{error}</p>}
 
             <div className="flex gap-2">
-              <button
-                onClick={() => setOpen(false)}
-                disabled={isPending}
-                className="flex-1 py-2 text-sm rounded-lg border border-navy-600 text-text-2 hover:text-text-1 hover:border-navy-500 transition disabled:opacity-50"
-              >
+              <Button variant="secondary" className="flex-1" disabled={isPending} onClick={() => setOpen(false)}>
                 Cancelar
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={isPending || selected === currentPlan}
-                className="flex-1 py-2 text-sm rounded-lg bg-brand-cyan text-navy-900 font-semibold hover:opacity-90 transition disabled:opacity-50"
-              >
+              </Button>
+              <Button variant="primary" className="flex-1" loading={isPending} disabled={isPending || selected === currentPlan} onClick={handleSave}>
                 {isPending ? 'Salvando…' : 'Salvar'}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

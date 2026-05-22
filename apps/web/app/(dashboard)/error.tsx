@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { Button } from '@/components/ui/Button'
 
 interface Props {
   error: Error & { digest?: string }
@@ -26,12 +27,9 @@ export default function DashboardError({ error, reset }: Props) {
             : 'Ocorreu um erro inesperado ao carregar esta página.'}
         </p>
         <div className="flex gap-3 justify-center">
-          <button
-            onClick={reset}
-            className="text-sm font-semibold bg-brand-cyan text-navy-900 px-5 py-2.5 rounded-lg hover:opacity-90 transition"
-          >
+          <Button variant="primary" size="sm" onClick={reset}>
             Tentar novamente
-          </button>
+          </Button>
           <a
             href="/home"
             className="text-sm font-semibold border border-navy-600 text-text-2 px-5 py-2.5 rounded-lg hover:border-brand-cyan hover:text-text-1 transition"

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { Button } from '@/components/ui/Button'
 
 interface Props {
   apiKey: string
@@ -59,17 +60,15 @@ export function StepAPIKey({ apiKey, empresaId }: Props) {
             className="flex-1 bg-navy-900 border border-navy-600 rounded-lg px-3 py-2.5 text-xs font-mono text-text-1 focus:outline-none focus:border-brand-cyan"
             onFocus={e => e.target.select()}
           />
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
+            className={`shrink-0 ${copied ? 'bg-nota-autorizada text-navy-900 border-nota-autorizada' : ''}`}
             onClick={copy}
-            className={`px-4 rounded-lg text-sm font-semibold transition border ${
-              copied
-                ? 'bg-nota-autorizada text-navy-900 border-nota-autorizada'
-                : 'border-navy-600 text-text-1 hover:border-brand-cyan hover:text-brand-cyan'
-            }`}
           >
             {copied ? '✓ Copiado' : 'Copiar'}
-          </button>
+          </Button>
         </div>
         <p className="text-xs text-text-2 mt-1">
           Formato: <span className="font-mono">sk_live_…</span> — use no header{' '}

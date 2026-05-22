@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import ThemeToggle from '@/components/ui/ThemeToggle'
+import { Button } from '@/components/ui/Button'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
 
@@ -164,13 +165,9 @@ export default function StatusPage() {
               {new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>
-          <button
-            onClick={fetchHealth}
-            disabled={loading}
-            className="ml-auto shrink-0 text-sm text-text-2 border border-navy-600 px-3 py-1.5 rounded-lg hover:border-brand-cyan hover:text-text-1 transition disabled:opacity-50"
-          >
+          <Button variant="secondary" size="sm" loading={loading} onClick={fetchHealth} className="ml-auto shrink-0">
             {loading ? '…' : '↻ Atualizar'}
-          </button>
+          </Button>
         </div>
 
         {/* Service list */}

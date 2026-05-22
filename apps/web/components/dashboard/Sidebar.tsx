@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 import { EmpresaSwitcher } from '@/components/dashboard/EmpresaSwitcher'
+import { Button } from '@/components/ui/Button'
 
 // ── Nav item definitions ────────────────────────────────────────────────────
 
@@ -177,12 +178,14 @@ function NavContent({
       {/* Footer */}
       <div className="px-4 py-4 border-t border-navy-600 flex items-center justify-between gap-2">
         <form action="/auth/signout" method="post">
-          <button
+          <Button
             type="submit"
-            className="text-xs text-text-2 hover:text-nota-rejeitada transition-colors min-h-[44px] flex items-center"
+            variant="ghost"
+            size="sm"
+            className="text-xs hover:text-nota-rejeitada"
           >
             Sair
-          </button>
+          </Button>
         </form>
         <div className="flex items-center gap-1">
           {notificationBell}
@@ -244,18 +247,20 @@ export default function Sidebar({
             )
           })()}
         </Link>
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => setOpen(true)}
           aria-label="Abrir menu"
           aria-expanded={open}
-          className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-text-2 hover:text-text-1 hover:bg-navy-600 transition"
+          className="hover:bg-navy-600"
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
             <rect y="3"  width="20" height="2" rx="1" />
             <rect y="9"  width="20" height="2" rx="1" />
             <rect y="15" width="20" height="2" rx="1" />
           </svg>
-        </button>
+        </Button>
       </div>
 
       {/* ── Mobile drawer ── */}
@@ -275,15 +280,17 @@ export default function Sidebar({
             aria-label="Menu de navegação"
           >
             <div className="flex items-center justify-end px-4 py-3 border-b border-navy-600">
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => setOpen(false)}
                 aria-label="Fechar menu"
-                className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-text-2 hover:text-text-1 hover:bg-navy-600 transition"
+                className="hover:bg-navy-600"
               >
                 <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
                   <path d="M1 1l16 16M17 1L1 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                 </svg>
-              </button>
+              </Button>
             </div>
             <NavContent
               {...navProps}

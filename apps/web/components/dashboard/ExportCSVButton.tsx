@@ -1,5 +1,6 @@
 'use client'
 
+import { Button } from '@/components/ui/Button'
 import type { Nota } from '@/lib/types'
 
 interface Props {
@@ -43,14 +44,11 @@ export default function ExportCSVButton({ notas }: Props) {
   }
 
   return (
-    <button
-      onClick={handleExport}
-      className="flex items-center gap-1.5 border border-navy-600 text-text-2 text-sm font-semibold px-3 py-2 rounded-lg hover:border-brand-cyan hover:text-text-1 transition"
-    >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <Button variant="secondary" size="sm" onClick={handleExport}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
       </svg>
       Exportar CSV
-    </button>
+    </Button>
   )
 }

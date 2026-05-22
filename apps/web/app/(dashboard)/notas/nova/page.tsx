@@ -9,6 +9,7 @@ import { maskCNPJ, maskCPF } from '@/lib/format'
 import ISSRecolhimentoCard from '@/components/nota/ISSRecolhimentoCard'
 import SugestorNBS from '@/components/nota/SugestorNBS'
 import NBSServicoPicker from '@/components/nota/NBSServicoPicker'
+import { Button } from '@/components/ui/Button'
 import type { NotaTemplate } from '@/app/api/templates/route'
 import type { RegimeTributario } from '@/lib/types'
 
@@ -26,15 +27,6 @@ function validarCPF(cpf: string): boolean {
   const r1 = (calc(9) * 10) % 11
   const r2 = (calc(10) * 10) % 11
   return parseInt(d[9]) === (r1 > 9 ? 0 : r1) && parseInt(d[10]) === (r2 > 9 ? 0 : r2)
-}
-
-function Spinner() {
-  return (
-    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-    </svg>
-  )
 }
 
 // ── Field + Label ─────────────────────────────────────────────────────────────
@@ -537,14 +529,15 @@ export default function NovaNota() {
                   value={idempotencyKey}
                   onChange={e => setIdempotencyKey(e.target.value)}
                 />
-                <button
+                <Button
                   type="button"
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setIdempotencyKey(crypto.randomUUID())}
-                  className="border border-navy-600 text-text-2 text-xs px-3 py-2 rounded-lg hover:border-brand-cyan hover:text-brand-cyan transition"
                   title="Gerar novo UUID"
                 >
                   ↺
-                </button>
+                </Button>
               </div>
               <p className="text-xs text-text-2">Reenvie com a mesma chave para evitar duplicatas.</p>
             </Field>
@@ -553,20 +546,15 @@ export default function NovaNota() {
 
         {/* Submit */}
         <div className="flex items-center gap-4">
-          <button
+          <Button
             type="submit"
+            variant="primary"
+            size="lg"
+            loading={submitting}
             disabled={submitting}
-            className="flex items-center gap-2 bg-brand-cyan text-navy-900 font-semibold px-8 py-3 rounded-xl hover:opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {submitting ? (
-              <>
-                <Spinner />
-                Enviando...
-              </>
-            ) : (
-              'Emitir nota'
-            )}
-          </button>
+            {submitting ? 'Enviando…' : 'Emitir nota'}
+          </Button>
           <Link href="/notas" className="text-sm text-text-2 hover:text-text-1 transition">
             Cancelar
           </Link>

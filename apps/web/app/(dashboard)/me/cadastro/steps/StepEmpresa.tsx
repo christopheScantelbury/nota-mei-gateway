@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { validarCNPJ } from '@/lib/cnpj'
 import { CepMunicipioInput } from '@/components/ui/CepMunicipioInput'
 import { maskCNPJ } from '@/lib/format'
+import { Button } from '@/components/ui/Button'
 import type { CadastroMEState } from '../actions'
 
 // ── styles ────────────────────────────────────────────────────────────────────
@@ -178,13 +179,9 @@ export function StepEmpresa({ state, onChange, onNext }: Props) {
         />
       </Field>
 
-      <button
-        type="button"
-        onClick={handleNext}
-        className="bg-brand-cyan text-navy-900 font-semibold px-8 py-3 rounded-xl hover:opacity-90 transition"
-      >
+      <Button type="button" variant="primary" onClick={handleNext}>
         Continuar →
-      </button>
+      </Button>
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 import LogoAdaptive from '@/components/ui/LogoAdaptive'
+import { Button } from '@/components/ui/Button'
 
 const NAV = [
   { href: '/docs',            label: 'Visão geral',    exact: true },
@@ -92,13 +93,15 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
             <ThemeToggle />
 
             {/* Hambúrguer — md and below */}
-            <button
+            <Button
+              variant="ghost"
+              size="icon-sm"
               onClick={() => setOpen(true)}
-              className="md:hidden p-2 rounded-lg text-text-2 hover:text-text-1 hover:bg-slate-100 dark:hover:bg-navy-700 transition"
               aria-label="Abrir menu da documentação"
+              className="md:hidden hover:bg-slate-100 dark:hover:bg-navy-700"
             >
               <Menu className="w-5 h-5" />
-            </button>
+            </Button>
           </div>
         </div>
       </header>
@@ -133,13 +136,15 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
           {/* Mobile-only header inside drawer */}
           <div className="flex items-center justify-between px-4 py-4 border-b border-slate-200 dark:border-navy-600 md:hidden">
             <span className="text-sm font-semibold">Documentação</span>
-            <button
+            <Button
+              variant="ghost"
+              size="icon-sm"
               onClick={() => setOpen(false)}
-              className="p-1.5 rounded-lg text-text-2 hover:text-text-1 hover:bg-slate-100 dark:hover:bg-navy-700 transition"
               aria-label="Fechar menu"
+              className="hover:bg-slate-100 dark:hover:bg-navy-700"
             >
               <X className="w-4 h-4" />
-            </button>
+            </Button>
           </div>
 
           {/* Nav links */}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { Button } from '@/components/ui/Button'
 import type { Notification } from '@/app/api/notifications/route'
 
 const LS_KEY = 'mei_dismissed_notifications'
@@ -85,10 +86,12 @@ export default function NotificationBell() {
 
   return (
     <div className="relative" ref={panelRef}>
-      <button
+      <Button
+        variant="ghost"
+        size="icon"
         onClick={() => setOpen(v => !v)}
         aria-label={`Notificações${unread > 0 ? ` — ${unread} não lidas` : ''}`}
-        className="relative flex items-center justify-center w-9 h-9 rounded-lg text-text-2 hover:text-text-1 hover:bg-navy-600 transition"
+        className="relative hover:bg-navy-600"
       >
         <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
           <path d="M9 2a5 5 0 0 1 5 5v2l1.5 2.5H2.5L4 9V7a5 5 0 0 1 5-5z" />
@@ -99,7 +102,7 @@ export default function NotificationBell() {
             {unread > 9 ? '9+' : unread}
           </span>
         )}
-      </button>
+      </Button>
 
       {open && (
         <div className="absolute left-0 bottom-full mb-2 w-80 max-w-[calc(100vw-2rem)] bg-navy-700 border border-navy-600 rounded-xl shadow-xl z-50 overflow-hidden">

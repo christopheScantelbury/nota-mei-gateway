@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { X } from 'lucide-react'
 import ThemeToggle from '@/components/ui/ThemeToggle'
+import { Button } from '@/components/ui/Button'
 
 export interface NavLink {
   label: string
@@ -31,13 +32,15 @@ export default function MobileMenu({ isOpen, onClose, links, cta, secondaryCta }
         aria-label="Menu de navegação"
       >
         {/* Botão fechar */}
-        <button
+        <Button
+          variant="ghost"
+          size="icon-sm"
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-lg text-text-2 hover:text-text-1 hover:bg-slate-100 dark:hover:bg-navy-700 transition"
           aria-label="Fechar menu"
+          className="absolute top-4 right-4 hover:bg-slate-100 dark:hover:bg-navy-700"
         >
           <X className="w-5 h-5" />
-        </button>
+        </Button>
 
         {/* Links de navegação */}
         <nav className="flex flex-col px-6 pt-6 pb-4 gap-0">

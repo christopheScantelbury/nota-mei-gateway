@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 import { formatBRL } from '@/lib/format'
+import { Button } from '@/components/ui/Button'
 
 type Delivery = {
   id: string
@@ -106,20 +107,12 @@ export default function WebhooksConfig({ deliveries }: Props) {
             onChange={e => setUrl(e.target.value)}
           />
           <div className="flex gap-3 shrink-0">
-            <button
-              onClick={saveUrl}
-              disabled={!url}
-              className="flex-1 sm:flex-none px-4 py-2.5 bg-brand-cyan text-navy-900 font-semibold text-sm rounded-lg hover:opacity-90 transition disabled:opacity-50"
-            >
+            <Button variant="primary" size="sm" disabled={!url} onClick={saveUrl} className="flex-1 sm:flex-none">
               {saved ? '✓ Salvo' : 'Salvar'}
-            </button>
-            <button
-              onClick={sendTest}
-              disabled={testing || !url}
-              className="flex-1 sm:flex-none px-4 py-2.5 border border-navy-600 text-text-2 font-semibold text-sm rounded-lg hover:border-brand-cyan hover:text-text-1 transition disabled:opacity-50"
-            >
+            </Button>
+            <Button variant="secondary" size="sm" loading={testing} disabled={testing || !url} onClick={sendTest} className="flex-1 sm:flex-none">
               {testing ? '…' : 'Testar'}
-            </button>
+            </Button>
           </div>
         </div>
       </div>

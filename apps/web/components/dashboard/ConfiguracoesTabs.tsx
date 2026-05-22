@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { formatCNPJ } from '@/lib/format'
+import { Button } from '@/components/ui/Button'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Aba = 'perfil' | 'certificado' | 'api-keys' | 'webhook'
@@ -107,13 +108,16 @@ function PerfilTab({ mei }: { mei: MEIData }) {
         <label className="text-sm font-medium text-text-2">Código IBGE do Município</label>
         <input className={readonlyCls} value={mei.municipio_ibge} readOnly />
       </div>
-      <button
-        onClick={save}
+      <Button
+        variant="primary"
+        size="sm"
+        loading={saving}
         disabled={saving || razaoSocial === mei.razao_social}
-        className="self-start bg-brand-cyan text-navy-900 font-semibold text-sm px-6 py-2.5 rounded-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+        onClick={save}
+        className="self-start"
       >
-        {saving ? 'Salvando...' : 'Salvar alterações'}
-      </button>
+        Salvar alterações
+      </Button>
     </div>
   )
 }
@@ -203,13 +207,16 @@ function CertificadoTab({ cert_valid_until }: { cert_valid_until: string | null 
             onChange={e => setPassword(e.target.value)}
           />
         </div>
-        <button
-          onClick={upload}
+        <Button
+          variant="primary"
+          size="sm"
+          loading={uploading}
           disabled={uploading || !file || !password}
-          className="self-start bg-brand-cyan text-navy-900 font-semibold text-sm px-6 py-2.5 rounded-lg hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={upload}
+          className="self-start"
         >
-          {uploading ? 'Enviando...' : 'Upload certificado'}
-        </button>
+          Upload certificado
+        </Button>
       </div>
     </div>
   )
@@ -283,12 +290,9 @@ function APIKeysTab({ initialKeys }: { initialKeys: APIKey[] }) {
             <code className="flex-1 bg-navy-900 rounded-lg px-3 py-2 text-xs font-mono text-text-1 break-all">
               {newKey}
             </code>
-            <button
-              onClick={copyKey}
-              className="shrink-0 border border-brand-cyan text-brand-cyan text-xs font-semibold px-3 py-2 rounded-lg hover:bg-brand-cyan/10 transition"
-            >
+            <Button variant="outline" size="sm" className="shrink-0" onClick={copyKey}>
               {copied ? '✓' : 'Copiar'}
-            </button>
+            </Button>
           </div>
           <p className="text-xs text-text-2 mt-2">⚠️ Guarde-a agora — ela não será exibida novamente.</p>
           <button onClick={() => setNewKey(null)} className="mt-2 text-xs text-text-2 underline hover:text-nota-rejeitada transition">
@@ -310,12 +314,9 @@ function APIKeysTab({ initialKeys }: { initialKeys: APIKey[] }) {
                 {k.label && <p className="text-xs text-text-2">{k.label}</p>}
               </div>
               <p className="text-xs text-text-2 shrink-0">Criada {formatDate(k.created_at)}</p>
-              <button
-                onClick={() => revokeKey(k.id)}
-                className="shrink-0 text-xs text-nota-rejeitada border border-nota-rejeitada/30 px-3 py-1 rounded-lg hover:bg-nota-rejeitada/10 transition"
-              >
+              <Button variant="destructive" size="sm" className="shrink-0" onClick={() => revokeKey(k.id)}>
                 Revogar
-              </button>
+              </Button>
             </div>
           ))}
         </div>
@@ -323,12 +324,9 @@ function APIKeysTab({ initialKeys }: { initialKeys: APIKey[] }) {
         <p className="text-text-2 text-sm">Nenhuma API Key ativa.</p>
       )}
 
-      <button
-        onClick={() => setShowModal(true)}
-        className="self-start border border-brand-cyan text-brand-cyan font-semibold text-sm px-5 py-2.5 rounded-lg hover:bg-brand-cyan/10 transition"
-      >
+      <Button variant="outline" size="sm" className="self-start" onClick={() => setShowModal(true)}>
         + Criar nova API Key
-      </button>
+      </Button>
 
       {/* Modal */}
       {showModal && (
@@ -344,19 +342,12 @@ function APIKeysTab({ initialKeys }: { initialKeys: APIKey[] }) {
               autoFocus
             />
             <div className="flex gap-3 mt-5">
-              <button
-                onClick={createKey}
-                disabled={creating}
-                className="flex-1 bg-brand-cyan text-navy-900 font-semibold text-sm py-2.5 rounded-lg hover:opacity-90 transition disabled:opacity-50"
-              >
-                {creating ? 'Criando...' : 'Criar'}
-              </button>
-              <button
-                onClick={() => { setShowModal(false); setLabel('') }}
-                className="flex-1 border border-navy-600 text-text-2 font-semibold text-sm py-2.5 rounded-lg hover:border-brand-cyan transition"
-              >
+              <Button variant="primary" className="flex-1" loading={creating} onClick={createKey}>
+                {creating ? 'Criando…' : 'Criar'}
+              </Button>
+              <Button variant="secondary" className="flex-1" onClick={() => { setShowModal(false); setLabel('') }}>
                 Cancelar
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -425,20 +416,12 @@ function WebhookTab() {
       </div>
 
       <div className="flex gap-3">
-        <button
-          onClick={save}
-          disabled={!url}
-          className="bg-brand-cyan text-navy-900 font-semibold text-sm px-5 py-2.5 rounded-lg hover:opacity-90 transition disabled:opacity-50"
-        >
+        <Button variant="primary" size="sm" disabled={!url} onClick={save}>
           {saved ? '✓ Salvo' : 'Salvar'}
-        </button>
-        <button
-          onClick={sendTest}
-          disabled={testing || !url}
-          className="border border-navy-600 text-text-2 font-semibold text-sm px-5 py-2.5 rounded-lg hover:border-brand-cyan hover:text-text-1 transition disabled:opacity-50"
-        >
-          {testing ? 'Enviando...' : 'Enviar payload de teste'}
-        </button>
+        </Button>
+        <Button variant="secondary" size="sm" loading={testing} disabled={testing || !url} onClick={sendTest}>
+          {testing ? 'Enviando…' : 'Enviar payload de teste'}
+        </Button>
       </div>
 
       {testResult && (

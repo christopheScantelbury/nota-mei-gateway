@@ -3,6 +3,7 @@ export const metadata = { title: 'Notas Fiscais' }
 import Link from 'next/link'
 import { createAdminClient } from '@/lib/supabase/admin'
 import StatusBadge from '@/components/ui/StatusBadge'
+import { Button } from '@/components/ui/Button'
 import type { NotaStatus } from '@/lib/types'
 import { formatBRL } from '@/lib/format'
 
@@ -99,12 +100,9 @@ export default async function AdminNotasPage({
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
-        <button
-          type="submit"
-          className="px-4 py-2 text-sm bg-brand-cyan text-navy-900 font-semibold rounded-lg hover:opacity-90 transition"
-        >
+        <Button type="submit" variant="primary" size="sm">
           Filtrar
-        </button>
+        </Button>
         {(statusFilter || q) && (
           <Link
             href="/admin/notas"
