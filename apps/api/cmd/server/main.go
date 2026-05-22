@@ -225,7 +225,7 @@ func main() {
 		billingRepo, billingGrd, publisher,
 		apiBase, cfg.WebhookHMACSecret,
 	).WithNBSValidator(nbsValidator).WithISSLookup(issLookup).WithStripeClient(sc).
-		WithStorage(objectStore).WithAuthRepo(authRepo)
+		WithStorage(objectStore).WithAuthRepo(authRepo).WithEmailService(emailSvc)
 	if cfg.AppEnv == "development" {
 		nfseH = nfseH.WithDevMode()
 	}
@@ -485,6 +485,7 @@ func main() {
 	v1.Get("/nfse/:id", nfseH.ConsultarNota)
 	v1.Delete("/nfse/:id", nfseH.CancelarNota)
 	v1.Post("/nfse/:id/substituir", nfseH.SubstituirNota) // ME-32: 9-day substitution window (ME/EPP only)
+	v1.Post("/nfse/:id/email", nfseH.EnviarEmail)         // dashboard "enviar por e-mail"
 	v1.Get("/nfse/:id/xml", nfseH.DownloadXML)
 	v1.Get("/nfse/:id/pdf", nfseH.DownloadPDF)
 

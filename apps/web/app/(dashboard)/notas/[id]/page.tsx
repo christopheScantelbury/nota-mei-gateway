@@ -14,8 +14,6 @@ import { AcoesDaNota }  from './components/AcoesDaNota'
 import { ErroRejeicao } from '@/app/(dashboard)/notas/nova/components/ErroRejeicao'
 import type { Nota } from '@/lib/types'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
-
 function formatBRL(value: number | null) {
   if (value == null) return '—'
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
@@ -209,7 +207,7 @@ export default async function NotaDetailPage({
       <div className="flex flex-wrap gap-3">
         {hasXML && (
           <a
-            href={`${API_BASE}/v1/nfse/${nota.id}/xml`}
+            href={`/api/notas/${nota.id}/xml`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm px-4 py-2 rounded-lg border border-navy-600 text-text-1 hover:border-brand-cyan hover:text-brand-cyan transition"
@@ -219,7 +217,7 @@ export default async function NotaDetailPage({
         )}
         {hasPDF && (
           <a
-            href={`${API_BASE}/v1/nfse/${nota.id}/pdf`}
+            href={`/api/notas/${nota.id}/pdf`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm px-4 py-2 rounded-lg border border-navy-600 text-text-1 hover:border-brand-cyan hover:text-brand-cyan transition"

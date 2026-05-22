@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/auth"
@@ -14,6 +15,7 @@ import (
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/document"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/nfse"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/webhook"
+	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/email"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/storage"
 	stripeClient "github.com/christopheScantelbury/nota-mei-gateway/api/pkg/stripe"
 	"github.com/gofiber/fiber/v2"
@@ -42,6 +44,7 @@ type NFSeHandler struct {
 	issLookup    *document.ISSLookup
 	sc           *stripeClient.Client // optional — nil disables metered billing
 	store        storage.ObjectStore  // optional — nil disables S3 upload (STOR-01)
+	emailSvc     *email.Service       // optional — nil disables "enviar por e-mail"
 	apiBase      string
 	whSecret     string // HMAC secret used to sign webhook payloads
 	devMode      bool   // true in development — skips cert loading for NoopSigner
@@ -116,6 +119,13 @@ func (h *NFSeHandler) WithISSLookup(l *document.ISSLookup) *NFSeHandler {
 // When set, XMLs and PDFs are uploaded to S3 instead of being stored in the DB.
 func (h *NFSeHandler) WithStorage(s storage.ObjectStore) *NFSeHandler {
 	h.store = s
+	return h
+}
+
+// WithEmailService attaches an email.Service so the dashboard "enviar por
+// e-mail" action (POST /v1/nfse/:id/email) can deliver the nota to a recipient.
+func (h *NFSeHandler) WithEmailService(svc *email.Service) *NFSeHandler {
+	h.emailSvc = svc
 	return h
 }
 
@@ -1372,6 +1382,96 @@ func (h *NFSeHandler) loadNotaForOwner(
 		return h.notaRepo.FindByID(ctx, notaID, mei.ID)
 	}
 	return nil, err
+}
+
+// ─── POST /v1/nfse/:id/email ─────────────────────────────────────────────────
+
+// EnviarEmail handles POST /v1/nfse/:id/email — sends the authorized nota to an
+// arbitrary recipient (typically the tomador). The e-mail links to the official
+// public consultation page, which renders the DANFSE and offers PDF/XML download
+// for any 50-digit chave de acesso — so the recipient needs no authentication.
+func (h *NFSeHandler) EnviarEmail(c *fiber.Ctx) error {
+	if h.emailSvc == nil {
+		return internalError(c, "serviço de e-mail não configurado")
+	}
+
+	mei := auth.GetMEI(c)
+	empresa := auth.GetEmpresa(c)
+	if mei == nil && empresa == nil {
+		return internalError(c, "nenhuma empresa autenticada no contexto")
+	}
+
+	notaID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return notFound(c)
+	}
+
+	var body struct {
+		Email string `json:"email"`
+	}
+	if err := c.BodyParser(&body); err != nil {
+		return validationError(c, "corpo da requisição inválido")
+	}
+	body.Email = strings.TrimSpace(body.Email)
+	if body.Email == "" {
+		return validationError(c, "e-mail do destinatário é obrigatório")
+	}
+
+	nota, err := h.loadNotaForOwner(c.Context(), notaID, mei, empresa)
+	if err != nil {
+		if isNotFound(err) {
+			return notFound(c)
+		}
+		return internalError(c, "erro ao consultar nota")
+	}
+	if nota.Status != "AUTORIZADA" {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error":      "INVALID_STATUS",
+			"message":    "apenas notas autorizadas podem ser enviadas por e-mail",
+			"request_id": c.Locals("request_id"),
+		})
+	}
+
+	razaoSocial := ""
+	if empresa != nil {
+		razaoSocial = empresa.RazaoSocial
+	} else if mei != nil {
+		razaoSocial = mei.RazaoSocial
+	}
+
+	numeroNFSe := ""
+	if nota.NumeroNFSe != nil {
+		numeroNFSe = *nota.NumeroNFSe
+	}
+	codVerif := ""
+	if nota.CodVerificacao != nil {
+		codVerif = *nota.CodVerificacao
+	}
+	valor := ""
+	if nota.ValorServico != nil {
+		valor = fmt.Sprintf("R$ %.2f", *nota.ValorServico)
+	}
+
+	// Public consultation link — accessible by the recipient without auth.
+	publicURL := ""
+	if len(numeroNFSe) == 50 {
+		publicURL = "https://www.nfse.gov.br/consultapublica?chaveAcesso=" + numeroNFSe
+	}
+
+	if err := h.emailSvc.SendNotaAutorizada(
+		c.Context(), body.Email, razaoSocial, numeroNFSe, codVerif, valor, publicURL, publicURL,
+	); err != nil {
+		log.Ctx(c.UserContext()).Error().Err(err).
+			Str("nota_id", notaID.String()).
+			Msg("falha ao enviar nota por e-mail")
+		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
+			"error":      "EMAIL_SEND_FAILED",
+			"message":    "falha ao enviar e-mail",
+			"request_id": c.Locals("request_id"),
+		})
+	}
+
+	return c.JSON(fiber.Map{"ok": true})
 }
 
 // ─── helpers ───────────────────────────────────────────────────────────────

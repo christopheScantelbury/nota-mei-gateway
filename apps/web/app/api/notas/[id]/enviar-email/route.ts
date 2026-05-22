@@ -17,12 +17,12 @@ export async function POST(
     return NextResponse.json({ message: 'E-mail obrigatório' }, { status: 400 })
   }
 
-  // Verify ownership
+  // Verify ownership — RLS isolates by empresa_id (filtering by mei_id here would
+  // miss notas emitted via the unified DPS/ME path, where mei_id is NULL).
   const { data: nota } = await supabase
     .from('notas_fiscais')
     .select('id, status')
     .eq('id', params.id)
-    .eq('mei_id', session.user.id)
     .single()
 
   if (!nota) return NextResponse.json({ message: 'Nota não encontrada' }, { status: 404 })
