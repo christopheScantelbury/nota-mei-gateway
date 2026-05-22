@@ -16,7 +16,7 @@ type Props = {
   /** descrição livre que o usuário já digitou (campo Discriminação) */
   descricao: string
   /** chamado quando o usuário escolhe um código sugerido */
-  onSelect: (codigo: string) => void
+  onSelect: (codigo: string, descricao: string) => void
 }
 
 const CONF_BADGE: Record<Sugestao['confianca'], string> = {
@@ -61,8 +61,8 @@ export default function SugestorNBS({ descricao, onSelect }: Props) {
     }
   }
 
-  function escolher(codigo: string) {
-    onSelect(codigo)
+  function escolher(codigo: string, descricao: string) {
+    onSelect(codigo, descricao)
     setOpen(false)
   }
 
@@ -98,7 +98,7 @@ export default function SugestorNBS({ descricao, onSelect }: Props) {
                 <li key={s.codigo}>
                   <button
                     type="button"
-                    onClick={() => escolher(s.codigo)}
+                    onClick={() => escolher(s.codigo, s.descricao)}
                     className="w-full text-left rounded-lg border border-navy-600 bg-navy-700 p-3 hover:border-brand-blue/40 hover:bg-navy-700/80 transition group"
                   >
                     <div className="flex items-center justify-between gap-2 mb-1">

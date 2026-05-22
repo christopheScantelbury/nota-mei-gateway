@@ -7,6 +7,7 @@ import { CepMunicipioInput } from '@/components/ui/CepMunicipioInput'
 import { validarCNPJ } from '@/lib/cnpj'
 import ISSRecolhimentoCard from '@/components/nota/ISSRecolhimentoCard'
 import SugestorNBS from '@/components/nota/SugestorNBS'
+import NBSServicoPicker from '@/components/nota/NBSServicoPicker'
 import type { NotaTemplate } from '@/app/api/templates/route'
 import type { RegimeTributario } from '@/lib/types'
 
@@ -86,6 +87,7 @@ export default function NovaNota() {
 
   // Serviço
   const [codigoNbs, setCodigoNbs] = useState('')
+  const [nbsDescricao, setNbsDescricao] = useState('')
   const [discriminacao, setDiscriminacao] = useState('')
   const [valorServico, setValorServico] = useState('')
   const [aliquotaIss, setAliquotaIss] = useState('2.0')
@@ -142,6 +144,7 @@ export default function NovaNota() {
   function applyTemplate(tpl: NotaTemplate) {
     setSelectedTemplate(tpl.id)
     setCodigoNbs(tpl.servico.codigo_nbs)
+    setNbsDescricao('')
     setDiscriminacao(tpl.servico.discriminacao)
     setValorServico(String(tpl.servico.valor))
     setAliquotaIss(String(tpl.servico.aliquota_iss))
@@ -176,7 +179,7 @@ export default function NovaNota() {
 
   function validate(): boolean {
     const errs: FormErrors = {}
-    if (!codigoNbs.trim()) errs.codigoNbs = 'Código NBS obrigatório'
+    if (!codigoNbs.trim()) errs.codigoNbs = 'Selecione o serviço prestado'
     if (!discriminacao.trim()) errs.discriminacao = 'Discriminação obrigatória'
     const v = parseFloat(valorServico.replace(',', '.'))
     if (isNaN(v) || v <= 0) errs.valorServico = 'Valor deve ser maior que zero'
@@ -350,18 +353,25 @@ export default function NovaNota() {
         <section className="rounded-xl border border-navy-600 bg-navy-700 p-6 flex flex-col gap-4">
           <h2 className="font-display font-bold text-lg">1. Dados do Serviço</h2>
 
-          <Field label="Código NBS" error={errors.codigoNbs}>
-            <input
-              type="text"
-              className={inputCls}
-              placeholder="Ex: 01.01.01.10"
+          <Field label="Serviço prestado" error={errors.codigoNbs}>
+            <NBSServicoPicker
               value={codigoNbs}
-              onChange={e => setCodigoNbs(e.target.value)}
+              selectedDescricao={nbsDescricao}
+              onSelect={(codigo, descricao) => {
+                setCodigoNbs(codigo)
+                setNbsDescricao(descricao)
+              }}
+              error={errors.codigoNbs}
             />
-            <p className="text-xs text-text-2">Código Nacional de Bens e Serviços da atividade prestada</p>
+            <p className="text-xs text-text-2">
+              Busque pelo nome do serviço. A lista é filtrada conforme a categoria da sua empresa.
+            </p>
             <SugestorNBS
               descricao={discriminacao}
-              onSelect={(codigo) => setCodigoNbs(codigo)}
+              onSelect={(codigo, descricao) => {
+                setCodigoNbs(codigo)
+                setNbsDescricao(descricao)
+              }}
             />
           </Field>
 
