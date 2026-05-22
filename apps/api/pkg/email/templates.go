@@ -47,25 +47,48 @@ type NotaAutorizadaParams struct {
 
 // NotaAutorizadaHTML returns the HTML body for a nota-autorizada notification.
 func NotaAutorizadaHTML(p NotaAutorizadaParams) string {
+	// NFS-e Nacional identifica a nota pela chave de acesso (50 dígitos).
+	// Notas no modelo ABRASF possuem código de verificação. Renderiza só o
+	// que existir, evitando boxes vazios.
+	numeroLabel := "Número da NFS-e"
+	if len(p.NumeroNFSe) == 50 {
+		numeroLabel = "Chave de Acesso"
+	}
+
+	var detalhes string
+	if p.NumeroNFSe != "" {
+		detalhes += fmt.Sprintf(`
+  <div class="label">%s</div>
+  <div class="code">%s</div>`, numeroLabel, p.NumeroNFSe)
+	}
+	if p.CodigoVerific != "" {
+		detalhes += fmt.Sprintf(`
+  <div class="label" style="margin-top:20px;">Código de Verificação</div>
+  <div class="code">%s</div>`, p.CodigoVerific)
+	}
+	if p.ValorServico != "" {
+		detalhes += fmt.Sprintf(`
+  <div class="label" style="margin-top:20px;">Valor do Serviço</div>
+  <div class="value">R$ %s</div>`, p.ValorServico)
+	}
+
+	// Botão de consulta pública — só aparece quando há um link válido.
+	var botoes string
+	if p.PdfURL != "" {
+		botoes = fmt.Sprintf(`
+  <hr class="divider"/>
+  <p><a class="btn" href="%s">Consultar e baixar a NFS-e</a></p>
+  <p style="font-size:13px;color:#8AA0B8;margin-top:12px;">O link acima abre a consulta pública oficial da NFS-e, onde o destinatário pode visualizar e baixar o PDF (DANFSE) e o XML sem necessidade de login.</p>`, p.PdfURL)
+	}
+
 	return htmlOpen() + fmt.Sprintf(`
 <div class="header"><h1>Nota Fiscal Autorizada ✓</h1></div>
 <div class="body">
   <p>Olá, <strong>%s</strong>!</p>
   <p>Sua nota fiscal foi <span class="status-ok">AUTORIZADA</span> pela Receita Federal.</p>
-  <hr class="divider"/>
-  <div class="label">Número NFS-e</div>
-  <div class="value">%s</div>
-  <div class="label">Código de Verificação</div>
-  <div class="code">%s</div>
-  <div class="label" style="margin-top:20px;">Valor do Serviço</div>
-  <div class="value">R$ %s</div>
-  <hr class="divider"/>
-  <p>
-    <a class="btn" href="%s">Baixar PDF</a>&nbsp;&nbsp;
-    <a class="btn" style="background:#1E3050;color:#00E8FF;" href="%s">Baixar XML</a>
-  </p>
+  <hr class="divider"/>%s%s
 </div>
-`, p.RazaoSocial, p.NumeroNFSe, p.CodigoVerific, p.ValorServico, p.PdfURL, p.XMLURL) +
+`, p.RazaoSocial, detalhes, botoes) +
 		htmlClose()
 }
 

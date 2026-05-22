@@ -1514,7 +1514,17 @@ func (h *NFSeHandler) EnviarEmail(c *fiber.Ctx) error {
 	}
 	valor := ""
 	if nota.ValorServico != nil {
-		valor = fmt.Sprintf("R$ %.2f", *nota.ValorServico)
+		valor = fmt.Sprintf("%.2f", *nota.ValorServico)
+	}
+
+	// Garante que a nota já está totalmente processada antes de enviar:
+	// sem o número/chave de acesso o e-mail sairia incompleto (campos vazios).
+	if strings.TrimSpace(numeroNFSe) == "" {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error":      "INCOMPLETE_NOTA",
+			"message":    "a nota ainda não possui número/chave de acesso; aguarde a conclusão do processamento antes de enviar por e-mail",
+			"request_id": c.Locals("request_id"),
+		})
 	}
 
 	// Public consultation link — accessible by the recipient without auth.
