@@ -115,24 +115,31 @@ export default function ISSRecolhimentoCard({
     )
   }
 
-  // Simples Nacional (MEI ou ME/EPP) → DAS via PGDAS-D
+  // Simples Nacional (MEI ou ME/EPP) → DAS via PGMEI (MEI) ou PGDAS-D (ME/EPP)
+  const isMei = regime === 'SIMPLES_MEI' || regime == null
+  const dasLabel  = isMei ? 'PGMEI'   : 'PGDAS-D'
+  const dasHref   = isMei
+    ? 'https://www8.receita.fazenda.gov.br/SimplesNacional/Aplicacoes/ATBHE/pgmei2012.app.aspx'
+    : 'https://www8.receita.fazenda.gov.br/SimplesNacional/Aplicacoes/ATBHE/pgdasd2018.app.aspx'
+  const regimeLabel = isMei ? 'MEI' : 'Simples Nacional'
+
   return (
     <div className="rounded-xl border border-brand-cyan/20 bg-brand-cyan/5 p-4 text-sm">
       <div className="flex items-center gap-2 font-semibold text-brand-cyan mb-1">
         <span className="h-2 w-2 rounded-full bg-brand-cyan shrink-0" />
-        ISS recolhido via DAS — Simples Nacional
+        ISS recolhido via DAS — {regimeLabel}
       </div>
       <p className="text-text-2 mb-2">
-        O ISS desta competência é recolhido mensalmente via DAS no PGDAS-D.{' '}
+        O ISS desta competência é recolhido mensalmente via DAS no {dasLabel}.{' '}
         <strong className="text-text-1">O tomador não desconta o ISS do pagamento.</strong>
       </p>
       <a
-        href="https://www8.receita.fazenda.gov.br/SimplesNacional/Aplicacoes/ATBHE/pgdasd2018.app.aspx"
+        href={dasHref}
         target="_blank"
         rel="noopener noreferrer"
         className="text-xs text-brand-cyan hover:underline"
       >
-        Acessar PGDAS-D →
+        Acessar {dasLabel} →
       </a>
     </div>
   )
