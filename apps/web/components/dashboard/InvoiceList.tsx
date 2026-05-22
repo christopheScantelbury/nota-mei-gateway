@@ -13,7 +13,7 @@ function formatBRL(amount: number, currency: string) {
 }
 
 function formatDate(unix: number) {
-  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' }).format(new Date(unix * 1000))
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(unix * 1000))
 }
 
 function InvoiceStatusBadge({ status }: { status: StripeInvoice['status'] }) {

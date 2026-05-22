@@ -143,7 +143,7 @@ export default async function BillingPage() {
           <p className="text-xs text-text-2 mt-3">
             Renova em{' '}
             <span className="text-text-1">
-              {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' }).format(new Date(emissao.renovacao_em))}
+              {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long', timeZone: 'America/Sao_Paulo' }).format(new Date(emissao.renovacao_em))}
             </span>
           </p>
         )}

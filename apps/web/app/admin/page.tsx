@@ -85,7 +85,7 @@ export default async function AdminPage() {
   }
 
   function formatDate(iso: string) {
-    return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso))
+    return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(iso))
   }
 
   const STATUS_COLORS: Record<string, string> = {

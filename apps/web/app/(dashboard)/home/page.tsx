@@ -17,7 +17,7 @@ function formatBRL(value: number | null) {
 
 function formatDate(iso: string | null) {
   if (!iso) return '—'
-  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' }).format(new Date(iso))
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(iso))
 }
 
 function currentCompetencia() {
@@ -223,7 +223,7 @@ export default async function DashboardHome() {
             <p className="text-xs text-text-2">{usagePct}% utilizado</p>
             {emissao?.renovacao_em && (
               <p className="text-xs text-text-2">
-                Renova em {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' }).format(new Date(emissao.renovacao_em))}
+                Renova em {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(emissao.renovacao_em))}
               </p>
             )}
           </div>

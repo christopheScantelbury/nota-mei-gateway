@@ -37,7 +37,7 @@ function daysUntil(dateStr: string | null): number | null {
 }
 
 function formatDate(iso: string) {
-  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' }).format(new Date(iso))
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(iso))
 }
 
 const inputCls =

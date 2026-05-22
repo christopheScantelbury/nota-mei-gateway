@@ -30,7 +30,7 @@ function formatBRL(value: number | null) {
 
 function formatDate(iso: string | null) {
   if (!iso) return '—'
-  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso))
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(iso))
 }
 
 function buildParams(base: Record<string, string | undefined>, overrides: Record<string, string>): string {

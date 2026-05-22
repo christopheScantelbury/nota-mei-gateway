@@ -26,6 +26,7 @@ function formatDateFull(iso: string | null) {
   return new Intl.DateTimeFormat('pt-BR', {
     dateStyle: 'long',
     timeStyle: 'medium',
+    timeZone: 'America/Sao_Paulo',
   }).format(new Date(iso))
 }
 

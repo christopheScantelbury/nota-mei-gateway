@@ -23,7 +23,7 @@ const EVENTS = [
 ]
 
 function formatDate(iso: string) {
-  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(iso))
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(iso))
 }
 
 function formatBRL(v: number | null) {

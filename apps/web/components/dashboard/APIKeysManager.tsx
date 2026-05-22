@@ -12,7 +12,7 @@ interface Props {
 }
 
 function formatDate(iso: string) {
-  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' }).format(new Date(iso))
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(iso))
 }
 
 function envFromPrefix(prefix: string): Env {
