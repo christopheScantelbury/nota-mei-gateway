@@ -212,7 +212,7 @@ func main() {
 	}
 
 	// ── Email service ──────────────────────────────────────────────────────
-	emailClient := email.New(cfg.ResendAPIKey, cfg.EmailFrom)
+	emailClient := email.NewFromEnv(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.EmailFrom)
 	emailSvc := email.NewService(emailClient, log.Logger)
 
 	registerH := handler.NewRegisterHandler(authRepo).WithCNPJValidator(cnpjValidator).WithEmailService(emailSvc)

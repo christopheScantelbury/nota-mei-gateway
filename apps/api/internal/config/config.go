@@ -62,8 +62,13 @@ type Config struct {
 	// https://api.emitirnotafacil.com.br in production.
 	APIBaseURL string
 
-	ResendAPIKey string
-	EmailFrom    string
+	// SMTP settings for transactional email (replaces Resend).
+	// Works with Brevo free (300/day), Gmail, Mailjet, or any SMTP server.
+	SMTPHost string
+	SMTPPort string
+	SMTPUser string
+	SMTPPass string
+	EmailFrom string
 
 	// AdminAllowedIPs is the list of IP addresses permitted to access
 	// /v1/admin/* endpoints (e.g. relatorio-me).
@@ -159,8 +164,11 @@ func Load() *Config {
 
 		APIBaseURL: getEnv("API_BASE_URL", "https://api.emitirnotafacil.com.br"),
 
-		ResendAPIKey: os.Getenv("RESEND_API_KEY"),
-		EmailFrom:    getEnv("EMAIL_FROM", "Nota MEI Gateway <noreply@emitirnotafacil.com.br>"),
+		SMTPHost:  os.Getenv("SMTP_HOST"),
+		SMTPPort:  getEnv("SMTP_PORT", "587"),
+		SMTPUser:  os.Getenv("SMTP_USER"),
+		SMTPPass:  os.Getenv("SMTP_PASS"),
+		EmailFrom: getEnv("EMAIL_FROM", "NotaFácil MEI <nao-responda@emitirnotafacil.com.br>"),
 
 		AdminAllowedIPs: parseCSVEnv("ADMIN_ALLOWED_IPS"),
 	}

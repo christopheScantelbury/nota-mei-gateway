@@ -20,7 +20,7 @@ func NewService(client *Client, logger zerolog.Logger) *Service {
 	}
 }
 
-// Enabled reports whether emails are actually delivered (Resend configured).
+// Enabled reports whether emails are actually delivered (SMTP configured).
 // When false, the service runs in dev-noop mode.
 func (s *Service) Enabled() bool { return s.client != nil && s.client.Enabled() }
 

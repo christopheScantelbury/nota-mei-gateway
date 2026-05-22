@@ -162,7 +162,9 @@ export default async function NotaDetailPage({
             {
               label: 'Protocolo Receita',
               value: nota.protocolo_receita ?? (
-                <span className="text-text-2">Aguardando...</span>
+                nota.status === 'PROCESSANDO'
+                  ? <span className="text-text-2">Aguardando...</span>
+                  : '—'
               ),
             },
             { label: 'Código verificação', value: nota.codigo_verificacao ?? '—' },
