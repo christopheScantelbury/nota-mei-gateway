@@ -1324,26 +1324,85 @@ func (h *NFSeHandler) DownloadPDF(c *fiber.Ctx) error {
 				Msg("ADN DANFSE fetch failed (expected — service indisponível) — fallback to public consulta")
 		}
 
-		// ── Fallback: Receita's public consultation page ────────────────────
-		// The official "Consulta Pública NFS-e Nacional" hosts the DANFSE
-		// renderer with the chaveAcesso as query param. Redirects work for
-		// both AUTORIZADA and CANCELADA — the page shows the cancellation
-		// stamp when applicable.
-		return c.Redirect(
-			"https://www.nfse.gov.br/consultapublica?chaveAcesso="+chave,
-			fiber.StatusTemporaryRedirect,
-		)
+		// ── Fallback: generate a comprovante PDF from nota data ────────────
+		// The ADN DANFSE service is down (502). Instead of redirecting to the
+		// consulta pública website, we generate a professional comprovante PDF
+		// on-the-fly from the nota fields we already have.
+		goto generateComprovante
 	}
 
 	// ── Legacy path: redirect to Supabase Storage URL ─────────────────────
-	if nota.PDFPath == nil || *nota.PDFPath == "" {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error":   "NOT_FOUND",
-			"message": "PDF ainda não está disponível para esta nota",
-		})
+	if nota.PDFPath != nil && *nota.PDFPath != "" {
+		return c.Redirect(*nota.PDFPath, fiber.StatusTemporaryRedirect)
 	}
 
-	return c.Redirect(*nota.PDFPath, fiber.StatusTemporaryRedirect)
+generateComprovante:
+	// Generate a comprovante PDF from nota fields (used as fallback when DANFSE
+	// is unavailable and no S3/Storage PDF exists).
+	{
+		prestadorNome := ""
+		prestadorCNPJ := ""
+		if empresa != nil {
+			prestadorNome = empresa.RazaoSocial
+			prestadorCNPJ = empresa.CNPJ
+		} else if mei != nil {
+			prestadorNome = mei.RazaoSocial
+			prestadorCNPJ = mei.CNPJ
+		}
+
+		var valorServico float64
+		if nota.ValorServico != nil {
+			valorServico = *nota.ValorServico
+		}
+
+		params := document.ComprovanteParams{
+			PrestadorNome:  prestadorNome,
+			PrestadorCNPJ:  prestadorCNPJ,
+			NumeroRPS:      nota.NumeroRPS,
+			ValorServico:   valorServico,
+			Status:         nota.Status,
+			EmitidaEm:      nota.EmitidaEm,
+			CanceladaEm:    nota.CanceladaEm,
+		}
+		if nota.TomadorNome != nil {
+			params.TomadorNome = *nota.TomadorNome
+		}
+		if nota.TomadorDoc != nil {
+			params.TomadorDoc = *nota.TomadorDoc
+		}
+		if nota.NumeroNFSe != nil {
+			params.NumeroNFSe = *nota.NumeroNFSe
+		}
+		if nota.CodVerificacao != nil {
+			params.CodVerificacao = *nota.CodVerificacao
+		}
+		if nota.ProtocoloReceita != nil {
+			params.ProtocoloReceita = *nota.ProtocoloReceita
+		}
+		if nota.Competencia != nil {
+			params.Competencia = *nota.Competencia
+		}
+
+		pdfBytes, pdfErr := document.GenerateComprovante(params)
+		if pdfErr != nil {
+			log.Ctx(c.UserContext()).Error().Err(pdfErr).
+				Str("nota_id", notaID.String()).
+				Msg("falha ao gerar comprovante PDF")
+			return internalError(c, "erro ao gerar PDF")
+		}
+
+		// Cache the generated PDF to S3 for subsequent requests.
+		if h.store != nil {
+			s3Key := storage.S3KeyForPDF(nota.MeiID.String(), nota.ID.String())
+			if uploadErr := h.store.Put(c.Context(), s3Key, "application/pdf", pdfBytes); uploadErr == nil {
+				_ = h.notaRepo.SetPDFS3Key(c.Context(), nota.ID, s3Key)
+			}
+		}
+
+		c.Set("Content-Type", "application/pdf")
+		c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="nfse-%d.pdf"`, nota.NumeroRPS))
+		return c.Send(pdfBytes)
+	}
 }
 
 // empresaIDForNota returns the MEI ID (which equals empresa.id by the ARCH-03
