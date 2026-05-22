@@ -260,7 +260,7 @@ export default function NovaNota() {
   // ── Success state
   if (submitted) {
     return (
-      <div className="p-8 max-w-2xl">
+      <div className="p-4 sm:p-8 max-w-2xl">
         <div className="rounded-xl border border-nota-autorizada/40 bg-nota-autorizada/10 p-6 text-center">
           <div className="text-4xl mb-3">✅</div>
           <h2 className="font-display text-xl font-bold text-nota-autorizada mb-2">
@@ -303,7 +303,7 @@ export default function NovaNota() {
 
   // ── Form
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-4 sm:p-8 max-w-2xl">
       <div className="mb-8">
         <h1 className="font-display text-3xl font-extrabold">Emitir NFS-e</h1>
         <p className="text-text-2 mt-1 text-sm">Preencha os dados abaixo para emitir uma nova nota fiscal.</p>

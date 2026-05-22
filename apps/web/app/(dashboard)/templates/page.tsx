@@ -19,7 +19,7 @@ function isPlanPro(nome: string | undefined): boolean {
 // ── Plan guard ────────────────────────────────────────────────────────────────
 function PlanGuard({ currentPlan }: { currentPlan: string }) {
   return (
-    <div className="p-8 max-w-xl">
+    <div className="p-4 sm:p-8 max-w-xl">
       <div className="rounded-xl border border-nota-upgrade/30 bg-nota-upgrade/5 p-8 text-center">
         <div className="text-5xl mb-4">🔒</div>
         <h1 className="font-display text-2xl font-extrabold mb-2">
@@ -89,7 +89,7 @@ export default async function TemplatesPage() {
   const templates = templatesResult.data ?? []
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-4 sm:p-8 max-w-4xl">
       <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="font-display text-3xl font-extrabold">Templates</h1>

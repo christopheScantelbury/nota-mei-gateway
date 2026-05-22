@@ -47,7 +47,7 @@ export default async function ConfiguracoesPage() {
     .returns<{ id: string; key_prefix: string; label: string | null; created_at: string }[]>()
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-4 sm:p-8 max-w-3xl">
       <div className="mb-8">
         <h1 className="font-display text-3xl font-extrabold">Configurações</h1>
         <p className="text-text-2 mt-1 text-sm">Gerencie seu perfil, certificado, API Keys e webhook padrão.</p>

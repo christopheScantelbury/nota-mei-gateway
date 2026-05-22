@@ -29,7 +29,7 @@ export default async function RecorrenciasPage() {
 
   if (!hasAccess) {
     return (
-      <div className="p-8 max-w-2xl">
+      <div className="p-4 sm:p-8 max-w-2xl">
         <div className="rounded-xl border border-nota-upgrade/30 bg-nota-upgrade/5 p-8 text-center">
           <div className="text-5xl mb-4">🔄</div>
           <h1 className="font-display text-2xl font-extrabold mb-2">
@@ -70,7 +70,7 @@ export default async function RecorrenciasPage() {
   }
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-4 sm:p-8 max-w-5xl">
       <RecorrenciasList initialData={initialData as Parameters<typeof RecorrenciasList>[0]['initialData']} />
     </div>
   )

@@ -1391,8 +1391,14 @@ func (h *NFSeHandler) loadNotaForOwner(
 // public consultation page, which renders the DANFSE and offers PDF/XML download
 // for any 50-digit chave de acesso — so the recipient needs no authentication.
 func (h *NFSeHandler) EnviarEmail(c *fiber.Ctx) error {
-	if h.emailSvc == nil {
-		return internalError(c, "serviço de e-mail não configurado")
+	if h.emailSvc == nil || !h.emailSvc.Enabled() {
+		// Honest failure: without Resend configured the e-mail would be silently
+		// dropped (dev-noop). Tell the caller instead of faking success.
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error":      "EMAIL_NOT_CONFIGURED",
+			"message":    "Envio de e-mail indisponível: serviço de e-mail não configurado.",
+			"request_id": c.Locals("request_id"),
+		})
 	}
 
 	mei := auth.GetMEI(c)

@@ -44,7 +44,7 @@ export default async function APIKeysPage() {
       description="Crie chaves de acesso à API para integrar seu sistema com a Nota Fácil MEI de forma programática."
       requiredPlan="Starter"
     >
-      <div className="p-8 max-w-4xl">
+      <div className="p-4 sm:p-8 max-w-4xl">
         <div className="mb-8">
           <h1 className="font-display text-3xl font-extrabold text-text-1">API Keys</h1>
           <p className="text-text-2 mt-1 text-sm">

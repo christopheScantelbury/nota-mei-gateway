@@ -31,6 +31,12 @@ func New(apiKey, from string) *Client {
 	return NewWithBase(apiKey, from, defaultBaseURL, &http.Client{Timeout: 10 * time.Second})
 }
 
+// Enabled reports whether the client is configured to actually send emails.
+// When false, Send runs in dev-noop mode (logs but does not deliver), so
+// user-facing handlers must surface an honest "not configured" message instead
+// of pretending the email was delivered.
+func (c *Client) Enabled() bool { return c.apiKey != "" }
+
 // NewWithBase creates a Client with an overridable base URL and HTTP client.
 // Useful for tests (httptest.NewServer).
 func NewWithBase(apiKey, from, baseURL string, httpClient *http.Client) *Client {

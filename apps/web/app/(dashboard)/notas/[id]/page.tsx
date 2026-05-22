@@ -69,7 +69,7 @@ export default async function NotaDetailPage({
     : undefined
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-4 sm:p-8 max-w-3xl">
       {/* Back */}
       <Link
         href="/notas"
@@ -87,7 +87,7 @@ export default async function NotaDetailPage({
           {nota.numero_nfse && (
             <p className="text-text-2 mt-1 text-sm">
               NFS-e nº{' '}
-              <span className="font-mono text-text-1">{nota.numero_nfse}</span>
+              <span className="font-mono text-text-1 break-all">{nota.numero_nfse}</span>
             </p>
           )}
         </div>
@@ -172,9 +172,9 @@ export default async function NotaDetailPage({
           ]
             .filter(({ value }) => value !== '—')
             .map(({ label, value }) => (
-              <div key={label} className="flex px-5 py-3 gap-4">
-                <dt className="w-44 shrink-0 text-sm text-text-2">{label}</dt>
-                <dd className="text-sm">{value}</dd>
+              <div key={label} className="flex flex-col sm:flex-row px-5 py-3 gap-1 sm:gap-4">
+                <dt className="sm:w-44 shrink-0 text-sm text-text-2">{label}</dt>
+                <dd className="text-sm break-words min-w-0">{value}</dd>
               </div>
             ))}
         </dl>

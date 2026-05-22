@@ -49,7 +49,7 @@ export default async function WebhooksPage() {
       description="Receba notificações em tempo real no seu sistema quando uma nota for autorizada, rejeitada ou cancelada."
       requiredPlan="Starter"
     >
-      <div className="p-8 max-w-4xl">
+      <div className="p-4 sm:p-8 max-w-4xl">
         <div className="mb-8">
           <h1 className="font-display text-3xl font-extrabold text-text-1">Webhooks</h1>
           <p className="text-text-2 mt-1 text-sm">
