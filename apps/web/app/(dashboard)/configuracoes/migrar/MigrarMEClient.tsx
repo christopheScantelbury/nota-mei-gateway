@@ -3,6 +3,7 @@
 import { useState, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/browser'
+import { formatCNPJ } from '@/lib/format'
 
 type Empresa = { id: string; tipo: string; razao_social: string; cnpj: string }
 
@@ -61,9 +62,6 @@ export default function MigrarMEClient({ empresa }: { empresa: Empresa }) {
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState<string | null>(null)
 
-  function formatCNPJ(cnpj: string) {
-    return cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
-  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()

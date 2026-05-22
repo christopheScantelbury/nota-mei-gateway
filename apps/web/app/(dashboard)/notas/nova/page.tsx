@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { CepMunicipioInput } from '@/components/ui/CepMunicipioInput'
 import { validarCNPJ } from '@/lib/cnpj'
+import { maskCNPJ, maskCPF } from '@/lib/format'
 import ISSRecolhimentoCard from '@/components/nota/ISSRecolhimentoCard'
 import SugestorNBS from '@/components/nota/SugestorNBS'
 import NBSServicoPicker from '@/components/nota/NBSServicoPicker'
@@ -15,23 +16,6 @@ import type { RegimeTributario } from '@/lib/types'
 function currentMonth() {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-}
-
-function formatCNPJ(v: string) {
-  const d = v.replace(/\D/g, '').slice(0, 14)
-  return d
-    .replace(/^(\d{2})(\d)/, '$1.$2')
-    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-    .replace(/\.(\d{3})(\d)/, '.$1/$2')
-    .replace(/(\d{4})(\d)/, '$1-$2')
-}
-
-function formatCPF(v: string) {
-  const d = v.replace(/\D/g, '').slice(0, 11)
-  return d
-    .replace(/^(\d{3})(\d)/, '$1.$2')
-    .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
-    .replace(/\.(\d{3})(\d)/, '.$1-$2')
 }
 
 function validarCPF(cpf: string): boolean {
@@ -174,7 +158,7 @@ export default function NovaNota() {
 
   // Document formatting
   function handleDocumento(raw: string) {
-    setDocumento(tipoPessoa === 'PJ' ? formatCNPJ(raw) : formatCPF(raw))
+    setDocumento(tipoPessoa === 'PJ' ? maskCNPJ(raw) : maskCPF(raw))
   }
 
   function validate(): boolean {

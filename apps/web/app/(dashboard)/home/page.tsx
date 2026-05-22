@@ -8,13 +8,9 @@ import StatusBadge from '@/components/ui/StatusBadge'
 import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist'
 import PrimeiraNotaCelebration from '@/components/dashboard/PrimeiraNotaCelebration'
 import type { Nota, NotaStatus, EmissaoMensal } from '@/lib/types'
+import { formatBRL } from '@/lib/format'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-function formatBRL(value: number | null) {
-  if (value == null) return '—'
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-}
-
 function formatDate(iso: string | null) {
   if (!iso) return '—'
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(iso))

@@ -4,15 +4,11 @@ import Link from 'next/link'
 import { createAdminClient } from '@/lib/supabase/admin'
 import StatusBadge from '@/components/ui/StatusBadge'
 import type { NotaStatus } from '@/lib/types'
+import { formatBRL } from '@/lib/format'
 
 const PAGE_SIZE = 30
 
 const VALID_STATUSES: NotaStatus[] = ['PROCESSANDO', 'AUTORIZADA', 'REJEITADA', 'CANCELADA', 'ERRO_TEMPORARIO']
-
-function formatBRL(v: number | null) {
-  if (v == null) return '—'
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
-}
 
 function formatDate(iso: string | null) {
   if (!iso) return '—'

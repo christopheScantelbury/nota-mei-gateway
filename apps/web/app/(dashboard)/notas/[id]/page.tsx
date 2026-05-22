@@ -13,11 +13,7 @@ import ISSRecolhimentoCard from '@/components/nota/ISSRecolhimentoCard'
 import { AcoesDaNota }  from './components/AcoesDaNota'
 import { ErroRejeicao } from '@/app/(dashboard)/notas/nova/components/ErroRejeicao'
 import type { Nota } from '@/lib/types'
-
-function formatBRL(value: number | null) {
-  if (value == null) return '—'
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-}
+import { formatBRL, formatDoc, formatCompetencia } from '@/lib/format'
 
 function formatDateFull(iso: string | null) {
   if (!iso) return '—'
@@ -156,9 +152,9 @@ export default async function NotaDetailPage({
           {[
             { label: 'ID',               value: <span className="font-mono text-xs">{nota.id}</span> },
             { label: 'Tomador',          value: nota.tomador_nome ?? '—' },
-            { label: 'CPF/CNPJ tomador', value: nota.tomador_doc ?? '—' },
+            { label: 'CPF/CNPJ tomador', value: formatDoc(nota.tomador_doc) },
             { label: 'Valor do serviço', value: formatBRL(nota.valor_servico) },
-            { label: 'Competência',      value: nota.competencia ?? '—' },
+            { label: 'Competência',      value: formatCompetencia(nota.competencia) },
             {
               label: 'Protocolo Receita',
               value: nota.protocolo_receita ?? (

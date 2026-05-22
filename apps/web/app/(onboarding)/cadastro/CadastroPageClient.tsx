@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { CepMunicipioInput } from '@/components/ui/CepMunicipioInput'
 import { validarCNPJ } from '@/lib/cnpj'
+import { maskCNPJ as formatCNPJ } from '@/lib/format'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
 
@@ -28,16 +29,6 @@ interface FormState {
 interface SuccessState {
   meiId: string
   apiKey: string
-}
-
-function formatCNPJ(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 14)
-  if (digits.length <= 2) return digits
-  if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`
-  if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`
-  if (digits.length <= 12)
-    return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`
-  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12)}`
 }
 
 // ── Stepper UI ────────────────────────────────────────────────────────────────

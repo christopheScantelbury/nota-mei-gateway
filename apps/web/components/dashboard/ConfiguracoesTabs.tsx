@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
+import { formatCNPJ } from '@/lib/format'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Aba = 'perfil' | 'certificado' | 'api-keys' | 'webhook'
@@ -27,10 +28,6 @@ interface Props {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function formatCNPJ(cnpj: string) {
-  return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
-}
-
 function daysUntil(dateStr: string | null): number | null {
   if (!dateStr) return null
   return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86400000)

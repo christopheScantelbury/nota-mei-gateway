@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { Spinner } from './Spinner'
 import { MunicipioAutocomplete } from './MunicipioAutocomplete'
 import type { CepResult } from '@/app/api/cep/[cep]/route'
+import { maskCEP as formatCEP } from '@/lib/format'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -15,13 +16,6 @@ export interface CepMunicipioInputProps {
   onChange: (code: string, nome: string, uf?: string) => void
   error?: string
   disabled?: boolean
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function formatCEP(raw: string): string {
-  const d = raw.replace(/\D/g, '').slice(0, 8)
-  return d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────

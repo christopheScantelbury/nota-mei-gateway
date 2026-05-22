@@ -4,13 +4,7 @@ import { useState, useEffect } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import type { StripeInvoice } from '@/app/api/billing/invoices/route'
-
-function formatBRL(amount: number, currency: string) {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: currency.toUpperCase(),
-  }).format(amount / 100)
-}
+import { formatMoneyFromCents } from '@/lib/format'
 
 function formatDate(unix: number) {
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(unix * 1000))
@@ -91,7 +85,7 @@ export default function InvoiceList() {
                   {formatDate(inv.period_start)} → {formatDate(inv.period_end)}
                 </td>
                 <td className="px-4 py-3 font-mono font-semibold">
-                  {formatBRL(inv.amount_due, inv.currency)}
+                  {formatMoneyFromCents(inv.amount_due, inv.currency)}
                 </td>
                 <td className="px-4 py-3">
                   <InvoiceStatusBadge status={inv.status} />

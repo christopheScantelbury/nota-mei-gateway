@@ -1,6 +1,7 @@
 export const metadata = { title: 'Visão Geral' }
 
 import { createAdminClient } from '@/lib/supabase/admin'
+import { formatBRL } from '@/lib/format'
 
 function StatCard({
   label,
@@ -78,11 +79,6 @@ export default async function AdminPage() {
   const taxaAprovacao = totalNotas
     ? Math.round(((notasAutorizadas ?? 0) / totalNotas) * 100)
     : 0
-
-  function formatBRL(v: number | null) {
-    if (v == null) return '—'
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
-  }
 
   function formatDate(iso: string) {
     return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(iso))

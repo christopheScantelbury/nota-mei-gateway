@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/Badge'
 import RecorrenciaModal from '@/components/dashboard/RecorrenciaModal'
+import { formatBRL } from '@/lib/format'
 
 interface Recorrencia {
   id: string
@@ -31,7 +32,7 @@ function ServicoBadge({ servico }: { servico: unknown }) {
     <span className="font-mono text-xs text-text-2">
       {String(s.codigo_nbs ?? '—')}
       {s.valor != null && (
-        <> · R$ {Number(s.valor).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</>
+        <> · {formatBRL(Number(s.valor))}</>
       )}
     </span>
   )

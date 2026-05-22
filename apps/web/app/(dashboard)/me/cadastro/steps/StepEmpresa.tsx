@@ -3,19 +3,8 @@
 import { useState } from 'react'
 import { validarCNPJ } from '@/lib/cnpj'
 import { CepMunicipioInput } from '@/components/ui/CepMunicipioInput'
+import { maskCNPJ } from '@/lib/format'
 import type { CadastroMEState } from '../actions'
-
-// ── helpers ───────────────────────────────────────────────────────────────────
-
-function maskCNPJ(v: string): string {
-  return v
-    .replace(/\D/g, '')
-    .replace(/^(\d{2})(\d)/, '$1.$2')
-    .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-    .replace(/\.(\d{3})(\d)/, '.$1/$2')
-    .replace(/(\d{4})(\d)/, '$1-$2')
-    .slice(0, 18)
-}
 
 // ── styles ────────────────────────────────────────────────────────────────────
 

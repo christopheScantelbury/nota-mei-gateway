@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { formatBRL as brl } from '@/lib/format'
 
 const DISCOUNT = 0.8  // 20% off anual
 
@@ -63,12 +64,6 @@ const PLANS: Plan[] = [
     highlight: false,
   },
 ]
-
-function brl(value: number): string {
-  const [int, dec] = value.toFixed(2).split('.')
-  const intFmt = int.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-  return `R$ ${intFmt},${dec}`
-}
 
 export default function PricingToggleMei() {
   const [annual, setAnnual] = useState(false)

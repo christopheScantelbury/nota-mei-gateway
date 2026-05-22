@@ -3,13 +3,10 @@
 import { useState } from 'react'
 import TemplateModal from '@/components/dashboard/TemplateModal'
 import type { NotaTemplate } from '@/app/api/templates/route'
+import { formatBRL } from '@/lib/format'
 
 interface Props {
   initialTemplates: NotaTemplate[]
-}
-
-function formatBRL(value: number) {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
 
 export default function TemplatesList({ initialTemplates }: Props) {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { formatBRL } from '@/lib/format'
 
 type Delivery = {
   id: string
@@ -24,11 +25,6 @@ const EVENTS = [
 
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(new Date(iso))
-}
-
-function formatBRL(v: number | null) {
-  if (v == null) return '—'
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 }
 
 interface Props { deliveries: Delivery[] }

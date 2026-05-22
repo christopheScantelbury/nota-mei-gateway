@@ -11,6 +11,7 @@ import SubstituicaoDeadline from '@/components/nota/SubstituicaoDeadline'
 import { EmptyStateME } from './components/EmptyStateME'
 import { NotaActionsMenu } from './components/NotaActionsMenu'
 import type { Nota, NotaStatus } from '@/lib/types'
+import { formatBRL } from '@/lib/format'
 
 const PAGE_SIZE = 20
 
@@ -21,11 +22,6 @@ const SORT_COLUMNS: Record<string, string> = {
   tomador: 'tomador_nome',
   valor:   'valor_servico',
   status:  'status',
-}
-
-function formatBRL(value: number | null) {
-  if (value == null) return '—'
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
 
 function formatDate(iso: string | null) {
