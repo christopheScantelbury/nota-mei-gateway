@@ -79,7 +79,7 @@ export default async function NotaDetailPage({
       </Link>
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
         <div>
           <h1 className="font-display text-3xl font-extrabold">
             Nota #{nota.numero_rps}
@@ -91,7 +91,7 @@ export default async function NotaDetailPage({
             </p>
           )}
         </div>
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex flex-row flex-wrap sm:flex-col sm:items-end gap-2">
           <StatusBadge status={nota.status} />
           <NotaStatusPoller notaId={nota.id} status={nota.status} />
           {/* ME-42: ISS recolhimento badge */}

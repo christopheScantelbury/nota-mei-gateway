@@ -131,18 +131,18 @@ export default async function NotasPage({
 
   return (
     <div className="p-4 sm:p-8">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
           <h1 className="font-display text-3xl font-extrabold">Notas Fiscais</h1>
           <p className="text-text-2 mt-1 text-sm">
             {count ?? 0} nota{count !== 1 ? 's' : ''} encontrada{count !== 1 ? 's' : ''}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <ExportCSVButton notas={rows} />
           <Link
             href="/notas/nova"
-            className="text-sm bg-brand-cyan text-navy-900 font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition"
+            className="text-sm bg-brand-cyan text-navy-900 font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition whitespace-nowrap"
           >
             + Emitir nova nota
           </Link>
@@ -168,7 +168,60 @@ export default async function NotasPage({
         )
       ) : (
         <>
-          <div className="overflow-x-auto rounded-xl border border-navy-600">
+          {/* ── Mobile: card list (< sm) ── */}
+          <div className="sm:hidden space-y-3">
+            {rows.map((n) => (
+              <div key={n.id} className="rounded-xl border border-navy-600 bg-navy-700/50 p-4">
+                {/* Top row: tomador + valor */}
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{n.tomador_nome ?? '—'}</p>
+                    {n.tomador_doc && (
+                      <p className="text-xs text-text-2 mt-0.5">{n.tomador_doc}</p>
+                    )}
+                  </div>
+                  <p className="font-mono text-sm shrink-0 text-right">{formatBRL(n.valor_servico)}</p>
+                </div>
+
+                {/* Badges */}
+                <div className="flex flex-wrap items-center gap-1.5 mb-3">
+                  <StatusBadge status={n.status} />
+                  <ISSBadge regime={n.regime_tributario} issRetido={n.iss_retido} compact />
+                  <SubstituicaoDeadline
+                    status={n.status}
+                    emitidaEm={n.emitida_em}
+                    regime={n.regime_tributario}
+                  />
+                </div>
+
+                {/* Footer row: competência/date + actions */}
+                <div className="flex items-center justify-between text-xs text-text-2">
+                  <span>
+                    <span className="font-mono text-brand-cyan">#{n.numero_rps}</span>
+                    {' · '}{n.competencia ?? '—'}
+                    {' · '}{formatDate(n.emitida_em ?? n.created_at)}
+                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Link href={`/notas/${n.id}`} className="text-brand-cyan hover:underline">
+                      Detalhes →
+                    </Link>
+                    <NotaActionsMenu
+                      nota={{
+                        id: n.id,
+                        status: n.status,
+                        emitida_em: n.emitida_em,
+                        tomador_tipo: (n as any).tomador_tipo,
+                      }}
+                      empresaTipo={empresa?.tipo ?? 'MEI'}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Desktop: table (≥ sm) ── */}
+          <div className="hidden sm:block overflow-x-auto rounded-xl border border-navy-600">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-navy-700 border-b border-navy-600">

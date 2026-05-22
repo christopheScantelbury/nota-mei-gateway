@@ -390,7 +390,7 @@ export default function NovaNota() {
             </div>
           </Field>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Field label="Valor do serviço (R$)" error={errors.valorServico}>
               <input
                 type="number"
@@ -522,7 +522,7 @@ export default function NovaNota() {
               <p className="text-xs text-text-2 mb-3">
                 Apenas para empresas Lucro Presumido. MEI e Simples Nacional recolhem ISS via DAS — deixe sem seleção.
               </p>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 {([
                   { label: 'Não especificado', value: null },
                   { label: 'ISS retido na fonte', value: true },

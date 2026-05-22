@@ -341,7 +341,7 @@ export default function APIKeysManager({ initialKeys, planName, maxKeys }: Props
           </p>
         </div>
         <div className="flex flex-col items-end gap-1.5">
-          <div className="w-40 h-1.5 rounded-full bg-navy-600 overflow-hidden">
+          <div className="w-24 sm:w-40 h-1.5 rounded-full bg-navy-600 overflow-hidden">
             <div
               className="h-full rounded-full bg-brand-cyan transition-all"
               style={{ width: `${Math.min(100, (activeCount / maxKeys) * 100)}%` }}
@@ -368,7 +368,7 @@ export default function APIKeysManager({ initialKeys, planName, maxKeys }: Props
           <p className="text-sm font-semibold text-brand-cyan mb-2">
             🔑 Sua nova API Key — exibida apenas uma vez
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <code className="flex-1 bg-navy-900 rounded-lg px-3 py-2 text-xs font-mono text-text-1 break-all">
               {newKey}
             </code>

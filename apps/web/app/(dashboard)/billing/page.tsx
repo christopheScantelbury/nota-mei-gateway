@@ -156,14 +156,14 @@ export default async function BillingPage() {
 
       {/* Portal button */}
       {emissao?.stripe_subscription_id && (
-        <div className="rounded-xl border border-navy-600 p-5 mb-6 flex items-center justify-between">
+        <div className="rounded-xl border border-navy-600 p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <p className="font-medium mb-0.5">Gerenciar assinatura</p>
             <p className="text-sm text-text-2">Altere o plano, método de pagamento ou cancele.</p>
           </div>
           <a
             href="/api/billing/portal"
-            className="shrink-0 ml-4 text-sm bg-navy-600 text-text-1 font-semibold px-4 py-2 rounded-lg hover:bg-navy-600/70 transition"
+            className="shrink-0 text-sm bg-navy-600 text-text-1 font-semibold px-4 py-2 rounded-lg hover:bg-navy-600/70 transition text-center"
           >
             Gerenciar Plano →
           </a>
@@ -189,6 +189,7 @@ export default async function BillingPage() {
           <div className="bg-navy-700 px-5 py-3 border-b border-navy-600">
             <h2 className="font-display text-base font-bold">Histórico por competência</h2>
           </div>
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-navy-600">
@@ -224,6 +225,7 @@ export default async function BillingPage() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

@@ -101,7 +101,7 @@ export default function WebhooksConfig({ deliveries }: Props) {
         <p className="text-xs text-navy-600 bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-text-2">
           💡 A URL padrão é salva localmente. Em breve será sincronizada com a sua conta.
         </p>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <input
             type="url"
             className="flex-1 bg-navy-900 border border-navy-600 rounded-lg px-3 py-2.5 text-sm text-text-1 placeholder:text-text-2 focus:outline-none focus:border-brand-cyan transition"
@@ -109,20 +109,22 @@ export default function WebhooksConfig({ deliveries }: Props) {
             value={url}
             onChange={e => setUrl(e.target.value)}
           />
-          <button
-            onClick={saveUrl}
-            disabled={!url}
-            className="px-4 py-2.5 bg-brand-cyan text-navy-900 font-semibold text-sm rounded-lg hover:opacity-90 transition disabled:opacity-50"
-          >
-            {saved ? '✓ Salvo' : 'Salvar'}
-          </button>
-          <button
-            onClick={sendTest}
-            disabled={testing || !url}
-            className="px-4 py-2.5 border border-navy-600 text-text-2 font-semibold text-sm rounded-lg hover:border-brand-cyan hover:text-text-1 transition disabled:opacity-50"
-          >
-            {testing ? '…' : 'Testar'}
-          </button>
+          <div className="flex gap-3 shrink-0">
+            <button
+              onClick={saveUrl}
+              disabled={!url}
+              className="flex-1 sm:flex-none px-4 py-2.5 bg-brand-cyan text-navy-900 font-semibold text-sm rounded-lg hover:opacity-90 transition disabled:opacity-50"
+            >
+              {saved ? '✓ Salvo' : 'Salvar'}
+            </button>
+            <button
+              onClick={sendTest}
+              disabled={testing || !url}
+              className="flex-1 sm:flex-none px-4 py-2.5 border border-navy-600 text-text-2 font-semibold text-sm rounded-lg hover:border-brand-cyan hover:text-text-1 transition disabled:opacity-50"
+            >
+              {testing ? '…' : 'Testar'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -212,7 +214,7 @@ export default function WebhooksConfig({ deliveries }: Props) {
 
                 {expandedId === d.id && (
                   <div className="px-4 pb-3 border-t border-navy-600/50 bg-navy-900/30 space-y-2">
-                    <div className="grid grid-cols-2 gap-2 pt-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
                       <div>
                         <p className="text-xs text-text-2">Valor</p>
                         <p className="text-sm font-mono">{formatBRL(d.valor_servico)}</p>

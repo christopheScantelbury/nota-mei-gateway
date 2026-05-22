@@ -282,7 +282,7 @@ function APIKeysTab({ initialKeys }: { initialKeys: APIKey[] }) {
       {newKey && (
         <div className="rounded-xl border border-brand-cyan/40 bg-brand-cyan/5 p-4">
           <p className="text-sm font-semibold text-brand-cyan mb-2">🔑 Sua nova API Key (exibida apenas uma vez)</p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <code className="flex-1 bg-navy-900 rounded-lg px-3 py-2 text-xs font-mono text-text-1 break-all">
               {newKey}
             </code>
@@ -480,12 +480,12 @@ export default function ConfiguracoesTabs({ mei, apiKeys }: Props) {
   return (
     <div>
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-navy-600 mb-8">
+      <div className="flex flex-wrap gap-1 border-b border-navy-600 mb-8">
         {ABAS.map(({ value, label }) => (
           <button
             key={value}
             onClick={() => setAba(value)}
-            className={`px-4 py-3 text-sm font-semibold transition -mb-px border-b-2 ${
+            className={`px-3 sm:px-4 py-3 text-sm font-semibold transition -mb-px border-b-2 whitespace-nowrap ${
               aba === value
                 ? 'text-brand-cyan border-brand-cyan'
                 : 'text-text-2 border-transparent hover:text-text-1'
