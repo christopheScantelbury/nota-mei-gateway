@@ -23,6 +23,8 @@ const buttonVariants = cva(
           'bg-nota-rejeitada/10 text-nota-rejeitada border border-nota-rejeitada/30 hover:bg-nota-rejeitada/20 active:bg-nota-rejeitada/30',
         danger:
           'bg-nota-rejeitada text-white hover:bg-nota-rejeitada/90 active:bg-nota-rejeitada/80',
+        upgrade:
+          'bg-nota-upgrade text-white hover:bg-nota-upgrade/90 active:bg-nota-upgrade/80',
         outline:
           'bg-transparent border border-brand-cyan text-brand-cyan hover:bg-brand-cyan/10 active:bg-brand-cyan/20',
       },

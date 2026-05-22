@@ -4,6 +4,7 @@ import { useState } from 'react'
 import TemplateModal from '@/components/dashboard/TemplateModal'
 import type { NotaTemplate } from '@/app/api/templates/route'
 import { formatBRL } from '@/lib/format'
+import { Button } from '@/components/ui/Button'
 
 interface Props {
   initialTemplates: NotaTemplate[]
@@ -62,12 +63,9 @@ export default function TemplatesList({ initialTemplates }: Props) {
         <p className="text-sm text-text-2">
           {templates.length} template{templates.length !== 1 ? 's' : ''} cadastrado{templates.length !== 1 ? 's' : ''}
         </p>
-        <button
-          onClick={openCreate}
-          className="text-sm bg-brand-cyan text-navy-900 font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition"
-        >
+        <Button variant="primary" size="sm" onClick={openCreate}>
           + Novo template
-        </button>
+        </Button>
       </div>
 
       {deleteError && (
@@ -87,12 +85,9 @@ export default function TemplatesList({ initialTemplates }: Props) {
             Crie templates para pré-preencher formulários de emissão e poupar
             tempo em notas recorrentes.
           </p>
-          <button
-            onClick={openCreate}
-            className="text-sm bg-brand-cyan text-navy-900 font-semibold px-5 py-2.5 rounded-lg hover:opacity-90 transition"
-          >
+          <Button variant="primary" onClick={openCreate}>
             + Criar primeiro template
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

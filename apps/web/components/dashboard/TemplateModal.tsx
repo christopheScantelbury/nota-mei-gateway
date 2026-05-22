@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/Dialog'
 import type { NotaTemplate } from '@/app/api/templates/route'
+import { Button } from '@/components/ui/Button'
 
 interface Props {
   open: boolean
@@ -36,15 +37,6 @@ function Field({
       {children}
       {error && <p className="text-xs text-nota-rejeitada">{error}</p>}
     </div>
-  )
-}
-
-function Spinner() {
-  return (
-    <svg className="animate-spin h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none">
-      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-    </svg>
   )
 }
 
@@ -251,30 +243,12 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
           </Field>
 
           <div className="flex gap-3 pt-2">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="flex-1 flex items-center justify-center gap-2 bg-brand-cyan text-navy-900 font-semibold text-sm px-4 py-2.5 rounded-lg hover:opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {submitting ? (
-                <>
-                  <Spinner />
-                  Salvando…
-                </>
-              ) : isEdit ? (
-                'Salvar alterações'
-              ) : (
-                'Criar template'
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={submitting}
-              className="px-4 py-2.5 border border-navy-600 text-text-2 text-sm rounded-lg hover:border-brand-cyan hover:text-text-1 transition disabled:opacity-50"
-            >
+            <Button type="submit" variant="primary" className="flex-1" loading={submitting}>
+              {submitting ? 'Salvando…' : isEdit ? 'Salvar alterações' : 'Criar template'}
+            </Button>
+            <Button type="button" variant="secondary" onClick={onClose} disabled={submitting}>
               Cancelar
-            </button>
+            </Button>
           </div>
         </form>
       </DialogContent>

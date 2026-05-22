@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/Dialog'
+import { Button } from '@/components/ui/Button'
 
 interface Props {
   planName: string
@@ -37,12 +38,15 @@ export default function CheckoutModal({
 
   return (
     <>
-      <button
+      <Button
+        variant="upgrade"
+        size="sm"
+        className="mt-auto"
+        fullWidth
         onClick={() => setOpen(true)}
-        className="mt-auto text-center text-sm bg-nota-upgrade/10 text-nota-upgrade border border-nota-upgrade/30 font-semibold px-4 py-2 rounded-lg hover:bg-nota-upgrade/20 transition"
       >
         Assinar {planName}
-      </button>
+      </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
@@ -78,43 +82,21 @@ export default function CheckoutModal({
 
             {/* Actions */}
             <div className="flex gap-3">
-              <button
+              <Button
+                variant="upgrade"
+                className="flex-1"
                 onClick={handleConfirm}
-                disabled={loading}
-                className="flex-1 flex items-center justify-center gap-2 bg-nota-upgrade text-white font-semibold text-sm px-4 py-2.5 rounded-lg hover:opacity-90 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                loading={loading}
               >
-                {loading ? (
-                  <>
-                    <svg
-                      className="animate-spin h-4 w-4 shrink-0"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <circle
-                        className="opacity-25"
-                        cx="12" cy="12" r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8v8H4z"
-                      />
-                    </svg>
-                    Redirecionando…
-                  </>
-                ) : (
-                  'Confirmar e ir ao pagamento →'
-                )}
-              </button>
-              <button
+                {loading ? 'Redirecionando…' : 'Confirmar e ir ao pagamento →'}
+              </Button>
+              <Button
+                variant="secondary"
                 onClick={() => setOpen(false)}
                 disabled={loading}
-                className="px-4 py-2.5 border border-navy-600 text-text-2 text-sm rounded-lg hover:border-brand-cyan hover:text-text-1 transition disabled:opacity-50"
               >
                 Cancelar
-              </button>
+              </Button>
             </div>
           </div>
         </DialogContent>
