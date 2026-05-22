@@ -1383,6 +1383,17 @@ generateComprovante:
 			params.Competencia = *nota.Competencia
 		}
 
+		// Enriquece o PDF com os dados completos da DPS (endereço, descrição do
+		// serviço, código de tributação, alíquota, regime, valores). Best-effort:
+		// se o XML não estiver disponível ou falhar o parse, segue com o básico.
+		if xmlData := h.loadDPSXML(c.Context(), nota); len(xmlData) > 0 {
+			if err := document.ExtractDPSFields(xmlData, &params); err != nil {
+				log.Ctx(c.UserContext()).Debug().Err(err).
+					Str("nota_id", notaID.String()).
+					Msg("não foi possível enriquecer comprovante com dados da DPS")
+			}
+		}
+
 		pdfBytes, pdfErr := document.GenerateComprovante(params)
 		if pdfErr != nil {
 			log.Ctx(c.UserContext()).Error().Err(pdfErr).
@@ -1403,6 +1414,23 @@ generateComprovante:
 		c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="nfse-%d.pdf"`, nota.NumeroRPS))
 		return c.Send(pdfBytes)
 	}
+}
+
+// loadDPSXML returns the DPS XML bytes for a nota, preferring the DB column and
+// falling back to S3 (STOR-01). Returns nil when no DPS is available — callers
+// treat that as "render the basic comprovante". Never returns an error: PDF
+// enrichment is strictly best-effort.
+func (h *NFSeHandler) loadDPSXML(ctx context.Context, nota *nfse.Nota) []byte {
+	if nota.XMLEnviado != nil && *nota.XMLEnviado != "" {
+		return []byte(*nota.XMLEnviado)
+	}
+	if nota.XMLS3Key != nil && *nota.XMLS3Key != "" && h.store != nil {
+		data, err := h.store.Get(ctx, *nota.XMLS3Key)
+		if err == nil && len(data) > 0 {
+			return data
+		}
+	}
+	return nil
 }
 
 // empresaIDForNota returns the MEI ID (which equals empresa.id by the ARCH-03
