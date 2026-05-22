@@ -18,6 +18,7 @@ export default async function APIKeysPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // RLS enforces isolation for both MEI and ME/EPP — no explicit user filter needed
   const { data: keys } = await supabase
     .from('api_keys')
     .select('id, key_prefix, label, created_at, revoked_at')

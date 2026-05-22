@@ -17,12 +17,12 @@ export default async function RecorrenciasPage() {
   if (!user) redirect('/login')
 
   // Plan guard — automação is a Business-plan feature
-  // RLS restricts emissoes_mensais to the authenticated user's records automatically
+  // RLS enforces isolation for both MEI and ME/EPP — no explicit user filter needed
   const { data: emissao } = await supabase
     .from('emissoes_mensais')
     .select('planos(nome)')
     .eq('competencia', currentCompetencia())
-    .single<{ planos: { nome: string } | null }>()
+    .maybeSingle<{ planos: { nome: string } | null }>()
 
   const planoNome = emissao?.planos?.nome?.toLowerCase() ?? 'trial'
   const hasAccess = planoNome === 'business'

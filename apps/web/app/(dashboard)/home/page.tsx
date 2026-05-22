@@ -91,19 +91,31 @@ export default async function DashboardHome() {
 
   const competencia = currentCompetencia()
 
-  // Parallel fetches
-  const [meiResult, emissaoResult, notasResult, keyResult, firstAutorizadaResult] = await Promise.all([
-    supabase
+  // Profile: try empresas first (ME/EPP), fall back to meis (MEI legacy)
+  type ProfileData = { razao_social: string; cert_valid_until: string | null }
+  const empresaProfile = await supabase
+    .from('empresas')
+    .select('razao_social, cert_valid_until')
+    .eq('user_id', user.id)
+    .maybeSingle<ProfileData>()
+
+  let profileData: ProfileData | null = empresaProfile.data ?? null
+  if (!profileData) {
+    const meiProfile = await supabase
       .from('meis')
       .select('razao_social, cert_valid_until')
       .eq('id', user.id)
-      .single<{ razao_social: string; cert_valid_until: string | null }>(),
+      .single<ProfileData>()
+    profileData = meiProfile.data ?? null
+  }
 
+  // Parallel fetches — RLS enforces isolation for both MEI and ME/EPP
+  const [emissaoResult, notasResult, keyResult, firstAutorizadaResult] = await Promise.all([
     supabase
       .from('emissoes_mensais')
       .select('total_emitidas, renovacao_em, stripe_subscription_id, planos(nome, emissoes_limite)')
       .eq('competencia', competencia)
-      .single<EmissaoMensal>(),
+      .maybeSingle<EmissaoMensal>(),
 
     supabase
       .from('notas_fiscais')
@@ -117,7 +129,7 @@ export default async function DashboardHome() {
       .select('key_prefix, label, created_at')
       .is('revoked_at', null)
       .limit(1)
-      .single<{ key_prefix: string; label: string | null; created_at: string }>(),
+      .maybeSingle<{ key_prefix: string; label: string | null; created_at: string }>(),
 
     supabase
       .from('notas_fiscais')
@@ -125,10 +137,10 @@ export default async function DashboardHome() {
       .eq('status', 'AUTORIZADA')
       .order('emitida_em', { ascending: true })
       .limit(1)
-      .single<{ id: string }>(),
+      .maybeSingle<{ id: string }>(),
   ])
 
-  const mei = meiResult.data
+  const mei = profileData
   const emissao = emissaoResult.data
   const notas = notasResult.data ?? []
   const apiKey = keyResult.data

@@ -65,12 +65,13 @@ export default async function TemplatesPage() {
   // Get current plan and templates in parallel
   const competencia = new Date().toISOString().slice(0, 7) // AAAA-MM
 
+  // RLS enforces isolation for both MEI and ME/EPP — no explicit user filter needed
   const [emissaoResult, templatesResult] = await Promise.all([
     supabase
       .from('emissoes_mensais')
       .select('planos(nome)')
       .eq('competencia', competencia)
-      .single<{ planos: { nome: string } | null }>(),
+      .maybeSingle<{ planos: { nome: string } | null }>(),
 
     supabase
       .from('nota_templates')

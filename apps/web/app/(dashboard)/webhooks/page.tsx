@@ -22,7 +22,7 @@ export default async function WebhooksPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Fetch plan info for gate — RLS restricts to the authenticated user's records
+  // Fetch plan info for gate — RLS enforces isolation for both MEI and ME/EPP
   const { data: usage } = await supabase
     .from('emissoes_mensais')
     .select('planos(nome)')
