@@ -19,19 +19,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 
+  // Resolve empresa_id — required by RLS and NOT NULL constraint
+  const { data: empresa, error: empresaErr } = await supabase
+    .from('empresas')
+    .select('id')
+    .eq('user_id', session.user.id)
+    .limit(1)
+    .maybeSingle()
+
+  if (empresaErr || !empresa) {
+    return NextResponse.json(
+      { error: 'NOT_FOUND', message: 'Empresa não encontrada para este usuário.' },
+      { status: 404 },
+    )
+  }
+
   let body: { label?: string; env?: 'live' | 'test' }
   try { body = await request.json() } catch { body = {} }
 
-  const env     = body.env === 'test' ? 'test' : 'live'
-  const rawHex  = randomHex(32)
-  const rawKey  = `sk_${env}_${rawHex}`
-  const prefix  = `sk_${env}_`
-  const hash    = await sha256Hex(rawKey)
+  const env    = body.env === 'test' ? 'test' : 'live'
+  const rawHex = randomHex(32)
+  const rawKey = `sk_${env}_${rawHex}`
+  const prefix = `sk_${env}_`
+  const hash   = await sha256Hex(rawKey)
 
   const { error } = await supabase
     .from('api_keys')
     .insert({
-      mei_id:     session.user.id,
+      empresa_id: empresa.id,
       key_hash:   hash,
       key_prefix: prefix,
       label:      body.label?.trim() || null,
@@ -44,7 +59,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   return NextResponse.json({ key: rawKey, prefix }, { status: 201 })
 }
 
-// DELETE /api/keys?id=<keyId> — revoke a key
+// DELETE /api/keys?id=<keyId> — revoke a key (RLS enforces ownership)
 export async function DELETE(request: NextRequest): Promise<NextResponse> {
   const supabase = createClient()
   const { data: { session } } = await supabase.auth.getSession()
@@ -53,11 +68,11 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
   const id = request.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'id obrigatório' }, { status: 422 })
 
+  // RLS policy (empresa_own_api_keys) guarantees the user can only touch their own keys
   const { error } = await supabase
     .from('api_keys')
     .update({ revoked_at: new Date().toISOString() })
     .eq('id', id)
-    .eq('mei_id', session.user.id)
 
   if (error) {
     return NextResponse.json({ error: 'INTERNAL_ERROR', message: error.message }, { status: 500 })
