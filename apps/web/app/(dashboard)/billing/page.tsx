@@ -8,7 +8,6 @@ import InvoiceList from '@/components/dashboard/InvoiceList'
 import CheckoutModal from '@/components/dashboard/CheckoutModal'
 import { formatBRL } from '@/lib/format'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
 
 function currentCompetencia() {
   const now = new Date()
@@ -259,7 +258,7 @@ export default async function BillingPage() {
                   planName={p.name}
                   planPrice={p.price}
                   planLimit={p.limit}
-                  checkoutUrl={`${API_BASE}/v1/billing/checkout?plano=${p.key}`}
+                  planoKey={p.key}
                 />
               )}
             </div>

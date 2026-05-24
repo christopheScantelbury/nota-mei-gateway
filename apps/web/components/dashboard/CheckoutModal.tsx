@@ -10,10 +10,10 @@ import {
 import { Button } from '@/components/ui/Button'
 
 interface Props {
-  planName: string
+  planName:  string
   planPrice: string
   planLimit: number
-  checkoutUrl: string
+  planoKey:  string   // starter | basic | pro | business
 }
 
 /**
@@ -25,15 +25,33 @@ export default function CheckoutModal({
   planName,
   planPrice,
   planLimit,
-  checkoutUrl,
+  planoKey,
 }: Props) {
   const [open, setOpen]       = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
 
-  function handleConfirm() {
+  async function handleConfirm() {
     if (loading) return
     setLoading(true)
-    window.location.href = checkoutUrl
+    setError('')
+    try {
+      const res = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plano: planoKey }),
+      })
+      const data = await res.json() as { url?: string; message?: string }
+      if (!res.ok || !data.url) {
+        setError(data.message ?? 'Erro ao iniciar checkout. Tente novamente.')
+        setLoading(false)
+        return
+      }
+      window.location.href = data.url
+    } catch {
+      setError('Erro de conexão. Tente novamente.')
+      setLoading(false)
+    }
   }
 
   return (
@@ -79,6 +97,12 @@ export default function CheckoutModal({
               Você será redirecionado ao Stripe Checkout. Nenhuma cobrança é
               efetuada antes da confirmação do pagamento.
             </p>
+
+            {error && (
+              <p className="text-xs text-nota-rejeitada bg-nota-rejeitada/10 border border-nota-rejeitada/30 rounded-lg px-3 py-2">
+                {error}
+              </p>
+            )}
 
             {/* Actions */}
             <div className="flex gap-3">
