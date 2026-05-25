@@ -24,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  let product = 'Nota MEI Gateway'
+  let product = 'NotaFácil'
   if (user) {
     // Try empresas first (new multi-produto schema)
     const { data: empresa } = await supabase

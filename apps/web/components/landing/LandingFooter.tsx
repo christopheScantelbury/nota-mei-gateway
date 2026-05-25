@@ -23,11 +23,13 @@ export default function LandingFooter() {
   const homeHref = pathname.startsWith('/mei') ? '/mei'
                 : pathname.startsWith('/me')   ? '/me'
                 : pathname.startsWith('/gateway') ? '/gateway' : '/'
+  // Oculta links de devs em páginas de usuário final (MEI e ME/EPP)
+  const isEndUser = pathname.startsWith('/mei') || pathname.startsWith('/me')
 
   return (
     <footer className="border-t border-navy-600 py-12 px-4 mt-16">
       <div className="mx-auto max-w-6xl">
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-10 mb-10">
+        <div className={`grid grid-cols-1 gap-10 mb-10 ${isEndUser ? 'sm:grid-cols-3' : 'sm:grid-cols-4'}`}>
           {/* Marca */}
           <div className="sm:col-span-1 flex flex-col gap-3">
             <Link href={homeHref} className="inline-flex items-center" aria-label={logo.alt}>
@@ -59,19 +61,21 @@ export default function LandingFooter() {
             </ul>
           </div>
 
-          {/* Desenvolvedores */}
-          <div>
-            <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-2 mb-4">
-              Desenvolvedores
-            </h4>
-            <ul className="flex flex-col gap-2.5 text-sm text-text-2">
-              <li><Link href="/docs"             className="hover:text-text-1 transition">Documentação</Link></li>
-              <li><Link href="/docs/quickstart"  className="hover:text-text-1 transition">Quickstart</Link></li>
-              <li><Link href="/docs/sdks"        className="hover:text-text-1 transition">SDKs</Link></li>
-              <li><Link href="/sandbox"          className="hover:text-text-1 transition">Sandbox</Link></li>
-              <li><Link href="/status"           className="hover:text-text-1 transition">Status da API</Link></li>
-            </ul>
-          </div>
+          {/* Desenvolvedores — visível apenas em páginas não-MEI/ME */}
+          {!isEndUser && (
+            <div>
+              <h4 className="text-xs font-mono font-semibold uppercase tracking-widest text-text-2 mb-4">
+                Desenvolvedores
+              </h4>
+              <ul className="flex flex-col gap-2.5 text-sm text-text-2">
+                <li><Link href="/docs"             className="hover:text-text-1 transition">Documentação</Link></li>
+                <li><Link href="/docs/quickstart"  className="hover:text-text-1 transition">Quickstart</Link></li>
+                <li><Link href="/docs/sdks"        className="hover:text-text-1 transition">SDKs</Link></li>
+                <li><Link href="/sandbox"          className="hover:text-text-1 transition">Sandbox</Link></li>
+                <li><Link href="/status"           className="hover:text-text-1 transition">Status da API</Link></li>
+              </ul>
+            </div>
+          )}
 
           {/* Empresa */}
           <div>

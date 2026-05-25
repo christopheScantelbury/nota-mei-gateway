@@ -1,6 +1,5 @@
 import Navbar from '@/components/landing/Navbar'
 import LandingFooter from '@/components/landing/LandingFooter'
-import EcossistemaScantelbury from '@/components/landing/EcossistemaScantelbury'
 import { SoftwareAppStructuredData } from '@/components/seo/StructuredData'
 import { UrgencyBannerME } from '@/components/landing/UrgencyBannerME'
 import { MEHero }         from './components/MEHero'
@@ -26,7 +25,6 @@ export default function LandingME() {
         <MEFAQ />
         <MECTAFinal />
       </div>
-      <EcossistemaScantelbury />
       <LandingFooter />
     </main>
   )

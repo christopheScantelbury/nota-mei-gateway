@@ -39,12 +39,12 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://emitirnotafacil.com.
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
-  name: 'Nota MEI Gateway',
+  name: 'NotaFácil',
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   url: APP_URL,
-  description: 'API REST para emissão automatizada de NFS-e para MEI via Receita Federal Nacional.',
-  offers: { '@type': 'Offer', price: '0', priceCurrency: 'BRL', description: 'Trial gratuito de 30 dias' },
+  description: 'Plataforma de emissão de NFS-e Nacional para MEI, ME e EPP. Direto à Receita Federal, sem burocracia.',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'BRL', description: 'Trial gratuito' },
   author: { '@type': 'Organization', name: 'ScantelburyDevs', url: 'https://scantelburydevs.com.br' },
 }
 

@@ -25,7 +25,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/notas',         label: 'Notas Fiscais',       icon: '🧾', badge: null,       tipos: 'all'                },
   { href: '/templates',     label: 'Templates',           icon: '📄', badge: 'PRO',      tipos: 'all'                },
   { href: '/recorrencias',  label: 'Automação',           icon: '🔄', badge: 'BUSINESS', tipos: ['ME', 'EPP']        },
-  { href: '/api-keys',      label: 'API Keys',            icon: '🔑', badge: null,       tipos: 'all'                },
+  { href: '/api-keys',      label: 'API Keys',            icon: '🔑', badge: null,       tipos: ['ME', 'EPP']        },
   { href: '/webhooks',      label: 'Webhooks',            icon: '🔗', badge: null,       tipos: ['ME', 'EPP']        },
   { href: '/billing',       label: 'Plano & Faturamento', icon: '💳', badge: null,       tipos: 'all'                },
   { href: '/configuracoes', label: 'Configurações',       icon: '⚙️', badge: null,       tipos: 'all'                },

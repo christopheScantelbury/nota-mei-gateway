@@ -22,12 +22,12 @@ export default function HeroSection() {
           className="animate-fade-up font-display text-4xl md:text-5xl font-extrabold leading-tight mb-4"
           {...delay(80)}
         >
-          Emissão de NFS-e do MEI,{' '}
+          Emissão de NFS-e Nacional,{' '}
           <span className="text-brand-cyan">sem complicação.</span>
         </h1>
 
         <p className="animate-fade-up text-text-2 text-lg mb-12" {...delay(160)}>
-          Escolha como você quer usar:
+          Para MEI, ME/EPP e integradores. Escolha o seu:
         </p>
 
         <div

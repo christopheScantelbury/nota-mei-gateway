@@ -137,8 +137,9 @@ export default function LoginClient() {
   const router       = useRouter()
   const searchParams = useSearchParams()
   const next         = searchParams.get('next') ?? '/home'
-  const produto      = searchParams.get('produto') // 'mei' | null (gateway)
+  const produto      = searchParams.get('produto') // 'mei' | 'me' | null (gateway)
   const isMei        = produto === 'mei'
+  const isMe         = produto === 'me'
   const errorParam   = searchParams.get('error')
 
   const [step, setStep]       = useState<Step>('email')
@@ -225,15 +226,11 @@ export default function LoginClient() {
   // ── Logo por produto ───────────────────────────────────────────────────────
 
   const logo = isMei ? (
-    <>
-      <Image src="/brand/notafacil-logo.svg"      alt="Nota Fácil MEI"   width={160} height={44} className="h-9 w-auto block dark:hidden" priority />
-      <Image src="/brand/notafacil-logo.svg" alt="Nota Fácil MEI"   width={160} height={44} className="h-9 w-auto hidden dark:block" priority />
-    </>
+    <Image src="/brand/notafacil-mei.svg"     alt="Nota Fácil MEI"      width={160} height={44} className="h-9 w-auto" priority />
+  ) : isMe ? (
+    <Image src="/brand/notafacil-empresa.svg" alt="NotaFácil Empresa"   width={180} height={44} className="h-9 w-auto" priority />
   ) : (
-    <>
-      <Image src="/brand/notafacil-logo.svg"  alt="Nota MEI Gateway" width={160} height={40} className="h-8 w-auto block dark:hidden" priority />
-      <Image src="/brand/notafacil-logo.svg"   alt="Nota MEI Gateway" width={160} height={40} className="h-8 w-auto hidden dark:block" priority />
-    </>
+    <Image src="/brand/notafacil-api.svg"     alt="NotaFácil API"       width={160} height={40} className="h-8 w-auto" priority />
   )
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -244,7 +241,7 @@ export default function LoginClient() {
 
         {/* Logo */}
         <div className="mb-8 text-center">
-          <Link href={isMei ? '/mei' : '/gateway'} className="inline-flex justify-center mb-3">
+          <Link href={isMei ? '/mei' : isMe ? '/me' : '/gateway'} className="inline-flex justify-center mb-3">
             {logo}
           </Link>
           <p className="text-text-2 text-sm">
@@ -275,7 +272,7 @@ export default function LoginClient() {
               <p className="text-xs text-text-2">
                 Não tem conta?{' '}
                 <Link
-                  href={`/cadastro?produto=${produto ?? 'gateway'}`}
+                  href={isMei ? '/cadastro?produto=mei' : isMe ? '/cadastro/me' : '/cadastro?produto=gateway'}
                   className="text-brand-cyan hover:underline"
                 >
                   Criar conta

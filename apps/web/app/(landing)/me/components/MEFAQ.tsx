@@ -43,13 +43,6 @@ const FAQS = [
       'Substituição (com dados corrigidos) em até 9 dias corridos após a emissão. ' +
       'O dashboard exibe o prazo restante em cada nota.',
   },
-  {
-    pergunta: 'Funciona também via API para integrar meu sistema?',
-    resposta:
-      'Sim. Disponibilizamos uma API REST com autenticação por API Key. ' +
-      'Você pode emitir, consultar e cancelar notas programaticamente. ' +
-      'Documentação completa em emitirnotafacil.com.br/api.',
-  },
 ]
 
 export function MEFAQ() {

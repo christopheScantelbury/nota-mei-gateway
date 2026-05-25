@@ -143,6 +143,9 @@ export default function GatewayLandingPage() {
             <p className="text-text-2 text-sm mt-4">
               Trial grátis · Sandbox incluso · Sem cartão de crédito
             </p>
+            <p className="text-text-2 text-xs mt-2">
+              Ao criar conta, você registra o MEI ou ME emissor e recebe sua API Key.
+            </p>
           </div>
 
           {/* Code snippet */}
@@ -180,8 +183,8 @@ export default function GatewayLandingPage() {
             {[
               {
                 step: '01',
-                title: 'Cadastre o MEI',
-                desc: 'Crie a conta, faça upload do certificado A1 e receba sua API Key (sk_live_ ou sk_test_) em segundos.',
+                title: 'Cadastre a empresa',
+                desc: 'Registre o MEI ou ME que irá emitir as notas, faça upload do certificado A1 e receba a API Key (sk_live_ ou sk_test_) em segundos.',
               },
               {
                 step: '02',
