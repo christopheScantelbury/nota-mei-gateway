@@ -42,7 +42,7 @@ export function SeletorEmpresaClient({ empresas }: { empresas: Empresa[] }) {
         updated_at: new Date().toISOString(),
       })
     }
-    router.push('/notas')
+    router.push('/home')
   }
 
   return (

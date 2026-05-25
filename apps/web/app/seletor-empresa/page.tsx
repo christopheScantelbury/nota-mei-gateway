@@ -23,7 +23,7 @@ export default async function SeletorEmpresaPage() {
     .order('created_at', { ascending: true })
 
   if (!empresas?.length) redirect('/cadastro')
-  if (empresas.length === 1) redirect('/notas')
+  if (empresas.length === 1) redirect('/home')
 
   return <SeletorEmpresaClient empresas={empresas} />
 }

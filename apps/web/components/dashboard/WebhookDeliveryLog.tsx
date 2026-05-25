@@ -57,11 +57,11 @@ export default function WebhookDeliveryLog({
 
       <dl className="divide-y divide-navy-600">
         <div className="flex px-5 py-3 gap-4">
-          <dt className="w-44 shrink-0 text-sm text-text-2">URL do destino</dt>
+          <dt className="w-28 sm:w-44 shrink-0 text-sm text-text-2">URL do destino</dt>
           <dd className="text-sm font-mono text-text-1 break-all">{webhookUrl}</dd>
         </div>
         <div className="flex px-5 py-3 gap-4">
-          <dt className="w-44 shrink-0 text-sm text-text-2">Status</dt>
+          <dt className="w-28 sm:w-44 shrink-0 text-sm text-text-2">Status</dt>
           <dd className="text-sm">
             {localState.entregue ? (
               <span className="flex items-center gap-1.5 text-nota-autorizada">
@@ -77,7 +77,7 @@ export default function WebhookDeliveryLog({
           </dd>
         </div>
         <div className="flex px-5 py-3 gap-4">
-          <dt className="w-44 shrink-0 text-sm text-text-2">Tentativas</dt>
+          <dt className="w-28 sm:w-44 shrink-0 text-sm text-text-2">Tentativas</dt>
           <dd className="text-sm font-mono">{localState.tentativas}</dd>
         </div>
         {!localState.entregue && (

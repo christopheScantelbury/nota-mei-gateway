@@ -13,8 +13,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/notas'
-  const target = next.startsWith('/') ? next : '/notas'
+  const next = searchParams.get('next') ?? '/home'
+  const target = next.startsWith('/') ? next : '/home'
 
   if (code) {
     // Build the redirect response first so we can attach cookies to it.

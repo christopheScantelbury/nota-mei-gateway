@@ -116,7 +116,7 @@ export default async function DashboardLayout({
         />
         <main
           id="main-content"
-          className="flex-1 overflow-auto pt-14 lg:pt-0"
+          className="flex-1 overflow-auto pt-14 lg:pt-0 pb-8"
           tabIndex={-1}
         >
           {children}
@@ -147,7 +147,7 @@ export default async function DashboardLayout({
       />
       <main
         id="main-content"
-        className="flex-1 overflow-auto pt-14 lg:pt-0"
+        className="flex-1 overflow-auto pt-14 lg:pt-0 pb-8"
         tabIndex={-1}
       >
         {children}

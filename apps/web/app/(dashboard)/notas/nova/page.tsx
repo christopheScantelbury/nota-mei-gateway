@@ -280,6 +280,14 @@ export default function NovaNota() {
   // ── Form
   return (
     <div className="p-4 sm:p-8 max-w-2xl">
+      {/* Back */}
+      <Link
+        href="/notas"
+        className="text-sm text-text-2 hover:text-brand-cyan transition mb-4 inline-block"
+      >
+        ← Voltar para lista
+      </Link>
+
       <div className="mb-8">
         <h1 className="font-display text-3xl font-extrabold">Emitir NFS-e</h1>
         <p className="text-text-2 mt-1 text-sm">Preencha os dados abaixo para emitir uma nova nota fiscal.</p>

@@ -43,10 +43,10 @@ function PlanGuard({ currentPlan }: { currentPlan: string }) {
             Fazer upgrade →
           </Link>
           <Link
-            href="/"
+            href="/home"
             className="border border-navy-600 text-text-2 font-semibold text-sm px-6 py-2.5 rounded-lg hover:border-brand-cyan hover:text-text-1 transition"
           >
-            Voltar ao dashboard
+            Voltar ao painel
           </Link>
         </div>
       </div>

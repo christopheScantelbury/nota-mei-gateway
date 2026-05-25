@@ -59,39 +59,27 @@ export default function InvoiceList() {
           Nenhuma fatura encontrada. As faturas aparecerão aqui após o primeiro ciclo de cobrança.
         </div>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-navy-600">
-              {['Fatura', 'Período', 'Valor', 'Status', 'Ações'].map((h) => (
-                <th
-                  key={h}
-                  className="px-4 py-3 text-left text-xs font-semibold text-text-2 uppercase tracking-wider"
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {invoices.map((inv, i) => (
-              <tr
-                key={inv.id}
-                className={`border-b border-navy-600 last:border-0 ${i % 2 === 0 ? '' : 'bg-navy-700/30'}`}
-              >
-                <td className="px-4 py-3 font-mono text-xs text-text-2">
-                  {inv.number ?? inv.id.slice(-8)}
-                </td>
-                <td className="px-4 py-3 text-text-2 text-xs">
-                  {formatDate(inv.period_start)} → {formatDate(inv.period_end)}
-                </td>
-                <td className="px-4 py-3 font-mono font-semibold">
-                  {formatMoneyFromCents(inv.amount_due, inv.currency)}
-                </td>
-                <td className="px-4 py-3">
+        <>
+          {/* ── Mobile: card list (< sm) ── */}
+          <div className="sm:hidden divide-y divide-navy-600">
+            {invoices.map((inv) => (
+              <div key={inv.id} className="p-4 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-mono text-xs text-text-2 truncate">
+                      {inv.number ?? inv.id.slice(-8)}
+                    </p>
+                    <p className="text-xs text-text-2 mt-0.5">
+                      {formatDate(inv.period_start)} → {formatDate(inv.period_end)}
+                    </p>
+                  </div>
                   <InvoiceStatusBadge status={inv.status} />
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-2">
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono font-semibold text-base">
+                    {formatMoneyFromCents(inv.amount_due, inv.currency)}
+                  </span>
+                  <div className="flex gap-3">
                     {inv.invoice_pdf && (
                       <a
                         href={inv.invoice_pdf}
@@ -113,11 +101,72 @@ export default function InvoiceList() {
                       </a>
                     )}
                   </div>
-                </td>
-              </tr>
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+
+          {/* ── Desktop: table (≥ sm) ── */}
+          <table className="hidden sm:table w-full text-sm">
+            <thead>
+              <tr className="border-b border-navy-600">
+                {['Fatura', 'Período', 'Valor', 'Status', 'Ações'].map((h) => (
+                  <th
+                    key={h}
+                    className="px-4 py-3 text-left text-xs font-semibold text-text-2 uppercase tracking-wider"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {invoices.map((inv, i) => (
+                <tr
+                  key={inv.id}
+                  className={`border-b border-navy-600 last:border-0 ${i % 2 === 0 ? '' : 'bg-navy-700/30'}`}
+                >
+                  <td className="px-4 py-3 font-mono text-xs text-text-2">
+                    {inv.number ?? inv.id.slice(-8)}
+                  </td>
+                  <td className="px-4 py-3 text-text-2 text-xs">
+                    {formatDate(inv.period_start)} → {formatDate(inv.period_end)}
+                  </td>
+                  <td className="px-4 py-3 font-mono font-semibold">
+                    {formatMoneyFromCents(inv.amount_due, inv.currency)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <InvoiceStatusBadge status={inv.status} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2">
+                      {inv.invoice_pdf && (
+                        <a
+                          href={inv.invoice_pdf}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-brand-cyan hover:underline"
+                        >
+                          ⬇ PDF
+                        </a>
+                      )}
+                      {inv.hosted_invoice_url && (
+                        <a
+                          href={inv.hosted_invoice_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-text-2 hover:text-text-1"
+                        >
+                          Ver →
+                        </a>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
     </div>
   )

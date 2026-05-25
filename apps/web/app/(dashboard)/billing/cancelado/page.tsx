@@ -15,7 +15,7 @@ export default async function BillingCanceladoPage() {
   if (!user) redirect('/login')
 
   return (
-    <div className="p-8 max-w-xl">
+    <div className="p-4 sm:p-8 max-w-xl">
       <div className="rounded-xl border border-navy-600 bg-navy-700 p-8 text-center">
         {/* Icon */}
         <div className="flex items-center justify-center w-16 h-16 rounded-full bg-navy-600 border border-navy-600 mx-auto mb-5">

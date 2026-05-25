@@ -136,7 +136,7 @@ function ResendButton({ onResend, disabled }: { onResend: () => Promise<void>; d
 export default function LoginClient() {
   const router       = useRouter()
   const searchParams = useSearchParams()
-  const next         = searchParams.get('next') ?? '/notas'
+  const next         = searchParams.get('next') ?? '/home'
   const produto      = searchParams.get('produto') // 'mei' | null (gateway)
   const isMei        = produto === 'mei'
   const errorParam   = searchParams.get('error')
@@ -218,7 +218,7 @@ export default function LoginClient() {
     }
 
     // Sessão estabelecida — redireciona para o destino no mesmo domínio
-    const target = next.startsWith('/') ? next : '/notas'
+    const target = next.startsWith('/') ? next : '/home'
     router.replace(target)
   }
 

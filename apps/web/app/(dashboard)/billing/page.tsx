@@ -178,48 +178,76 @@ export default async function BillingPage() {
         )}
       </div>
 
-      {/* History table */}
+      {/* History — table on desktop, cards on mobile */}
       {historyRows.length > 0 && (
         <div className="rounded-xl border border-navy-600 overflow-hidden mb-8">
           <div className="bg-navy-700 px-5 py-3 border-b border-navy-600">
             <h2 className="font-display text-base font-bold">Histórico por competência</h2>
           </div>
-          <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-navy-600">
-                {['Competência', 'Plano', 'Emitidas', 'Limite', 'Utilizado'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-text-2 uppercase tracking-wider">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {historyRows.map((r, i) => {
-                const pct = r.emissoes_limite > 0 ? Math.min(100, Math.round((r.total_emitidas / r.emissoes_limite) * 100)) : 0
-                return (
-                  <tr key={r.competencia} className={`border-b border-navy-600 last:border-0 ${i % 2 === 0 ? '' : 'bg-navy-700/30'}`}>
-                    <td className="px-4 py-3 font-mono text-brand-cyan text-sm">{r.competencia}</td>
-                    <td className="px-4 py-3 text-text-2">{r.plano_nome}</td>
-                    <td className="px-4 py-3 font-mono">{r.total_emitidas}</td>
-                    <td className="px-4 py-3 font-mono text-text-2">{r.emissoes_limite}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 h-1.5 rounded-full bg-navy-600 overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${pct >= 100 ? 'bg-nota-rejeitada' : pct >= 80 ? 'bg-nota-processando' : 'bg-brand-cyan'}`}
-                            style={{ width: `${pct}%` }}
-                          />
+
+          {/* ── Mobile: card list (< sm) ── */}
+          <div className="sm:hidden divide-y divide-navy-600">
+            {historyRows.map((r) => {
+              const pct = r.emissoes_limite > 0 ? Math.min(100, Math.round((r.total_emitidas / r.emissoes_limite) * 100)) : 0
+              const barColor = pct >= 100 ? 'bg-nota-rejeitada' : pct >= 80 ? 'bg-nota-processando' : 'bg-brand-cyan'
+              return (
+                <div key={r.competencia} className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-mono text-brand-cyan text-sm">{r.competencia}</span>
+                    <span className="text-xs text-text-2">{r.plano_nome}</span>
+                  </div>
+                  <div className="flex items-baseline gap-1 mb-2">
+                    <span className="font-mono text-lg font-semibold">{r.total_emitidas}</span>
+                    <span className="text-xs text-text-2">/ {r.emissoes_limite} notas</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 rounded-full bg-navy-600 overflow-hidden">
+                      <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+                    </div>
+                    <span className="text-xs text-text-2 tabular-nums">{pct}%</span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* ── Desktop: table (≥ sm) ── */}
+          <div className="hidden sm:block overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-navy-600">
+                  {['Competência', 'Plano', 'Emitidas', 'Limite', 'Utilizado'].map(h => (
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-text-2 uppercase tracking-wider">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {historyRows.map((r, i) => {
+                  const pct = r.emissoes_limite > 0 ? Math.min(100, Math.round((r.total_emitidas / r.emissoes_limite) * 100)) : 0
+                  return (
+                    <tr key={r.competencia} className={`border-b border-navy-600 last:border-0 ${i % 2 === 0 ? '' : 'bg-navy-700/30'}`}>
+                      <td className="px-4 py-3 font-mono text-brand-cyan text-sm">{r.competencia}</td>
+                      <td className="px-4 py-3 text-text-2">{r.plano_nome}</td>
+                      <td className="px-4 py-3 font-mono">{r.total_emitidas}</td>
+                      <td className="px-4 py-3 font-mono text-text-2">{r.emissoes_limite}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-16 h-1.5 rounded-full bg-navy-600 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full ${pct >= 100 ? 'bg-nota-rejeitada' : pct >= 80 ? 'bg-nota-processando' : 'bg-brand-cyan'}`}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-text-2">{pct}%</span>
                         </div>
-                        <span className="text-xs text-text-2">{pct}%</span>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

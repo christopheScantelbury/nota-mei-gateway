@@ -19,7 +19,7 @@ export default async function BillingSuccessPage({
   if (!user) redirect('/login')
 
   return (
-    <div className="p-8 max-w-xl">
+    <div className="p-4 sm:p-8 max-w-xl">
       <div className="rounded-xl border border-nota-autorizada/40 bg-nota-autorizada/10 p-8 text-center">
         {/* Icon */}
         <div className="flex items-center justify-center w-16 h-16 rounded-full bg-nota-autorizada/20 border border-nota-autorizada/30 mx-auto mb-5">
@@ -51,14 +51,20 @@ export default async function BillingSuccessPage({
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link
-            href="/notas/nova"
+            href="/home"
             className="bg-brand-cyan text-navy-900 font-semibold text-sm px-6 py-2.5 rounded-lg hover:opacity-90 transition"
           >
-            Emitir nova nota →
+            Ir para o painel →
+          </Link>
+          <Link
+            href="/notas/nova"
+            className="border border-navy-600 text-text-1 font-semibold text-sm px-6 py-2.5 rounded-lg hover:border-brand-cyan transition"
+          >
+            Emitir nova nota
           </Link>
           <Link
             href="/billing"
-            className="border border-navy-600 text-text-1 font-semibold text-sm px-6 py-2.5 rounded-lg hover:border-brand-cyan transition"
+            className="border border-navy-600 text-text-2 font-semibold text-sm px-6 py-2.5 rounded-lg hover:border-brand-cyan hover:text-text-1 transition"
           >
             Ver meu plano
           </Link>

@@ -34,7 +34,7 @@ export default async function CadastroMEPage() {
     .maybeSingle()
 
   if (empresa) {
-    redirect('/notas')
+    redirect('/home')
   }
 
   return (

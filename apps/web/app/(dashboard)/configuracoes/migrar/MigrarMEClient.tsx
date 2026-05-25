@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, FormEvent } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/browser'
 import { formatCNPJ } from '@/lib/format'
@@ -104,6 +105,14 @@ export default function MigrarMEClient({ empresa }: { empresa: Empresa }) {
 
   return (
     <div className="max-w-xl mx-auto px-4 py-10">
+      {/* Back */}
+      <Link
+        href="/configuracoes"
+        className="text-sm text-text-2 hover:text-brand-cyan transition mb-4 inline-block"
+      >
+        ← Voltar para configurações
+      </Link>
+
       <h1 className="font-display text-2xl font-bold text-text-1 mb-2">
         Migrar para ME
       </h1>
@@ -219,9 +228,14 @@ export default function MigrarMEClient({ empresa }: { empresa: Empresa }) {
             <strong>{REGIME_OPTIONS.find(r => r.value === regime)?.label}</strong>.
             O histórico de notas foi preservado.
           </p>
-          <Button variant="primary" className="mt-2" onClick={() => router.push('/notas')}>
-            Ir para as notas →
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-2 mt-2">
+            <Button variant="primary" className="flex-1" onClick={() => router.push('/home')}>
+              Ir para o painel →
+            </Button>
+            <Button variant="secondary" className="flex-1" onClick={() => router.push('/notas')}>
+              Ver minhas notas
+            </Button>
+          </div>
         </div>
       )}
     </div>
