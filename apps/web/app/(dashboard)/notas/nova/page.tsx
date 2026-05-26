@@ -96,8 +96,28 @@ export default function NovaNota() {
   // ME-42: regime do usuário para exibir ISSRecolhimentoCard no sucesso
   const [userRegime, setUserRegime] = useState<RegimeTributario | null>(null)
 
+  // Persona da empresa — controla quais campos de imposto aparecem.
+  // MEI/SN não escolhem alíquota ISS nem retenção (recolhem via DAS).
+  // LP/LR têm controle total por nota.
+  const [empresaTipo, setEmpresaTipo] = useState<'MEI' | 'ME' | 'EPP' | null>(null)
+  const [empresaRegime, setEmpresaRegime] = useState<RegimeTributario | null>(null)
+  const isMei = empresaTipo === 'MEI'
+  const isSimplesNacional = isMei || empresaRegime === 'SIMPLES_NACIONAL'
+
   useEffect(() => {
     setIdempotencyKey(crypto.randomUUID())
+    // Carrega o regime da empresa pra ajustar a UI
+    fetch('/api/empresa/me')
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { tipo?: 'MEI' | 'ME' | 'EPP'; regime_tributario?: RegimeTributario } | null) => {
+        if (d?.tipo) setEmpresaTipo(d.tipo)
+        if (d?.regime_tributario) setEmpresaRegime(d.regime_tributario)
+        // MEI/SN: alíquota não é usada — zera pra evitar confusão no payload
+        if (d?.tipo === 'MEI' || d?.regime_tributario === 'SIMPLES_NACIONAL') {
+          setAliquotaIss('0')
+        }
+      })
+      .catch(() => {/* silent — UI segue como LP padrão */})
   }, [])
 
   // Load templates (silently — feature only for Pro/Business)
@@ -188,7 +208,9 @@ export default function NovaNota() {
           codigo_nbs: codigoNbs.trim(),
           discriminacao: discriminacao.trim(),
           valor: parseFloat(valorServico.replace(',', '.')),
-          aliquota_iss: parseFloat(aliquotaIss.replace(',', '.')),
+          // MEI/SN: alíquota não se aplica (recolhe ISS via DAS). Envia 0
+          // para o backend manter o campo no DPS sem cobrar nada.
+          aliquota_iss: isSimplesNacional ? 0 : parseFloat(aliquotaIss.replace(',', '.')),
         },
         tomador: {
           tipo: tipoPessoa,
@@ -290,7 +312,13 @@ export default function NovaNota() {
 
       <div className="mb-8">
         <h1 className="font-display text-3xl font-extrabold">Emitir NFS-e</h1>
-        <p className="text-text-2 mt-1 text-sm">Preencha os dados abaixo para emitir uma nova nota fiscal.</p>
+        <p className="text-text-2 mt-1 text-sm">
+          {isMei
+            ? 'Como MEI, basta informar o serviço, o valor e o tomador. O DAS fixo mensal já cobre os impostos.'
+            : isSimplesNacional
+            ? 'Como Simples Nacional, basta informar o serviço, o valor e o tomador. O ISS é recolhido via DAS.'
+            : 'Preencha os dados abaixo para emitir uma nova nota fiscal.'}
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-8">
@@ -374,33 +402,58 @@ export default function NovaNota() {
             </div>
           </Field>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className={`grid grid-cols-1 ${isSimplesNacional ? '' : 'sm:grid-cols-2'} gap-4`}>
             <Field label="Valor do serviço (R$)" error={errors.valorServico}>
               <input
                 type="number"
+                inputMode="decimal"
                 className={inputCls}
                 placeholder="0,00"
                 min="0.01"
                 step="0.01"
                 value={valorServico}
                 onChange={e => setValorServico(e.target.value)}
+                onBlur={e => {
+                  // Normaliza pra 2 casas decimais sem arredondar pra cima.
+                  const raw = e.target.value.replace(',', '.').trim()
+                  const n = Number(raw)
+                  if (!isNaN(n) && n > 0) setValorServico(n.toFixed(2))
+                }}
               />
             </Field>
-            <Field label="Alíquota ISS (%)">
-              <input
-                type="number"
-                className={inputCls}
-                min="0"
-                max="5"
-                step="0.1"
-                value={aliquotaIss}
-                onChange={e => setAliquotaIss(e.target.value)}
-              />
-            </Field>
+            {/* Alíquota ISS — só pra LP/LR. MEI e SN recolhem ISS via DAS, alíquota não se aplica. */}
+            {!isSimplesNacional && (
+              <Field label="Alíquota ISS (%)">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  className={inputCls}
+                  min="0"
+                  max="5"
+                  step="0.1"
+                  value={aliquotaIss}
+                  onChange={e => setAliquotaIss(e.target.value)}
+                />
+              </Field>
+            )}
           </div>
 
-          {/* ISS preview */}
-          {issEstimado !== null && (
+          {/* MEI/SN: nota explicativa sobre o DAS */}
+          {isSimplesNacional && (
+            <div className="flex items-start gap-2 bg-brand-cyan/5 border border-brand-cyan/20 rounded-lg px-4 py-2.5">
+              <span className="text-base shrink-0 mt-0.5">💡</span>
+              <p className="text-xs text-text-2 leading-relaxed">
+                {isMei ? (
+                  <>Como <strong className="text-text-1">MEI</strong>, você paga apenas o <strong className="text-text-1">DAS fixo mensal</strong> (R$ 71-76). ISS por nota não se aplica — não é necessário informar alíquota nem retenção.</>
+                ) : (
+                  <>Como <strong className="text-text-1">Simples Nacional</strong>, o ISS é recolhido junto com o DAS mensal pela alíquota efetiva do seu anexo. Não é necessário informar alíquota por nota.</>
+                )}
+              </p>
+            </div>
+          )}
+
+          {/* ISS preview — só pra LP/LR */}
+          {!isSimplesNacional && issEstimado !== null && (
             <div className="flex items-center gap-2 bg-brand-cyan/10 border border-brand-cyan/30 rounded-lg px-4 py-2.5">
               <span className="text-xs text-brand-cyan font-semibold">ISS estimado:</span>
               <span className="text-sm font-mono text-brand-cyan">
@@ -500,34 +553,36 @@ export default function NovaNota() {
               />
             </Field>
 
-            {/* ME-41: ISS retido toggle — required for Lucro Presumido, ignored for MEI/SN */}
-            <div className="rounded-lg border border-navy-600 p-4">
-              <p className="text-sm font-semibold text-text-1 mb-1">Retenção de ISS</p>
-              <p className="text-xs text-text-2 mb-3">
-                Apenas para empresas Lucro Presumido. MEI e Simples Nacional recolhem ISS via DAS — deixe sem seleção.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-2">
-                {([
-                  { label: 'Não especificado', value: null },
-                  { label: 'ISS retido na fonte', value: true },
-                  { label: 'ISS não retido', value: false },
-                ] as const).map(({ label, value }) => (
-                  <button
-                    key={String(value)}
-                    type="button"
-                    onClick={() => setIssRetido(value)}
-                    className={[
-                      'flex-1 py-2 px-2 rounded-lg text-xs font-semibold transition border',
-                      issRetido === value
-                        ? 'bg-brand-cyan text-navy-900 border-brand-cyan'
-                        : 'border-navy-600 text-text-2 hover:border-brand-cyan',
-                    ].join(' ')}
-                  >
-                    {label}
-                  </button>
-                ))}
+            {/* ME-41: ISS retido toggle — só faz sentido pra Lucro Presumido/Real. */}
+            {!isSimplesNacional && (
+              <div className="rounded-lg border border-navy-600 p-4">
+                <p className="text-sm font-semibold text-text-1 mb-1">Retenção de ISS</p>
+                <p className="text-xs text-text-2 mb-3">
+                  Marque se o tomador é responsável pela retenção do ISS na fonte (regra do município).
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {([
+                    { label: 'Não especificado', value: null },
+                    { label: 'ISS retido na fonte', value: true },
+                    { label: 'ISS não retido', value: false },
+                  ] as const).map(({ label, value }) => (
+                    <button
+                      key={String(value)}
+                      type="button"
+                      onClick={() => setIssRetido(value)}
+                      className={[
+                        'flex-1 py-2 px-2 rounded-lg text-xs font-semibold transition border',
+                        issRetido === value
+                          ? 'bg-brand-cyan text-navy-900 border-brand-cyan'
+                          : 'border-navy-600 text-text-2 hover:border-brand-cyan',
+                      ].join(' ')}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             <Field label="Chave de idempotência">
               <div className="flex gap-2">
