@@ -112,7 +112,7 @@ export default async function DashboardHome() {
     (empresaProfile.data?.tipo as 'MEI' | 'ME' | 'EPP') ?? 'MEI'
 
   // Parallel fetches — RLS enforces isolation for both MEI and ME/EPP
-  const [emissaoResult, notasResult, keyResult, firstAutorizadaResult] = await Promise.all([
+  const [emissaoResult, notasResult, keyResult, firstAutorizadaResult, statusBreakdownResult] = await Promise.all([
     supabase
       .from('emissoes_mensais')
       .select('total_emitidas, renovacao_em, stripe_subscription_id, planos(nome, emissoes_limite)')
@@ -133,13 +133,22 @@ export default async function DashboardHome() {
       .limit(1)
       .maybeSingle<{ key_prefix: string; label: string | null; created_at: string }>(),
 
+    // Uma nota CANCELADA precisou ser AUTORIZADA antes de ser cancelada — então
+    // marca o passo "Primeira nota autorizada" como concluído nos dois casos.
     supabase
       .from('notas_fiscais')
       .select('id')
-      .eq('status', 'AUTORIZADA')
-      .order('emitida_em', { ascending: true })
+      .in('status', ['AUTORIZADA', 'CANCELADA'])
+      .order('emitida_em', { ascending: false, nullsFirst: false })
       .limit(1)
       .maybeSingle<{ id: string }>(),
+
+    // Breakdown por status (mês atual) para mostrar no card de uso.
+    supabase
+      .from('notas_fiscais')
+      .select('status')
+      .eq('competencia', competencia)
+      .overrideTypes<{ status: NotaStatus }[]>(),
   ])
 
   const mei = profileData
@@ -156,6 +165,15 @@ export default async function DashboardHome() {
   const limite = emissao?.planos?.emissoes_limite ?? 5
   const planoNome = emissao?.planos?.nome ?? 'Trial'
   const usagePct = Math.min(100, Math.round((totalEmitidas / limite) * 100))
+
+  // Breakdown por status (mês atual)
+  const breakdown = (statusBreakdownResult.data ?? []).reduce<Record<string, number>>((acc, n) => {
+    acc[n.status] = (acc[n.status] ?? 0) + 1
+    return acc
+  }, {})
+  const nAutorizadas = (breakdown.AUTORIZADA ?? 0) + (breakdown.CANCELADA ?? 0)
+  const nProcessando = breakdown.PROCESSANDO ?? 0
+  const nRejeitadas = breakdown.REJEITADA ?? 0
 
   const certDays = daysUntil(mei?.cert_valid_until ?? null)
   const hasCert = !!mei?.cert_valid_until
@@ -242,6 +260,30 @@ export default async function DashboardHome() {
               </p>
             )}
           </div>
+
+          {/* Breakdown por status — só renderiza se houver alguma nota */}
+          {(nAutorizadas + nProcessando + nRejeitadas) > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2 text-xs">
+              {nAutorizadas > 0 && (
+                <span className="inline-flex items-center gap-1.5 bg-nota-autorizada/10 border border-nota-autorizada/30 text-nota-autorizada rounded-full px-2.5 py-0.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-nota-autorizada" />
+                  {nAutorizadas} autorizada{nAutorizadas !== 1 ? 's' : ''}
+                </span>
+              )}
+              {nProcessando > 0 && (
+                <span className="inline-flex items-center gap-1.5 bg-nota-processando/10 border border-nota-processando/30 text-nota-processando rounded-full px-2.5 py-0.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-nota-processando animate-pulse" />
+                  {nProcessando} processando
+                </span>
+              )}
+              {nRejeitadas > 0 && (
+                <span className="inline-flex items-center gap-1.5 bg-nota-rejeitada/10 border border-nota-rejeitada/30 text-nota-rejeitada rounded-full px-2.5 py-0.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-nota-rejeitada" />
+                  {nRejeitadas} rejeitada{nRejeitadas !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+          )}
           {usagePct >= 80 && usagePct < 100 && (
             <p className="text-xs text-nota-processando mt-2">⚠️ Você está próximo do limite do plano.</p>
           )}
