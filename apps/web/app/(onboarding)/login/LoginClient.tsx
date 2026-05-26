@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/browser'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 
-type Step = 'email' | 'otp'
+type Step = 'pick' | 'email' | 'otp'
 
 const OTP_LENGTH     = 6
 const RESEND_COOLDOWN = 60 // seconds
@@ -137,12 +137,13 @@ export default function LoginClient() {
   const router       = useRouter()
   const searchParams = useSearchParams()
   const next         = searchParams.get('next') ?? '/home'
-  const produto      = searchParams.get('produto') // 'mei' | 'me' | null (gateway)
+  const produto      = searchParams.get('produto') // 'mei' | 'me' | 'gateway' | null
   const isMei        = produto === 'mei'
   const isMe         = produto === 'me'
   const errorParam   = searchParams.get('error')
 
-  const [step, setStep]       = useState<Step>('email')
+  // Se não há ?produto, o usuário precisa escolher a persona antes de logar
+  const [step, setStep]       = useState<Step>(produto ? 'email' : 'pick')
   const [email, setEmail]     = useState('')
   const [otp, setOtp]         = useState<string[]>(Array(OTP_LENGTH).fill(''))
   const [loading, setLoading] = useState(false)
@@ -225,7 +226,9 @@ export default function LoginClient() {
 
   // ── Logo por produto ───────────────────────────────────────────────────────
 
-  const logo = isMei ? (
+  const logo = step === 'pick' ? (
+    <Image src="/brand/notafacil-logo.svg"    alt="NotaFácil"           width={170} height={44} className="h-9 w-auto" priority />
+  ) : isMei ? (
     <Image src="/brand/notafacil-mei.svg"     alt="Nota Fácil MEI"      width={160} height={44} className="h-9 w-auto" priority />
   ) : isMe ? (
     <Image src="/brand/notafacil-empresa.svg" alt="NotaFácil Empresa"   width={180} height={44} className="h-9 w-auto" priority />
@@ -241,13 +244,48 @@ export default function LoginClient() {
 
         {/* Logo */}
         <div className="mb-8 text-center">
-          <Link href={isMei ? '/mei' : isMe ? '/me' : '/gateway'} className="inline-flex justify-center mb-3">
+          <Link
+            href={step === 'pick' ? '/' : isMei ? '/mei' : isMe ? '/me' : '/gateway'}
+            className="inline-flex justify-center mb-3"
+          >
             {logo}
           </Link>
           <p className="text-text-2 text-sm">
-            {step === 'email' ? 'Acesse sua conta' : 'Verifique seu e-mail'}
+            {step === 'pick' ? 'Selecione sua conta' : step === 'email' ? 'Acesse sua conta' : 'Verifique seu e-mail'}
           </p>
         </div>
+
+        {/* ── STEP 0: selecionar produto (só quando ?produto não está na URL) ── */}
+        {step === 'pick' && (
+          <div className="space-y-3">
+            <p className="text-center text-sm text-text-2 mb-5">
+              Escolha como deseja entrar:
+            </p>
+            {[
+              { label: 'MEI',          sub: 'Microempreendedor Individual', href: `/login?produto=mei${next !== '/home' ? `&next=${encodeURIComponent(next)}` : ''}` },
+              { label: 'ME / EPP',     sub: 'Microempresa ou EPP',          href: `/login?produto=me${next !== '/home' ? `&next=${encodeURIComponent(next)}` : ''}` },
+              { label: 'Gateway API',  sub: 'Desenvolvedor / integrador',   href: `/login?produto=gateway${next !== '/home' ? `&next=${encodeURIComponent(next)}` : ''}` },
+            ].map(({ label, sub, href }) => (
+              <Link
+                key={label}
+                href={href}
+                className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 px-5 py-4 hover:border-brand-cyan dark:hover:border-brand-cyan transition-colors group"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-text-1 group-hover:text-brand-cyan transition-colors">{label}</p>
+                  <p className="text-xs text-text-2 mt-0.5">{sub}</p>
+                </div>
+                <span className="text-text-2 group-hover:text-brand-cyan transition-colors text-lg">→</span>
+              </Link>
+            ))}
+            <p className="text-center text-xs text-text-2 pt-2">
+              Não tem conta?{' '}
+              <Link href="/cadastro" className="text-brand-cyan hover:underline">
+                Criar conta
+              </Link>
+            </p>
+          </div>
+        )}
 
         {/* ── STEP 1: e-mail ── */}
         {step === 'email' && (

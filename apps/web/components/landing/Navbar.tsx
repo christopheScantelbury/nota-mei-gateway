@@ -42,6 +42,17 @@ function getPersonaForPath(pathname: string): Persona {
   return PERSONA_DEFAULT
 }
 
+// Deriva os hrefs de login e cadastro pelo pathname.
+// Páginas de produto direcionam direto para o login/cadastro da persona.
+// Páginas neutras (home, /precos…) enviam para /login sem ?produto, onde
+// o usuário escolhe a persona antes de ver o formulário.
+function getHrefsForPath(pathname: string) {
+  if (pathname.startsWith('/mei'))     return { loginHref: '/login?produto=mei',     cadastroHref: '/cadastro?produto=mei' }
+  if (pathname.startsWith('/me'))      return { loginHref: '/login?produto=me',      cadastroHref: '/cadastro/me' }
+  if (pathname.startsWith('/gateway')) return { loginHref: '/login?produto=gateway', cadastroHref: '/cadastro?produto=gateway' }
+  return { loginHref: '/login', cadastroHref: '/cadastro' }
+}
+
 const mobileLinks = [
   { label: 'MEI',           href: '/mei',     isAnchor: false },
   { label: 'ME / EPP',      href: '/me',      isAnchor: false },
@@ -57,6 +68,7 @@ export default function Navbar() {
   const [menuOpen,  setMenuOpen]  = useState(false)
   const pathname = usePathname() ?? '/'
   const persona = getPersonaForPath(pathname)
+  const { loginHref, cadastroHref } = getHrefsForPath(pathname)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60)
@@ -111,13 +123,13 @@ export default function Navbar() {
           <div className="hidden sm:flex items-center gap-2 shrink-0">
             <ThemeToggle />
             <Link
-              href="/login"
+              href={loginHref}
               className="text-sm font-medium text-text-2 hover:text-text-1 transition-colors px-3 py-2 rounded-lg hover:bg-navy-700/50 dark:hover:bg-navy-700"
             >
               Entrar
             </Link>
             <Link
-              href="/cadastro"
+              href={cadastroHref}
               className={`text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors ${persona.ctaClass}`}
             >
               Cadastrar grátis
@@ -146,8 +158,8 @@ export default function Navbar() {
         isOpen={menuOpen}
         onClose={() => setMenuOpen(false)}
         links={mobileLinks}
-        cta={{ label: 'Cadastrar grátis', href: '/cadastro' }}
-        secondaryCta={{ label: 'Entrar', href: '/login' }}
+        cta={{ label: 'Cadastrar grátis', href: cadastroHref }}
+        secondaryCta={{ label: 'Entrar', href: loginHref }}
       />
     </>
   )
