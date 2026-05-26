@@ -192,71 +192,77 @@ export default function SandboxPage() {
     <div className="min-h-screen bg-navy-900 text-text-1">
       {/* Header */}
       <div className="border-b border-navy-600 bg-navy-900/80 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Link href="/gateway" className="flex items-center shrink-0">
               <LogoAdaptive
                 darkSrc="/brand/notafacil-logo.svg"
                 lightSrc="/brand/notafacil-logo.svg"
-                alt="Nota MEI Gateway"
+                alt="NotaFácil API"
                 width={160}
                 height={40}
+                className="w-[120px] sm:w-[160px] h-auto"
               />
             </Link>
-            <span className="text-xs bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/20 rounded-full px-2 py-0.5">
+            <span className="text-[10px] sm:text-xs bg-brand-cyan/10 text-brand-cyan border border-brand-cyan/20 rounded-full px-2 py-0.5 shrink-0">
               Sandbox
             </span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <ThemeToggle />
-            <Link href="/docs" className="text-sm text-text-2 hover:text-text-1 transition">Docs</Link>
-            <Link href="/cadastro?produto=gateway" className="text-sm font-semibold bg-brand-cyan text-navy-900 px-4 py-2 rounded-lg hover:opacity-90 transition">
-              Criar conta →
+            <Link href="/docs" className="hidden sm:inline text-sm text-text-2 hover:text-text-1 transition">Docs</Link>
+            <Link
+              href="/cadastro?produto=gateway"
+              className="text-xs sm:text-sm font-semibold bg-brand-cyan text-navy-900 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:opacity-90 transition whitespace-nowrap"
+            >
+              Criar conta <span className="hidden sm:inline">→</span>
             </Link>
           </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-10 space-y-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 sm:space-y-8">
         {/* Hero */}
-        <div className="text-center space-y-3">
-          <h1 className="text-4xl font-bold font-display">
+        <div className="text-center space-y-2 sm:space-y-3">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold font-display">
             Teste a API em <span className="text-brand-cyan">30 segundos</span>
           </h1>
-          <p className="text-text-2 text-lg max-w-xl mx-auto">
+          <p className="text-text-2 text-sm sm:text-base md:text-lg max-w-xl mx-auto px-2">
             Playground público. Nenhuma NFS-e é enviada à Receita Federal.
           </p>
         </div>
 
         {/* Demo key */}
-        <div className="bg-navy-700 border border-navy-600 rounded-xl p-5 flex items-center gap-4">
-          <div className="flex-1">
+        <div className="bg-navy-700 border border-navy-600 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <div className="flex-1 min-w-0">
             <p className="text-xs text-text-2 uppercase tracking-wider mb-1">Chave de demonstração</p>
-            <code className="font-mono text-sm text-brand-cyan">{DEMO_KEY}</code>
+            <code className="font-mono text-xs sm:text-sm text-brand-cyan break-all">{DEMO_KEY}</code>
           </div>
-          {rateLeft !== null && (
-            <span className="text-xs text-text-2 border border-navy-600 rounded-full px-2 py-0.5">
-              {rateLeft} req restantes/h
-            </span>
-          )}
-          <Button variant="outline" size="sm" onClick={copyKey}>
-            {keyCopied ? '✓ Copiado' : 'Copiar'}
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            {rateLeft !== null && (
+              <span className="text-xs text-text-2 border border-navy-600 rounded-full px-2 py-0.5 whitespace-nowrap">
+                {rateLeft} req/h
+              </span>
+            )}
+            <Button variant="outline" size="sm" onClick={copyKey}>
+              {keyCopied ? '✓ Copiado' : 'Copiar'}
+            </Button>
+          </div>
         </div>
 
-        {/* Main playground — 2 columns on lg */}
-        <div className="grid lg:grid-cols-2 gap-6">
+        {/* Main playground — 2 columns on lg, stacked mobile */}
+        <div className="grid lg:grid-cols-2 gap-4 sm:gap-6">
 
           {/* Left: editor */}
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-text-1">Body da requisição</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="font-semibold text-text-1 text-sm sm:text-base">Body da requisição</h2>
               <Button variant="primary" size="sm" loading={loading} disabled={loading || !!bodyError} onClick={runDemo}>
-                {loading ? '⏳ Aguardando…' : '▶ Executar'}
+                {loading ? '⏳' : '▶'} <span className="hidden sm:inline ml-1">{loading ? 'Aguardando…' : 'Executar'}</span>
               </Button>
             </div>
             <textarea
-              className={`w-full h-72 bg-navy-900 border rounded-xl px-4 py-3 text-sm font-mono text-text-1 focus:outline-none resize-none transition ${
+              className={`w-full h-56 sm:h-72 bg-navy-900 border rounded-xl px-3 sm:px-4 py-3 text-xs sm:text-sm font-mono text-text-1 focus:outline-none resize-none transition ${
                 bodyError ? 'border-nota-rejeitada' : 'border-navy-600 focus:border-brand-cyan'
               }`}
               value={rawBody}
@@ -265,28 +271,28 @@ export default function SandboxPage() {
               aria-label="Body JSON da requisição"
             />
             {bodyError && (
-              <p className="text-xs text-nota-rejeitada font-mono">⚠ JSON inválido: {bodyError}</p>
+              <p className="text-xs text-nota-rejeitada font-mono break-words">⚠ JSON inválido: {bodyError}</p>
             )}
           </div>
 
           {/* Right: response */}
           <div className="space-y-3">
-            <h2 className="font-semibold text-text-1">Resposta</h2>
-            <div className="h-72 bg-navy-900 border border-navy-600 rounded-xl overflow-auto">
+            <h2 className="font-semibold text-text-1 text-sm sm:text-base">Resposta</h2>
+            <div className="h-56 sm:h-72 bg-navy-900 border border-navy-600 rounded-xl overflow-auto">
               {response ? (
-                <div className="p-4 space-y-2">
-                  <div className="flex items-center gap-2">
+                <div className="p-3 sm:p-4 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <StatusBadge code={response.status} />
                     <span className="text-xs text-text-2">
                       {response.status === 0 ? 'Falha de conexão' : response.status >= 200 && response.status < 300 ? 'Sucesso' : 'Erro'}
                     </span>
                   </div>
-                  <pre className="text-xs font-mono text-text-2 whitespace-pre-wrap leading-relaxed">
+                  <pre className="text-[11px] sm:text-xs font-mono text-text-2 whitespace-pre-wrap leading-relaxed break-words">
                     {JSON.stringify(response.data, null, 2)}
                   </pre>
                 </div>
               ) : (
-                <div className="h-full flex items-center justify-center text-text-2 text-sm">
+                <div className="h-full flex items-center justify-center text-text-2 text-xs sm:text-sm px-4 text-center">
                   Execute uma requisição para ver a resposta aqui.
                 </div>
               )}
@@ -297,7 +303,7 @@ export default function SandboxPage() {
         {/* History */}
         {history.length > 0 && (
           <div>
-            <h2 className="font-semibold text-text-1 mb-3">
+            <h2 className="font-semibold text-text-1 mb-3 text-sm sm:text-base">
               Histórico da sessão
               <span className="ml-2 text-xs font-normal text-text-2">({history.length}/10)</span>
             </h2>
@@ -306,7 +312,7 @@ export default function SandboxPage() {
                 <button
                   key={entry.id}
                   onClick={() => loadHistoryEntry(entry)}
-                  className={`text-xs font-mono px-3 py-1.5 rounded-lg border transition ${
+                  className={`text-xs font-mono px-2.5 sm:px-3 py-1.5 rounded-lg border transition ${
                     activeHistory === entry.id
                       ? 'border-brand-cyan text-brand-cyan bg-brand-cyan/5'
                       : 'border-navy-600 text-text-2 hover:border-brand-cyan hover:text-text-1'
@@ -322,12 +328,12 @@ export default function SandboxPage() {
 
         {/* Code snippets */}
         <div className="bg-navy-700 border border-navy-600 rounded-xl overflow-hidden">
-          <div className="flex border-b border-navy-600">
+          <div className="flex border-b border-navy-600 overflow-x-auto">
             {(['curl', 'node', 'python'] as Tab[]).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-6 py-3 text-sm font-medium transition-colors ${
+                className={`px-4 sm:px-6 py-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap shrink-0 ${
                   activeTab === tab
                     ? 'text-brand-cyan border-b-2 border-brand-cyan bg-brand-cyan/5'
                     : 'text-text-2 hover:text-text-1'
@@ -339,79 +345,82 @@ export default function SandboxPage() {
             <div className="flex-1" />
             <button
               onClick={copySnippet}
-              className="px-4 py-3 text-xs text-text-2 hover:text-brand-cyan transition"
+              className="px-3 sm:px-4 py-3 text-xs text-text-2 hover:text-brand-cyan transition whitespace-nowrap shrink-0"
             >
               {copied ? '✓ Copiado' : 'Copiar'}
             </button>
           </div>
-          <pre className="p-6 text-sm font-mono text-text-2 overflow-x-auto whitespace-pre leading-relaxed max-h-64">
+          <pre className="p-3 sm:p-6 text-[11px] sm:text-sm font-mono text-text-2 overflow-x-auto whitespace-pre leading-relaxed max-h-56 sm:max-h-64">
             <code>{snippets[activeTab]}</code>
           </pre>
         </div>
 
         {/* Webhooks monitor */}
-        <div className="bg-navy-700 border border-navy-600 rounded-xl p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="font-semibold text-text-1">Monitor de webhooks</h2>
-              <p className="text-sm text-text-2 mt-0.5">
+        <div className="bg-navy-700 border border-navy-600 rounded-xl p-4 sm:p-6 space-y-3 sm:space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="font-semibold text-text-1 text-sm sm:text-base">Monitor de webhooks</h2>
+              <p className="text-xs sm:text-sm text-text-2 mt-0.5 break-words">
                 URL para <code className="text-brand-cyan">webhook_url</code>:{' '}
-                <code className="text-xs font-mono">{WEBHOOK_URL}</code>
+                <code className="text-[10px] sm:text-xs font-mono break-all">{WEBHOOK_URL}</code>
               </p>
             </div>
-            <Button variant="secondary" size="sm" onClick={fetchWebhooks}>
+            <Button variant="secondary" size="sm" onClick={fetchWebhooks} className="self-start sm:self-auto shrink-0">
               ↻ Atualizar
             </Button>
           </div>
 
           {webhooks.length === 0 ? (
-            <p className="text-sm text-text-2 text-center py-4">
+            <p className="text-xs sm:text-sm text-text-2 text-center py-4">
               Nenhum webhook recebido ainda. Execute uma requisição para ver os callbacks.
             </p>
           ) : (
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {webhooks.slice(0, 20).map((wh, i) => (
                 <div key={i} className="bg-navy-900 border border-navy-600 rounded-lg px-3 py-2">
-                  <div className="flex items-center justify-between mb-1">
-                    <code className="text-xs font-mono text-brand-cyan">
+                  <div className="flex items-center justify-between mb-1 gap-2">
+                    <code className="text-xs font-mono text-brand-cyan truncate">
                       {String((wh.body as { event?: string }).event ?? 'evento')}
                     </code>
-                    <span className="text-xs text-text-2">
+                    <span className="text-[10px] sm:text-xs text-text-2 shrink-0">
                       {new Date(wh.received_at).toLocaleTimeString('pt-BR', { timeStyle: 'medium' })}
                     </span>
                   </div>
-                  <pre className="text-xs font-mono text-text-2 whitespace-pre-wrap leading-relaxed line-clamp-3">
+                  <pre className="text-[10px] sm:text-xs font-mono text-text-2 whitespace-pre-wrap leading-relaxed line-clamp-3 break-all">
                     {JSON.stringify(wh.body, null, 2)}
                   </pre>
                 </div>
               ))}
             </div>
           )}
-          <p className="text-xs text-text-2">
+          <p className="text-[11px] sm:text-xs text-text-2">
             Últimos 20 payloads · Polling a cada 5 segundos
           </p>
         </div>
 
-        {/* Limits */}
-        <div className="grid grid-cols-3 gap-4">
+        {/* Limits — 1 col mobile, 3 cols sm+ */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           {[
             { label: 'Req / hora por IP', value: '20' },
             { label: 'Latência simulada', value: '~300ms' },
             { label: 'Webhooks no monitor', value: 'últimos 20' },
           ].map(item => (
             <div key={item.label} className="bg-navy-700 border border-navy-600 rounded-xl p-4 text-center">
-              <p className="text-2xl font-bold font-display text-brand-cyan">{item.value}</p>
-              <p className="text-sm text-text-2 mt-1">{item.label}</p>
+              <p className="text-xl sm:text-2xl font-bold font-display text-brand-cyan">{item.value}</p>
+              <p className="text-xs sm:text-sm text-text-2 mt-1">{item.label}</p>
             </div>
           ))}
         </div>
 
-        {/* CTA */}
-        <div className="text-center py-6">
-          <p className="text-text-2 mb-4">Pronto para emitir notas reais?</p>
-          <a href="https://emitirnotafacil.com.br/cadastro" className="inline-block px-8 py-3 bg-brand-cyan hover:opacity-90 text-navy-900 font-bold rounded-xl transition">
+        {/* CTA — relative URL com produto=gateway */}
+        <div className="text-center py-4 sm:py-6">
+          <p className="text-text-2 mb-4 text-sm sm:text-base">Pronto para emitir notas reais?</p>
+          <Link
+            href="/cadastro?produto=gateway"
+            className="inline-block px-6 sm:px-8 py-3 bg-brand-cyan hover:opacity-90 text-navy-900 font-bold rounded-xl transition text-sm sm:text-base"
+          >
             Criar conta grátis →
-          </a>
+          </Link>
         </div>
       </div>
     </div>

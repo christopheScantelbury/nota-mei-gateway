@@ -15,6 +15,24 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil
 type WizardStep = 1 | 2 | 3
 type AppStep = 'wizard' | 'success'
 
+// Labels por persona — MEI fala "MEI", Gateway fala "Empresa" (qualquer CNPJ que vai integrar via API)
+const COPY = {
+  mei: {
+    headerTitle:   'Cadastrar MEI',
+    headerSubtitle:'Nota Fácil MEI',
+    stepLabels:    ['Dados do MEI', 'Localização', 'Certificado'] as const,
+    razaoLabel:    'Razão Social',
+    razaoPlaceholder: 'Nome do MEI',
+  },
+  gateway: {
+    headerTitle:   'Cadastrar conta Gateway',
+    headerSubtitle:'NotaFácil API — integração via REST',
+    stepLabels:    ['Dados da empresa', 'Localização', 'Certificado'] as const,
+    razaoLabel:    'Razão Social',
+    razaoPlaceholder: 'Nome da empresa',
+  },
+} as const
+
 interface FormState {
   cnpj: string
   razaoSocial: string
@@ -33,14 +51,10 @@ interface SuccessState {
 
 // ── Stepper UI ────────────────────────────────────────────────────────────────
 
-const STEP_LABELS = ['Dados do MEI', 'Localização', 'Certificado']
-// Step 2 display label shown in header
-const STEP2_LABEL = 'CEP'
-
-function StepIndicator({ current }: { current: WizardStep }) {
+function StepIndicator({ current, labels }: { current: WizardStep; labels: readonly string[] }) {
   return (
     <nav aria-label="Etapas do cadastro" className="flex items-center gap-0 mb-8">
-      {STEP_LABELS.map((label, i) => {
+      {labels.map((label, i) => {
         const stepNum = (i + 1) as WizardStep
         const isCompleted = stepNum < current
         const isCurrent   = stepNum === current
@@ -80,7 +94,7 @@ function StepIndicator({ current }: { current: WizardStep }) {
             </div>
 
             {/* Connector line (not after last step) */}
-            {i < STEP_LABELS.length - 1 && (
+            {i < labels.length - 1 && (
               <div
                 className={[
                   'h-0.5 flex-1 mx-2 mb-4 rounded-full transition-colors',
@@ -95,12 +109,18 @@ function StepIndicator({ current }: { current: WizardStep }) {
   )
 }
 
+// Helper: resolve persona (mei | gateway)
+function getCopy(isMei: boolean) {
+  return isMei ? COPY.mei : COPY.gateway
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 function CadastroPageInner() {
   const searchParams = useSearchParams()
-  const produto = searchParams.get('produto') // 'mei' | null (gateway/dev)
+  const produto = searchParams.get('produto') // 'mei' | 'gateway' | null
   const isMei = produto === 'mei'
+  const copy = getCopy(isMei)
 
   const [appStep, setAppStep]       = useState<AppStep>('wizard')
   const [wizardStep, setWizardStep] = useState<WizardStep>(1)
@@ -266,7 +286,7 @@ function CadastroPageInner() {
     if (isMei) {
       return (
         <main className="min-h-screen bg-navy-900 flex items-center justify-center px-4 py-12">
-          <div className="bg-navy-700 border border-navy-600 rounded-xl p-8 w-full max-w-lg text-center">
+          <div className="bg-navy-700 border border-navy-600 rounded-xl p-6 sm:p-8 w-full max-w-lg text-center">
             <div className="text-5xl mb-4">🎉</div>
             <h1 className="font-display text-2xl font-extrabold text-text-1 mb-2">
               Conta criada com sucesso!
@@ -288,21 +308,21 @@ function CadastroPageInner() {
     // ── Versão Gateway: mostra API Key para integração ────────────────────────
     return (
       <main className="min-h-screen bg-navy-900 flex items-center justify-center px-4 py-12">
-        <div className="bg-navy-700 border border-navy-600 rounded-xl p-8 w-full max-w-lg">
+        <div className="bg-navy-700 border border-navy-600 rounded-xl p-6 sm:p-8 w-full max-w-lg">
           <div className="text-4xl mb-3">🎉</div>
           <h1 className="font-display text-2xl font-extrabold text-text-1 mb-2">
-            MEI cadastrado com sucesso!
+            Conta criada com sucesso!
           </h1>
           <p className="text-text-2 text-sm mb-6">
             Guarde sua API Key com segurança — ela{' '}
             <strong className="text-text-1">não será exibida novamente</strong>.
           </p>
 
-          <div className="bg-navy-900 border border-navy-600 rounded-lg p-4 mb-2">
+          <div className="bg-navy-900 border border-navy-600 rounded-lg p-3 sm:p-4 mb-2">
             <p className="text-xs text-text-2 uppercase tracking-wider font-semibold mb-1">
               Sua API Key
             </p>
-            <p className="font-mono text-xs text-brand-cyan break-all select-all">
+            <p className="font-mono text-[11px] sm:text-xs text-brand-cyan break-all select-all">
               {success.apiKey}
             </p>
           </div>
@@ -333,19 +353,19 @@ function CadastroPageInner() {
 
   return (
     <main className="min-h-screen bg-navy-900 flex items-center justify-center px-4 py-12">
-      <div className="bg-navy-700 border border-navy-600 rounded-xl p-8 w-full max-w-lg">
+      <div className="bg-navy-700 border border-navy-600 rounded-xl p-6 sm:p-8 w-full max-w-lg">
         {/* Header */}
         <div className="mb-6">
           <h1 className="font-display text-2xl font-extrabold text-text-1 leading-tight">
-            Cadastrar MEI
+            {copy.headerTitle}
           </h1>
           <p className="text-text-2 text-xs mt-0.5">
-            {isMei ? 'Nota Fácil MEI' : 'Nota MEI Gateway'}
+            {copy.headerSubtitle}
           </p>
         </div>
 
         {/* Step indicator */}
-        <StepIndicator current={wizardStep} />
+        <StepIndicator current={wizardStep} labels={copy.stepLabels} />
 
         {/* ── Step 1: Dados do MEI ─────────────────────────────────────────── */}
         {wizardStep === 1 && (
@@ -371,9 +391,9 @@ function CadastroPageInner() {
             </div>
 
             <Input
-              label="Razão Social"
+              label={copy.razaoLabel}
               type="text"
-              placeholder="Nome do MEI ou empresa"
+              placeholder={copy.razaoPlaceholder}
               value={form.razaoSocial}
               onChange={(e) => setField('razaoSocial', e.target.value)}
               error={fieldErrors.razaoSocial}

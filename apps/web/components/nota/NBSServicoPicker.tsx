@@ -30,6 +30,7 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
   const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
   const [searched, setSearched] = useState(false)
+  const [filtradoPorCnpj, setFiltradoPorCnpj] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const boxRef = useRef<HTMLDivElement>(null)
 
@@ -56,6 +57,7 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
         const res = await fetch(`/api/nbs/buscar?q=${encodeURIComponent(query)}`)
         const body = await res.json().catch(() => ({ results: [] }))
         setResults(body.results ?? [])
+        setFiltradoPorCnpj(Boolean(body.filtrado_por_cnpj))
         setOpen(true)
         setSearched(true)
       } catch {
@@ -108,10 +110,17 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
 
       {open && (
         <div className="absolute z-20 mt-1 w-full rounded-xl border border-navy-600 bg-navy-900 shadow-xl max-h-72 overflow-y-auto">
+          {filtradoPorCnpj && !loading && results.length > 0 && (
+            <p className="px-3 py-2 text-[11px] text-brand-cyan bg-brand-cyan/5 border-b border-navy-600">
+              ✓ Filtrado pelos CNAEs do seu CNPJ
+            </p>
+          )}
           {loading && <p className="px-3 py-2.5 text-xs text-text-2">Buscando serviços…</p>}
           {!loading && searched && results.length === 0 && (
             <p className="px-3 py-2.5 text-xs text-text-2">
-              Nenhum serviço encontrado. Tente outro termo ou use a sugestão por IA abaixo.
+              {filtradoPorCnpj
+                ? 'Nenhum serviço habilitado para os CNAEs do seu CNPJ com esse termo. Verifique se o CNAE está registrado na Receita.'
+                : 'Nenhum serviço encontrado. Tente outro termo ou use a sugestão por IA abaixo.'}
             </p>
           )}
           {!loading &&

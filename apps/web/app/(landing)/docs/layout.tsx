@@ -84,7 +84,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
 
             {/* Criar conta — sm+ */}
             <Link
-              href="/cadastro"
+              href="/cadastro?produto=gateway"
               className="hidden sm:inline-flex whitespace-nowrap text-sm px-3 py-1.5 rounded-lg bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/30 text-brand-cyan transition-colors"
             >
               Criar conta
@@ -162,7 +162,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
           </nav>
 
           {/* SDKs section */}
-          <div className="px-4 md:px-0 md:pr-6 pb-8 pt-6 border-t border-slate-200 dark:border-navy-600 space-y-1">
+          <div className="px-4 md:px-0 md:pr-6 pb-4 pt-6 border-t border-slate-200 dark:border-navy-600 space-y-1">
             <p className="px-3 text-xs font-medium text-text-2 uppercase tracking-wider mb-2">
               SDKs
             </p>
@@ -178,6 +178,31 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
                 {item.label} ↗
               </a>
             ))}
+          </div>
+
+          {/* Mobile-only CTA "Criar conta" — escondido no desktop (já tem no topbar) */}
+          <div className="md:hidden px-4 pb-8 pt-2 border-t border-slate-200 dark:border-navy-600 space-y-2">
+            <Link
+              href="/sandbox"
+              onClick={() => setOpen(false)}
+              className="block px-3 py-2 rounded-lg text-sm text-text-2 hover:text-text-1 hover:bg-slate-100 dark:hover:bg-navy-700"
+            >
+              Sandbox
+            </Link>
+            <Link
+              href="/status"
+              onClick={() => setOpen(false)}
+              className="block px-3 py-2 rounded-lg text-sm text-text-2 hover:text-text-1 hover:bg-slate-100 dark:hover:bg-navy-700"
+            >
+              Status
+            </Link>
+            <Link
+              href="/cadastro?produto=gateway"
+              onClick={() => setOpen(false)}
+              className="block text-center mt-2 px-3 py-2.5 rounded-lg text-sm font-semibold bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/20 transition-colors"
+            >
+              Criar conta →
+            </Link>
           </div>
         </aside>
 

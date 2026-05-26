@@ -146,36 +146,38 @@ function KeyRow({
 }) {
   const revoked = Boolean(k.revoked_at)
   return (
-    <div className="flex items-center gap-4 px-4 py-3 group">
+    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 px-3 sm:px-4 py-3 group">
       <div className="flex-1 min-w-0">
-        <p className={`font-mono text-sm break-all ${revoked ? 'text-text-2 line-through' : 'text-brand-cyan'}`}>
+        <p className={`font-mono text-xs sm:text-sm break-all ${revoked ? 'text-text-2 line-through' : 'text-brand-cyan'}`}>
           {maskKey(k.key_prefix)}
         </p>
-        <p className="text-xs text-text-2 mt-0.5">
+        <p className="text-xs text-text-2 mt-0.5 break-words">
           {k.label ? <span className="font-medium">{k.label} · </span> : null}
           Criada em {formatDate(k.created_at)}
           {revoked && k.revoked_at ? ` · Revogada em ${formatDate(k.revoked_at)}` : ''}
         </p>
       </div>
 
-      <span className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full border ${
-        revoked
-          ? 'text-text-2 border-navy-600 bg-navy-700'
-          : 'text-nota-autorizada border-nota-autorizada/40 bg-nota-autorizada/10'
-      }`}>
-        {revoked ? 'Revogada' : 'Ativa'}
-      </span>
+      <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3 shrink-0">
+        <span className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full border ${
+          revoked
+            ? 'text-text-2 border-navy-600 bg-navy-700'
+            : 'text-nota-autorizada border-nota-autorizada/40 bg-nota-autorizada/10'
+        }`}>
+          {revoked ? 'Revogada' : 'Ativa'}
+        </span>
 
-      {!revoked && (
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={() => onRevoke(k)}
-          className="shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
-        >
-          Revogar
-        </Button>
-      )}
+        {!revoked && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => onRevoke(k)}
+            className="shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
+          >
+            Revogar
+          </Button>
+        )}
+      </div>
     </div>
   )
 }
@@ -320,21 +322,21 @@ export default function APIKeysManager({ initialKeys, planName, maxKeys }: Props
   return (
     <div className="flex flex-col gap-6">
       {/* Plan + quota bar */}
-      <div className="flex items-center justify-between rounded-xl border border-navy-600 bg-navy-700 px-5 py-4">
-        <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-navy-600 bg-navy-700 px-4 sm:px-5 py-4">
+        <div className="min-w-0">
           <p className="text-sm font-semibold text-text-1">Plano {planName}</p>
           <p className="text-xs text-text-2 mt-0.5">
             {activeCount} de {maxKeys} chaves ativas utilizadas
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1.5">
-          <div className="w-24 sm:w-40 h-1.5 rounded-full bg-navy-600 overflow-hidden">
+        <div className="flex flex-col items-stretch sm:items-end gap-1.5 w-full sm:w-auto">
+          <div className="w-full sm:w-40 h-1.5 rounded-full bg-navy-600 overflow-hidden">
             <div
               className="h-full rounded-full bg-brand-cyan transition-all"
               style={{ width: `${Math.min(100, (activeCount / maxKeys) * 100)}%` }}
             />
           </div>
-          <p className="text-xs text-text-2">{activeCount}/{maxKeys}</p>
+          <p className="text-xs text-text-2 text-right">{activeCount}/{maxKeys}</p>
         </div>
       </div>
 

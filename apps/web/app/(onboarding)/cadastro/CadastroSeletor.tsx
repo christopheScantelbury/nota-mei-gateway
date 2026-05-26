@@ -20,12 +20,12 @@ const OPCOES = [
     primary:  false,
   },
   {
-    href:     '/docs',
+    href:     '/cadastro?produto=gateway',
     titulo:   'Quero integrar via API',
     subtitulo: 'Desenvolvedor / Gateway',
     desc:     'Emita notas programaticamente para seus clientes via API REST com webhooks e SDKs.',
     badge:    null,
-    ctaLabel: 'Ver documentação da API',
+    ctaLabel: 'Criar conta Gateway',
     primary:  false,
   },
 ]
