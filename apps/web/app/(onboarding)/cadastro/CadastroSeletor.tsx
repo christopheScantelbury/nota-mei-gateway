@@ -20,7 +20,7 @@ const OPCOES = [
     primary:  false,
   },
   {
-    href:     '/gateway',
+    href:     '/docs',
     titulo:   'Quero integrar via API',
     subtitulo: 'Desenvolvedor / Gateway',
     desc:     'Emita notas programaticamente para seus clientes via API REST com webhooks e SDKs.',

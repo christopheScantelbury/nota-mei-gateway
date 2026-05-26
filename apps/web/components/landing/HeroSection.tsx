@@ -40,7 +40,7 @@ export default function HeroSection() {
             desc="Sou MEI e quero emitir minha nota em 30 segundos, sem entender de imposto."
             cta="Quero usar →"
             href="/mei"
-            primary
+            primary={false}
           />
           <ProductCard
             emoji="🏢"

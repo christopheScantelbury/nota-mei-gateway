@@ -282,7 +282,7 @@ export default function CadastroMEPage() {
 
         {/* Logo */}
         <div className="flex items-center gap-2 mb-6">
-          <span className="text-xl font-bold text-brand-cyan">Nota MEI Gateway</span>
+          <span className="text-xl font-bold text-brand-cyan">NotaFácil Empresa</span>
           <span className="text-xs bg-brand-cyan/10 text-brand-cyan px-2 py-0.5 rounded-full font-semibold">ME/EPP</span>
         </div>
 
