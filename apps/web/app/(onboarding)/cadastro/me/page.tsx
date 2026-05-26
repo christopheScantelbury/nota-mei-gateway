@@ -334,7 +334,7 @@ export default function CadastroMEPage() {
 
             <p className="text-center text-xs text-text-2">
               Já possui conta?{' '}
-              <Link href="/login" className="text-brand-cyan hover:underline">Entrar</Link>
+              <Link href="/login?produto=me" className="text-brand-cyan hover:underline">Entrar</Link>
             </p>
           </div>
         )}
@@ -582,7 +582,7 @@ export default function CadastroMEPage() {
                 Ver documentação →
               </a>
               <Link
-                href="/login"
+                href="/login?produto=me"
                 className="block w-full text-center bg-brand-cyan text-navy-900 font-bold py-3 rounded-xl text-sm hover:opacity-90 transition"
               >
                 Ir para o dashboard
