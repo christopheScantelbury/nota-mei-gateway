@@ -136,14 +136,22 @@ function ResendButton({ onResend, disabled }: { onResend: () => Promise<void>; d
 export default function LoginClient() {
   const router       = useRouter()
   const searchParams = useSearchParams()
-  const next         = searchParams.get('next') ?? '/home'
-  const produto      = searchParams.get('produto') // 'mei' | 'me' | 'gateway' | null
-  const isMei        = produto === 'mei'
-  const isMe         = produto === 'me'
-  const errorParam   = searchParams.get('error')
+  const next            = searchParams.get('next') ?? '/home'
+  const produtoParam    = searchParams.get('produto') // 'mei' | 'me' | 'gateway' | null
+  const errorParam      = searchParams.get('error')
 
-  // Se não há ?produto, o usuário precisa escolher a persona antes de logar
-  const [step, setStep]       = useState<Step>(produto ? 'email' : 'pick')
+  // Produto selecionado — começa com o ?produto da URL ou null (mostra seletor)
+  const [produto, setProduto] = useState<string | null>(produtoParam)
+  const isMei = produto === 'mei'
+  const isMe  = produto === 'me'
+
+  // Se não há produto ainda, começa no seletor; caso contrário vai direto ao e-mail
+  const [step, setStep] = useState<Step>(produtoParam ? 'email' : 'pick')
+
+  function handlePickProduto(p: string) {
+    setProduto(p)
+    setStep('email')
+  }
   const [email, setEmail]     = useState('')
   const [otp, setOtp]         = useState<string[]>(Array(OTP_LENGTH).fill(''))
   const [loading, setLoading] = useState(false)
@@ -261,22 +269,23 @@ export default function LoginClient() {
             <p className="text-center text-sm text-text-2 mb-5">
               Escolha como deseja entrar:
             </p>
-            {[
-              { label: 'MEI',          sub: 'Microempreendedor Individual', href: `/login?produto=mei${next !== '/home' ? `&next=${encodeURIComponent(next)}` : ''}` },
-              { label: 'ME / EPP',     sub: 'Microempresa ou EPP',          href: `/login?produto=me${next !== '/home' ? `&next=${encodeURIComponent(next)}` : ''}` },
-              { label: 'Gateway API',  sub: 'Desenvolvedor / integrador',   href: `/login?produto=gateway${next !== '/home' ? `&next=${encodeURIComponent(next)}` : ''}` },
-            ].map(({ label, sub, href }) => (
-              <Link
-                key={label}
-                href={href}
-                className="flex items-center justify-between gap-4 rounded-xl border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 px-5 py-4 hover:border-brand-cyan dark:hover:border-brand-cyan transition-colors group"
+            {([
+              { key: 'mei',     label: 'MEI',         sub: 'Microempreendedor Individual' },
+              { key: 'me',      label: 'ME / EPP',    sub: 'Microempresa ou EPP'          },
+              { key: 'gateway', label: 'Gateway API', sub: 'Desenvolvedor / integrador'   },
+            ] as const).map(({ key, label, sub }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => handlePickProduto(key)}
+                className="w-full flex items-center justify-between gap-4 rounded-xl border border-gray-200 dark:border-navy-600 bg-gray-50 dark:bg-navy-800 px-5 py-4 hover:border-brand-cyan dark:hover:border-brand-cyan transition-colors group text-left"
               >
                 <div>
                   <p className="text-sm font-semibold text-text-1 group-hover:text-brand-cyan transition-colors">{label}</p>
                   <p className="text-xs text-text-2 mt-0.5">{sub}</p>
                 </div>
                 <span className="text-text-2 group-hover:text-brand-cyan transition-colors text-lg">→</span>
-              </Link>
+              </button>
             ))}
             <p className="text-center text-xs text-text-2 pt-2">
               Não tem conta?{' '}
