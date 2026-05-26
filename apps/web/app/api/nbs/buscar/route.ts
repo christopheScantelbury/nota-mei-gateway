@@ -23,6 +23,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // ?all=1 → lista completa dos serviços disponíveis (até 200), sem precisar
   // de termo de busca. Útil quando o user não sabe que palavra digitar.
   const showAll = request.nextUrl.searchParams.get('all') === '1'
+  // ?ignoreCnae=1 → ignora o filtro CNAE do CNPJ. Usado quando o usuário tem
+  // um CNAE com mapping ruim/inexistente e precisa ver o catálogo amplo.
+  const ignoreCnae = request.nextUrl.searchParams.get('ignoreCnae') === '1'
   if (!showAll && q.length < 2) return NextResponse.json({ results: [] })
 
   // ── Carrega contexto da empresa/MEI ─────────────────────────────────────
@@ -53,8 +56,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Filtro por categoria (MEI vs ME/EPP) sempre aplicado — refinamento por CNAE depois.
   if (ctx.isMei) query = query.eq('permitido_mei', true)
 
-  // ── Filtro por CNAE (se temos cnaes do CNPJ) ────────────────────────────
-  if (cnaes.length > 0) {
+  // ── Filtro por CNAE (se temos cnaes do CNPJ e o caller não pediu pra ignorar) ──
+  if (!ignoreCnae && cnaes.length > 0) {
     const { data: mapping } = await supabase
       .from('cnae_ctribnac')
       .select('ctrib_nac')
@@ -82,7 +85,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     results: data ?? [],
     categoria: ctx.isMei ? 'MEI' : 'ME',
     cnaes_aplicados: cnaes,
-    filtrado_por_cnpj: cnaes.length > 0,
+    filtrado_por_cnpj: !ignoreCnae && cnaes.length > 0,
+    ignorou_cnae: ignoreCnae,
   })
 }
 

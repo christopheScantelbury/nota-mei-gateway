@@ -77,11 +77,13 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
     setSearched(false)
   }
 
-  async function listarTodos() {
+  async function listarTodos(opts: { ignoreCnae?: boolean } = {}) {
     setLoading(true)
     setOpen(true)
     try {
-      const res = await fetch('/api/nbs/buscar?all=1')
+      const params = new URLSearchParams({ all: '1' })
+      if (opts.ignoreCnae) params.set('ignoreCnae', '1')
+      const res = await fetch(`/api/nbs/buscar?${params}`)
       const body = await res.json().catch(() => ({ results: [] }))
       setResults(body.results ?? [])
       setFiltradoPorCnpj(Boolean(body.filtrado_por_cnpj))
@@ -127,7 +129,7 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
       {/* CTA pra listar todos os disponíveis — útil quando o user não sabe digitar */}
       <button
         type="button"
-        onClick={listarTodos}
+        onClick={() => listarTodos()}
         className="mt-1.5 inline-flex items-center gap-1 text-xs text-brand-cyan hover:underline transition"
       >
         📋 Ver lista completa de serviços disponíveis
@@ -142,11 +144,22 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
           )}
           {loading && <p className="px-3 py-2.5 text-xs text-text-2">Buscando serviços…</p>}
           {!loading && searched && results.length === 0 && (
-            <p className="px-3 py-2.5 text-xs text-text-2">
-              {filtradoPorCnpj
-                ? 'Nenhum serviço habilitado para os CNAEs do seu CNPJ com esse termo. Verifique se o CNAE está registrado na Receita.'
-                : 'Nenhum serviço encontrado. Tente outro termo ou use a sugestão por IA abaixo.'}
-            </p>
+            <div className="px-3 py-3 space-y-2">
+              <p className="text-xs text-text-2">
+                {filtradoPorCnpj
+                  ? 'Nenhum serviço habilitado para os CNAEs do seu CNPJ com esse termo.'
+                  : 'Nenhum serviço encontrado com esse termo.'}
+              </p>
+              {filtradoPorCnpj && (
+                <button
+                  type="button"
+                  onClick={() => listarTodos({ ignoreCnae: true })}
+                  className="text-xs text-brand-cyan hover:underline"
+                >
+                  Ver todos os serviços disponíveis para {/* categoria já vem do contexto */}MEI →
+                </button>
+              )}
+            </div>
           )}
           {!loading &&
             results.map((r) => (
