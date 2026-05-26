@@ -23,6 +23,7 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { href: '/notas',         label: 'Notas Fiscais',       icon: '🧾', badge: null,       tipos: 'all'                },
+  { href: '/clientes',      label: 'Clientes',            icon: '👥', badge: 'STARTER',  tipos: 'all'                },
   { href: '/templates',     label: 'Templates',           icon: '📄', badge: 'PRO',      tipos: 'all'                },
   { href: '/recorrencias',  label: 'Automação',           icon: '🔄', badge: 'BUSINESS', tipos: ['ME', 'EPP']        },
   { href: '/api-keys',      label: 'API Keys',            icon: '🔑', badge: null,       tipos: ['ME', 'EPP']        },

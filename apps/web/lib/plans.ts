@@ -21,6 +21,10 @@ export interface PlanFeatures {
   csvExport: boolean
   /** Suporte prioritário */
   prioritySupport: boolean
+  /** Leitura da aba Clientes + autocomplete em /notas/nova */
+  clientesRead: boolean
+  /** CRUD completo de clientes (criar, editar, arquivar, tags, observações) */
+  clientesCrud: boolean
 }
 
 const PLAN_MATRIX: Record<PlanName, PlanFeatures> = {
@@ -32,6 +36,8 @@ const PLAN_MATRIX: Record<PlanName, PlanFeatures> = {
     recorrencias:    false,
     csvExport:       false,
     prioritySupport: false,
+    clientesRead:    false,
+    clientesCrud:    false,
   },
   Starter: {
     maxApiKeys:      5,
@@ -41,6 +47,8 @@ const PLAN_MATRIX: Record<PlanName, PlanFeatures> = {
     recorrencias:    false,
     csvExport:       true,
     prioritySupport: false,
+    clientesRead:    true,
+    clientesCrud:    false,
   },
   Basic: {
     maxApiKeys:      5,
@@ -50,6 +58,8 @@ const PLAN_MATRIX: Record<PlanName, PlanFeatures> = {
     recorrencias:    false,
     csvExport:       true,
     prioritySupport: false,
+    clientesRead:    true,
+    clientesCrud:    false,
   },
   Pro: {
     maxApiKeys:      10,
@@ -59,6 +69,8 @@ const PLAN_MATRIX: Record<PlanName, PlanFeatures> = {
     recorrencias:    false,
     csvExport:       true,
     prioritySupport: true,
+    clientesRead:    true,
+    clientesCrud:    true,
   },
   Business: {
     maxApiKeys:      10,
@@ -68,6 +80,8 @@ const PLAN_MATRIX: Record<PlanName, PlanFeatures> = {
     recorrencias:    true,
     csvExport:       true,
     prioritySupport: true,
+    clientesRead:    true,
+    clientesCrud:    true,
   },
 }
 

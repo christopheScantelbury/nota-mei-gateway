@@ -20,6 +20,17 @@ interface EmpresaInfo {
   isSimplesNacional: boolean
   cnpj: string | null
   razao_social: string | null
+  plano: string  // nome do plano atual (Trial, Starter, Basic, Pro, Business)
+}
+
+async function getPlano(supabase: ReturnType<typeof createClient>): Promise<string> {
+  const competencia = new Date().toISOString().slice(0, 7)
+  const { data } = await supabase
+    .from('emissoes_mensais')
+    .select('planos(nome)')
+    .eq('competencia', competencia)
+    .maybeSingle<{ planos: { nome: string } | null }>()
+  return data?.planos?.nome ?? 'Trial'
 }
 
 export async function GET(): Promise<NextResponse> {
@@ -41,6 +52,7 @@ export async function GET(): Promise<NextResponse> {
 
   if (emp) {
     const isMei = emp.tipo === 'MEI'
+    const plano = await getPlano(supabase)
     return NextResponse.json<EmpresaInfo>({
       tipo: emp.tipo,
       regime_tributario: emp.regime_tributario,
@@ -48,6 +60,7 @@ export async function GET(): Promise<NextResponse> {
       isSimplesNacional: isMei || emp.regime_tributario === 'SIMPLES_NACIONAL',
       cnpj: emp.cnpj,
       razao_social: emp.razao_social,
+      plano,
     })
   }
 
@@ -59,6 +72,7 @@ export async function GET(): Promise<NextResponse> {
     .maybeSingle<{ cnpj: string; razao_social: string }>()
 
   if (mei) {
+    const plano = await getPlano(supabase)
     return NextResponse.json<EmpresaInfo>({
       tipo: 'MEI',
       regime_tributario: 'SIMPLES_MEI',
@@ -66,6 +80,7 @@ export async function GET(): Promise<NextResponse> {
       isSimplesNacional: true,
       cnpj: mei.cnpj,
       razao_social: mei.razao_social,
+      plano,
     })
   }
 

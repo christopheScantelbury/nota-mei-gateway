@@ -9,8 +9,11 @@ import { maskCNPJ, maskCPF } from '@/lib/format'
 import ISSRecolhimentoCard from '@/components/nota/ISSRecolhimentoCard'
 import SugestorNBS from '@/components/nota/SugestorNBS'
 import NBSServicoPicker from '@/components/nota/NBSServicoPicker'
+import ClienteCombobox from '@/components/nota/ClienteCombobox'
 import { Button } from '@/components/ui/Button'
+import { hasFeature } from '@/lib/plans'
 import type { NotaTemplate } from '@/app/api/templates/route'
+import type { Cliente, ClienteAutocomplete } from '@/lib/types-cliente'
 import type { RegimeTributario } from '@/lib/types'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -101,17 +104,20 @@ export default function NovaNota() {
   // LP/LR têm controle total por nota.
   const [empresaTipo, setEmpresaTipo] = useState<'MEI' | 'ME' | 'EPP' | null>(null)
   const [empresaRegime, setEmpresaRegime] = useState<RegimeTributario | null>(null)
+  const [planoNome, setPlanoNome] = useState<string>('Trial')
   const isMei = empresaTipo === 'MEI'
   const isSimplesNacional = isMei || empresaRegime === 'SIMPLES_NACIONAL'
+  const podeUsarClientes = hasFeature(planoNome, 'clientesRead')
 
   useEffect(() => {
     setIdempotencyKey(crypto.randomUUID())
     // Carrega o regime da empresa pra ajustar a UI
     fetch('/api/empresa/me')
       .then(r => r.ok ? r.json() : null)
-      .then((d: { tipo?: 'MEI' | 'ME' | 'EPP'; regime_tributario?: RegimeTributario } | null) => {
+      .then((d: { tipo?: 'MEI' | 'ME' | 'EPP'; regime_tributario?: RegimeTributario; plano?: string } | null) => {
         if (d?.tipo) setEmpresaTipo(d.tipo)
         if (d?.regime_tributario) setEmpresaRegime(d.regime_tributario)
+        if (d?.plano) setPlanoNome(d.plano)
         // MEI/SN: alíquota não é usada — zera pra evitar confusão no payload
         if (d?.tipo === 'MEI' || d?.regime_tributario === 'SIMPLES_NACIONAL') {
           setAliquotaIss('0')
@@ -119,6 +125,36 @@ export default function NovaNota() {
       })
       .catch(() => {/* silent — UI segue como LP padrão */})
   }, [])
+
+  // Preload cliente pelo ?cliente=ID (vem de /clientes/[id] "+ Emitir nota")
+  useEffect(() => {
+    const clienteId = searchParams.get('cliente')
+    if (!clienteId) return
+    fetch(`/api/clientes/${clienteId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { cliente?: Cliente } | null) => {
+        if (d?.cliente) aplicarCliente({
+          id: d.cliente.id,
+          tipo: d.cliente.tipo,
+          documento: d.cliente.documento,
+          razao_social: d.cliente.razao_social,
+          email: d.cliente.email,
+          municipio_ibge: d.cliente.municipio_ibge,
+          total_notas: d.cliente.total_notas,
+          ultima_emissao_em: d.cliente.ultima_emissao_em,
+        })
+      })
+      .catch(() => {/* silent */})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function aplicarCliente(c: ClienteAutocomplete) {
+    setTipoPessoa(c.tipo)
+    setDocumento(c.tipo === 'PJ' ? maskCNPJ(c.documento) : maskCPF(c.documento))
+    setRazaoSocial(c.razao_social)
+    if (c.email) setEmailTomador(c.email)
+    if (c.municipio_ibge) setMunicipioIbge(c.municipio_ibge)
+  }
 
   // Load templates (silently — feature only for Pro/Business)
   useEffect(() => {
@@ -475,6 +511,12 @@ export default function NovaNota() {
         {/* Seção 2 — Tomador */}
         <section className="rounded-xl border border-navy-600 bg-navy-700 p-6 flex flex-col gap-4">
           <h2 className="font-display font-bold text-lg">2. Dados do Tomador</h2>
+
+          {/* Cliente combobox — autocomplete a partir do Starter */}
+          <ClienteCombobox
+            onSelect={aplicarCliente}
+            locked={!podeUsarClientes}
+          />
 
           {/* PF / PJ toggle */}
           <div>
