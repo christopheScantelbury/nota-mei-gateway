@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/Dialog'
 import type { NotaTemplate } from '@/app/api/templates/route'
 import { Button } from '@/components/ui/Button'
+import NBSServicoPicker from '@/components/nota/NBSServicoPicker'
 
 interface Props {
   open: boolean
@@ -70,19 +71,37 @@ const emptyForm: FormState = {
 export default function TemplateModal({ open, onClose, onSaved, initial }: Props) {
   const isEdit = Boolean(initial)
   const [form, setForm]         = useState<FormState>(emptyForm)
+  const [nbsDescricao, setNbsDescricao] = useState('')
   const [errors, setErrors]     = useState<Partial<FormState>>({})
   const [submitting, setSubmit] = useState(false)
   const [apiError, setApiError] = useState('')
+  // Persona do usuário — MEI recolhe ISS via DAS e raramente usa webhook,
+  // então escondemos esses campos por padrão.
+  const [isMei, setIsMei] = useState(false)
+  const [isSimplesNacional, setIsSimplesNacional] = useState(false)
 
   // Reset form when modal opens / template changes
   useEffect(() => {
     if (open) {
       setForm(initial ? templateToForm(initial) : emptyForm)
+      setNbsDescricao('')  // template não persiste descrição NBS
       setErrors({})
       setApiError('')
       setSubmit(false)
     }
   }, [open, initial])
+
+  // Carrega tipo da empresa pra esconder campos irrelevantes pra MEI
+  useEffect(() => {
+    if (!open) return
+    fetch('/api/empresa/me')
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { isMei?: boolean; isSimplesNacional?: boolean } | null) => {
+        if (d?.isMei) setIsMei(true)
+        if (d?.isSimplesNacional) setIsSimplesNacional(true)
+      })
+      .catch(() => { /* silent */ })
+  }, [open])
 
   function set(key: keyof FormState) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -114,9 +133,11 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
           codigo_nbs:    form.codigo_nbs.trim(),
           discriminacao: form.discriminacao.trim(),
           valor:         parseFloat(form.valor.replace(',', '.')),
-          aliquota_iss:  parseFloat(form.aliquota_iss.replace(',', '.')),
+          // MEI/SN recolhe ISS via DAS — força 0 pra não confundir
+          aliquota_iss:  isSimplesNacional ? 0 : parseFloat(form.aliquota_iss.replace(',', '.')),
         },
-        webhook_url: form.webhook_url.trim() || null,
+        // MEI raramente usa webhook — pula campo
+        webhook_url: isMei ? null : (form.webhook_url.trim() || null),
       }
 
       const url    = isEdit ? `/api/templates/${initial!.id}` : '/api/templates'
@@ -185,13 +206,22 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
             </p>
 
             <div className="space-y-3">
-              <Field label="Código NBS" error={errors.codigo_nbs}>
-                <input
-                  type="text"
-                  className={inputCls}
-                  placeholder="01.01.01.10"
+              <Field label="Serviço prestado" error={errors.codigo_nbs}>
+                <NBSServicoPicker
                   value={form.codigo_nbs}
-                  onChange={set('codigo_nbs')}
+                  selectedDescricao={nbsDescricao}
+                  onSelect={(codigo, descricao) => {
+                    setForm(prev => ({ ...prev, codigo_nbs: codigo }))
+                    setNbsDescricao(descricao)
+                    // Pré-preenche a discriminação com a descrição NBS se ainda
+                    // estiver vazia — usuário pode editar depois.
+                    setForm(prev => ({
+                      ...prev,
+                      codigo_nbs: codigo,
+                      discriminacao: prev.discriminacao.trim() || descricao,
+                    }))
+                  }}
+                  error={errors.codigo_nbs}
                 />
               </Field>
 
@@ -205,7 +235,7 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
                 />
               </Field>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className={`grid gap-3 ${isSimplesNacional ? 'grid-cols-1' : 'grid-cols-2'}`}>
                 <Field label="Valor padrão (R$)" error={errors.valor}>
                   <input
                     type="number"
@@ -217,30 +247,36 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
                     onChange={set('valor')}
                   />
                 </Field>
-                <Field label="Alíquota ISS (%)">
-                  <input
-                    type="number"
-                    className={inputCls}
-                    min="0"
-                    max="5"
-                    step="0.1"
-                    value={form.aliquota_iss}
-                    onChange={set('aliquota_iss')}
-                  />
-                </Field>
+                {/* MEI/Simples Nacional recolhem ISS via DAS — campo escondido */}
+                {!isSimplesNacional && (
+                  <Field label="Alíquota ISS (%)">
+                    <input
+                      type="number"
+                      className={inputCls}
+                      min="0"
+                      max="5"
+                      step="0.1"
+                      value={form.aliquota_iss}
+                      onChange={set('aliquota_iss')}
+                    />
+                  </Field>
+                )}
               </div>
             </div>
           </div>
 
-          <Field label="URL de webhook (opcional)">
-            <input
-              type="url"
-              className={inputCls}
-              placeholder="https://seu-erp.com/webhooks/nfse"
-              value={form.webhook_url}
-              onChange={set('webhook_url')}
-            />
-          </Field>
+          {/* Webhook só aparece para ME/EPP — MEI tipicamente não integra ERP */}
+          {!isMei && (
+            <Field label="URL de webhook (opcional)">
+              <input
+                type="url"
+                className={inputCls}
+                placeholder="https://seu-erp.com/webhooks/nfse"
+                value={form.webhook_url}
+                onChange={set('webhook_url')}
+              />
+            </Field>
+          )}
 
           <div className="flex gap-3 pt-2">
             <Button type="submit" variant="primary" className="flex-1" loading={submitting}>
