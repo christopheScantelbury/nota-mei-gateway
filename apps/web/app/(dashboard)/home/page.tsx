@@ -34,7 +34,7 @@ function daysUntil(dateStr: string | null): number | null {
 }
 
 // ── Empty state SVG ───────────────────────────────────────────────────────────
-function EmptyState() {
+function EmptyState({ showDocs = true }: { showDocs?: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center rounded-xl border border-dashed border-navy-600">
       <svg width="72" height="72" viewBox="0 0 72 72" fill="none" className="mb-6 opacity-70">
@@ -57,12 +57,14 @@ function EmptyState() {
         >
           Emitir primeira nota
         </Link>
-        <a
-          href="/docs/quickstart"
-          className="border border-navy-600 text-text-2 font-semibold text-sm px-5 py-2.5 rounded-lg hover:border-brand-cyan hover:text-text-1 transition"
-        >
-          Ver documentação →
-        </a>
+        {showDocs && (
+          <a
+            href="/docs/quickstart"
+            className="border border-navy-600 text-text-2 font-semibold text-sm px-5 py-2.5 rounded-lg hover:border-brand-cyan hover:text-text-1 transition"
+          >
+            Ver documentação →
+          </a>
+        )}
       </div>
     </div>
   )
@@ -88,10 +90,10 @@ export default async function DashboardHome() {
   const competencia = currentCompetencia()
 
   // Profile: try empresas first (ME/EPP), fall back to meis (MEI legacy)
-  type ProfileData = { razao_social: string; cert_valid_until: string | null }
+  type ProfileData = { razao_social: string; cert_valid_until: string | null; tipo?: string | null }
   const empresaProfile = await supabase
     .from('empresas')
-    .select('razao_social, cert_valid_until')
+    .select('razao_social, cert_valid_until, tipo')
     .eq('user_id', user.id)
     .maybeSingle<ProfileData>()
 
@@ -104,6 +106,10 @@ export default async function DashboardHome() {
       .single<ProfileData>()
     profileData = meiProfile.data ?? null
   }
+
+  // Users in the `meis` table (legacy) or with tipo='MEI' are end-users, not API consumers
+  const empresaTipo: 'MEI' | 'ME' | 'EPP' =
+    (empresaProfile.data?.tipo as 'MEI' | 'ME' | 'EPP') ?? 'MEI'
 
   // Parallel fetches — RLS enforces isolation for both MEI and ME/EPP
   const [emissaoResult, notasResult, keyResult, firstAutorizadaResult] = await Promise.all([
@@ -180,6 +186,7 @@ export default async function DashboardHome() {
         hasNota={hasNota}
         hasApiKey={hasApiKey}
         hasAuthorizedNota={hasAuthorizedNota}
+        empresaTipo={empresaTipo}
       />
 
       {/* Certificate alert */}
@@ -275,10 +282,10 @@ export default async function DashboardHome() {
       </div>
 
       {/* Recent notes + API key row */}
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className={`grid ${empresaTipo !== 'MEI' ? 'lg:grid-cols-3' : ''} gap-6`}>
 
-        {/* Last 5 notas (2/3 width) */}
-        <div className="lg:col-span-2">
+        {/* Last 5 notas (2/3 width for API users, full width for MEI) */}
+        <div className={empresaTipo !== 'MEI' ? 'lg:col-span-2' : ''}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-display text-lg font-bold">Últimas notas</h2>
             <Link href="/notas" className="text-xs text-brand-cyan hover:underline">
@@ -287,7 +294,7 @@ export default async function DashboardHome() {
           </div>
 
           {notas.length === 0 ? (
-            <EmptyState />
+            <EmptyState showDocs={empresaTipo !== 'MEI'} />
           ) : (
             <div className="rounded-xl border border-navy-600 overflow-hidden">
               {notas.map((n, i) => (
@@ -314,51 +321,53 @@ export default async function DashboardHome() {
           )}
         </div>
 
-        {/* API key card (1/3 width) */}
-        <div className="rounded-xl border border-navy-600 bg-navy-700 p-5">
-          <p className="text-xs text-text-2 uppercase tracking-wider font-semibold mb-4">
-            Integração via API
-          </p>
-          {apiKey ? (
-            <>
-              <div className="bg-navy-900 border border-navy-600 rounded-lg px-3 py-2 mb-3">
-                <p className="text-xs text-text-2 mb-0.5">Sua API Key</p>
-                <p className="font-mono text-sm text-brand-cyan">
-                  {apiKey.key_prefix}••••••••
+        {/* API key card (1/3 width) — only for ME/EPP/gateway users */}
+        {empresaTipo !== 'MEI' && (
+          <div className="rounded-xl border border-navy-600 bg-navy-700 p-5">
+            <p className="text-xs text-text-2 uppercase tracking-wider font-semibold mb-4">
+              Integração via API
+            </p>
+            {apiKey ? (
+              <>
+                <div className="bg-navy-900 border border-navy-600 rounded-lg px-3 py-2 mb-3">
+                  <p className="text-xs text-text-2 mb-0.5">Sua API Key</p>
+                  <p className="font-mono text-sm text-brand-cyan">
+                    {apiKey.key_prefix}••••••••
+                  </p>
+                  {apiKey.label && (
+                    <p className="text-xs text-text-2 mt-0.5">{apiKey.label}</p>
+                  )}
+                </div>
+                <Link
+                  href="/configuracoes?aba=api-keys"
+                  className="block text-center text-xs text-text-2 hover:text-brand-cyan transition"
+                >
+                  Gerenciar API Keys →
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="text-text-2 text-sm mb-4">
+                  Integre sua aplicação à API REST para emitir notas automaticamente.
                 </p>
-                {apiKey.label && (
-                  <p className="text-xs text-text-2 mt-0.5">{apiKey.label}</p>
-                )}
-              </div>
-              <Link
-                href="/configuracoes?aba=api-keys"
+                <Link
+                  href="/configuracoes?aba=api-keys"
+                  className="block w-full text-center text-sm font-semibold border border-brand-cyan text-brand-cyan px-4 py-2 rounded-lg hover:bg-brand-cyan/10 transition"
+                >
+                  Criar API Key
+                </Link>
+              </>
+            )}
+            <div className="mt-4 pt-4 border-t border-navy-600">
+              <a
+                href="/docs"
                 className="block text-center text-xs text-text-2 hover:text-brand-cyan transition"
               >
-                Gerenciar API Keys →
-              </Link>
-            </>
-          ) : (
-            <>
-              <p className="text-text-2 text-sm mb-4">
-                Integre sua aplicação à API REST para emitir notas automaticamente.
-              </p>
-              <Link
-                href="/configuracoes?aba=api-keys"
-                className="block w-full text-center text-sm font-semibold border border-brand-cyan text-brand-cyan px-4 py-2 rounded-lg hover:bg-brand-cyan/10 transition"
-              >
-                Criar API Key
-              </Link>
-            </>
-          )}
-          <div className="mt-4 pt-4 border-t border-navy-600">
-            <a
-              href="/docs"
-              className="block text-center text-xs text-text-2 hover:text-brand-cyan transition"
-            >
-              Ver documentação →
-            </a>
+                Ver documentação →
+              </a>
+            </div>
           </div>
-        </div>
+        )}
 
       </div>
     </div>

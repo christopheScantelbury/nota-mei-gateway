@@ -14,6 +14,7 @@ interface Props {
   hasNota: boolean
   hasApiKey: boolean
   hasAuthorizedNota: boolean
+  empresaTipo?: 'MEI' | 'ME' | 'EPP'
 }
 
 export default function OnboardingChecklist({
@@ -21,12 +22,15 @@ export default function OnboardingChecklist({
   hasNota,
   hasApiKey,
   hasAuthorizedNota,
+  empresaTipo,
 }: Props) {
-  const steps: Step[] = [
+  const isMei = !empresaTipo || empresaTipo === 'MEI'
+
+  const allSteps: Step[] = [
     {
       id: 'cadastro',
       label: 'Cadastro realizado',
-      description: 'Sua conta MEI está ativa.',
+      description: 'Sua conta está ativa.',
       done: true,
       href: '#',
       cta: 'Feito',
@@ -42,7 +46,9 @@ export default function OnboardingChecklist({
     {
       id: 'nota',
       label: 'Primeira nota emitida',
-      description: 'Emita uma NFS-e pelo dashboard ou via API.',
+      description: isMei
+        ? 'Emita uma NFS-e pelo dashboard.'
+        : 'Emita uma NFS-e pelo dashboard ou via API.',
       done: hasNota,
       href: '/notas/nova',
       cta: 'Emitir nota',
@@ -64,6 +70,9 @@ export default function OnboardingChecklist({
       cta: 'Criar API Key',
     },
   ]
+
+  // MEI users don't need an API Key — hide that step
+  const steps = isMei ? allSteps.filter(s => s.id !== 'apikey') : allSteps
 
   const allDone = steps.every(s => s.done)
   const doneCount = steps.filter(s => s.done).length

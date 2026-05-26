@@ -26,6 +26,7 @@ interface APIKey {
 interface Props {
   mei: MEIData
   apiKeys: APIKey[]
+  empresaTipo?: 'MEI' | 'ME' | 'EPP'
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -439,18 +440,24 @@ function WebhookTab() {
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-const ABAS: { value: Aba; label: string }[] = [
+const ALL_ABAS: { value: Aba; label: string; apiOnly?: boolean }[] = [
   { value: 'perfil',      label: 'Perfil'         },
   { value: 'certificado', label: 'Certificado A1' },
-  { value: 'api-keys',    label: 'API Keys'        },
-  { value: 'webhook',     label: 'Webhook'         },
+  { value: 'api-keys',    label: 'API Keys',        apiOnly: true },
+  { value: 'webhook',     label: 'Webhook',         apiOnly: true },
 ]
 
-export default function ConfiguracoesTabs({ mei, apiKeys }: Props) {
+export default function ConfiguracoesTabs({ mei, apiKeys, empresaTipo }: Props) {
   const router    = useRouter()
   const pathname  = usePathname()
   const params    = useSearchParams()
   const abaParam  = params.get('aba') as Aba | null
+
+  // MEI users cannot access api-keys or webhook tabs
+  const isMei = !empresaTipo || empresaTipo === 'MEI'
+  const ABAS = ALL_ABAS.filter(a => !isMei || !a.apiOnly)
+
+  // If MEI navigates directly to ?aba=api-keys via URL, fall back to perfil
   const aba: Aba  = ABAS.some(a => a.value === abaParam) ? abaParam! : 'perfil'
 
   function setAba(a: Aba) {
@@ -479,8 +486,8 @@ export default function ConfiguracoesTabs({ mei, apiKeys }: Props) {
       {/* Tab content */}
       {aba === 'perfil'      && <PerfilTab mei={mei} />}
       {aba === 'certificado' && <CertificadoTab cert_valid_until={mei.cert_valid_until} />}
-      {aba === 'api-keys'    && <APIKeysTab initialKeys={apiKeys} />}
-      {aba === 'webhook'     && <WebhookTab />}
+      {aba === 'api-keys'    && !isMei && <APIKeysTab initialKeys={apiKeys} />}
+      {aba === 'webhook'     && !isMei && <WebhookTab />}
     </div>
   )
 }
