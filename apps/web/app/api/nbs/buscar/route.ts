@@ -20,7 +20,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 
   const q = (request.nextUrl.searchParams.get('q') ?? '').trim()
-  if (q.length < 2) return NextResponse.json({ results: [] })
+  // ?all=1 → lista completa dos serviços disponíveis (até 200), sem precisar
+  // de termo de busca. Útil quando o user não sabe que palavra digitar.
+  const showAll = request.nextUrl.searchParams.get('all') === '1'
+  if (!showAll && q.length < 2) return NextResponse.json({ results: [] })
 
   // ── Carrega contexto da empresa/MEI ─────────────────────────────────────
   const ctx = await loadOwnerContext(supabase, user.id)
@@ -39,10 +42,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     .select('codigo, descricao, ctrib_nac')
     .eq('ctrib_nac_valido', true)
 
-  if (digits.length >= 2 && digits.length === q.replace(/[.\s]/g, '').length) {
-    query = query.ilike('codigo', `${digits}%`)
-  } else {
-    query = query.ilike('descricao', `%${q}%`)
+  if (!showAll) {
+    if (digits.length >= 2 && digits.length === q.replace(/[.\s]/g, '').length) {
+      query = query.ilike('codigo', `${digits}%`)
+    } else {
+      query = query.ilike('descricao', `%${q}%`)
+    }
   }
 
   // Filtro por categoria (MEI vs ME/EPP) sempre aplicado — refinamento por CNAE depois.
@@ -66,7 +71,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const { data, error } = await query
     .order('descricao', { ascending: true })
-    .limit(15)
+    .limit(showAll ? 200 : 15)
     .returns<NBSResult[]>()
 
   if (error) {

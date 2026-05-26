@@ -77,6 +77,22 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
     setSearched(false)
   }
 
+  async function listarTodos() {
+    setLoading(true)
+    setOpen(true)
+    try {
+      const res = await fetch('/api/nbs/buscar?all=1')
+      const body = await res.json().catch(() => ({ results: [] }))
+      setResults(body.results ?? [])
+      setFiltradoPorCnpj(Boolean(body.filtrado_por_cnpj))
+      setSearched(true)
+    } catch {
+      setResults([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Estado: serviço já selecionado → mostra chip.
   if (value) {
     return (
@@ -107,6 +123,15 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
         onFocus={() => results.length > 0 && setOpen(true)}
         autoComplete="off"
       />
+
+      {/* CTA pra listar todos os disponíveis — útil quando o user não sabe digitar */}
+      <button
+        type="button"
+        onClick={listarTodos}
+        className="mt-1.5 inline-flex items-center gap-1 text-xs text-brand-cyan hover:underline transition"
+      >
+        📋 Ver lista completa de serviços disponíveis
+      </button>
 
       {open && (
         <div className="absolute z-20 mt-1 w-full rounded-xl border border-navy-600 bg-navy-900 shadow-xl max-h-72 overflow-y-auto">
