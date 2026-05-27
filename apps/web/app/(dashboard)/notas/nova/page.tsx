@@ -566,76 +566,83 @@ export default function NovaNota() {
           </Field>
         </section>
 
-        {/* Seção 3 — Configurações (collapsible) */}
-        <details className="rounded-xl border border-navy-600 bg-navy-700">
-          <summary className="px-6 py-4 font-semibold text-sm cursor-pointer list-none flex justify-between items-center">
-            <span>3. Configurações opcionais</span>
-            <span className="text-brand-cyan text-lg group-open:rotate-45 transition-transform">+</span>
-          </summary>
-          <div className="px-6 pb-6 flex flex-col gap-4">
-            <Field label="URL de webhook (esta nota)">
-              <input
-                type="url"
-                className={inputCls}
-                placeholder="https://seu-erp.com/webhooks/nfse"
-                value={webhookUrl}
-                onChange={e => setWebhookUrl(e.target.value)}
-              />
-            </Field>
-
-            {/* ME-41: ISS retido toggle — só faz sentido pra Lucro Presumido/Real. */}
-            {!isSimplesNacional && (
-              <div className="rounded-lg border border-navy-600 p-4">
-                <p className="text-sm font-semibold text-text-1 mb-1">Retenção de ISS</p>
-                <p className="text-xs text-text-2 mb-3">
-                  Marque se o tomador é responsável pela retenção do ISS na fonte (regra do município).
-                </p>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  {([
-                    { label: 'Não especificado', value: null },
-                    { label: 'ISS retido na fonte', value: true },
-                    { label: 'ISS não retido', value: false },
-                  ] as const).map(({ label, value }) => (
-                    <button
-                      key={String(value)}
-                      type="button"
-                      onClick={() => setIssRetido(value)}
-                      className={[
-                        'flex-1 py-2 px-2 rounded-lg text-xs font-semibold transition border',
-                        issRetido === value
-                          ? 'bg-brand-cyan text-navy-900 border-brand-cyan'
-                          : 'border-navy-600 text-text-2 hover:border-brand-cyan',
-                      ].join(' ')}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <Field label="Chave de idempotência">
-              <div className="flex gap-2">
+        {/* Seção 3 — Configurações opcionais.
+            Para MEI a seção é completamente escondida: webhook e chave de
+            idempotência são features de integração via API (produto separado
+            do Nota Fácil MEI). O ISS retido também não se aplica (recolhe via
+            DAS). A idempotency key continua sendo gerada e enviada por
+            baixo dos panos pra evitar duplicação em caso de retry de rede. */}
+        {!isMei && (
+          <details className="rounded-xl border border-navy-600 bg-navy-700">
+            <summary className="px-6 py-4 font-semibold text-sm cursor-pointer list-none flex justify-between items-center">
+              <span>3. Configurações opcionais</span>
+              <span className="text-brand-cyan text-lg group-open:rotate-45 transition-transform">+</span>
+            </summary>
+            <div className="px-6 pb-6 flex flex-col gap-4">
+              <Field label="URL de webhook (esta nota)">
                 <input
-                  type="text"
-                  className={`${inputCls} flex-1 font-mono text-xs`}
-                  value={idempotencyKey}
-                  onChange={e => setIdempotencyKey(e.target.value)}
+                  type="url"
+                  className={inputCls}
+                  placeholder="https://seu-erp.com/webhooks/nfse"
+                  value={webhookUrl}
+                  onChange={e => setWebhookUrl(e.target.value)}
                 />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setIdempotencyKey(crypto.randomUUID())}
-                  title="Gerar novo UUID"
-                >
-                  ↺
-                </Button>
-              </div>
-              <p className="text-xs text-text-2">Reenvie com a mesma chave para evitar duplicatas.</p>
-            </Field>
-          </div>
-        </details>
+              </Field>
+
+              {/* ME-41: ISS retido toggle — só faz sentido pra Lucro Presumido/Real. */}
+              {!isSimplesNacional && (
+                <div className="rounded-lg border border-navy-600 p-4">
+                  <p className="text-sm font-semibold text-text-1 mb-1">Retenção de ISS</p>
+                  <p className="text-xs text-text-2 mb-3">
+                    Marque se o tomador é responsável pela retenção do ISS na fonte (regra do município).
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    {([
+                      { label: 'Não especificado', value: null },
+                      { label: 'ISS retido na fonte', value: true },
+                      { label: 'ISS não retido', value: false },
+                    ] as const).map(({ label, value }) => (
+                      <button
+                        key={String(value)}
+                        type="button"
+                        onClick={() => setIssRetido(value)}
+                        className={[
+                          'flex-1 py-2 px-2 rounded-lg text-xs font-semibold transition border',
+                          issRetido === value
+                            ? 'bg-brand-cyan text-navy-900 border-brand-cyan'
+                            : 'border-navy-600 text-text-2 hover:border-brand-cyan',
+                        ].join(' ')}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <Field label="Chave de idempotência">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    className={`${inputCls} flex-1 font-mono text-xs`}
+                    value={idempotencyKey}
+                    onChange={e => setIdempotencyKey(e.target.value)}
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setIdempotencyKey(crypto.randomUUID())}
+                    title="Gerar novo UUID"
+                  >
+                    ↺
+                  </Button>
+                </div>
+                <p className="text-xs text-text-2">Reenvie com a mesma chave para evitar duplicatas.</p>
+              </Field>
+            </div>
+          </details>
+        )}
 
         {/* Submit */}
         <div className="flex items-center gap-4">

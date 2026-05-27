@@ -22,6 +22,15 @@ export default async function WebhooksPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // Webhooks são feature de integração (produto Gateway/ME). MEI usa o
+  // dashboard sem integração externa — bloqueia acesso direto via URL.
+  const { data: empresa } = await supabase
+    .from('empresas')
+    .select('tipo')
+    .eq('user_id', user.id)
+    .maybeSingle<{ tipo: 'MEI' | 'ME' | 'EPP' }>()
+  if (empresa?.tipo === 'MEI') redirect('/home')
+
   // Fetch plan info for gate — RLS enforces isolation for both MEI and ME/EPP
   const { data: usage } = await supabase
     .from('emissoes_mensais')

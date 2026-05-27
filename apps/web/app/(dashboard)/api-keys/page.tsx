@@ -18,6 +18,15 @@ export default async function APIKeysPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // API Keys são feature do produto Gateway/ME — MEI usa o dashboard direto.
+  // Bloqueia acesso direto via URL pra usuários MEI.
+  const { data: empresa } = await supabase
+    .from('empresas')
+    .select('tipo')
+    .eq('user_id', user.id)
+    .maybeSingle<{ tipo: 'MEI' | 'ME' | 'EPP' }>()
+  if (empresa?.tipo === 'MEI') redirect('/home')
+
   // RLS enforces isolation for both MEI and ME/EPP — no explicit user filter needed
   const { data: keys } = await supabase
     .from('api_keys')
