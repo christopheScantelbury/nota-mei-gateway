@@ -10,6 +10,7 @@ import {
 import type { NotaTemplate } from '@/app/api/templates/route'
 import { Button } from '@/components/ui/Button'
 import NBSServicoPicker from '@/components/nota/NBSServicoPicker'
+import MoneyInput from '@/components/ui/MoneyInput'
 
 interface Props {
   open: boolean
@@ -238,25 +239,20 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
 
               <div className={`grid gap-3 ${isSimplesNacional ? 'grid-cols-1' : 'grid-cols-2'}`}>
                 <Field label="Valor padrão (R$)" error={errors.valor}>
-                  <input
-                    type="number"
+                  <MoneyInput
                     className={inputCls}
-                    placeholder="0.00"
-                    min="0.01"
-                    step="0.01"
                     value={form.valor}
-                    onChange={set('valor')}
+                    onChange={(v) => setForm(prev => ({ ...prev, valor: v }))}
                   />
                 </Field>
                 {/* MEI/Simples Nacional recolhem ISS via DAS — campo escondido */}
                 {!isSimplesNacional && (
                   <Field label="Alíquota ISS (%)">
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       className={inputCls}
-                      min="0"
-                      max="5"
-                      step="0.1"
+                      placeholder="2,0"
                       value={form.aliquota_iss}
                       onChange={set('aliquota_iss')}
                     />

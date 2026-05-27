@@ -3,6 +3,7 @@
 import { useState, useEffect, FormEvent } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import MoneyInput from '@/components/ui/MoneyInput'
 
 interface Recorrencia {
   id: string
@@ -143,15 +144,14 @@ export default function RecorrenciaModal({ existing, onClose, onSaved }: Props) 
               placeholder="Ex: 01.01.01.10"
               required
             />
-            <Input
-              label="Valor (R$)"
-              type="number"
-              min={0.01}
-              step={0.01}
-              value={valor}
-              onChange={e => setValor(e.target.value)}
-              required
-            />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-text-1">Valor (R$)</label>
+              <MoneyInput
+                className="w-full rounded-lg border border-navy-600 bg-navy-700 px-3 py-2 text-sm text-text-1 placeholder:text-text-2/60 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-cyan/60 focus:border-brand-cyan/60"
+                value={valor}
+                onChange={setValor}
+              />
+            </div>
             <Input
               label="Discriminação (opcional)"
               value={discriminacao}

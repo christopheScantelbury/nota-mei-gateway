@@ -11,6 +11,7 @@ import SugestorNBS from '@/components/nota/SugestorNBS'
 import NBSServicoPicker from '@/components/nota/NBSServicoPicker'
 import ClienteCombobox from '@/components/nota/ClienteCombobox'
 import { Button } from '@/components/ui/Button'
+import MoneyInput from '@/components/ui/MoneyInput'
 import { hasFeature } from '@/lib/plans'
 import type { NotaTemplate } from '@/app/api/templates/route'
 import type { Cliente, ClienteAutocomplete } from '@/lib/types-cliente'
@@ -440,33 +441,20 @@ export default function NovaNota() {
 
           <div className={`grid grid-cols-1 ${isSimplesNacional ? '' : 'sm:grid-cols-2'} gap-4`}>
             <Field label="Valor do serviço (R$)" error={errors.valorServico}>
-              <input
-                type="number"
-                inputMode="decimal"
+              <MoneyInput
                 className={inputCls}
-                placeholder="0,00"
-                min="0.01"
-                step="0.01"
                 value={valorServico}
-                onChange={e => setValorServico(e.target.value)}
-                onBlur={e => {
-                  // Normaliza pra 2 casas decimais sem arredondar pra cima.
-                  const raw = e.target.value.replace(',', '.').trim()
-                  const n = Number(raw)
-                  if (!isNaN(n) && n > 0) setValorServico(n.toFixed(2))
-                }}
+                onChange={setValorServico}
               />
             </Field>
             {/* Alíquota ISS — só pra LP/LR. MEI e SN recolhem ISS via DAS, alíquota não se aplica. */}
             {!isSimplesNacional && (
               <Field label="Alíquota ISS (%)">
                 <input
-                  type="number"
+                  type="text"
                   inputMode="decimal"
                   className={inputCls}
-                  min="0"
-                  max="5"
-                  step="0.1"
+                  placeholder="2,0"
                   value={aliquotaIss}
                   onChange={e => setAliquotaIss(e.target.value)}
                 />
