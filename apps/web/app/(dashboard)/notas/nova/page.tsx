@@ -12,6 +12,7 @@ import NBSServicoPicker from '@/components/nota/NBSServicoPicker'
 import ClienteCombobox from '@/components/nota/ClienteCombobox'
 import { Button } from '@/components/ui/Button'
 import MoneyInput from '@/components/ui/MoneyInput'
+import { Select } from '@/components/ui/Select'
 import { hasFeature } from '@/lib/plans'
 import type { NotaTemplate } from '@/app/api/templates/route'
 import type { Cliente, ClienteAutocomplete } from '@/lib/types-cliente'
@@ -364,18 +365,14 @@ export default function NovaNota() {
         {templates.length > 0 && (
           <div className="flex items-center gap-3 rounded-xl border border-navy-600 bg-navy-700/50 px-4 py-3">
             <span className="text-sm text-text-2 shrink-0">📄 Usar template:</span>
-            <select
+            <Select
               value={selectedTemplate}
-              onChange={e => handleTemplateChange(e.target.value)}
-              className="flex-1 bg-navy-900 border border-navy-600 rounded-lg px-3 py-1.5 text-sm text-text-1 focus:outline-none focus:border-brand-cyan transition"
-            >
-              <option value="">— Selecionar template —</option>
-              {templates.map(t => (
-                <option key={t.id} value={t.id}>
-                  {t.nome}
-                </option>
-              ))}
-            </select>
+              onChange={handleTemplateChange}
+              placeholder="— Selecionar template —"
+              options={templates.map(t => ({ value: t.id, label: t.nome }))}
+              className="flex-1"
+              aria-label="Usar template"
+            />
             {selectedTemplate && (
               <button
                 type="button"

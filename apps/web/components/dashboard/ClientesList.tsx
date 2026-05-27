@@ -6,6 +6,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { hasFeature } from '@/lib/plans'
 import { formatBRL, formatCNPJ, formatCPF } from '@/lib/format'
 import { Button } from '@/components/ui/Button'
+import { Select } from '@/components/ui/Select'
 import type { Cliente } from '@/lib/types-cliente'
 
 function formatDocumento(c: Pick<Cliente, 'tipo' | 'documento'>): string {
@@ -94,14 +95,17 @@ export default function ClientesList({
           <Button type="submit" variant="secondary" size="sm">Buscar</Button>
         </form>
         {allTags.length > 0 && (
-          <select
+          <Select
             value={tag}
-            onChange={(e) => { setTag(e.target.value); applyFilters({ tag: e.target.value }) }}
-            className="bg-navy-900 border border-navy-600 rounded-lg px-3 py-2 text-sm text-text-1"
-          >
-            <option value="">Todas tags</option>
-            {allTags.map((t) => <option key={t} value={t}>{t}</option>)}
-          </select>
+            onChange={(v) => { setTag(v); applyFilters({ tag: v }) }}
+            placeholder="Todas tags"
+            options={[
+              { value: '', label: 'Todas tags' },
+              ...allTags.map((t) => ({ value: t, label: t })),
+            ]}
+            className="min-w-[160px]"
+            aria-label="Filtrar por tag"
+          />
         )}
         <label className="inline-flex items-center gap-2 text-xs text-text-2 select-none">
           <input

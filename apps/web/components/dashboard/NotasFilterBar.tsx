@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Select } from '@/components/ui/Select'
 import type { NotaStatus } from '@/lib/types'
 
 const STATUSES: { value: NotaStatus | ''; label: string }[] = [
@@ -98,16 +99,17 @@ export default function NotasFilterBar({ currentStatus, currentQ, currentCompete
           className="flex-1 min-w-[200px] bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-sm text-text-1 placeholder:text-text-2 focus:outline-none focus:border-brand-cyan transition"
         />
 
-        <select
+        <Select
           value={currentCompetencia ?? ''}
-          onChange={e => update('competencia', e.target.value)}
-          className="bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand-cyan transition"
-        >
-          <option value="">Todas as competências</option>
-          {months.map(m => (
-            <option key={m} value={m}>{formatCompetencia(m)}</option>
-          ))}
-        </select>
+          onChange={(v) => update('competencia', v)}
+          placeholder="Todas as competências"
+          options={[
+            { value: '', label: 'Todas as competências' },
+            ...months.map(m => ({ value: m, label: formatCompetencia(m) })),
+          ]}
+          className="min-w-[180px]"
+          aria-label="Filtrar por competência"
+        />
 
         {hasFilters && (
           <button

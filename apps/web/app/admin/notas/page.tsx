@@ -90,16 +90,27 @@ export default async function AdminNotasPage({
           placeholder="Buscar tomador, doc ou Nº RPS…"
           className="flex-1 min-w-[200px] bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-sm text-text-1 placeholder:text-text-2 focus:outline-none focus:border-brand-cyan"
         />
-        <select
-          name="status"
-          defaultValue={statusFilter ?? ''}
-          className="bg-navy-700 border border-navy-600 rounded-lg px-3 py-2 text-sm text-text-1 focus:outline-none focus:border-brand-cyan"
-        >
-          <option value="">Todos os status</option>
-          {VALID_STATUSES.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
+        {/* Native select — server component + form GET. Styled com appearance-none
+            + chevron embutido pra ficar visualmente alinhado ao restante. */}
+        <div className="relative">
+          <select
+            name="status"
+            defaultValue={statusFilter ?? ''}
+            className="appearance-none bg-navy-700 border border-navy-600 rounded-lg pl-3 pr-9 py-2 text-sm text-text-1 focus:outline-none focus:border-brand-cyan cursor-pointer"
+          >
+            <option value="">Todos os status</option>
+            {VALID_STATUSES.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <svg
+            width="14" height="14" viewBox="0 0 16 16"
+            className="text-text-2 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+            aria-hidden="true"
+          >
+            <path d="M4 6l4 4 4-4" stroke="currentColor" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
         <Button type="submit" variant="primary" size="sm">
           Filtrar
         </Button>
