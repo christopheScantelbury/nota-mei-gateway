@@ -20,13 +20,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 
   const q = (request.nextUrl.searchParams.get('q') ?? '').trim()
-  // ?all=1 → lista completa dos serviços disponíveis (até 200), sem precisar
-  // de termo de busca. Útil quando o user não sabe que palavra digitar.
+  // ?all=1 → modo "listar todos". Devolve uma página de 50 serviços ordenados
+  // por relevância (kit universal → CNAE específico → resto). Pra carregar
+  // mais use ?offset=N. Performance: ao crescer o catálogo, o cliente paga só
+  // o custo da página atual (~5-8KB JSON gzipado).
   const showAll = request.nextUrl.searchParams.get('all') === '1'
   // ?ignoreCnae=1 → ignora o filtro CNAE do CNPJ. Usado quando o usuário tem
   // um CNAE com mapping ruim/inexistente e precisa ver o catálogo amplo.
   const ignoreCnae = request.nextUrl.searchParams.get('ignoreCnae') === '1'
-  if (!showAll && q.length < 2) return NextResponse.json({ results: [] })
+  // Paginação só em modo all (busca por texto continua com LIMIT 15 hard).
+  const offset = Math.max(0, parseInt(request.nextUrl.searchParams.get('offset') ?? '0', 10))
+  const PAGE_SIZE = 50
+
+  if (!showAll && q.length < 2) {
+    return NextResponse.json({ results: [], total: 0, offset: 0, hasMore: false })
+  }
 
   // ── Carrega contexto da empresa/MEI ─────────────────────────────────────
   const ctx = await loadOwnerContext(supabase, user.id)
@@ -42,7 +50,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const digits = q.replace(/\D/g, '')
   let query = supabase
     .from('codigos_nbs')
-    .select('codigo, descricao, ctrib_nac')
+    .select('codigo, descricao, ctrib_nac', { count: 'exact' })
     .eq('ctrib_nac_valido', true)
 
   if (!showAll) {
@@ -56,36 +64,69 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Filtro por categoria (MEI vs ME/EPP) sempre aplicado — refinamento por CNAE depois.
   if (ctx.isMei) query = query.eq('permitido_mei', true)
 
-  // ── Filtro por CNAE (se temos cnaes do CNPJ e o caller não pediu pra ignorar) ──
-  // Sempre inclui o "kit universal MEI" (cnae_codigo='0000000') na lista de
-  // CNAEs consultados — garante que todo usuário sempre vê pelo menos os 6
-  // ctribs coringa (consultoria geral, secretaria, cursos, design, dev,
-  // marketing) mesmo quando o CNAE específico não tem mapping.
+  // ── Filtro por CNAE + kit universal ──
+  // Sempre inclui o "kit universal MEI" (cnae_codigo='0000000') — garante que
+  // todo usuário sempre vê pelo menos os 6 ctribs coringa, independente do
+  // CNAE registrado.
+  let universalCtribs: string[] = []
+  let cnaeCtribs: string[] = []
+
   if (!ignoreCnae && cnaes.length > 0) {
     const cnaesComKit = [...cnaes, '0000000']
     const { data: mapping } = await supabase
       .from('cnae_ctribnac')
-      .select('ctrib_nac')
+      .select('cnae_codigo, ctrib_nac')
       .in('cnae_codigo', cnaesComKit)
-      .returns<{ ctrib_nac: string }[]>()
+      .returns<{ cnae_codigo: string; ctrib_nac: string }[]>()
 
-    const allowedCtribs = Array.from(new Set((mapping ?? []).map(m => m.ctrib_nac)))
+    const map = mapping ?? []
+    universalCtribs = Array.from(new Set(map.filter(m => m.cnae_codigo === '0000000').map(m => m.ctrib_nac)))
+    cnaeCtribs      = Array.from(new Set(map.filter(m => m.cnae_codigo !== '0000000').map(m => m.ctrib_nac)))
+
+    const allowedCtribs = Array.from(new Set([...universalCtribs, ...cnaeCtribs]))
     if (allowedCtribs.length > 0) {
       query = query.in('ctrib_nac', allowedCtribs)
     }
   }
 
-  const { data, error } = await query
+  // ── Execução: pega total + página ──
+  // Faz uma query única com count, paginação e ordering.
+  // - Para showAll: ordena por relevância (universal → cnae → resto) via
+  //   pós-processamento client-side; a primeira ordenação alfabética garante
+  //   estabilidade dentro de cada grupo.
+  // - Para search: 15 hits, ordenado por descrição (já é seletivo o suficiente).
+  const limit = showAll ? PAGE_SIZE : 15
+  const { data, error, count } = await query
     .order('descricao', { ascending: true })
-    .limit(showAll ? 200 : 15)
+    .range(offset, offset + limit - 1)
     .returns<NBSResult[]>()
 
   if (error) {
     return NextResponse.json({ error: 'QUERY_ERROR', message: error.message }, { status: 500 })
   }
 
+  // Ordenação por relevância (apenas no showAll — search já é específico)
+  let results = data ?? []
+  if (showAll && offset === 0 && (universalCtribs.length > 0 || cnaeCtribs.length > 0)) {
+    const rank = (r: NBSResult): number => {
+      if (universalCtribs.includes(r.ctrib_nac)) return 0  // primeiro
+      if (cnaeCtribs.includes(r.ctrib_nac))      return 1  // segundo
+      return 2
+    }
+    results = [...results].sort((a, b) => {
+      const diff = rank(a) - rank(b)
+      return diff !== 0 ? diff : a.descricao.localeCompare(b.descricao, 'pt-BR')
+    })
+  }
+
+  const total = count ?? results.length
+  const hasMore = showAll && (offset + results.length < total)
+
   return NextResponse.json({
-    results: data ?? [],
+    results,
+    total,
+    offset,
+    hasMore,
     categoria: ctx.isMei ? 'MEI' : 'ME',
     cnaes_aplicados: cnaes,
     filtrado_por_cnpj: !ignoreCnae && cnaes.length > 0,
