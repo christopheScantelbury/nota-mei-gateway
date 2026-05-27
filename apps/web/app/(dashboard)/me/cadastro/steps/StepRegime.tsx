@@ -2,6 +2,7 @@
 
 import type { CadastroMEState } from '../actions'
 import { Button } from '@/components/ui/Button'
+import { LIMITE_RECEITA, fmtMoney } from '@/lib/tributario'
 
 interface Props {
   state: CadastroMEState
@@ -14,7 +15,7 @@ const REGIMES = [
   {
     id: 'SIMPLES_NACIONAL' as const,
     titulo: 'Simples Nacional',
-    subtitulo: 'Faturamento até R$ 360.000/ano',
+    subtitulo: `Faturamento até ${fmtMoney(LIMITE_RECEITA.ME)}/ano`,
     descricao:
       'ISS recolhido mensalmente via DAS no PGDAS-D. O tomador não retém ISS na fonte.',
     detalhe: 'CNPJ optante pelo Simples Nacional — alíquotas unificadas, regime simplificado.',
@@ -24,7 +25,7 @@ const REGIMES = [
   {
     id: 'LUCRO_PRESUMIDO' as const,
     titulo: 'Lucro Presumido',
-    subtitulo: 'Faturamento acima de R$ 360.000/ano',
+    subtitulo: `Faturamento acima de ${fmtMoney(LIMITE_RECEITA.ME)}/ano`,
     descricao:
       'ISS recolhido via DAM emitido no sistema Nota Manaus. Tomador pode reter ISS na fonte.',
     detalhe:

@@ -474,13 +474,13 @@ export default function NovaNota() {
             )}
           </div>
 
-          {/* MEI/SN: nota explicativa sobre o DAS */}
+          {/* MEI/SN: nota explicativa sobre o DAS — sem valor fixo (muda anualmente) */}
           {isSimplesNacional && (
             <div className="flex items-start gap-2 bg-brand-cyan/5 border border-brand-cyan/20 rounded-lg px-4 py-2.5">
               <span className="text-base shrink-0 mt-0.5">💡</span>
               <p className="text-xs text-text-2 leading-relaxed">
                 {isMei ? (
-                  <>Como <strong className="text-text-1">MEI</strong>, você paga apenas o <strong className="text-text-1">DAS fixo mensal</strong> (R$ 71-76). ISS por nota não se aplica — não é necessário informar alíquota nem retenção.</>
+                  <>Como <strong className="text-text-1">MEI</strong>, você paga apenas o <strong className="text-text-1">DAS mensal fixo</strong> (gerado pelo PGMEI). ISS por nota não se aplica — não é necessário informar alíquota nem retenção.</>
                 ) : (
                   <>Como <strong className="text-text-1">Simples Nacional</strong>, o ISS é recolhido junto com o DAS mensal pela alíquota efetiva do seu anexo. Não é necessário informar alíquota por nota.</>
                 )}

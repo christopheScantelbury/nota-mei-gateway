@@ -5,6 +5,7 @@ import { validarCNPJ } from '@/lib/cnpj'
 import { CepMunicipioInput } from '@/components/ui/CepMunicipioInput'
 import { maskCNPJ } from '@/lib/format'
 import { Button } from '@/components/ui/Button'
+import { LIMITE_RECEITA, fmtMoneyCompact } from '@/lib/tributario'
 import type { CadastroMEState } from '../actions'
 
 // ── styles ────────────────────────────────────────────────────────────────────
@@ -109,7 +110,7 @@ export function StepEmpresa({ state, onChange, onNext }: Props) {
           ))}
         </div>
         <p className="text-xs text-text-2">
-          ME: faturamento até R$ 360k/ano · EPP: até R$ 4,8M/ano
+          ME: faturamento até {fmtMoneyCompact(LIMITE_RECEITA.ME)}/ano · EPP: até {fmtMoneyCompact(LIMITE_RECEITA.EPP)}/ano
         </p>
       </Field>
 

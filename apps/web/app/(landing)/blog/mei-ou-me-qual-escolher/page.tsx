@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import PostLayout from '@/components/blog/PostLayout'
 import { getPost } from '@/lib/blog/manifest'
+import { LIMITE_RECEITA, DAS_MEI, ANO_REFERENCIA, fmtMoneyCompact, fmtMoney } from '@/lib/tributario'
 
 const SLUG = 'mei-ou-me-qual-escolher'
 const post = getPost(SLUG)!
@@ -32,11 +33,12 @@ export default function Page() {
       <h2>Resumo rápido</h2>
       <ul>
         <li>
-          <strong>MEI</strong> — até R$ 81.000/ano (2026), DAS fixo de
-          ~R$70/mês, máx. 1 funcionário, sem sócio. Atividades restritas.
+          <strong>MEI</strong> — até {fmtMoney(LIMITE_RECEITA.MEI)}/ano,
+          DAS mensal fixo (~{fmtMoney(DAS_MEI.servicos)} para serviços em {ANO_REFERENCIA}),
+          máx. 1 funcionário, sem sócio. Atividades restritas.
         </li>
         <li>
-          <strong>ME (Microempresa)</strong> — até R$ 360.000/ano, impostos
+          <strong>ME (Microempresa)</strong> — até {fmtMoney(LIMITE_RECEITA.ME)}/ano, impostos
           variáveis (Simples Nacional ou Lucro Presumido), aceita sócios e
           múltiplos funcionários. Atividades praticamente ilimitadas.
         </li>
@@ -45,7 +47,7 @@ export default function Page() {
       <h2>Quando o MEI é o caminho</h2>
       <p>Você é MEI ideal se:</p>
       <ul>
-        <li>Fatura até R$ 6.750/mês (médio)</li>
+        <li>Fatura até {fmtMoneyCompact(LIMITE_RECEITA.MEI / 12)}/mês em média</li>
         <li>Atua sozinho ou com 1 ajudante</li>
         <li>Sua atividade está na lista do MEI</li>
         <li>Quer impostos previsíveis (DAS fixo)</li>
@@ -56,8 +58,8 @@ export default function Page() {
       <p>Considere migrar se:</p>
       <ul>
         <li>
-          <strong>Faturamento subindo:</strong> está chegando perto dos R$
-          81.000/ano e/ou tem perspectiva de ultrapassar
+          <strong>Faturamento subindo:</strong> está chegando perto dos{' '}
+          {fmtMoney(LIMITE_RECEITA.MEI)}/ano e/ou tem perspectiva de ultrapassar
         </li>
         <li>
           <strong>Atividade não permitida no MEI:</strong> ex.: consultoria
@@ -84,7 +86,7 @@ export default function Page() {
         <li>
           <strong>Impostos:</strong> ME no Simples Nacional paga DAS variável
           (~6% do faturamento para serviços, dependendo do anexo). MEI paga
-          fixo R$70.
+          fixo (~{fmtMoney(DAS_MEI.servicos)}/mês em {ANO_REFERENCIA}).
         </li>
         <li>
           <strong>NFS-e:</strong> ambos emitem pelo padrão nacional a partir
@@ -93,8 +95,8 @@ export default function Page() {
           automática — preserva todo o histórico de notas.
         </li>
         <li>
-          <strong>Limites:</strong> ME permite até R$ 360k/ano. Acima disso,
-          vai para EPP (até R$ 4.8M/ano).
+          <strong>Limites:</strong> ME permite até {fmtMoneyCompact(LIMITE_RECEITA.ME)}/ano. Acima disso,
+          vai para EPP (até {fmtMoneyCompact(LIMITE_RECEITA.EPP)}/ano).
         </li>
       </ul>
 
