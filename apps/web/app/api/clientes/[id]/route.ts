@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { validateClienteInput, normalizeClienteInput } from '@/lib/clientes-validation'
 import type { Cliente, ClienteInput } from '@/lib/types-cliente'
-import { validateInput, normalize } from '../route'
 
 // ── GET /api/clientes/:id — inclui últimas 20 notas ──
 
@@ -50,10 +50,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   delete (body as Record<string, unknown>).total_emitido_brl
   delete (body as Record<string, unknown>).total_notas
 
-  const err = validateInput(body)
+  const err = validateClienteInput(body)
   if (err) return NextResponse.json({ error: 'VALIDATION_ERROR', message: err }, { status: 422 })
 
-  const patch = normalize(body)
+  const patch = normalizeClienteInput(body)
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'Nenhum campo para atualizar' }, { status: 422 })
   }

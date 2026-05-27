@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import PlanGate from '@/components/dashboard/PlanGate'
 import RecorrenciasList from './RecorrenciasList'
-import type { RecorrenciaRow } from '@/app/api/recorrencias/route'
+import type { RecorrenciaRow } from '@/lib/types-recorrencia'
 
 export default async function RecorrenciasPage() {
   const supabase = createClient()

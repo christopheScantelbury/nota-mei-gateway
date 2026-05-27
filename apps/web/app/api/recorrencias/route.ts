@@ -1,24 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getActiveEmpresaId } from '@/lib/empresa'
-
-export interface RecorrenciaRow {
-  id:                    string
-  empresa_id:            string | null
-  mei_id:                string | null
-  nome:                  string
-  ativo:                 boolean
-  dia_vencimento:        number
-  proxima_emissao:       string
-  ultima_emissao:        string | null
-  webhook_url:           string | null
-  servico:               Record<string, unknown>
-  tomador:               Record<string, unknown>
-  enviar_email_tomador:  boolean
-  email_tomador:         string | null
-  created_at:            string
-  updated_at:            string
-}
+import type { RecorrenciaRow } from '@/lib/types-recorrencia'
 
 interface RecorrenciaInput {
   nome:                  string

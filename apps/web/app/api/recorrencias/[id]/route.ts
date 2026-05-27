@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import type { RecorrenciaRow } from '../route'
+import type { RecorrenciaRow } from '@/lib/types-recorrencia'
 
 interface PatchInput {
   nome?:                 string
