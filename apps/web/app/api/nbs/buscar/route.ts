@@ -57,19 +57,22 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   if (ctx.isMei) query = query.eq('permitido_mei', true)
 
   // ── Filtro por CNAE (se temos cnaes do CNPJ e o caller não pediu pra ignorar) ──
+  // Sempre inclui o "kit universal MEI" (cnae_codigo='0000000') na lista de
+  // CNAEs consultados — garante que todo usuário sempre vê pelo menos os 6
+  // ctribs coringa (consultoria geral, secretaria, cursos, design, dev,
+  // marketing) mesmo quando o CNAE específico não tem mapping.
   if (!ignoreCnae && cnaes.length > 0) {
+    const cnaesComKit = [...cnaes, '0000000']
     const { data: mapping } = await supabase
       .from('cnae_ctribnac')
       .select('ctrib_nac')
-      .in('cnae_codigo', cnaes)
+      .in('cnae_codigo', cnaesComKit)
       .returns<{ ctrib_nac: string }[]>()
 
     const allowedCtribs = Array.from(new Set((mapping ?? []).map(m => m.ctrib_nac)))
     if (allowedCtribs.length > 0) {
       query = query.in('ctrib_nac', allowedCtribs)
     }
-    // Se nenhum CNAE do CNPJ está no nosso mapping (provável CNAE não-curado),
-    // mantém só o filtro de categoria — UI vai mostrar resultado normal.
   }
 
   const { data, error } = await query
