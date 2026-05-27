@@ -64,28 +64,43 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Filtro por categoria (MEI vs ME/EPP) sempre aplicado — refinamento por CNAE depois.
   if (ctx.isMei) query = query.eq('permitido_mei', true)
 
-  // ── Filtro por CNAE + kit universal ──
-  // Sempre inclui o "kit universal MEI" (cnae_codigo='0000000') — garante que
-  // todo usuário sempre vê pelo menos os 6 ctribs coringa, independente do
-  // CNAE registrado.
-  let universalCtribs: string[] = []
+  // ── Filtro por CNAE ────────────────────────────────────────────────────
+  // Regra (estrita):
+  //   1. Tem CNAE conhecido → filtra APENAS pelos ctribs mapeados (sem
+  //      auto-incluir kit universal). É o que o usuário pediu: "se meu CNAE
+  //      é tech, não me mostre Acupuntura".
+  //   2. CNAE conhecido mas sem mapping no banco → fallback pra kit universal
+  //      (6 ctribs coringa) pra não deixar o usuário sem nenhuma opção.
+  //   3. Nenhum CNAE conhecido → sem filtro (UI mostra catálogo completo).
+  //   4. ignoreCnae=1 → bypass explícito do usuário (botão "Ver todos").
   let cnaeCtribs: string[] = []
+  let usouFallbackUniversal = false
 
   if (!ignoreCnae && cnaes.length > 0) {
-    const cnaesComKit = [...cnaes, '0000000']
-    const { data: mapping } = await supabase
+    const { data: cnaeMapping } = await supabase
       .from('cnae_ctribnac')
-      .select('cnae_codigo, ctrib_nac')
-      .in('cnae_codigo', cnaesComKit)
-      .returns<{ cnae_codigo: string; ctrib_nac: string }[]>()
+      .select('ctrib_nac')
+      .in('cnae_codigo', cnaes)
+      .returns<{ ctrib_nac: string }[]>()
 
-    const map = mapping ?? []
-    universalCtribs = Array.from(new Set(map.filter(m => m.cnae_codigo === '0000000').map(m => m.ctrib_nac)))
-    cnaeCtribs      = Array.from(new Set(map.filter(m => m.cnae_codigo !== '0000000').map(m => m.ctrib_nac)))
+    cnaeCtribs = Array.from(new Set((cnaeMapping ?? []).map(m => m.ctrib_nac)))
 
-    const allowedCtribs = Array.from(new Set([...universalCtribs, ...cnaeCtribs]))
-    if (allowedCtribs.length > 0) {
-      query = query.in('ctrib_nac', allowedCtribs)
+    if (cnaeCtribs.length > 0) {
+      // Caminho normal: filtra ESTRITAMENTE pelos ctribs do CNAE
+      query = query.in('ctrib_nac', cnaeCtribs)
+    } else {
+      // CNAE não mapeado no nosso banco → cai pro kit universal
+      const { data: kit } = await supabase
+        .from('cnae_ctribnac')
+        .select('ctrib_nac')
+        .eq('cnae_codigo', '0000000')
+        .returns<{ ctrib_nac: string }[]>()
+      const universalCtribs = Array.from(new Set((kit ?? []).map(m => m.ctrib_nac)))
+      if (universalCtribs.length > 0) {
+        query = query.in('ctrib_nac', universalCtribs)
+        cnaeCtribs = universalCtribs
+        usouFallbackUniversal = true
+      }
     }
   }
 
@@ -105,20 +120,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'QUERY_ERROR', message: error.message }, { status: 500 })
   }
 
-  // Ordenação por relevância (apenas no showAll — search já é específico)
-  let results = data ?? []
-  if (showAll && offset === 0 && (universalCtribs.length > 0 || cnaeCtribs.length > 0)) {
-    const rank = (r: NBSResult): number => {
-      if (universalCtribs.includes(r.ctrib_nac)) return 0  // primeiro
-      if (cnaeCtribs.includes(r.ctrib_nac))      return 1  // segundo
-      return 2
-    }
-    results = [...results].sort((a, b) => {
-      const diff = rank(a) - rank(b)
-      return diff !== 0 ? diff : a.descricao.localeCompare(b.descricao, 'pt-BR')
-    })
-  }
-
+  const results = data ?? []
   const total = count ?? results.length
   const hasMore = showAll && (offset + results.length < total)
 
@@ -130,6 +132,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     categoria: ctx.isMei ? 'MEI' : 'ME',
     cnaes_aplicados: cnaes,
     filtrado_por_cnpj: !ignoreCnae && cnaes.length > 0,
+    fallback_universal: usouFallbackUniversal,
     ignorou_cnae: ignoreCnae,
   })
 }
@@ -148,19 +151,23 @@ async function loadOwnerContext(
   supabase: ReturnType<typeof createClient>,
   userId: string,
 ): Promise<OwnerCtx> {
-  // empresas primeiro (modelo novo)
+  // empresas primeiro (modelo novo). Inclui também o `cnae` legado pra fallback
+  // — se o array `cnaes` estiver vazio (lazy-load nunca rodou ou falhou), pelo
+  // menos garante 1 CNAE conhecido pra aplicar filtro.
   const { data: emp } = await supabase
     .from('empresas')
-    .select('id, cnpj, tipo, cnaes')
+    .select('id, cnpj, tipo, cnae, cnaes')
     .eq('user_id', userId)
-    .maybeSingle<{ id: string; cnpj: string; tipo: string; cnaes: string[] | null }>()
+    .maybeSingle<{ id: string; cnpj: string; tipo: string; cnae: string | null; cnaes: string[] | null }>()
 
   if (emp) {
+    const cnaesArr = Array.isArray(emp.cnaes) ? emp.cnaes.filter(c => /^\d{7}$/.test(c)) : []
+    const fallbackCnae = emp.cnae && /^\d{7}$/.test(emp.cnae) ? [emp.cnae] : []
     return {
       table: 'empresas',
       ownerId: emp.id,
       cnpj: emp.cnpj,
-      cnaes: Array.isArray(emp.cnaes) ? emp.cnaes : [],
+      cnaes: cnaesArr.length > 0 ? cnaesArr : fallbackCnae,
       isMei: (emp.tipo ?? 'MEI') === 'MEI',
     }
   }
@@ -177,7 +184,7 @@ async function loadOwnerContext(
       table: 'meis',
       ownerId: mei.id,
       cnpj: mei.cnpj,
-      cnaes: Array.isArray(mei.cnaes) ? mei.cnaes : [],
+      cnaes: Array.isArray(mei.cnaes) ? mei.cnaes.filter(c => /^\d{7}$/.test(c)) : [],
       isMei: true,
     }
   }

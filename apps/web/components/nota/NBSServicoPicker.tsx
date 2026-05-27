@@ -13,6 +13,11 @@ type Props = {
   onSelect: (codigo: string, descricao: string) => void
   /** mensagem de erro de validação */
   error?: string
+  /**
+   * `true` = dropdown abre INLINE (empurra o conteúdo abaixo). Use em modais
+   * com `overflow-y-auto` onde absolute estouraria a borda. Default = absolute.
+   */
+  inline?: boolean
 }
 
 // 8 dígitos → "01.01.01.10"
@@ -67,7 +72,7 @@ function cacheSet(key: string, value: Omit<CachedResponse, 'cachedAt'>) {
   }
 }
 
-export default function NBSServicoPicker({ value, selectedDescricao, onSelect, error }: Props) {
+export default function NBSServicoPicker({ value, selectedDescricao, onSelect, error, inline = false }: Props) {
   const [query, setQuery]               = useState('')
   const [results, setResults]           = useState<Resultado[]>([])
   const [loading, setLoading]           = useState(false)
@@ -241,8 +246,15 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
     )
   }
 
+  // Classes do container do dropdown:
+  // - inline=true  → estática, empurra conteúdo abaixo (não estoura modal)
+  // - inline=false → absoluta, overlay sobre o conteúdo abaixo
+  const dropdownCls = inline
+    ? 'mt-1 w-full rounded-xl border border-navy-600 bg-navy-900 shadow-xl max-h-60 overflow-y-auto'
+    : 'absolute z-20 mt-1 w-full rounded-xl border border-navy-600 bg-navy-900 shadow-xl max-h-72 overflow-y-auto'
+
   return (
-    <div className="relative" ref={boxRef}>
+    <div className={inline ? '' : 'relative'} ref={boxRef}>
       <input
         type="text"
         className={[inputCls, error ? 'border-nota-rejeitada' : 'border-navy-600'].join(' ')}
@@ -263,7 +275,7 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
       </button>
 
       {open && (
-        <div className="absolute z-20 mt-1 w-full rounded-xl border border-navy-600 bg-navy-900 shadow-xl max-h-72 overflow-y-auto">
+        <div className={dropdownCls}>
           {filtradoPorCnpj && !loading && results.length > 0 && (
             <p className="px-3 py-2 text-[11px] text-brand-cyan bg-brand-cyan/5 border-b border-navy-600 sticky top-0">
               ✓ Filtrado pelos CNAEs do seu CNPJ {total > results.length && `· ${results.length} de ${total}`}

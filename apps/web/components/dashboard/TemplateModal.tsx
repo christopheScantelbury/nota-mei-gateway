@@ -208,6 +208,7 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
             <div className="space-y-3">
               <Field label="Serviço prestado" error={errors.codigo_nbs}>
                 <NBSServicoPicker
+                  inline
                   value={form.codigo_nbs}
                   selectedDescricao={nbsDescricao}
                   onSelect={(codigo, descricao) => {
