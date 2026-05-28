@@ -298,8 +298,10 @@ function CreateLinkModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-900/80 backdrop-blur-sm p-4" role="dialog" aria-modal="true">
       <div className="bg-navy-700 border border-navy-600 rounded-2xl w-full max-w-md p-6 shadow-2xl">
         <h2 className="font-display text-lg font-extrabold mb-1">Novo link de emissão</h2>
-        <p className="text-text-2 text-xs mb-5">
-          Escolha um template ou automação. O link reutiliza os dados pra emitir notas iguais.
+        <p className="text-text-2 text-xs mb-5 leading-relaxed">
+          Cada link cria um atalho pra emitir uma nota específica. Os dados (serviço, valor, tomador)
+          vêm de um <strong className="text-text-1">template</strong> ou <strong className="text-text-1">automação</strong> que
+          você já criou — quando alguém acessar o link, emite igualzinho.
         </p>
 
         <div className="space-y-4">
@@ -313,7 +315,12 @@ function CreateLinkModal({
           />
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-text-1">Origem</label>
+            <label className="text-sm font-medium text-text-1">
+              Qual template ou automação usar?
+            </label>
+            <p className="text-xs text-text-2 -mt-0.5 mb-1">
+              📄 = template &nbsp;·&nbsp; 🔄 = automação. O link copia os dados desse modelo.
+            </p>
             <Select
               value={origem}
               onChange={setOrigem}
@@ -322,10 +329,15 @@ function CreateLinkModal({
               disabled={options.length === 0}
               inline
             />
-            {options.length === 0 && (
-              <p className="text-xs text-text-2">
-                Vá em <Link href="/templates" className="text-brand-cyan hover:underline">Templates</Link>{' '}
-                ou <Link href="/recorrencias" className="text-brand-cyan hover:underline">Automações</Link> pra criar a origem.
+            {options.length === 0 ? (
+              <p className="text-xs text-text-2 mt-1">
+                Você ainda não tem nenhum criado. Vá em{' '}
+                <Link href="/templates" className="text-brand-cyan hover:underline">Templates</Link> ou{' '}
+                <Link href="/recorrencias" className="text-brand-cyan hover:underline">Automações</Link> primeiro.
+              </p>
+            ) : (
+              <p className="text-xs text-text-2 mt-1">
+                A lista mostra todos os seus templates e automações ativos.
               </p>
             )}
           </div>
