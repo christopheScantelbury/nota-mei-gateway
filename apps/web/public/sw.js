@@ -10,7 +10,7 @@
  * { updateViaCache: 'none' } para nunca cachear o próprio sw.js.
  */
 
-const CACHE_VERSION = 'v1.0.0';
+const CACHE_VERSION = 'v1.0.1-portal';
 const STATIC_CACHE  = `notafacil-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `notafacil-runtime-${CACHE_VERSION}`;
 const OFFLINE_URL   = '/offline.html';
@@ -77,20 +77,34 @@ self.addEventListener('fetch', (event) => {
     url.pathname.startsWith('/api-keys') ||
     url.pathname.startsWith('/webhooks') ||
     url.pathname.startsWith('/templates') ||
-    url.pathname.startsWith('/recorrencias');
+    url.pathname.startsWith('/recorrencias') ||
+    url.pathname.startsWith('/clientes') ||
+    url.pathname.startsWith('/links') ||
+    url.pathname.startsWith('/home') ||
+    url.pathname.startsWith('/emitir');
   if (isAuthArea) {
     event.respondWith(networkFirst(request));
     return;
   }
 
-  // Assets do Next.js — stale-while-revalidate (rápido + atualiza em background)
+  // Assets imutáveis do Next.js (têm hash no nome) — cache-first é seguro.
+  // _next/static usa stale-while-revalidate. Outros assets também.
+  // IMPORTANTE: chunks JS (page-XXX.js, layout-XXX.js etc.) NÃO usam cache —
+  // sempre buscar fresco, senão usuários ficam vendo UI antiga após deploy.
   if (
-    url.pathname.startsWith('/_next/static') ||
     url.pathname.startsWith('/brand/') ||
     url.pathname.startsWith('/logos/') ||
-    /\.(png|jpg|jpeg|webp|svg|woff2?|css|js)$/.test(url.pathname)
+    /\.(png|jpg|jpeg|webp|svg|woff2?)$/.test(url.pathname)
   ) {
     event.respondWith(staleWhileRevalidate(request));
+    return;
+  }
+  // Bundles JS/CSS do Next.js — network-first pra garantir UI sempre fresca
+  if (
+    url.pathname.startsWith('/_next/') ||
+    /\.(js|css)$/.test(url.pathname)
+  ) {
+    event.respondWith(networkFirst(request));
     return;
   }
 

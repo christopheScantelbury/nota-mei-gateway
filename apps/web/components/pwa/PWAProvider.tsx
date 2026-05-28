@@ -26,7 +26,7 @@ export default function PWAProvider() {
   const [isIOS,        setIsIOS]        = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
 
-  // Registra o service worker
+  // Registra o service worker + detecta novas versões
   useEffect(() => {
     if (typeof window === 'undefined') return
     if (!('serviceWorker' in navigator)) return
@@ -35,7 +35,34 @@ export default function PWAProvider() {
     const onLoad = () => {
       navigator.serviceWorker
         .register('/sw.js', { scope: '/', updateViaCache: 'none' })
+        .then((reg) => {
+          // Listener: quando novo SW é encontrado, espera ele instalar e
+          // recarrega a página automaticamente quando ele assume controle.
+          // Sem isso, usuário fica vendo UI antiga até fechar/abrir a aba.
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing
+            if (!newWorker) return
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // Nova versão pronta — recarrega após pequeno delay
+                setTimeout(() => window.location.reload(), 100)
+              }
+            })
+          })
+
+          // Também: checa por updates a cada 60s (em sessões longas)
+          setInterval(() => reg.update().catch(() => {}), 60_000)
+        })
         .catch((err) => console.warn('[PWA] SW register falhou:', err))
+
+      // Recarrega quando o SW assume controle (cobre o caso de outro tab
+      // ter ativado a nova versão).
+      let reloaded = false
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloaded) return
+        reloaded = true
+        window.location.reload()
+      })
     }
     if (document.readyState === 'complete') onLoad()
     else window.addEventListener('load', onLoad, { once: true })
