@@ -104,9 +104,13 @@ export default function NovaNota() {
   // Persona da empresa — controla quais campos de imposto aparecem.
   // MEI/SN não escolhem alíquota ISS nem retenção (recolhem via DAS).
   // LP/LR têm controle total por nota.
+  // empresaTipo=null significa "ainda não resolvido" — usamos isso pra
+  // esconder campos condicionais até o fetch retornar, evitando flash
+  // visual (campos de webhook/idempotência aparecendo brevemente pra MEI).
   const [empresaTipo, setEmpresaTipo] = useState<'MEI' | 'ME' | 'EPP' | null>(null)
   const [empresaRegime, setEmpresaRegime] = useState<RegimeTributario | null>(null)
   const [planoNome, setPlanoNome] = useState<string>('Trial')
+  const empresaResolved = empresaTipo !== null
   const isMei = empresaTipo === 'MEI'
   const isSimplesNacional = isMei || empresaRegime === 'SIMPLES_NACIONAL'
   const podeUsarClientes = hasFeature(planoNome, 'clientesRead')
@@ -444,8 +448,9 @@ export default function NovaNota() {
                 onChange={setValorServico}
               />
             </Field>
-            {/* Alíquota ISS — só pra LP/LR. MEI e SN recolhem ISS via DAS, alíquota não se aplica. */}
-            {!isSimplesNacional && (
+            {/* Alíquota ISS — só pra LP/LR. MEI e SN recolhem ISS via DAS, alíquota não se aplica.
+                Espera empresaResolved pra evitar flash do campo. */}
+            {empresaResolved && !isSimplesNacional && (
               <Field label="Alíquota ISS (%)">
                 <input
                   type="text"
@@ -460,7 +465,7 @@ export default function NovaNota() {
           </div>
 
           {/* MEI/SN: nota explicativa sobre o DAS — sem valor fixo (muda anualmente) */}
-          {isSimplesNacional && (
+          {empresaResolved && isSimplesNacional && (
             <div className="flex items-start gap-2 bg-brand-cyan/5 border border-brand-cyan/20 rounded-lg px-4 py-2.5">
               <span className="text-base shrink-0 mt-0.5">💡</span>
               <p className="text-xs text-text-2 leading-relaxed">
@@ -474,7 +479,7 @@ export default function NovaNota() {
           )}
 
           {/* ISS preview — só pra LP/LR */}
-          {!isSimplesNacional && issEstimado !== null && (
+          {empresaResolved && !isSimplesNacional && issEstimado !== null && (
             <div className="flex items-center gap-2 bg-brand-cyan/10 border border-brand-cyan/30 rounded-lg px-4 py-2.5">
               <span className="text-xs text-brand-cyan font-semibold">ISS estimado:</span>
               <span className="text-sm font-mono text-brand-cyan">
@@ -568,8 +573,12 @@ export default function NovaNota() {
             idempotência são features de integração via API (produto separado
             do Nota Fácil MEI). O ISS retido também não se aplica (recolhe via
             DAS). A idempotency key continua sendo gerada e enviada por
-            baixo dos panos pra evitar duplicação em caso de retry de rede. */}
-        {!isMei && (
+            baixo dos panos pra evitar duplicação em caso de retry de rede.
+
+            empresaResolved evita que a seção apareça brevemente durante o
+            carregamento — sem isso, MEI via "Configurações opcionais" piscar
+            no fim da página antes de sumir. */}
+        {empresaResolved && !isMei && (
           <details className="rounded-xl border border-navy-600 bg-navy-700">
             <summary className="px-6 py-4 font-semibold text-sm cursor-pointer list-none flex justify-between items-center">
               <span>3. Configurações opcionais</span>

@@ -98,8 +98,12 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
   const [errors, setErrors]     = useState<Partial<FormState>>({})
   const [submitting, setSubmit] = useState(false)
   const [apiError, setApiError] = useState('')
-  const [isMei, setIsMei] = useState(false)
-  const [isSimplesNacional, setIsSimplesNacional] = useState(false)
+  // Persona da empresa — começa null (não resolvido). Só usamos os valores
+  // depois que o fetch /api/empresa/me retorna. Sem isso, o estado default
+  // (isMei=false) faria os campos não-MEI flash brevemente na tela.
+  const [isMei, setIsMei] = useState<boolean | null>(null)
+  const [isSimplesNacional, setIsSimplesNacional] = useState<boolean | null>(null)
+  const empresaResolved = isMei !== null
 
   // Detecta se o template está pronto pra usar em Link de Emissão
   const tomadorCompleto =
@@ -121,13 +125,20 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
   // Carrega tipo da empresa pra esconder campos irrelevantes pra MEI
   useEffect(() => {
     if (!open) return
+    // Só re-fetch se ainda não temos a persona resolvida (mantém cache entre aberturas)
+    if (empresaResolved) return
     fetch('/api/empresa/me')
       .then(r => r.ok ? r.json() : null)
       .then((d: { isMei?: boolean; isSimplesNacional?: boolean } | null) => {
-        if (d?.isMei) setIsMei(true)
-        if (d?.isSimplesNacional) setIsSimplesNacional(true)
+        setIsMei(Boolean(d?.isMei))
+        setIsSimplesNacional(Boolean(d?.isSimplesNacional))
       })
-      .catch(() => { /* silent */ })
+      .catch(() => {
+        // Fallback: assume MEI (mais conservador — esconde campos avançados)
+        setIsMei(true)
+        setIsSimplesNacional(true)
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
   function set(key: keyof FormState) {
@@ -311,7 +322,7 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
                 />
               </Field>
 
-              <div className={`grid gap-3 ${isSimplesNacional ? 'grid-cols-1' : 'grid-cols-2'}`}>
+              <div className={`grid gap-3 ${isSimplesNacional === false ? 'grid-cols-2' : 'grid-cols-1'}`}>
                 <Field label="Valor padrão (R$)" error={errors.valor}>
                   <MoneyInput
                     className={inputCls}
@@ -319,7 +330,9 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
                     onChange={(v) => setForm(prev => ({ ...prev, valor: v }))}
                   />
                 </Field>
-                {!isSimplesNacional && (
+                {/* Alíquota ISS — só pra LP/LR (não-Simples Nacional). Esconde até
+                    persona estar resolvida pra evitar flash visual. */}
+                {empresaResolved && isSimplesNacional === false && (
                   <Field label="Alíquota ISS (%)">
                     <input
                       type="text"
@@ -423,8 +436,9 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
             </div>
           </div>
 
-          {/* Webhook só aparece para ME/EPP */}
-          {!isMei && (
+          {/* Webhook só aparece para ME/EPP. Espera persona resolver pra não
+              flash o campo brevemente pra MEI durante o carregamento. */}
+          {empresaResolved && isMei === false && (
             <div className="border-t border-navy-600 pt-4">
               <Field label="URL de webhook (opcional)">
                 <input
