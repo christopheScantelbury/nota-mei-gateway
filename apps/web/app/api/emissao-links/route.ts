@@ -9,6 +9,20 @@ interface CreateLinkInput {
   nome:            string
 }
 
+/** Lista os campos críticos que faltam pra emitir automaticamente.
+ *  Vazio = pronto pra gerar link. Não-vazio = falta preencher. */
+function camposFaltando(
+  servico: Record<string, unknown> | null,
+  tomador: Record<string, unknown> | null,
+): string[] {
+  const faltam: string[] = []
+  if (!servico || !servico.codigo_nbs)    faltam.push('código do serviço')
+  if (!servico || !servico.valor)         faltam.push('valor')
+  if (!tomador || !tomador.documento)     faltam.push('CPF/CNPJ do tomador')
+  if (!tomador || !tomador.razao_social)  faltam.push('nome do tomador')
+  return faltam
+}
+
 // GET /api/emissao-links — lista links ativos da empresa
 export async function GET() {
   const supabase = createClient()
@@ -50,21 +64,39 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'Informe template_id OU recorrencia_id (exatamente um)' }, { status: 422 })
   }
 
-  // Verifica que a origem pertence à empresa (RLS já enforça, mas dá erro claro)
+  // Verifica que a origem pertence à empresa E tem dados completos pra emissão.
+  // Link de emissão precisa de TUDO já preenchido — serviço + tomador.
+  // Caso contrário a página pública não tem como emitir.
   if (hasTemplate) {
     const { data: tpl } = await supabase
       .from('nota_templates')
-      .select('id')
+      .select('id, nome, servico, tomador')
       .eq('id', body.template_id!)
-      .maybeSingle()
+      .maybeSingle<{ id: string; nome: string; servico: Record<string, unknown> | null; tomador: Record<string, unknown> | null }>()
     if (!tpl) return NextResponse.json({ error: 'NOT_FOUND', message: 'Template não encontrado' }, { status: 404 })
+
+    const faltando = camposFaltando(tpl.servico, tpl.tomador)
+    if (faltando.length > 0) {
+      return NextResponse.json({
+        error:   'TEMPLATE_INCOMPLETO',
+        message: `O template "${tpl.nome}" ainda não tem ${faltando.join(', ')}. Edite-o em /templates e preencha esses campos antes de gerar o link.`,
+      }, { status: 422 })
+    }
   } else {
     const { data: rec } = await supabase
       .from('nota_recorrencias')
-      .select('id')
+      .select('id, nome, servico, tomador')
       .eq('id', body.recorrencia_id!)
-      .maybeSingle()
+      .maybeSingle<{ id: string; nome: string; servico: Record<string, unknown> | null; tomador: Record<string, unknown> | null }>()
     if (!rec) return NextResponse.json({ error: 'NOT_FOUND', message: 'Automação não encontrada' }, { status: 404 })
+
+    const faltando = camposFaltando(rec.servico, rec.tomador)
+    if (faltando.length > 0) {
+      return NextResponse.json({
+        error:   'AUTOMACAO_INCOMPLETA',
+        message: `A automação "${rec.nome}" ainda não tem ${faltando.join(', ')}. Edite-a em /recorrencias e preencha esses campos antes de gerar o link.`,
+      }, { status: 422 })
+    }
   }
 
   // Gera API key interna + token do link

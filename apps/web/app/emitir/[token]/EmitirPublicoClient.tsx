@@ -34,7 +34,7 @@ function formatCompetencia(c: string | null): string {
 type Estado =
   | { tipo: 'carregando' }
   | { tipo: 'pronto'; resumo: Resumo }
-  | { tipo: 'erro';   msg: string }
+  | { tipo: 'erro';   msg: string; titulo?: string }
   | { tipo: 'emitindo' }
   | { tipo: 'sucesso'; notaId: string; mensagem: string }
   | { tipo: 'falha';   msg: string }
@@ -50,7 +50,8 @@ export default function EmitirPublicoClient({ token }: Props) {
         const body = await r.json().catch(() => ({}))
         if (aborted) return
         if (!r.ok) {
-          setEstado({ tipo: 'erro', msg: body.message ?? mensagemPorErro(body.error) })
+          const { titulo, msg } = mapearErro(body.error, body.message)
+          setEstado({ tipo: 'erro', msg, titulo })
         } else {
           setEstado({ tipo: 'pronto', resumo: body as Resumo })
         }
@@ -67,7 +68,8 @@ export default function EmitirPublicoClient({ token }: Props) {
       const res = await fetch(`/api/emitir-publico/${token}`, { method: 'POST' })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setEstado({ tipo: 'falha', msg: body.message ?? mensagemPorErro(body.error) })
+        const { msg } = mapearErro(body.error, body.message)
+        setEstado({ tipo: 'falha', msg })
         return
       }
       setEstado({ tipo: 'sucesso', notaId: body.nota_id, mensagem: body.mensagem })
@@ -93,8 +95,8 @@ export default function EmitirPublicoClient({ token }: Props) {
           {estado.tipo === 'erro' && (
             <div className="text-center py-8">
               <div className="text-5xl mb-3">🔒</div>
-              <h1 className="font-display font-bold text-lg mb-2">Link inválido ou revogado</h1>
-              <p className="text-text-2 text-sm">{estado.msg}</p>
+              <h1 className="font-display font-bold text-lg mb-2">{estado.titulo ?? 'Link inválido ou revogado'}</h1>
+              <p className="text-text-2 text-sm whitespace-pre-line">{estado.msg}</p>
             </div>
           )}
 
@@ -181,13 +183,37 @@ function Row({ label, children, highlight }: { label: string; children: React.Re
   )
 }
 
-function mensagemPorErro(code?: string): string {
+function mapearErro(code?: string, serverMsg?: string): { titulo: string; msg: string } {
   switch (code) {
-    case 'NOT_FOUND':       return 'Este link não existe ou foi revogado.'
-    case 'RATE_LIMIT':      return 'Aguarde um momento antes de emitir outra nota.'
-    case 'SOURCE_NOT_FOUND': return 'O template/automação foi removido.'
-    case 'INVALID_SOURCE':  return 'Dados do template estão incompletos.'
-    case 'PLAN_LIMIT_REACHED': return 'Limite do plano atingido. Faça upgrade.'
-    default:                return 'Erro inesperado. Tente novamente.'
+    case 'NOT_FOUND':
+      return {
+        titulo: 'Link inválido ou revogado',
+        msg:    'Este link não existe ou foi desativado pelo emissor.',
+      }
+    case 'RATE_LIMIT':
+      return {
+        titulo: 'Aguarde um momento',
+        msg:    serverMsg ?? 'Aguarde antes de emitir outra nota com este link.',
+      }
+    case 'SOURCE_NOT_FOUND':
+      return {
+        titulo: 'Origem removida',
+        msg:    'O template ou automação ligado a este link foi apagado.\n\nVá no painel e gere um link novo.',
+      }
+    case 'INVALID_SOURCE':
+      return {
+        titulo: 'Dados incompletos',
+        msg:    'O template/automação não tem os dados todos preenchidos (faltam o serviço ou o tomador).\n\nVá no painel, complete os dados e gere um link novo.',
+      }
+    case 'PLAN_LIMIT_REACHED':
+      return {
+        titulo: 'Limite do plano atingido',
+        msg:    'Esta conta já usou todas as emissões do plano deste mês.',
+      }
+    default:
+      return {
+        titulo: 'Erro inesperado',
+        msg:    serverMsg ?? 'Tente novamente em alguns segundos.',
+      }
   }
 }
