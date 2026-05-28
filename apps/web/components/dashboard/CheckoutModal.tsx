@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import {
-  Dialog,
+  DialogRoot,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -66,7 +66,7 @@ export default function CheckoutModal({
         Assinar {planName}
       </Button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <DialogRoot open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirmar assinatura</DialogTitle>
@@ -124,7 +124,7 @@ export default function CheckoutModal({
             </div>
           </div>
         </DialogContent>
-      </Dialog>
+      </DialogRoot>
     </>
   )
 }

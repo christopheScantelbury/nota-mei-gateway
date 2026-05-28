@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import {
-  Dialog,
+  DialogRoot,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -229,8 +229,12 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v && !submitting) onClose() }}>
-      {/* Estrutura: header sticky (top) + corpo scrollável + footer sticky (bottom).
+    <DialogRoot open={open} onOpenChange={(v) => { if (!v && !submitting) onClose() }}>
+      {/* IMPORTANTE: usamos DialogRoot direto (não o convenience Dialog) porque
+          aquele JÁ renderiza um DialogContent internamente, e nesting de dois
+          DialogContent quebrava o scroll (overflow do externo travava o interno).
+
+          Estrutura: header sticky (top) + corpo scrollável + footer sticky (bottom).
           Isso garante que o usuário sempre vê o botão Salvar mesmo com form longo,
           E que o scroll funciona em qualquer device (touch, mouse wheel). */}
       <DialogContent className="max-w-lg max-h-[92vh] p-0 flex flex-col overflow-hidden">
@@ -452,6 +456,6 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
           </Button>
         </div>
       </DialogContent>
-    </Dialog>
+    </DialogRoot>
   )
 }

@@ -99,18 +99,28 @@ DialogDescription.displayName = DialogPrimitive.Description.displayName
 /**
  * Convenience Dialog component.
  *
- * Usage:
+ * IMPORTANTE: este wrapper JÁ renderiza um `<DialogContent>` internamente.
+ * Nunca passe outro `<DialogContent>` como filho — causa nesting que quebra
+ * scroll e focus management do Radix.
+ *
+ * ✅ Uso correto:
  * ```tsx
- * <Dialog
- *   open={open}
- *   onOpenChange={setOpen}
- *   trigger={<Button>Abrir</Button>}
- *   title="Título"
- *   description="Descrição opcional"
- * >
- *   <p>Conteúdo</p>
+ * <Dialog open={open} onOpenChange={setOpen} title="Título" className="max-w-lg">
+ *   <p>Conteúdo direto, sem wrapper extra</p>
  * </Dialog>
  * ```
+ *
+ * ❌ Uso INCORRETO (DialogContent aninhado):
+ * ```tsx
+ * <Dialog open={open}>
+ *   <DialogContent>      ← duplicado, vai quebrar
+ *     ...
+ *   </DialogContent>
+ * </Dialog>
+ * ```
+ *
+ * Pra modais com estrutura customizada (header sticky, footer sticky, etc.)
+ * use `DialogRoot` + `DialogContent` diretamente, sem o wrapper convenience.
  */
 interface DialogProps {
   open?: boolean
