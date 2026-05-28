@@ -10,7 +10,10 @@ import {
 import type { NotaTemplate } from '@/app/api/templates/route'
 import { Button } from '@/components/ui/Button'
 import NBSServicoPicker from '@/components/nota/NBSServicoPicker'
+import ClienteCombobox from '@/components/nota/ClienteCombobox'
 import MoneyInput from '@/components/ui/MoneyInput'
+import { maskCNPJ, maskCPF } from '@/lib/format'
+import type { ClienteAutocomplete } from '@/lib/types-cliente'
 
 interface Props {
   open: boolean
@@ -25,10 +28,12 @@ const inputCls =
 function Field({
   label,
   error,
+  hint,
   children,
 }: {
   label: string
   error?: string
+  hint?: string
   children: React.ReactNode
 }) {
   return (
@@ -38,35 +43,52 @@ function Field({
       </label>
       {children}
       {error && <p className="text-xs text-nota-rejeitada">{error}</p>}
+      {hint && !error && <p className="text-[11px] text-text-2">{hint}</p>}
     </div>
   )
 }
 
 interface FormState {
-  nome: string
-  descricao: string
-  codigo_nbs: string
-  discriminacao: string
-  valor: string
-  aliquota_iss: string
-  webhook_url: string
+  nome:                  string
+  descricao:             string
+  // Serviço
+  codigo_nbs:            string
+  discriminacao:         string
+  valor:                 string
+  aliquota_iss:          string
+  // Tomador (opcional — mas necessário pra Links de Emissão / automação)
+  tomador_tipo:          'PJ' | 'PF'
+  tomador_documento:     string
+  tomador_razao_social:  string
+  tomador_email:         string
+  tomador_municipio_ibge: string
+  // Integração
+  webhook_url:           string
 }
 
 function templateToForm(t: NotaTemplate): FormState {
   return {
-    nome:          t.nome,
-    descricao:     t.descricao ?? '',
-    codigo_nbs:    t.servico.codigo_nbs,
-    discriminacao: t.servico.discriminacao,
-    valor:         String(t.servico.valor),
-    aliquota_iss:  String(t.servico.aliquota_iss),
-    webhook_url:   t.webhook_url ?? '',
+    nome:                   t.nome,
+    descricao:              t.descricao ?? '',
+    codigo_nbs:             t.servico.codigo_nbs,
+    discriminacao:          t.servico.discriminacao,
+    valor:                  String(t.servico.valor),
+    aliquota_iss:           String(t.servico.aliquota_iss),
+    tomador_tipo:           (t.tomador?.tipo as 'PJ' | 'PF') ?? 'PJ',
+    tomador_documento:      t.tomador?.documento ?? '',
+    tomador_razao_social:   t.tomador?.razao_social ?? '',
+    tomador_email:          t.tomador?.email ?? '',
+    tomador_municipio_ibge: t.tomador?.municipio_ibge ?? '',
+    webhook_url:            t.webhook_url ?? '',
   }
 }
 
 const emptyForm: FormState = {
   nome: '', descricao: '', codigo_nbs: '', discriminacao: '',
-  valor: '', aliquota_iss: '2.0', webhook_url: '',
+  valor: '', aliquota_iss: '2.0',
+  tomador_tipo: 'PJ', tomador_documento: '', tomador_razao_social: '',
+  tomador_email: '', tomador_municipio_ibge: '',
+  webhook_url: '',
 }
 
 export default function TemplateModal({ open, onClose, onSaved, initial }: Props) {
@@ -76,16 +98,20 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
   const [errors, setErrors]     = useState<Partial<FormState>>({})
   const [submitting, setSubmit] = useState(false)
   const [apiError, setApiError] = useState('')
-  // Persona do usuário — MEI recolhe ISS via DAS e raramente usa webhook,
-  // então escondemos esses campos por padrão.
   const [isMei, setIsMei] = useState(false)
   const [isSimplesNacional, setIsSimplesNacional] = useState(false)
+
+  // Detecta se o template está pronto pra usar em Link de Emissão
+  const tomadorCompleto =
+    !!form.tomador_documento.replace(/\D/g, '') &&
+    !!form.tomador_razao_social.trim() &&
+    !!form.tomador_municipio_ibge
 
   // Reset form when modal opens / template changes
   useEffect(() => {
     if (open) {
       setForm(initial ? templateToForm(initial) : emptyForm)
-      setNbsDescricao('')  // template não persiste descrição NBS
+      setNbsDescricao('')
       setErrors({})
       setApiError('')
       setSubmit(false)
@@ -109,13 +135,39 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
       setForm(prev => ({ ...prev, [key]: e.target.value }))
   }
 
+  function aplicarCliente(c: ClienteAutocomplete) {
+    setForm(prev => ({
+      ...prev,
+      tomador_tipo:           c.tipo,
+      tomador_documento:      c.documento,
+      tomador_razao_social:   c.razao_social,
+      tomador_email:          c.email ?? prev.tomador_email,
+      tomador_municipio_ibge: c.municipio_ibge ?? prev.tomador_municipio_ibge,
+    }))
+  }
+
   function validate() {
     const errs: Partial<FormState> = {}
     if (!form.nome.trim())          errs.nome = 'Nome obrigatório'
-    if (!form.codigo_nbs.trim())    errs.codigo_nbs = 'Código NBS obrigatório'
+    if (!form.codigo_nbs.trim())    errs.codigo_nbs = 'Selecione o serviço prestado'
     if (!form.discriminacao.trim()) errs.discriminacao = 'Discriminação obrigatória'
     const v = parseFloat(form.valor.replace(',', '.'))
     if (isNaN(v) || v <= 0)         errs.valor = 'Valor deve ser maior que zero'
+
+    // Tomador é opcional — mas SE algum campo preenchido, valida o conjunto
+    const algumTomador = form.tomador_documento || form.tomador_razao_social
+    if (algumTomador) {
+      const docClean = form.tomador_documento.replace(/\D/g, '')
+      if (form.tomador_tipo === 'PJ' && docClean.length !== 14) {
+        errs.tomador_documento = 'CNPJ deve ter 14 dígitos'
+      } else if (form.tomador_tipo === 'PF' && docClean.length !== 11) {
+        errs.tomador_documento = 'CPF deve ter 11 dígitos'
+      }
+      if (!form.tomador_razao_social.trim()) {
+        errs.tomador_razao_social = 'Nome obrigatório'
+      }
+    }
+
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -127,6 +179,18 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
 
     setSubmit(true)
     try {
+      // Monta tomador SE algum campo preenchido — senão null
+      const docClean = form.tomador_documento.replace(/\D/g, '')
+      const tomador = docClean.length > 0 && form.tomador_razao_social.trim()
+        ? {
+            tipo:           form.tomador_tipo,
+            documento:      docClean,
+            razao_social:   form.tomador_razao_social.trim(),
+            email:          form.tomador_email.trim() || undefined,
+            municipio_ibge: form.tomador_municipio_ibge.replace(/\D/g, '') || undefined,
+          }
+        : null
+
       const payload = {
         nome:        form.nome.trim(),
         descricao:   form.descricao.trim() || null,
@@ -134,10 +198,9 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
           codigo_nbs:    form.codigo_nbs.trim(),
           discriminacao: form.discriminacao.trim(),
           valor:         parseFloat(form.valor.replace(',', '.')),
-          // MEI/SN recolhe ISS via DAS — força 0 pra não confundir
           aliquota_iss:  isSimplesNacional ? 0 : parseFloat(form.aliquota_iss.replace(',', '.')),
         },
-        // MEI raramente usa webhook — pula campo
+        tomador,
         webhook_url: isMei ? null : (form.webhook_url.trim() || null),
       }
 
@@ -201,9 +264,10 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
             />
           </Field>
 
+          {/* ── Bloco 1: Serviço ── */}
           <div className="border-t border-navy-600 pt-4">
             <p className="text-xs font-semibold text-text-2 uppercase tracking-wider mb-3">
-              Dados do serviço
+              1. Dados do serviço
             </p>
 
             <div className="space-y-3">
@@ -213,15 +277,12 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
                   value={form.codigo_nbs}
                   selectedDescricao={nbsDescricao}
                   onSelect={(codigo, descricao) => {
-                    setForm(prev => ({ ...prev, codigo_nbs: codigo }))
-                    setNbsDescricao(descricao)
-                    // Pré-preenche a discriminação com a descrição NBS se ainda
-                    // estiver vazia — usuário pode editar depois.
                     setForm(prev => ({
                       ...prev,
                       codigo_nbs: codigo,
                       discriminacao: prev.discriminacao.trim() || descricao,
                     }))
+                    setNbsDescricao(descricao)
                   }}
                   error={errors.codigo_nbs}
                 />
@@ -245,7 +306,6 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
                     onChange={(v) => setForm(prev => ({ ...prev, valor: v }))}
                   />
                 </Field>
-                {/* MEI/Simples Nacional recolhem ISS via DAS — campo escondido */}
                 {!isSimplesNacional && (
                   <Field label="Alíquota ISS (%)">
                     <input
@@ -262,17 +322,107 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
             </div>
           </div>
 
-          {/* Webhook só aparece para ME/EPP — MEI tipicamente não integra ERP */}
+          {/* ── Bloco 2: Tomador (opcional mas necessário pra Links/Automação) ── */}
+          <div className="border-t border-navy-600 pt-4">
+            <div className="flex items-center justify-between mb-3 gap-2">
+              <p className="text-xs font-semibold text-text-2 uppercase tracking-wider">
+                2. Tomador (opcional)
+              </p>
+              {tomadorCompleto && (
+                <span className="text-[10px] font-semibold text-nota-autorizada bg-nota-autorizada/10 border border-nota-autorizada/30 rounded-full px-2 py-0.5 whitespace-nowrap">
+                  ✓ Pronto pra Link
+                </span>
+              )}
+            </div>
+
+            <p className="text-[11px] text-text-2 mb-3 leading-relaxed">
+              Preencha se quiser usar este template em <strong className="text-text-1">Links de Emissão</strong>{' '}
+              ou <strong className="text-text-1">Automações</strong> sem digitar tudo de novo.
+              Sem o tomador, o template só serve pra pré-preencher o form de Nova Nota.
+            </p>
+
+            <div className="space-y-3">
+              <ClienteCombobox onSelect={aplicarCliente} />
+
+              <div className="inline-flex gap-1 bg-navy-900 border border-navy-600 rounded-lg p-1">
+                {(['PJ', 'PF'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setForm(prev => ({ ...prev, tomador_tipo: t, tomador_documento: '' }))}
+                    className={`px-3 py-1 text-xs font-semibold rounded transition ${
+                      form.tomador_tipo === t
+                        ? 'bg-brand-cyan text-navy-900'
+                        : 'text-text-2 hover:text-text-1'
+                    }`}
+                  >
+                    {t === 'PJ' ? 'CNPJ (PJ)' : 'CPF (PF)'}
+                  </button>
+                ))}
+              </div>
+
+              <Field label={form.tomador_tipo === 'PJ' ? 'CNPJ' : 'CPF'} error={errors.tomador_documento}>
+                <input
+                  type="text"
+                  className={inputCls}
+                  placeholder={form.tomador_tipo === 'PJ' ? '00.000.000/0000-00' : '000.000.000-00'}
+                  value={form.tomador_tipo === 'PJ' ? maskCNPJ(form.tomador_documento) : maskCPF(form.tomador_documento)}
+                  onChange={e => setForm(prev => ({ ...prev, tomador_documento: e.target.value.replace(/\D/g, '') }))}
+                  maxLength={18}
+                />
+              </Field>
+
+              <Field
+                label={form.tomador_tipo === 'PJ' ? 'Razão social' : 'Nome completo'}
+                error={errors.tomador_razao_social}
+              >
+                <input
+                  type="text"
+                  className={inputCls}
+                  value={form.tomador_razao_social}
+                  onChange={set('tomador_razao_social')}
+                  maxLength={255}
+                />
+              </Field>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Município (IBGE)" hint="7 dígitos. Ex: 3550308">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    className={inputCls}
+                    placeholder="3550308"
+                    value={form.tomador_municipio_ibge}
+                    onChange={e => setForm(prev => ({ ...prev, tomador_municipio_ibge: e.target.value.replace(/\D/g, '') }))}
+                    maxLength={7}
+                  />
+                </Field>
+                <Field label="Email (opcional)">
+                  <input
+                    type="email"
+                    className={inputCls}
+                    placeholder="cliente@empresa.com"
+                    value={form.tomador_email}
+                    onChange={set('tomador_email')}
+                  />
+                </Field>
+              </div>
+            </div>
+          </div>
+
+          {/* Webhook só aparece para ME/EPP */}
           {!isMei && (
-            <Field label="URL de webhook (opcional)">
-              <input
-                type="url"
-                className={inputCls}
-                placeholder="https://seu-erp.com/webhooks/nfse"
-                value={form.webhook_url}
-                onChange={set('webhook_url')}
-              />
-            </Field>
+            <div className="border-t border-navy-600 pt-4">
+              <Field label="URL de webhook (opcional)">
+                <input
+                  type="url"
+                  className={inputCls}
+                  placeholder="https://seu-erp.com/webhooks/nfse"
+                  value={form.webhook_url}
+                  onChange={set('webhook_url')}
+                />
+              </Field>
+            </div>
           )}
 
           <div className="flex gap-3 pt-2">

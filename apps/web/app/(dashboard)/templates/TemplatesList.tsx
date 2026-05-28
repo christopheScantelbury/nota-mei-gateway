@@ -99,7 +99,24 @@ export default function TemplatesList({ initialTemplates }: Props) {
               {/* Header */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold truncate">{t.nome}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="font-semibold truncate">{t.nome}</p>
+                    {t.tomador?.documento && t.tomador?.razao_social ? (
+                      <span
+                        className="text-[10px] font-semibold text-nota-autorizada bg-nota-autorizada/10 border border-nota-autorizada/30 rounded-full px-2 py-0.5 whitespace-nowrap"
+                        title="Tem tomador completo — pode ser usado em Link de Emissão"
+                      >
+                        ✓ Pronto pra Link
+                      </span>
+                    ) : (
+                      <span
+                        className="text-[10px] text-text-2 bg-navy-900 border border-navy-600 rounded-full px-2 py-0.5 whitespace-nowrap"
+                        title="Falta dados do tomador pra usar em Link de Emissão"
+                      >
+                        sem tomador
+                      </span>
+                    )}
+                  </div>
                   {t.descricao && (
                     <p className="text-xs text-text-2 mt-0.5 truncate">{t.descricao}</p>
                   )}
