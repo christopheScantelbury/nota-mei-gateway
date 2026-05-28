@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/Input'
 import MoneyInput from '@/components/ui/MoneyInput'
 import NBSServicoPicker from '@/components/nota/NBSServicoPicker'
 import ClienteCombobox from '@/components/nota/ClienteCombobox'
+import { CepMunicipioInput } from '@/components/ui/CepMunicipioInput'
 import { maskCNPJ, maskCPF } from '@/lib/format'
 import type { ClienteAutocomplete } from '@/lib/types-cliente'
 
@@ -285,13 +286,10 @@ export default function RecorrenciaModal({ existing, onClose, onSaved }: Props) 
               onChange={e => setTomadorNome(e.target.value)}
               required
             />
-            <Input
-              label="Município (IBGE 7 dígitos)"
+            {/* Município via CEP ou busca por nome — nunca pedir IBGE direto */}
+            <CepMunicipioInput
               value={tomadorMuni}
-              onChange={e => setTomadorMuni(e.target.value.replace(/\D/g, ''))}
-              placeholder="3550308"
-              hint="Necessário pra Receita aceitar a nota. Vem do cliente ou busque manualmente."
-              maxLength={7}
+              onChange={(code) => setTomadorMuni(code)}
             />
           </section>
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import {
   DialogRoot,
   DialogContent,
@@ -12,6 +13,7 @@ import { Button } from '@/components/ui/Button'
 import NBSServicoPicker from '@/components/nota/NBSServicoPicker'
 import ClienteCombobox from '@/components/nota/ClienteCombobox'
 import MoneyInput from '@/components/ui/MoneyInput'
+import { CepMunicipioInput } from '@/components/ui/CepMunicipioInput'
 import { maskCNPJ, maskCPF } from '@/lib/format'
 import type { ClienteAutocomplete } from '@/lib/types-cliente'
 
@@ -155,6 +157,7 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
       tomador_email:          c.email ?? prev.tomador_email,
       tomador_municipio_ibge: c.municipio_ibge ?? prev.tomador_municipio_ibge,
     }))
+    toast.success(`Cliente "${c.razao_social}" preenchido nos campos abaixo`)
   }
 
   function validate() {
@@ -411,28 +414,24 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
                 />
               </Field>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Município (IBGE)" hint="7 dígitos. Ex: 3550308">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    className={inputCls}
-                    placeholder="3550308"
-                    value={form.tomador_municipio_ibge}
-                    onChange={e => setForm(prev => ({ ...prev, tomador_municipio_ibge: e.target.value.replace(/\D/g, '') }))}
-                    maxLength={7}
-                  />
-                </Field>
-                <Field label="Email (opcional)">
-                  <input
-                    type="email"
-                    className={inputCls}
-                    placeholder="cliente@empresa.com"
-                    value={form.tomador_email}
-                    onChange={set('tomador_email')}
-                  />
-                </Field>
+              {/* Município por CEP (default) ou busca por nome. Nunca pedir
+                  IBGE direto — usuário não sabe esse código. */}
+              <div>
+                <CepMunicipioInput
+                  value={form.tomador_municipio_ibge}
+                  onChange={(code) => setForm(prev => ({ ...prev, tomador_municipio_ibge: code }))}
+                />
               </div>
+
+              <Field label="Email (opcional)">
+                <input
+                  type="email"
+                  className={inputCls}
+                  placeholder="cliente@empresa.com"
+                  value={form.tomador_email}
+                  onChange={set('tomador_email')}
+                />
+              </Field>
             </div>
           </div>
 
