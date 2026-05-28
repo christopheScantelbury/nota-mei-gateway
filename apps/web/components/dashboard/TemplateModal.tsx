@@ -230,12 +230,21 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v && !submitting) onClose() }}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      {/* Estrutura: header sticky (top) + corpo scrollável + footer sticky (bottom).
+          Isso garante que o usuário sempre vê o botão Salvar mesmo com form longo,
+          E que o scroll funciona em qualquer device (touch, mouse wheel). */}
+      <DialogContent className="max-w-lg max-h-[92vh] p-0 flex flex-col overflow-hidden">
+        {/* Header — sticky */}
+        <DialogHeader className="shrink-0 px-6 pt-6 pb-3 border-b border-navy-600/60 mb-0">
           <DialogTitle>{isEdit ? 'Editar template' : 'Novo template'}</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        {/* Corpo scrollável */}
+        <form
+          onSubmit={handleSubmit}
+          id="template-modal-form"
+          className="flex-1 overflow-y-auto overscroll-contain px-6 py-4 space-y-4"
+        >
           {apiError && (
             <p className="text-xs text-nota-rejeitada bg-nota-rejeitada/10 border border-nota-rejeitada/30 rounded-lg px-3 py-2">
               {apiError}
@@ -425,15 +434,23 @@ export default function TemplateModal({ open, onClose, onSaved, initial }: Props
             </div>
           )}
 
-          <div className="flex gap-3 pt-2">
-            <Button type="submit" variant="primary" className="flex-1" loading={submitting}>
-              {submitting ? 'Salvando…' : isEdit ? 'Salvar alterações' : 'Criar template'}
-            </Button>
-            <Button type="button" variant="secondary" onClick={onClose} disabled={submitting}>
-              Cancelar
-            </Button>
-          </div>
         </form>
+
+        {/* Footer sticky — botões sempre visíveis */}
+        <div className="shrink-0 px-6 py-4 border-t border-navy-600/60 flex gap-3 bg-navy-700">
+          <Button
+            type="submit"
+            form="template-modal-form"
+            variant="primary"
+            className="flex-1"
+            loading={submitting}
+          >
+            {submitting ? 'Salvando…' : isEdit ? 'Salvar alterações' : 'Criar template'}
+          </Button>
+          <Button type="button" variant="secondary" onClick={onClose} disabled={submitting}>
+            Cancelar
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   )
