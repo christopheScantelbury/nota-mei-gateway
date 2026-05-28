@@ -53,10 +53,11 @@ export default function LinksList({ initial }: Props) {
 
   // Abre WhatsApp com mensagem pré-formatada — usuário escolhe pra quem mandar
   // (geralmente pra si próprio, contato "Você mesmo"/Saved Messages).
-  // Métrica de validação: % de usuários que clicam aqui.
+  // Evitamos emojis na mensagem porque WhatsApp pode renderizar errado
+  // dependendo do encoding do device / versão do app.
   function shareWhatsApp(link: LinkRow) {
     const url  = urlFor(link.token)
-    const text = `🧾 Meu atalho pra emitir NFS-e: ${link.nome}\n\n${url}\n\n_Salva esse contato pra emitir com 1 toque toda vez._`
+    const text = `Meu atalho pra emitir NFS-e: ${link.nome}\n\n${url}\n\nSalva esse link nos favoritos pra emitir nota com 1 toque toda vez.`
     const wa   = `https://wa.me/?text=${encodeURIComponent(text)}`
     // Abre em nova aba — preserva o dashboard aberto
     window.open(wa, '_blank', 'noopener,noreferrer')
