@@ -1,9 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { createPortal } from 'react-dom'
+import { useState, useEffect, useRef } from 'react'
 import { formatCNPJ, formatCPF } from '@/lib/format'
-import { useFloatingDropdown } from '@/lib/useFloatingDropdown'
 import type { ClienteAutocomplete } from '@/lib/types-cliente'
 
 interface Props {
@@ -16,12 +14,20 @@ function formatDoc(c: Pick<ClienteAutocomplete, 'tipo' | 'documento'>): string {
   return c.tipo === 'PJ' ? formatCNPJ(c.documento) : formatCPF(c.documento)
 }
 
+/**
+ * Combobox de clientes cadastrados.
+ *
+ * Implementação: dropdown via `position: absolute` SEM portal. Tentamos portal
+ * antes mas dentro de Radix Dialog os eventos não chegam (React event
+ * delegation está no __next root, portal vai pra body). Absolute funciona
+ * em todos os contextos — modal scrolla junto com o dropdown.
+ */
 export default function ClienteCombobox({ onSelect, locked }: Props) {
-  const [query, setQuery]       = useState('')
-  const [results, setResults]   = useState<ClienteAutocomplete[]>([])
-  const [open, setOpen]         = useState(false)
-  const [loading, setLoading]   = useState(false)
-  const { triggerRef, menuRef, pos } = useFloatingDropdown<HTMLInputElement>(open, { menuMaxH: 320 })
+  const [query, setQuery]   = useState('')
+  const [results, setResults] = useState<ClienteAutocomplete[]>([])
+  const [open, setOpen]     = useState(false)
+  const [loading, setLoading] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   // Carrega lista (top 10 recentes) com debounce
   useEffect(() => {
@@ -43,18 +49,17 @@ export default function ClienteCombobox({ onSelect, locked }: Props) {
     return () => { aborted = true; clearTimeout(t) }
   }, [query, locked])
 
-  // Fechar ao clicar fora (input OU menu)
+  // Fechar ao clicar fora
   useEffect(() => {
     if (!open) return
     function onClick(e: MouseEvent) {
-      const target = e.target as Node
-      const inInput = triggerRef.current?.contains(target)
-      const inMenu  = menuRef.current?.contains(target)
-      if (!inInput && !inMenu) setOpen(false)
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
     }
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
-  }, [open, triggerRef, menuRef])
+  }, [open])
 
   if (locked) {
     return (
@@ -74,12 +79,11 @@ export default function ClienteCombobox({ onSelect, locked }: Props) {
   }
 
   return (
-    <div>
+    <div ref={containerRef} className="relative">
       <label className="text-sm font-medium text-text-1 mb-1 block">
         Cliente cadastrado <span className="text-text-2 font-normal">(opcional)</span>
       </label>
       <input
-        ref={triggerRef}
         type="text"
         value={query}
         onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
@@ -91,19 +95,8 @@ export default function ClienteCombobox({ onSelect, locked }: Props) {
         ou preencha os dados manualmente abaixo
       </p>
 
-      {open && pos && typeof document !== 'undefined' && createPortal(
-        <div
-          ref={menuRef}
-          style={{
-            position: 'fixed',
-            top:    pos.openUp ? 'auto' : pos.top,
-            bottom: pos.openUp ? pos.bottom : 'auto',
-            left:   pos.left,
-            width:  pos.width,
-            zIndex: 1000,
-          }}
-          className="max-h-80 overflow-y-auto rounded-lg border border-navy-600 bg-navy-700 shadow-2xl"
-        >
+      {open && (
+        <div className="absolute left-0 right-0 top-full mt-1 z-30 max-h-72 overflow-y-auto rounded-lg border border-navy-600 bg-navy-700 shadow-2xl">
           {loading && (
             <div className="px-4 py-3 text-xs text-text-2">Buscando…</div>
           )}
@@ -118,23 +111,7 @@ export default function ClienteCombobox({ onSelect, locked }: Props) {
             <button
               key={c.id}
               type="button"
-              // ⚠️ Importante: usar onMouseDown + preventDefault + stopPropagation
-              // em vez de onClick. Quando este dropdown está em portal dentro de
-              // um Radix Dialog, o Dialog intercepta cliques "fora" via
-              // onPointerDownOutside e o onClick nunca chega no botão. Mousedown
-              // dispara antes do Dialog conseguir cancelar, e stopPropagation
-              // impede que ele suba pro listener do Dialog.
-              onMouseDown={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                onSelect(c)
-                setQuery('')
-                setOpen(false)
-              }}
-              // Fallback onClick caso o mousedown não dispare (touch, keyboard)
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
+              onClick={() => {
                 onSelect(c)
                 setQuery('')
                 setOpen(false)
@@ -157,8 +134,7 @@ export default function ClienteCombobox({ onSelect, locked }: Props) {
               </div>
             </button>
           ))}
-        </div>,
-        document.body,
+        </div>
       )}
     </div>
   )

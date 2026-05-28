@@ -1,8 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import { createPortal } from 'react-dom'
-import { useFloatingDropdown } from '@/lib/useFloatingDropdown'
 
 type Resultado = { codigo: string; descricao: string; ctrib_nac?: string }
 
@@ -86,22 +84,19 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
   const [total, setTotal]               = useState(0)
   const [hasMore, setHasMore]           = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  // Floating dropdown — renderiza via portal pra não estourar modal nem fazer
-  // o modal "respirar" (crescer/encolher) ao abrir.
-  const { triggerRef, menuRef, pos } = useFloatingDropdown<HTMLInputElement>(open, { menuMaxH: 288 })
+  const containerRef = useRef<HTMLDivElement>(null)
 
-  // ── Fecha o dropdown ao clicar fora (input OU menu) ──────────────────────
+  // ── Fecha o dropdown ao clicar fora ──────────────────────────────────────
   useEffect(() => {
     if (!open) return
     function onClick(e: MouseEvent) {
-      const target = e.target as Node
-      const inInput = triggerRef.current?.contains(target)
-      const inMenu  = menuRef.current?.contains(target)
-      if (!inInput && !inMenu) setOpen(false)
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
     }
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
-  }, [open, triggerRef, menuRef])
+  }, [open])
 
   // ── Helper de fetch com cache ─────────────────────────────────────────────
   const fetchPage = useCallback(async (
@@ -221,30 +216,17 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
   // ── Memoiza a lista renderizada — evita re-render quando outros campos do
   // form mudam (parent re-renders mas o array de buttons só precisa montar
   // quando results muda)
-  //
-  // ⚠️ onMouseDown + preventDefault + stopPropagation: o dropdown é portal
-  // pra body. Quando renderizado dentro de Radix Dialog, o Dialog intercepta
-  // cliques fora via onPointerDownOutside e o onClick nunca chega. mousedown
-  // dispara antes do Dialog conseguir cancelar.
-  const renderedItems = useMemo(() => results.map((r) => {
-    const handleSelect = (e: React.MouseEvent) => {
-      e.preventDefault()
-      e.stopPropagation()
-      pick(r)
-    }
-    return (
-      <button
-        key={r.codigo}
-        type="button"
-        onMouseDown={handleSelect}
-        onClick={handleSelect}
-        className="w-full text-left px-3 py-2.5 hover:bg-navy-700 transition border-b border-navy-600 last:border-0"
-      >
-        <p className="text-sm text-text-1">{r.descricao}</p>
-        <p className="text-xs font-mono text-brand-cyan">NBS {formatNBS(r.codigo)}</p>
-      </button>
-    )
-  }), [results]) // eslint-disable-line react-hooks/exhaustive-deps
+  const renderedItems = useMemo(() => results.map((r) => (
+    <button
+      key={r.codigo}
+      type="button"
+      onClick={() => pick(r)}
+      className="w-full text-left px-3 py-2.5 hover:bg-navy-700 transition border-b border-navy-600 last:border-0"
+    >
+      <p className="text-sm text-text-1">{r.descricao}</p>
+      <p className="text-xs font-mono text-brand-cyan">NBS {formatNBS(r.codigo)}</p>
+    </button>
+  )), [results]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Estado: serviço já selecionado → mostra chip ──────────────────────────
   if (value) {
@@ -266,9 +248,8 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
   }
 
   return (
-    <div>
+    <div ref={containerRef} className="relative">
       <input
-        ref={triggerRef}
         type="text"
         className={[inputCls, error ? 'border-nota-rejeitada' : 'border-navy-600'].join(' ')}
         placeholder="Busque pelo nome do serviço — ex: desenvolvimento de software"
@@ -287,18 +268,9 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
         📋 Ver lista completa de serviços disponíveis
       </button>
 
-      {open && pos && typeof document !== 'undefined' && createPortal(
+      {open && (
         <div
-          ref={menuRef}
-          style={{
-            position: 'fixed',
-            top:    pos.openUp ? 'auto' : pos.top,
-            bottom: pos.openUp ? pos.bottom : 'auto',
-            left:   pos.left,
-            width:  pos.width,
-            zIndex: 1000,
-          }}
-          className="rounded-xl border border-navy-600 bg-navy-900 shadow-2xl max-h-72 overflow-y-auto"
+          className="absolute left-0 right-0 top-full mt-1 z-30 rounded-xl border border-navy-600 bg-navy-900 shadow-2xl max-h-72 overflow-y-auto"
         >
           {filtradoPorCnpj && !loading && results.length > 0 && (
             <p className="px-3 py-2 text-[11px] text-brand-cyan bg-brand-cyan/5 border-b border-navy-600 sticky top-0">
@@ -338,8 +310,7 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
               {loadingMore ? 'Carregando…' : `Carregar mais (${total - results.length} restantes)`}
             </button>
           )}
-        </div>,
-        document.body,
+        </div>
       )}
     </div>
   )

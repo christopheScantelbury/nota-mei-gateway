@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
-import { createPortal } from 'react-dom'
+import { useState, useRef, useEffect } from 'react'
 
 export interface SelectOption {
   value: string
@@ -16,8 +15,7 @@ interface SelectProps {
   placeholder?: string
   className?:   string
   disabled?:    boolean
-  /** Mantido por compat com chamadas antigas. Hoje todos os Selects usam portal,
-   *  então essa prop não muda mais nada (sempre renderiza fora do fluxo). */
+  /** Mantida por compat — hoje todos os Selects usam absolute. */
   inline?:      boolean
   'aria-label'?: string
 }
@@ -25,17 +23,19 @@ interface SelectProps {
 /**
  * Select padronizado pra identidade visual do Nota Fácil.
  *
- * Renderiza o dropdown via React Portal (document.body) com position:fixed,
- * calculando posição a partir do botão trigger. Vantagens:
- *  - Em modais com overflow-y-auto, não é cortado pela borda
- *  - Não empurra conteúdo abaixo (modal não "respira" ao abrir/fechar)
- *  - Funciona igual em qualquer contexto (página, modal, etc.)
- *  - Reposiciona automaticamente em scroll/resize
+ * Implementação: dropdown via `position: absolute` SEM portal. Tentamos portal
+ * antes mas dentro de Radix Dialog os eventos não chegam (React event
+ * delegation está no __next root, portal vai pra body). Absolute funciona
+ * em todos os contextos.
+ *
+ * Visual igual aos inputs do app:
+ *  - bg-navy-900, border border-navy-600, rounded-lg
+ *  - focus: border-brand-cyan
+ *  - dropdown: bg-navy-900, border-navy-600, rounded-xl, shadow-2xl
  *
  * A11y:
  *  - role="listbox" no menu, role="option" nas opções
  *  - ArrowDown/Up navega, Enter seleciona, Escape fecha
- *  - aria-expanded, aria-selected, aria-disabled
  */
 export function Select({
   value,
@@ -48,52 +48,16 @@ export function Select({
 }: SelectProps) {
   const [open, setOpen]               = useState(false)
   const [highlighted, setHighlighted] = useState(-1)
-  const [pos, setPos]                 = useState<{ top: number; left: number; width: number; openUp: boolean } | null>(null)
-  const buttonRef = useRef<HTMLButtonElement>(null)
-  const menuRef   = useRef<HTMLUListElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const buttonRef    = useRef<HTMLButtonElement>(null)
 
-  // Calcula posição do dropdown a partir do botão. Abre pra baixo por default;
-  // se não couber, abre pra cima.
-  const updatePosition = useCallback(() => {
-    if (!buttonRef.current) return
-    const rect = buttonRef.current.getBoundingClientRect()
-    const dropdownMaxH = 240 // bate com max-h-60
-    const spaceBelow = window.innerHeight - rect.bottom
-    const spaceAbove = rect.top
-    const openUp = spaceBelow < dropdownMaxH && spaceAbove > spaceBelow
-
-    setPos({
-      top:   openUp ? rect.top - 4 : rect.bottom + 4,
-      left:  rect.left,
-      width: rect.width,
-      openUp,
-    })
-  }, [])
-
-  // Recalcula em open + em scroll/resize
-  useEffect(() => {
-    if (!open) {
-      setPos(null)
-      return
-    }
-    updatePosition()
-    const opts = { capture: true, passive: true } as const
-    window.addEventListener('scroll', updatePosition, opts)
-    window.addEventListener('resize', updatePosition)
-    return () => {
-      window.removeEventListener('scroll', updatePosition, opts)
-      window.removeEventListener('resize', updatePosition)
-    }
-  }, [open, updatePosition])
-
-  // Fechar ao clicar fora (botão OU menu)
+  // Fechar ao clicar fora
   useEffect(() => {
     if (!open) return
     function onClick(e: MouseEvent) {
-      const target = e.target as Node
-      const inButton = buttonRef.current?.contains(target)
-      const inMenu   = menuRef.current?.contains(target)
-      if (!inButton && !inMenu) setOpen(false)
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
     }
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
@@ -147,7 +111,7 @@ export function Select({
   }
 
   return (
-    <div className={className}>
+    <div ref={containerRef} className={`relative ${className}`}>
       <button
         ref={buttonRef}
         type="button"
@@ -171,19 +135,10 @@ export function Select({
         </svg>
       </button>
 
-      {open && pos && typeof document !== 'undefined' && createPortal(
+      {open && (
         <ul
-          ref={menuRef}
           role="listbox"
-          style={{
-            position: 'fixed',
-            top:    pos.openUp ? 'auto' : pos.top,
-            bottom: pos.openUp ? (window.innerHeight - pos.top) : 'auto',
-            left:   pos.left,
-            width:  pos.width,
-            zIndex: 1000,
-          }}
-          className="rounded-xl border border-navy-600 bg-navy-900 shadow-2xl max-h-60 overflow-y-auto py-1"
+          className="absolute left-0 right-0 top-full mt-1 z-30 rounded-xl border border-navy-600 bg-navy-900 shadow-2xl max-h-60 overflow-y-auto py-1"
         >
           {options.length === 0 && (
             <li className="px-3 py-2 text-xs text-text-2">Nenhuma opção disponível</li>
@@ -202,21 +157,8 @@ export function Select({
                   type="button"
                   disabled={opt.disabled}
                   onMouseEnter={() => setHighlighted(i)}
-                  // onMouseDown + preventDefault + stopPropagation: o menu é
-                  // portal pra body. Dentro de Radix Dialog, o Dialog
-                  // intercepta cliques fora via onPointerDownOutside e o
-                  // onClick nunca dispara. mousedown roda antes.
-                  onMouseDown={(e) => {
+                  onClick={() => {
                     if (opt.disabled) return
-                    e.preventDefault()
-                    e.stopPropagation()
-                    onChange(opt.value)
-                    setOpen(false)
-                  }}
-                  onClick={(e) => {
-                    if (opt.disabled) return
-                    e.preventDefault()
-                    e.stopPropagation()
                     onChange(opt.value)
                     setOpen(false)
                   }}
@@ -232,8 +174,7 @@ export function Select({
               </li>
             )
           })}
-        </ul>,
-        document.body,
+        </ul>
       )}
     </div>
   )
