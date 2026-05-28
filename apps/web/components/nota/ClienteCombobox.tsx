@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { formatCNPJ, formatCPF } from '@/lib/format'
+import { useFloatingDropdown } from '@/lib/useFloatingDropdown'
 import type { ClienteAutocomplete } from '@/lib/types-cliente'
 
 interface Props {
@@ -19,9 +21,9 @@ export default function ClienteCombobox({ onSelect, locked }: Props) {
   const [results, setResults]   = useState<ClienteAutocomplete[]>([])
   const [open, setOpen]         = useState(false)
   const [loading, setLoading]   = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const { triggerRef, menuRef, pos } = useFloatingDropdown<HTMLInputElement>(open, { menuMaxH: 320 })
 
-  // Carrega lista inicial (top 10 recentes) ao abrir pela primeira vez
+  // Carrega lista (top 10 recentes) com debounce
   useEffect(() => {
     if (locked) return
     let aborted = false
@@ -37,20 +39,22 @@ export default function ClienteCombobox({ onSelect, locked }: Props) {
       } finally {
         if (!aborted) setLoading(false)
       }
-    }, 200) // debounce
+    }, 200)
     return () => { aborted = true; clearTimeout(t) }
   }, [query, locked])
 
-  // Fecha ao clicar fora
+  // Fechar ao clicar fora (input OU menu)
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
+    if (!open) return
+    function onClick(e: MouseEvent) {
+      const target = e.target as Node
+      const inInput = triggerRef.current?.contains(target)
+      const inMenu  = menuRef.current?.contains(target)
+      if (!inInput && !inMenu) setOpen(false)
     }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [open, triggerRef, menuRef])
 
   if (locked) {
     return (
@@ -70,11 +74,12 @@ export default function ClienteCombobox({ onSelect, locked }: Props) {
   }
 
   return (
-    <div ref={containerRef} className="relative">
+    <div>
       <label className="text-sm font-medium text-text-1 mb-1 block">
         Cliente cadastrado <span className="text-text-2 font-normal">(opcional)</span>
       </label>
       <input
+        ref={triggerRef}
         type="text"
         value={query}
         onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
@@ -86,8 +91,19 @@ export default function ClienteCombobox({ onSelect, locked }: Props) {
         ou preencha os dados manualmente abaixo
       </p>
 
-      {open && (
-        <div className="absolute z-20 mt-1 w-full max-h-80 overflow-y-auto rounded-lg border border-navy-600 bg-navy-700 shadow-lg">
+      {open && pos && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={menuRef}
+          style={{
+            position: 'fixed',
+            top:    pos.openUp ? 'auto' : pos.top,
+            bottom: pos.openUp ? pos.bottom : 'auto',
+            left:   pos.left,
+            width:  pos.width,
+            zIndex: 1000,
+          }}
+          className="max-h-80 overflow-y-auto rounded-lg border border-navy-600 bg-navy-700 shadow-2xl"
+        >
           {loading && (
             <div className="px-4 py-3 text-xs text-text-2">Buscando…</div>
           )}
@@ -125,7 +141,8 @@ export default function ClienteCombobox({ onSelect, locked }: Props) {
               </div>
             </button>
           ))}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

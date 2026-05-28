@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { createPortal } from 'react-dom'
+import { useFloatingDropdown } from '@/lib/useFloatingDropdown'
 
 type Resultado = { codigo: string; descricao: string; ctrib_nac?: string }
 
@@ -13,10 +15,8 @@ type Props = {
   onSelect: (codigo: string, descricao: string) => void
   /** mensagem de erro de validação */
   error?: string
-  /**
-   * `true` = dropdown abre INLINE (empurra o conteúdo abaixo). Use em modais
-   * com `overflow-y-auto` onde absolute estouraria a borda. Default = absolute.
-   */
+  /** Mantido por compat — hoje o dropdown sempre usa portal (não estoura modal,
+   *  não empurra conteúdo). A prop é ignorada. */
   inline?: boolean
 }
 
@@ -72,7 +72,7 @@ function cacheSet(key: string, value: Omit<CachedResponse, 'cachedAt'>) {
   }
 }
 
-export default function NBSServicoPicker({ value, selectedDescricao, onSelect, error, inline = false }: Props) {
+export default function NBSServicoPicker({ value, selectedDescricao, onSelect, error }: Props) {
   const [query, setQuery]               = useState('')
   const [results, setResults]           = useState<Resultado[]>([])
   const [loading, setLoading]           = useState(false)
@@ -86,16 +86,22 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
   const [total, setTotal]               = useState(0)
   const [hasMore, setHasMore]           = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const boxRef = useRef<HTMLDivElement>(null)
+  // Floating dropdown — renderiza via portal pra não estourar modal nem fazer
+  // o modal "respirar" (crescer/encolher) ao abrir.
+  const { triggerRef, menuRef, pos } = useFloatingDropdown<HTMLInputElement>(open, { menuMaxH: 288 })
 
-  // ── Fecha o dropdown ao clicar fora ───────────────────────────────────────
+  // ── Fecha o dropdown ao clicar fora (input OU menu) ──────────────────────
   useEffect(() => {
+    if (!open) return
     function onClick(e: MouseEvent) {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Node
+      const inInput = triggerRef.current?.contains(target)
+      const inMenu  = menuRef.current?.contains(target)
+      if (!inInput && !inMenu) setOpen(false)
     }
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
-  }, [])
+  }, [open, triggerRef, menuRef])
 
   // ── Helper de fetch com cache ─────────────────────────────────────────────
   const fetchPage = useCallback(async (
@@ -246,16 +252,10 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
     )
   }
 
-  // Classes do container do dropdown:
-  // - inline=true  → estática, empurra conteúdo abaixo (não estoura modal)
-  // - inline=false → absoluta, overlay sobre o conteúdo abaixo
-  const dropdownCls = inline
-    ? 'mt-1 w-full rounded-xl border border-navy-600 bg-navy-900 shadow-xl max-h-60 overflow-y-auto'
-    : 'absolute z-20 mt-1 w-full rounded-xl border border-navy-600 bg-navy-900 shadow-xl max-h-72 overflow-y-auto'
-
   return (
-    <div className={inline ? '' : 'relative'} ref={boxRef}>
+    <div>
       <input
+        ref={triggerRef}
         type="text"
         className={[inputCls, error ? 'border-nota-rejeitada' : 'border-navy-600'].join(' ')}
         placeholder="Busque pelo nome do serviço — ex: desenvolvimento de software"
@@ -274,8 +274,19 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
         📋 Ver lista completa de serviços disponíveis
       </button>
 
-      {open && (
-        <div className={dropdownCls}>
+      {open && pos && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={menuRef}
+          style={{
+            position: 'fixed',
+            top:    pos.openUp ? 'auto' : pos.top,
+            bottom: pos.openUp ? pos.bottom : 'auto',
+            left:   pos.left,
+            width:  pos.width,
+            zIndex: 1000,
+          }}
+          className="rounded-xl border border-navy-600 bg-navy-900 shadow-2xl max-h-72 overflow-y-auto"
+        >
           {filtradoPorCnpj && !loading && results.length > 0 && (
             <p className="px-3 py-2 text-[11px] text-brand-cyan bg-brand-cyan/5 border-b border-navy-600 sticky top-0">
               ✓ Filtrado pelos CNAEs do seu CNPJ {total > results.length && `· ${results.length} de ${total}`}
@@ -314,7 +325,8 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
               {loadingMore ? 'Carregando…' : `Carregar mais (${total - results.length} restantes)`}
             </button>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

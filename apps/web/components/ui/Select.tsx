@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 
 export interface SelectOption {
   value: string
@@ -15,8 +16,8 @@ interface SelectProps {
   placeholder?: string
   className?:   string
   disabled?:    boolean
-  /** Quando true, o dropdown abre INLINE (empurra conteúdo). Use em modais
-   *  com overflow-y-auto. Default = false (absolute, overlay). */
+  /** Mantido por compat com chamadas antigas. Hoje todos os Selects usam portal,
+   *  então essa prop não muda mais nada (sempre renderiza fora do fluxo). */
   inline?:      boolean
   'aria-label'?: string
 }
@@ -24,15 +25,12 @@ interface SelectProps {
 /**
  * Select padronizado pra identidade visual do Nota Fácil.
  *
- * Substituto pra `<select>` nativo, que renderiza um dropdown quadrado
- * (sistema operacional) e quebra a estética arredondada do app.
- *
- * Padrão visual:
- *  - bg-navy-900, border border-navy-600, rounded-lg
- *  - focus: border-brand-cyan
- *  - dropdown: bg-navy-900, border-navy-600, rounded-xl, shadow-xl
- *  - opção destacada: bg-navy-700
- *  - opção selecionada: text-brand-cyan
+ * Renderiza o dropdown via React Portal (document.body) com position:fixed,
+ * calculando posição a partir do botão trigger. Vantagens:
+ *  - Em modais com overflow-y-auto, não é cortado pela borda
+ *  - Não empurra conteúdo abaixo (modal não "respira" ao abrir/fechar)
+ *  - Funciona igual em qualquer contexto (página, modal, etc.)
+ *  - Reposiciona automaticamente em scroll/resize
  *
  * A11y:
  *  - role="listbox" no menu, role="option" nas opções
@@ -46,22 +44,60 @@ export function Select({
   placeholder = '— Selecionar —',
   className = '',
   disabled,
-  inline = false,
   'aria-label': ariaLabel,
 }: SelectProps) {
   const [open, setOpen]               = useState(false)
   const [highlighted, setHighlighted] = useState(-1)
-  const boxRef    = useRef<HTMLDivElement>(null)
+  const [pos, setPos]                 = useState<{ top: number; left: number; width: number; openUp: boolean } | null>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuRef   = useRef<HTMLUListElement>(null)
 
-  // Fechar ao clicar fora
+  // Calcula posição do dropdown a partir do botão. Abre pra baixo por default;
+  // se não couber, abre pra cima.
+  const updatePosition = useCallback(() => {
+    if (!buttonRef.current) return
+    const rect = buttonRef.current.getBoundingClientRect()
+    const dropdownMaxH = 240 // bate com max-h-60
+    const spaceBelow = window.innerHeight - rect.bottom
+    const spaceAbove = rect.top
+    const openUp = spaceBelow < dropdownMaxH && spaceAbove > spaceBelow
+
+    setPos({
+      top:   openUp ? rect.top - 4 : rect.bottom + 4,
+      left:  rect.left,
+      width: rect.width,
+      openUp,
+    })
+  }, [])
+
+  // Recalcula em open + em scroll/resize
   useEffect(() => {
+    if (!open) {
+      setPos(null)
+      return
+    }
+    updatePosition()
+    const opts = { capture: true, passive: true } as const
+    window.addEventListener('scroll', updatePosition, opts)
+    window.addEventListener('resize', updatePosition)
+    return () => {
+      window.removeEventListener('scroll', updatePosition, opts)
+      window.removeEventListener('resize', updatePosition)
+    }
+  }, [open, updatePosition])
+
+  // Fechar ao clicar fora (botão OU menu)
+  useEffect(() => {
+    if (!open) return
     function onClick(e: MouseEvent) {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false)
+      const target = e.target as Node
+      const inButton = buttonRef.current?.contains(target)
+      const inMenu   = menuRef.current?.contains(target)
+      if (!inButton && !inMenu) setOpen(false)
     }
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
-  }, [])
+  }, [open])
 
   // Highlight inicial sincroniza com o value ao abrir
   useEffect(() => {
@@ -103,7 +139,6 @@ export function Select({
 
   const selected = options.find(o => o.value === value)
 
-  // Open via teclado quando o botão tem foco
   function onButtonKey(e: React.KeyboardEvent) {
     if (!open && (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault()
@@ -111,12 +146,8 @@ export function Select({
     }
   }
 
-  const menuCls = inline
-    ? 'mt-1 w-full rounded-xl border border-navy-600 bg-navy-900 shadow-xl max-h-60 overflow-y-auto py-1'
-    : 'absolute z-30 mt-1 w-full rounded-xl border border-navy-600 bg-navy-900 shadow-xl max-h-60 overflow-y-auto py-1'
-
   return (
-    <div className={`${inline ? '' : 'relative'} ${className}`} ref={boxRef}>
+    <div className={className}>
       <button
         ref={buttonRef}
         type="button"
@@ -140,8 +171,20 @@ export function Select({
         </svg>
       </button>
 
-      {open && (
-        <ul role="listbox" className={menuCls}>
+      {open && pos && typeof document !== 'undefined' && createPortal(
+        <ul
+          ref={menuRef}
+          role="listbox"
+          style={{
+            position: 'fixed',
+            top:    pos.openUp ? 'auto' : pos.top,
+            bottom: pos.openUp ? (window.innerHeight - pos.top) : 'auto',
+            left:   pos.left,
+            width:  pos.width,
+            zIndex: 1000,
+          }}
+          className="rounded-xl border border-navy-600 bg-navy-900 shadow-2xl max-h-60 overflow-y-auto py-1"
+        >
           {options.length === 0 && (
             <li className="px-3 py-2 text-xs text-text-2">Nenhuma opção disponível</li>
           )}
@@ -176,7 +219,8 @@ export function Select({
               </li>
             )
           })}
-        </ul>
+        </ul>,
+        document.body,
       )}
     </div>
   )
