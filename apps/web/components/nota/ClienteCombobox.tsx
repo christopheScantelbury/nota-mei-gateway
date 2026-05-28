@@ -118,7 +118,23 @@ export default function ClienteCombobox({ onSelect, locked }: Props) {
             <button
               key={c.id}
               type="button"
-              onClick={() => {
+              // ⚠️ Importante: usar onMouseDown + preventDefault + stopPropagation
+              // em vez de onClick. Quando este dropdown está em portal dentro de
+              // um Radix Dialog, o Dialog intercepta cliques "fora" via
+              // onPointerDownOutside e o onClick nunca chega no botão. Mousedown
+              // dispara antes do Dialog conseguir cancelar, e stopPropagation
+              // impede que ele suba pro listener do Dialog.
+              onMouseDown={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onSelect(c)
+                setQuery('')
+                setOpen(false)
+              }}
+              // Fallback onClick caso o mousedown não dispare (touch, keyboard)
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
                 onSelect(c)
                 setQuery('')
                 setOpen(false)

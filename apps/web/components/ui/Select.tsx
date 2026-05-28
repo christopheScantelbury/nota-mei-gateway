@@ -202,8 +202,21 @@ export function Select({
                   type="button"
                   disabled={opt.disabled}
                   onMouseEnter={() => setHighlighted(i)}
-                  onClick={() => {
+                  // onMouseDown + preventDefault + stopPropagation: o menu é
+                  // portal pra body. Dentro de Radix Dialog, o Dialog
+                  // intercepta cliques fora via onPointerDownOutside e o
+                  // onClick nunca dispara. mousedown roda antes.
+                  onMouseDown={(e) => {
                     if (opt.disabled) return
+                    e.preventDefault()
+                    e.stopPropagation()
+                    onChange(opt.value)
+                    setOpen(false)
+                  }}
+                  onClick={(e) => {
+                    if (opt.disabled) return
+                    e.preventDefault()
+                    e.stopPropagation()
                     onChange(opt.value)
                     setOpen(false)
                   }}

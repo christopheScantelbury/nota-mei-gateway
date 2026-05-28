@@ -221,17 +221,30 @@ export default function NBSServicoPicker({ value, selectedDescricao, onSelect, e
   // ── Memoiza a lista renderizada — evita re-render quando outros campos do
   // form mudam (parent re-renders mas o array de buttons só precisa montar
   // quando results muda)
-  const renderedItems = useMemo(() => results.map((r) => (
-    <button
-      key={r.codigo}
-      type="button"
-      onClick={() => pick(r)}
-      className="w-full text-left px-3 py-2.5 hover:bg-navy-700 transition border-b border-navy-600 last:border-0"
-    >
-      <p className="text-sm text-text-1">{r.descricao}</p>
-      <p className="text-xs font-mono text-brand-cyan">NBS {formatNBS(r.codigo)}</p>
-    </button>
-  )), [results]) // eslint-disable-line react-hooks/exhaustive-deps
+  //
+  // ⚠️ onMouseDown + preventDefault + stopPropagation: o dropdown é portal
+  // pra body. Quando renderizado dentro de Radix Dialog, o Dialog intercepta
+  // cliques fora via onPointerDownOutside e o onClick nunca chega. mousedown
+  // dispara antes do Dialog conseguir cancelar.
+  const renderedItems = useMemo(() => results.map((r) => {
+    const handleSelect = (e: React.MouseEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      pick(r)
+    }
+    return (
+      <button
+        key={r.codigo}
+        type="button"
+        onMouseDown={handleSelect}
+        onClick={handleSelect}
+        className="w-full text-left px-3 py-2.5 hover:bg-navy-700 transition border-b border-navy-600 last:border-0"
+      >
+        <p className="text-sm text-text-1">{r.descricao}</p>
+        <p className="text-xs font-mono text-brand-cyan">NBS {formatNBS(r.codigo)}</p>
+      </button>
+    )
+  }), [results]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Estado: serviço já selecionado → mostra chip ──────────────────────────
   if (value) {
