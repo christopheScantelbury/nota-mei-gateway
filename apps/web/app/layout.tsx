@@ -4,6 +4,7 @@ import { Toaster } from 'sonner'
 import { ThemeProvider } from 'next-themes'
 import { OrgStructuredData } from '@/components/seo/StructuredData'
 import PWAProvider from '@/components/pwa/PWAProvider'
+import NavigationProgress from '@/components/ui/NavigationProgress'
 import './globals.css'
 
 // ── Fonts ──────────────────────────────────────────────────────────────────
@@ -149,6 +150,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           >
             Ir para o conteúdo principal
           </a>
+
+          {/* Top-bar de progresso pra feedback imediato em qualquer navegação SPA */}
+          <NavigationProgress />
 
           {children}
 
