@@ -4,7 +4,9 @@ import { createClient } from '@/lib/supabase/server'
 import { hasFeature } from '@/lib/plans'
 import { formatBRL, formatCNPJ, formatCPF } from '@/lib/format'
 import ClienteDetailActions from '@/components/dashboard/ClienteDetailActions'
+import StatusBadge from '@/components/ui/StatusBadge'
 import type { Cliente } from '@/lib/types-cliente'
+import type { NotaStatus } from '@/lib/types'
 
 function formatDate(iso: string | null) {
   if (!iso) return '—'
@@ -159,17 +161,24 @@ export default async function ClienteDetailPage({ params }: { params: { id: stri
               <Link
                 key={n.id}
                 href={`/notas/${n.id}`}
-                className="flex items-center justify-between gap-3 py-2.5 hover:text-brand-cyan transition"
+                className="flex items-start justify-between gap-3 py-3 hover:bg-navy-700/40 -mx-2 px-2 rounded transition"
               >
-                <div className="min-w-0">
-                  <p className="text-sm font-mono">#{n.numero_rps}{n.numero_nfse && ` · NFS-e ${n.numero_nfse}`}</p>
-                  <p className="text-xs text-text-2">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-mono text-text-1">#{n.numero_rps}</span>
+                    <StatusBadge status={n.status as NotaStatus} />
+                  </div>
+                  {n.numero_nfse && (
+                    <p className="text-[11px] font-mono text-text-2 mt-1 truncate" title={n.numero_nfse}>
+                      NFS-e {n.numero_nfse}
+                    </p>
+                  )}
+                  <p className="text-xs text-text-2 mt-0.5">
                     {n.competencia ?? '—'} · {formatDate(n.emitida_em ?? n.created_at)}
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-sm font-mono">{formatBRL(n.valor_servico)}</p>
-                  <p className="text-xs text-text-2">{n.status}</p>
+                  <p className="text-sm font-mono text-text-1">{formatBRL(n.valor_servico)}</p>
                 </div>
               </Link>
             ))}
