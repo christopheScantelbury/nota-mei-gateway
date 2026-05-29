@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { fetchCNPJCliente } from '@/lib/brasilapi'
@@ -50,6 +50,42 @@ export default function ClienteForm({ initial }: Props) {
   const [submitting, setSubmitting]   = useState(false)
   const [error, setError]             = useState<string | null>(null)
   const [lookupLoading, setLookupLoading] = useState(false)
+  const [cepLoading, setCepLoading]   = useState(false)
+  const lastCepRef = useRef<string>('')
+
+  // Auto-busca endereço quando o CEP atinge 8 dígitos válidos.
+  // Preenche somente campos vazios (não sobrescreve o que o user já editou)
+  // e debounce de 300ms pra não disparar a cada tecla.
+  useEffect(() => {
+    const digits = cep.replace(/\D/g, '')
+    if (digits.length !== 8) return
+    if (digits === lastCepRef.current) return // já buscou esse CEP
+
+    const tid = setTimeout(async () => {
+      lastCepRef.current = digits
+      setCepLoading(true)
+      try {
+        const res = await fetch(`/api/cep/${digits}`)
+        if (!res.ok) return // CEP inválido — silencioso
+        const data = await res.json() as {
+          localidade?: string; uf?: string; ibge?: string
+          logradouro?: string; bairro?: string; complemento?: string
+        }
+        if (!uf && data.uf)                       setUf(data.uf)
+        if (!municipioIbge && data.ibge)          setMunicipioIbge(data.ibge)
+        if (!logradouro && data.logradouro)       setLogradouro(data.logradouro)
+        if (!bairro && data.bairro)               setBairro(data.bairro)
+        if (!complemento && data.complemento)     setComplemento(data.complemento)
+      } catch {
+        // falha silenciosa — usuário pode preencher manualmente
+      } finally {
+        setCepLoading(false)
+      }
+    }, 300)
+
+    return () => clearTimeout(tid)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cep])
 
   async function handleLookup() {
     const clean = documento.replace(/\D/g, '')
@@ -234,8 +270,18 @@ export default function ClienteForm({ initial }: Props) {
       <section className="rounded-xl border border-navy-600 bg-navy-700 p-6 flex flex-col gap-4">
         <h2 className="font-display font-bold text-lg">Endereço</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          <Field label="CEP">
-            <input className={inputCls} value={cep} onChange={(e) => setCep(e.target.value)} maxLength={9} />
+          <Field
+            label="CEP"
+            hint={cepLoading ? 'Buscando endereço…' : 'Digite o CEP para preencher UF, município e logradouro'}
+          >
+            <input
+              className={inputCls}
+              value={cep}
+              onChange={(e) => setCep(e.target.value)}
+              maxLength={9}
+              placeholder="00000-000"
+              inputMode="numeric"
+            />
           </Field>
           <Field label="UF">
             <input className={inputCls} value={uf} onChange={(e) => setUf(e.target.value)} maxLength={2} placeholder="SP" />

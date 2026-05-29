@@ -8,12 +8,18 @@ interface ViaCepRaw {
   localidade?: string
   uf?: string
   ibge?: string
+  logradouro?: string
+  bairro?: string
+  complemento?: string
 }
 
 export interface CepResult {
   localidade: string
   uf: string
   ibge: string // código IBGE de 7 dígitos (string, pode ter zero à esquerda)
+  logradouro?: string
+  bairro?: string
+  complemento?: string
 }
 
 /**
@@ -57,6 +63,9 @@ export async function GET(
       localidade: data.localidade,
       uf: data.uf ?? '',
       ibge: data.ibge,
+      logradouro: data.logradouro || undefined,
+      bairro: data.bairro || undefined,
+      complemento: data.complemento || undefined,
     }
 
     return NextResponse.json(result, {
