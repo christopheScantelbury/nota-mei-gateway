@@ -30,8 +30,8 @@
 - [x] **HIST-3.2** — Item Sandbox no menu principal (dropdown Gateway API com submenu)
 - [x] **HIST-3.3** — Hero /gateway com sandbox como CTA primário + snippet curl com copy
 - [x] **HIST-6.1** — Brevo queue + worker Vercel Cron (migration `20260602000001`, lib/brevo/*, hook em /auth/callback)
-- [⚠️] **HIST-6.2** — Templates de e-mails de onboarding — *criação no painel Brevo*
-- [ ] **HIST-5.0** — Setup do blog em MDX (velite + rotas)
+- [⚠️] **HIST-6.2** — Templates de e-mails de onboarding — *criação no painel Brevo (lib/brevo/templates.ts já mapeado)*
+- [x] **HIST-5.0** — Componentes MDX reutilizáveis (Callout, CTABanner) + estrutura content/blog. Velite instala sob demanda quando 1º post MDX for criado
 
 ## Sprint 3 — Comparativo + Urgência ME/EPP + Feature flags
 
