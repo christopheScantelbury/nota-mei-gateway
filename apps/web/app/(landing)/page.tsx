@@ -106,19 +106,19 @@ export default function LandingPage() {
       </AnimatedSection>
 
       {/* Por que escolher (embed comparativo summary) — HIST-4.3 */}
-      <section className="py-16 px-4 bg-slate-50 dark:bg-navy-700/20">
+      <section className="py-16 px-4 bg-navy-700/30 border-y border-navy-600">
         <div className="mx-auto max-w-5xl">
           <header className="text-center mb-8">
-            <h2 className="font-display text-3xl font-extrabold mb-3 text-slate-900 dark:text-text-1">
+            <h2 className="font-display text-3xl font-extrabold mb-3 text-text-1">
               Por que escolher o NotaFácil
             </h2>
-            <p className="text-slate-600 dark:text-text-2">
+            <p className="text-text-2">
               Comparado com as principais alternativas do mercado
             </p>
           </header>
           <CompetitorTable variant="summary" source="home_embed" />
           <div className="text-center mt-6">
-            <Link href="/comparativo" className="text-amber-700 dark:text-amber-300 hover:underline font-semibold">
+            <Link href="/comparativo" className="text-amber-300 hover:underline font-semibold">
               Ver comparativo completo →
             </Link>
           </div>

@@ -5,15 +5,9 @@ import competitorsData from '@/data/competitors.json'
 import { trackComparisonView } from '@/lib/analytics/events'
 
 /**
- * Tabela comparativa NotaFácil vs concorrentes.
+ * Tabela comparativa NotaFácil vs concorrentes — dark-first (landing dark).
  *
- * Spec: HIST-4.1 + 02-Especificacoes-Tecnicas.md.
- * - `variant="summary"`: apenas features com `highlight: true` (~4 linhas)
- * - `variant="full"`: todas as features (12)
- * - `competitorsFilter`: opcional, limita colunas (uso em posts vs X)
- *
- * @example
- * <CompetitorTable variant="summary" />
+ * Spec: HIST-4.1.
  */
 interface Feature {
   id: string
@@ -26,7 +20,6 @@ interface Props {
   variant?: 'full' | 'summary'
   competitorsFilter?: string[]
   className?: string
-  /** view_type pra evento comparison_view */
   source?: 'page' | 'home_embed' | 'blog_embed'
 }
 
@@ -61,17 +54,17 @@ export default function CompetitorTable({
   return (
     <div
       ref={ref}
-      className={`overflow-x-auto rounded-2xl border border-slate-200 dark:border-navy-600 ${className}`}
+      className={`overflow-x-auto rounded-2xl border border-navy-600 bg-navy-700/40 ${className}`}
     >
       <table className="w-full border-collapse text-sm" aria-label="Comparativo competitivo entre plataformas de emissão de NFS-e">
         <caption className="sr-only">
           Comparativo entre {competitors.length} plataformas de emissão de NFS-e Nacional
         </caption>
-        <thead className="bg-slate-50 dark:bg-navy-700/50">
-          <tr>
+        <thead>
+          <tr className="bg-navy-700">
             <th
               scope="col"
-              className="text-left p-3 sm:p-4 font-semibold text-slate-700 dark:text-text-1 sticky left-0 bg-slate-50 dark:bg-navy-700/50 z-10"
+              className="text-left p-3 sm:p-4 font-semibold text-text-1 sticky left-0 bg-navy-700 z-10"
             >
               Funcionalidade
             </th>
@@ -81,8 +74,8 @@ export default function CompetitorTable({
                 scope="col"
                 className={`p-3 sm:p-4 text-center font-semibold whitespace-nowrap ${
                   c === 'notafacil'
-                    ? 'bg-amber-50 text-amber-900 dark:bg-amber-500/10 dark:text-amber-200'
-                    : 'text-slate-700 dark:text-text-1'
+                    ? 'bg-amber-500/15 text-amber-200'
+                    : 'text-text-1'
                 }`}
               >
                 {labels[c] ?? c}
@@ -94,14 +87,12 @@ export default function CompetitorTable({
           {features.map((f) => (
             <tr
               key={f.id}
-              className={f.highlight ? 'bg-amber-50/40 dark:bg-amber-500/5' : 'bg-white dark:bg-navy-700/20'}
+              className={f.highlight ? 'bg-amber-500/5' : 'bg-navy-700/20'}
             >
               <th
                 scope="row"
-                className={`text-left p-3 sm:p-4 font-medium border-t border-slate-200 dark:border-navy-600 sticky left-0 z-10 ${
-                  f.highlight
-                    ? 'bg-amber-50/80 dark:bg-amber-500/10 text-slate-800 dark:text-text-1'
-                    : 'bg-white dark:bg-navy-700/20 text-slate-700 dark:text-text-1'
+                className={`text-left p-3 sm:p-4 font-medium border-t border-navy-600 sticky left-0 z-10 text-text-1 ${
+                  f.highlight ? 'bg-amber-500/10' : 'bg-navy-700/40'
                 }`}
               >
                 {f.label}
@@ -109,10 +100,10 @@ export default function CompetitorTable({
               {competitors.map((c) => (
                 <td
                   key={c}
-                  className={`p-3 sm:p-4 text-center text-xs sm:text-sm border-t border-slate-200 dark:border-navy-600 ${
+                  className={`p-3 sm:p-4 text-center text-xs sm:text-sm border-t border-navy-600 ${
                     c === 'notafacil'
-                      ? 'bg-amber-50 dark:bg-amber-500/10 font-semibold text-slate-900 dark:text-text-1'
-                      : 'text-slate-700 dark:text-text-2'
+                      ? 'bg-amber-500/10 font-semibold text-text-1'
+                      : 'text-text-2'
                   }`}
                 >
                   {f.values[c] ?? '—'}
@@ -122,7 +113,7 @@ export default function CompetitorTable({
           ))}
         </tbody>
       </table>
-      <p className="px-4 py-3 text-xs text-slate-500 dark:text-text-2 bg-slate-50/50 dark:bg-navy-700/30 border-t border-slate-200 dark:border-navy-600">
+      <p className="px-4 py-3 text-xs text-text-2 border-t border-navy-600 bg-navy-700/30">
         Atualizado em {competitorsData.lastUpdated}. Informações coletadas dos sites oficiais dos concorrentes.
       </p>
     </div>

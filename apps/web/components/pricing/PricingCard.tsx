@@ -5,12 +5,13 @@ import type { PricingPlan } from '@/lib/pricing/types'
 import { trackCtaClick, type CtaLocation } from '@/lib/analytics/events'
 
 /**
- * Card individual do PricingSection. Card com `highlight: true` recebe:
- * - Border 2px amber, fundo levemente diferente
+ * Card individual do PricingSection — dark-first (landing usa bg-navy-900).
+ * Card com `highlight: true` recebe:
+ * - Border 2px amber + sombra amarelada
  * - Badge superior
  * - Order-first no mobile pra aparecer primeiro
  *
- * Spec: HIST-2.1/2.2/2.3 + 05-Componentes-React.md.
+ * Spec: HIST-2.1/2.2/2.3.
  */
 interface Props {
   plan: PricingPlan
@@ -21,14 +22,14 @@ export default function PricingCard({ plan, className = '' }: Props) {
   const location: CtaLocation = `pricing_card_${plan.persona}` as CtaLocation
 
   const cardCls = plan.highlight
-    ? 'border-2 border-amber-400 bg-gradient-to-b from-amber-50/40 to-white dark:from-amber-500/5 dark:to-navy-700 shadow-lg shadow-amber-200/30'
-    : 'border border-slate-200 dark:border-navy-600 bg-white dark:bg-navy-700'
+    ? 'border-2 border-amber-400 bg-gradient-to-b from-amber-500/10 to-navy-700 shadow-xl shadow-amber-500/20'
+    : 'border border-navy-600 bg-navy-700'
 
   const ctaCls = plan.highlight
     ? 'bg-amber-500 hover:bg-amber-600 text-white'
     : 'bg-brand-cyan hover:opacity-90 text-navy-900'
 
-  // No mobile, card highlight aparece primeiro (order-first via classe condicional)
+  // No mobile, card highlight aparece primeiro
   const orderCls = plan.highlight ? 'order-first md:order-none' : ''
 
   return (
@@ -42,28 +43,25 @@ export default function PricingCard({ plan, className = '' }: Props) {
       )}
 
       <div className="mb-4">
-        <p className="text-xs uppercase tracking-wider font-semibold text-slate-500 dark:text-text-2 mb-1">
+        <p className="text-xs uppercase tracking-wider font-semibold text-text-2 mb-1">
           {plan.persona === 'mei' ? 'MEI' : plan.persona === 'me' ? 'ME / EPP' : 'Desenvolvedor'}
         </p>
-        <h3 className="font-display text-xl font-extrabold text-slate-900 dark:text-text-1">
+        <h3 className="font-display text-xl font-extrabold text-text-1">
           {plan.name}
         </h3>
-        <p className="text-sm text-slate-600 dark:text-text-2 mt-1">{plan.description}</p>
+        <p className="text-sm text-text-2 mt-1">{plan.description}</p>
       </div>
 
       <div className="mb-5">
-        <p className="font-display text-3xl font-extrabold text-slate-900 dark:text-text-1 leading-none">
+        <p className="font-display text-3xl font-extrabold text-text-1 leading-none">
           {plan.priceLabel}
         </p>
-        <p className="text-xs text-slate-500 dark:text-text-2 mt-1.5">{plan.notes}</p>
+        <p className="text-xs text-text-2 mt-1.5">{plan.notes}</p>
       </div>
 
       <ul className="space-y-2 mb-6 flex-1">
         {plan.bullets.map((b) => (
-          <li
-            key={b}
-            className="flex items-start gap-2 text-sm text-slate-700 dark:text-text-1"
-          >
+          <li key={b} className="flex items-start gap-2 text-sm text-text-1">
             <span aria-hidden className="text-brand-cyan font-bold shrink-0 mt-0.5">✓</span>
             <span>{b}</span>
           </li>
@@ -84,7 +82,7 @@ export default function PricingCard({ plan, className = '' }: Props) {
             onClick={() =>
               trackCtaClick({ persona: plan.persona, location, plan: `${plan.key}_secondary` })
             }
-            className="block text-center text-xs text-slate-600 dark:text-text-2 hover:text-slate-900 dark:hover:text-text-1 transition"
+            className="block text-center text-xs text-text-2 hover:text-text-1 transition"
           >
             {plan.secondaryCta.label}
           </Link>
