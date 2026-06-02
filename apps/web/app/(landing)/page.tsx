@@ -8,7 +8,7 @@ import SocialProof from '@/components/landing/SocialProof'
 import AnimatedSection from '@/components/landing/AnimatedSection'
 // UrgencyBanner antigo substituído pelo UrgencyTopBar no (landing)/layout (HIST-1.1)
 import HowItWorksToggle from '@/components/landing/HowItWorksToggle'
-import PricingToggle from '@/components/landing/PricingToggle'
+import PricingSection from '@/components/pricing/PricingSection'
 
 export const metadata: Metadata = {
   // Title curto importa para o diálogo de instalação do PWA — Chrome usa
@@ -104,18 +104,8 @@ export default function LandingPage() {
         </div>
       </AnimatedSection>
 
-      {/* Planos */}
-      <AnimatedSection className="py-24 px-4" id="planos" delay={0.1}>
-        <div className="mx-auto max-w-6xl">
-          <h2 className="font-display text-3xl font-extrabold text-center mb-4">
-            Planos e preços
-          </h2>
-          <p className="text-text-2 text-center mb-8">
-            Comece grátis. Escale conforme cresce.
-          </p>
-          <PricingToggle />
-        </div>
-      </AnimatedSection>
+      {/* Planos — 3 cards âncora (HIST-2.1/2.2/2.3) */}
+      <PricingSection />
 
       {/* FAQ */}
       <AnimatedSection className="pt-24 pb-12 px-4 bg-navy-700/40" id="faq" delay={0.05}>

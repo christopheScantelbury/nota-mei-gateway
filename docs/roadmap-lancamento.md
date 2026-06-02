@@ -23,9 +23,9 @@
 
 ## Sprint 2 — Pricing + Sandbox + E-mail
 
-- [ ] **HIST-2.1** — PricingSection 3 colunas (`components/pricing/`, migration 005)
-- [ ] **HIST-2.2** — Card ME/EPP com plano âncora (destaque visual + badge)
-- [ ] **HIST-2.3** — Card Dev/Gateway com plano âncora
+- [x] **HIST-2.1** — PricingSection 3 colunas (`components/pricing/`)
+- [x] **HIST-2.2** — Card ME/EPP com plano âncora (destaque visual + badge)
+- [x] **HIST-2.3** — Card Dev/Gateway com plano âncora
 - [x] **HIST-3.1** — CTA sandbox no card Gateway do hero (adiantado no Sprint 1 junto do hero)
 - [ ] **HIST-3.2** — Item Sandbox no menu principal
 - [ ] **HIST-3.3** — Hero /gateway com sandbox como CTA primário
