@@ -36,9 +36,9 @@
 ## Sprint 3 — Comparativo + Urgência ME/EPP + Feature flags
 
 - [⚠️] **HIST-6.3** — Campanha urgência ME/EPP T-60→T-1 (migration 004 + automation Brevo)
-- [ ] **HIST-4.1** — Componente CompetitorTable
-- [ ] **HIST-4.2** — Página /comparativo
-- [ ] **HIST-4.3** — Embed do comparativo na home
+- [x] **HIST-4.1** — Componente CompetitorTable (full/summary + competitorsFilter)
+- [x] **HIST-4.2** — Página /comparativo com FAQ + 3 cards + JSON-LD WebPage+FAQPage + sitemap
+- [x] **HIST-4.3** — Embed CompetitorTable variant=summary na home
 - [ ] **HIST-4.4** — Template MDX "NotaFácil vs X" + post piloto Focus NFe
 - [ ] **HIST-7.4** — Sistema caseiro de feature flags (migration 001)
 - [⚠️] **HIST-5.1** — Auditoria SEO baseline — *doc audit*
