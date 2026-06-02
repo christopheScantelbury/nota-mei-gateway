@@ -57,11 +57,50 @@ const mobileLinks = [
   { label: 'MEI',           href: '/mei',     isAnchor: false },
   { label: 'ME / EPP',      href: '/me',      isAnchor: false },
   { label: 'Gateway API',   href: '/gateway', isAnchor: false },
+  { label: 'Sandbox',       href: '/sandbox', isAnchor: false },
   { label: 'Preços',        href: '/precos',  isAnchor: false },
   { label: 'Blog',          href: '/blog',    isAnchor: false },
   { label: 'Documentação',  href: '/docs',    isAnchor: false },
   { label: 'Status',        href: '/status',  isAnchor: false },
 ]
+
+// Dropdown "Gateway API" com submenu (Overview, Docs, Sandbox, SDKs, Status).
+// Spec: HIST-3.2 + D-08 (mantém hierarquia, sandbox dentro do produto Gateway).
+function GatewayMenu() {
+  const [open, setOpen] = useState(false)
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+    >
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="true"
+        onClick={() => setOpen(v => !v)}
+        className="text-sm text-text-2 hover:text-text-1 transition-colors inline-flex items-center gap-1"
+      >
+        Gateway API
+        <span aria-hidden className="text-xs opacity-70">▾</span>
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-56 rounded-xl border border-slate-200 dark:border-navy-600 bg-white dark:bg-navy-800 shadow-xl py-2 z-30"
+        >
+          <Link role="menuitem" href="/gateway"  className="block px-4 py-2 text-sm text-text-1 hover:bg-slate-50 dark:hover:bg-navy-700 transition-colors">Visão geral</Link>
+          <Link role="menuitem" href="/sandbox"  className="block px-4 py-2 text-sm text-text-1 hover:bg-slate-50 dark:hover:bg-navy-700 transition-colors">
+            ⚡ Sandbox <span className="text-[10px] text-brand-cyan ml-1">sem cadastro</span>
+          </Link>
+          <Link role="menuitem" href="/docs"     className="block px-4 py-2 text-sm text-text-1 hover:bg-slate-50 dark:hover:bg-navy-700 transition-colors">Documentação</Link>
+          <Link role="menuitem" href="/docs/sdks" className="block px-4 py-2 text-sm text-text-1 hover:bg-slate-50 dark:hover:bg-navy-700 transition-colors">SDKs</Link>
+          <Link role="menuitem" href="/status"   className="block px-4 py-2 text-sm text-text-1 hover:bg-slate-50 dark:hover:bg-navy-700 transition-colors">Status</Link>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function Navbar() {
   const [scrolled,  setScrolled]  = useState(false)
@@ -114,7 +153,7 @@ export default function Navbar() {
           <div className="hidden lg:flex items-center gap-6 flex-1 justify-center">
             <Link href="/mei"     className="text-sm text-text-2 hover:text-text-1 transition-colors">MEI</Link>
             <Link href="/me"      className="text-sm text-text-2 hover:text-text-1 transition-colors">ME / EPP</Link>
-            <Link href="/gateway" className="text-sm text-text-2 hover:text-text-1 transition-colors">Gateway API</Link>
+            <GatewayMenu />
             <Link href="/precos"  className="text-sm text-text-2 hover:text-text-1 transition-colors">Preços</Link>
             <Link href="/blog"    className="text-sm text-text-2 hover:text-text-1 transition-colors">Blog</Link>
           </div>

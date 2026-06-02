@@ -7,6 +7,7 @@ import LandingFooter from '@/components/landing/LandingFooter'
 import EcossistemaScantelbury from '@/components/landing/EcossistemaScantelbury'
 import { SoftwareAppStructuredData, FAQStructuredData } from '@/components/seo/StructuredData'
 import PricingToggleGateway from '@/components/landing/PricingToggleGateway'
+import GatewayCurlSnippet from '@/components/landing/GatewayCurlSnippet'
 
 export const metadata: Metadata = {
   title: 'Nota MEI Gateway — A API de NFS-e para seu produto',
@@ -126,26 +127,27 @@ export default function GatewayLandingPage() {
             <p className="text-text-2 text-base mb-8 italic">
               &ldquo;Construa em uma tarde o que levaria 3 meses lendo manual da ABRASF.&rdquo;
             </p>
+            {/* HIST-3.3 + D-07: sandbox vira CTA PRIMÁRIO, cadastro fica secundário (PLG dev) */}
             <div className="flex flex-col sm:flex-row gap-4">
               <Link
-                href="/docs"
+                href="/sandbox"
                 className="bg-persona-api text-white font-semibold px-8 py-4 rounded-xl text-lg hover:opacity-90 transition text-center"
               >
-                Ler a documentação
+                Testar a API no sandbox
               </Link>
               <Link
                 href="/cadastro?produto=gateway"
                 className="border border-navy-600 text-text-1 font-semibold px-8 py-4 rounded-xl text-lg hover:border-persona-api transition text-center"
               >
-                Criar conta de teste
+                Criar conta de desenvolvedor
               </Link>
             </div>
             <p className="text-text-2 text-sm mt-4">
-              Trial grátis · Sandbox incluso · Sem cartão de crédito
+              Sandbox sem cadastro · Trial grátis · Sem cartão de crédito
             </p>
-            <p className="text-text-2 text-xs mt-2">
-              Ao criar conta, você registra o MEI ou ME emissor e recebe sua API Key.
-            </p>
+
+            {/* Snippet curl logo abaixo do hero (HIST-3.3) */}
+            <GatewayCurlSnippet />
           </div>
 
           {/* Code snippet */}

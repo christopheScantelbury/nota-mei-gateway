@@ -27,8 +27,8 @@
 - [x] **HIST-2.2** — Card ME/EPP com plano âncora (destaque visual + badge)
 - [x] **HIST-2.3** — Card Dev/Gateway com plano âncora
 - [x] **HIST-3.1** — CTA sandbox no card Gateway do hero (adiantado no Sprint 1 junto do hero)
-- [ ] **HIST-3.2** — Item Sandbox no menu principal
-- [ ] **HIST-3.3** — Hero /gateway com sandbox como CTA primário
+- [x] **HIST-3.2** — Item Sandbox no menu principal (dropdown Gateway API com submenu)
+- [x] **HIST-3.3** — Hero /gateway com sandbox como CTA primário + snippet curl com copy
 - [ ] **HIST-6.1** — Webhooks de eventos do app → Brevo (queue + worker, migrations 002, 003, 006)
 - [⚠️] **HIST-6.2** — Templates de e-mails de onboarding — *criação no painel Brevo*
 - [ ] **HIST-5.0** — Setup do blog em MDX (velite + rotas)
