@@ -1,10 +1,13 @@
 ﻿import type { Metadata, Viewport } from 'next'
+import Script from 'next/script'
 import { Outfit, Inter, DM_Sans, DM_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { ThemeProvider } from 'next-themes'
 import { OrgStructuredData } from '@/components/seo/StructuredData'
 import PWAProvider from '@/components/pwa/PWAProvider'
 import NavigationProgress from '@/components/ui/NavigationProgress'
+import CookieBanner from '@/components/consent/CookieBanner'
+import { GA_ID, gtagInitScript } from '@/lib/analytics/gtag'
 import './globals.css'
 
 // ── Fonts ──────────────────────────────────────────────────────────────────
@@ -135,6 +138,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <head>
         <OrgStructuredData />
+        {/* GA4 + Consent Mode v2 — só renderiza se NEXT_PUBLIC_GA_MEASUREMENT_ID estiver configurada */}
+        {GA_ID && (
+          <>
+            <Script
+              id="ga4-init"
+              strategy="beforeInteractive"
+              dangerouslySetInnerHTML={{ __html: gtagInitScript() }}
+            />
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
+              strategy="afterInteractive"
+              async
+            />
+          </>
+        )}
       </head>
       <body className="font-body antialiased">
         <ThemeProvider
@@ -155,6 +173,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <NavigationProgress />
 
           {children}
+
+          {/* Banner LGPD de consent — só aparece na primeira visita (HIST-7.1) */}
+          <CookieBanner />
 
           <PWAProvider />
 
