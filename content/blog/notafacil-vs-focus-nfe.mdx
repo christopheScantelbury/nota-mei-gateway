@@ -1,0 +1,45 @@
+---
+title: "NotaFácil vs Focus NFe — qual API de NFS-e escolher em 2026"
+description: "Comparativo técnico entre NotaFácil e Focus NFe para emissão de NFS-e Nacional. Diferenças de arquitetura, preço, sandbox e cobertura."
+slug: notafacil-vs-focus-nfe
+date: 2026-07-01
+author: NotaFácil
+tags: [comparativo, nfse-nacional, focus-nfe]
+coverImage: /blog/notafacil-vs-focus-nfe.png
+---
+
+<VsHero competitor="focus_nfe" />
+
+## Introdução
+
+Quem decide hoje qual API de NFS-e usar em 2026 enfrenta um divisor de águas: a obrigatoriedade da **NFS-e Nacional** a partir de **01/09/2026**. As escolhas de arquitetura feitas pelas plataformas nos últimos 10 anos importam muito daqui pra frente.
+
+Esse post compara **NotaFácil** e **Focus NFe** sob os critérios que mais pesam pra desenvolvedores e times técnicos integrando emissão fiscal.
+
+<Callout type="warn" title="Disclaimer">
+Este comparativo é elaborado pelo time NotaFácil. Os dados sobre o Focus NFe vêm da documentação pública e materiais oficiais consultados em junho de 2026. Se algo estiver desatualizado, abra uma issue.
+</Callout>
+
+## Arquitetura: nativa nacional vs adaptada
+
+**Focus NFe** foi construído nos últimos 10 anos integrando uma a uma as centenas de prefeituras brasileiras que tinham seu próprio padrão municipal (ABRASF). Era o jeito certo para a época: cada município, um SOAP/XSD diferente, cada um com pegadinhas próprias.
+
+**NotaFácil** foi construído em 2025 sabendo que a NFS-e Nacional viria. Não há SOAP/XSD herdado — só REST + JSON + Bearer. mTLS direto com o ambiente federal. cTribNac validado em tempo real contra a lista oficial.
+
+## Comparativo completo
+
+<CompetitorTable variant="full" competitorsFilter={["notafacil", "focus_nfe"]} />
+
+## Sandbox: a maior diferença prática
+
+Você consegue testar a API do NotaFácil agora — abrir o navegador e fazer um POST. Não precisa cadastro, e-mail, CNPJ ou cartão. Os endpoints são públicos no `/sandbox`.
+
+O Focus NFe (e os demais) exige cadastro completo antes do primeiro request. Em 2026 isso pesa: dev quer testar antes de comprometer e-mail corporativo.
+
+## Quando escolher cada um
+
+**Escolha Focus NFe se:** você precisa de cobertura ABRASF municipal completa hoje, pra emissões em municípios que ainda não aderiram ao padrão nacional, e seu negócio inclui NFC-e/NF-e/CT-e além de NFS-e.
+
+**Escolha NotaFácil se:** seu produto entra em produção em 2026 ou depois, NFS-e Nacional é seu foco, e DX importa (REST + sandbox + SDKs prontos).
+
+<MigrationCTA from="Focus NFe" />

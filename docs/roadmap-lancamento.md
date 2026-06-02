@@ -35,14 +35,14 @@
 
 ## Sprint 3 — Comparativo + Urgência ME/EPP + Feature flags
 
-- [⚠️] **HIST-6.3** — Campanha urgência ME/EPP T-60→T-1 (migration 004 + automation Brevo)
+- [⚠️] **HIST-6.3** — Campanha urgência ME/EPP T-60→T-1 — *flags em empresas/meis (`unsubscribed_urgency*`) já criadas na migration 20260602000001; templates 201–206 mapeados em `lib/brevo/templates.ts`; automation no painel Brevo*
 - [x] **HIST-4.1** — Componente CompetitorTable (full/summary + competitorsFilter)
 - [x] **HIST-4.2** — Página /comparativo com FAQ + 3 cards + JSON-LD WebPage+FAQPage + sitemap
 - [x] **HIST-4.3** — Embed CompetitorTable variant=summary na home
-- [ ] **HIST-4.4** — Template MDX "NotaFácil vs X" + post piloto Focus NFe
-- [ ] **HIST-7.4** — Sistema caseiro de feature flags (migration 001)
-- [⚠️] **HIST-5.1** — Auditoria SEO baseline — *doc audit*
-- [ ] **HIST-5.2** — Schema.org Article nos posts
+- [x] **HIST-4.4** — Post piloto `content/blog/notafacil-vs-focus-nfe.mdx` + componentes VsHero + MigrationCTA + Callout + CompetitorTable competitorsFilter
+- [x] **HIST-7.4** — Feature flags: migration `20260602000002_feature_flags.sql` + `lib/flags/{hash,index,useFeatureFlag}.ts` + `/api/flags/[key]` + 2 seeds (`hero_copy_variant`, `sandbox_in_main_nav`)
+- [⚠️] **HIST-5.1** — Auditoria SEO baseline — *doc audit a ser preenchido*
+- [x] **HIST-5.2** — `lib/seo/jsonLd.ts` (articleJsonLd + webPageJsonLd) — pronto pra plugar em posts
 
 ---
 
