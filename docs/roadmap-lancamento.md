@@ -29,7 +29,7 @@
 - [x] **HIST-3.1** — CTA sandbox no card Gateway do hero (adiantado no Sprint 1 junto do hero)
 - [x] **HIST-3.2** — Item Sandbox no menu principal (dropdown Gateway API com submenu)
 - [x] **HIST-3.3** — Hero /gateway com sandbox como CTA primário + snippet curl com copy
-- [ ] **HIST-6.1** — Webhooks de eventos do app → Brevo (queue + worker, migrations 002, 003, 006)
+- [x] **HIST-6.1** — Brevo queue + worker Vercel Cron (migration `20260602000001`, lib/brevo/*, hook em /auth/callback)
 - [⚠️] **HIST-6.2** — Templates de e-mails de onboarding — *criação no painel Brevo*
 - [ ] **HIST-5.0** — Setup do blog em MDX (velite + rotas)
 

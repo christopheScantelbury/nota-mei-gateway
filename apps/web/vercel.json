@@ -1,5 +1,8 @@
 {
   "installCommand": "cd ../.. && npm ci",
   "buildCommand": "node -e \"require('fs').copyFileSync('../../docs/openapi.yaml','public/openapi.yaml')\" && NEXT_IGNORE_INCORRECT_LOCKFILE=1 npx next build",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "crons": [
+    { "path": "/api/cron/brevo-queue", "schedule": "* * * * *" }
+  ]
 }

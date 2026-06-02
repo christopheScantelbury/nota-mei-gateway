@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
+import { enqueueBrevoEvent } from '@/lib/brevo/events'
 
 /**
  * Auth callback handler for Magic Link / OAuth providers.
@@ -79,6 +80,19 @@ export async function GET(request: NextRequest) {
           // Non-fatal — user can still access dashboard if empresa was already linked
         }
       }
+
+      // HIST-6.1 — enfileira evento de signup (fire-and-forget, falha não bloqueia login)
+      try {
+        const ts = sessionData.user.created_at ?? new Date().toISOString()
+        const isNewSignup = Math.abs(Date.now() - new Date(ts).getTime()) < 5 * 60_000 // < 5min
+        if (isNewSignup && sessionData.user.email) {
+          await enqueueBrevoEvent({
+            eventName: 'user_signup',
+            email: sessionData.user.email,
+            properties: { user_id: sessionData.user.id },
+          })
+        }
+      } catch { /* non-fatal */ }
     }
 
     if (!error) {
