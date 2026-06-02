@@ -12,21 +12,21 @@
 
 ## Sprint 1 — Tracking + Hero (P0)
 
-- [ ] **HIST-7.1** — Auditoria GA4 + consent banner LGPD (`components/consent/CookieBanner`, `lib/analytics/consent.ts`)
-- [ ] **HIST-7.2** — Eventos de conversão por persona (`lib/analytics/events.ts` + instrumentação em CTAs)
+- [x] **HIST-7.1** — Auditoria GA4 + consent banner LGPD (`components/consent/CookieBanner`, `lib/analytics/consent.ts`)
+- [x] **HIST-7.2** — Eventos de conversão por persona (`lib/analytics/events.ts` + instrumentação no Hero)
 - [⚠️] **HIST-7.3** — Dashboard Looker Studio — *config externa, não código*
 - [⚠️] **HIST-6.0** — Auditoria Brevo — *doc audit + painel*
-- [ ] **HIST-1.1** — Top bar urgência regulatória (`UrgencyTopBar`, já existe `UrgencyBanner` parcial)
-- [ ] **HIST-1.2** — Componente PioneerBadge (`components/badges/PioneerBadge.tsx`)
-- [ ] **HIST-1.3** — Contagem regressiva Set/2026 (`components/countdown/CountdownSet2026.tsx`)
-- [ ] **HIST-1.4** — Reescrita copy do hero (textos do `03-Copies-Finais.md`)
+- [x] **HIST-1.1** — Top bar urgência regulatória (`UrgencyTopBar` + `(landing)/layout.tsx`)
+- [x] **HIST-1.2** — Componente PioneerBadge (`components/badges/PioneerBadge.tsx`)
+- [x] **HIST-1.3** — Contagem regressiva Set/2026 (`components/countdown/CountdownSet2026.tsx`)
+- [x] **HIST-1.4** — Reescrita copy do hero (textos do `03-Copies-Finais.md`)
 
 ## Sprint 2 — Pricing + Sandbox + E-mail
 
 - [ ] **HIST-2.1** — PricingSection 3 colunas (`components/pricing/`, migration 005)
 - [ ] **HIST-2.2** — Card ME/EPP com plano âncora (destaque visual + badge)
 - [ ] **HIST-2.3** — Card Dev/Gateway com plano âncora
-- [ ] **HIST-3.1** — CTA sandbox no card Gateway do hero
+- [x] **HIST-3.1** — CTA sandbox no card Gateway do hero (adiantado no Sprint 1 junto do hero)
 - [ ] **HIST-3.2** — Item Sandbox no menu principal
 - [ ] **HIST-3.3** — Hero /gateway com sandbox como CTA primário
 - [ ] **HIST-6.1** — Webhooks de eventos do app → Brevo (queue + worker, migrations 002, 003, 006)

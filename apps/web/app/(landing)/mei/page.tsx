@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import Image from 'next/image'
 import AnimatedSection from '@/components/landing/AnimatedSection'
-import UrgencyBanner from '@/components/landing/UrgencyBanner'
+// UrgencyBanner antigo substituído pelo UrgencyTopBar no (landing)/layout (HIST-1.1)
 import Navbar from '@/components/landing/Navbar'
 import LandingFooter from '@/components/landing/LandingFooter'
 import { SoftwareAppStructuredData, FAQStructuredData } from '@/components/seo/StructuredData'
@@ -166,8 +166,7 @@ export default function MeiLandingPage() {
         </div>
       </section>
 
-      {/* Urgency banner */}
-      <UrgencyBanner />
+      {/* Urgency moved to UrgencyTopBar no (landing)/layout — HIST-1.1 */}
 
       {/* Como funciona */}
       <AnimatedSection className="py-24 px-4 bg-navy-700/40" id="como-funciona">

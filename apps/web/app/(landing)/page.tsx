@@ -6,7 +6,7 @@ import EcossistemaScantelbury from '@/components/landing/EcossistemaScantelbury'
 import HeroSection from '@/components/landing/HeroSection'
 import SocialProof from '@/components/landing/SocialProof'
 import AnimatedSection from '@/components/landing/AnimatedSection'
-import UrgencyBanner from '@/components/landing/UrgencyBanner'
+// UrgencyBanner antigo substituído pelo UrgencyTopBar no (landing)/layout (HIST-1.1)
 import HowItWorksToggle from '@/components/landing/HowItWorksToggle'
 import PricingToggle from '@/components/landing/PricingToggle'
 
@@ -89,8 +89,7 @@ export default function LandingPage() {
       {/* Hero — product bifurcation (MEI vs API) */}
       <HeroSection />
 
-      {/* Urgency banner — NFS-e obligation, dismissible */}
-      <UrgencyBanner />
+      {/* Urgency moved to UrgencyTopBar no layout do grupo (landing) — HIST-1.1 */}
 
       {/* Social proof — counters, security / LGPD */}
       <SocialProof />
