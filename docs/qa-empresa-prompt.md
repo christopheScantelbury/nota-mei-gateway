@@ -7,6 +7,53 @@
 
 ---
 
+## 🔁 ESTADO ATUAL DA QA — leia antes de começar
+
+**Rodada 1** rodou em **2026-06-03** pelo Claude Sonnet 4.6. Resultado:
+- 14 bugs reportados, **10 fixados**, 1 pendente (#6 SVG dark contexto externo),
+  3 falsos-positivos (#5, #10, #13)
+- Detalhe bug-por-bug em `docs/qa-empresa-status-rodada-1.md`
+- Cobertura limitada aos **Blocos 1-3** (landing /me, cadastro, login até OTP).
+  Blocos **4-14 NÃO foram testados** por falta de pré-requisitos (OTP em runtime,
+  cert hom, webhook público, Stripe ativo, multi-empresa)
+
+### 🎯 Foco da rodada atual (Rodada N+1)
+
+1. **REGRESSÃO** — confirmar que os 10 bugs marcados como fixados não voltaram.
+   Lista no fim deste prompt (seção "Regressão da rodada 1").
+
+2. **COBERTURA NOVA** — atacar **Blocos 4-14** que ficaram fora. Foque aqui o
+   tempo, esses blocos são o coração funcional do produto.
+
+3. **EXPLORAR NOVOS BUGS** em qualquer área que rodar.
+
+### 🛠️ Pré-requisitos pra cobrir Blocos 4-14
+
+Antes de começar, **confirme com o dev** se você tem acesso a:
+
+- [ ] **Magic link admin** pra logar como `teste-empresa@notafacil.com` sem
+      esperar OTP. Comando curl em `ACESSOS.local.md` (Supabase service_role +
+      `auth/v1/admin/generate_link`). Sem isso, Bloco 3 vira o teto.
+- [ ] **Cert A1 de homologação** (`certificado_hom.pfx` + senha) pra Bloco 5
+      (Emissão) → 6 (cancel/subst) → 7 (listagem com notas reais)
+- [ ] **Webhook público** (webhook.site ou endpoint Vercel) pra Bloco 11.4
+      (Webhooks no painel) + entrega real
+- [ ] **Cartão Stripe teste** (`4242 4242 4242 4242`) pra Bloco 12 (Billing)
+- [ ] **2ª empresa vinculada** ao `user_id` da conta teste pra Bloco 13
+      (Multi-empresa). Pode pedir pro dev inserir via Supabase SQL
+
+Se algum item faltar, **marque os blocos correspondentes como "PULEI por falta
+de pré-requisito"** no relatório de cobertura — não invente fluxos.
+
+### ⚠️ Bug pendente (não reabra)
+
+- **#6**: `notafacil-empresa-dark.svg` tem texto "Nota" em branco. NO SITE
+  isso é correto (dark mode = fundo escuro). O bug original era sobre
+  visualizar o SVG em contextos externos (e-mail, preview do browser direto
+  no arquivo). Aguardando decisão de design.
+
+---
+
 ## CONTEXTO
 
 Você é um QA Engineer sênior testando o **NotaFácil Empresa** — o produto carro-chefe de ScantelburyDevs, voltado para Microempresas (ME) e EPP. O lançamento depende disso funcionar PERFEITO. Vamos pegar tudo que estiver quebrado.
@@ -480,6 +527,61 @@ Sugira **novos casos de teste** que não estão no checklist mas você acha que 
 - Acentos/caracteres especiais em razão social, discriminação
 - Timezone diferente (visualizar nota emitida no Brasil estando no exterior)
 - Latência alta (BrasilAPI demorando 5s+)
+
+---
+
+## REGRESSÃO DA RODADA 1 — checagem rápida obrigatória
+
+Antes de explorar áreas novas, validar que as **10 correções da rodada 1**
+seguem em pé. Cada item: marca ✅ se está OK, ❌ se voltou (vira bug).
+
+### P0 fixados
+
+- [ ] **#1** — `/cadastro/me` agora tem 3 steps (Dados / Regime / Certificado);
+      tela final mostra "Empresa cadastrada!" + instrução de checar e-mail;
+      **NÃO exibe `sk_live_...`** em lugar nenhum
+- [ ] **#8** — confirma 3 steps (sem step "API Key" no StepIndicator)
+
+### P1 fixados
+
+- [ ] **#2** — heading `/me`: `document.querySelector('h1').textContent`
+      contém "NFS-e nacional a partir de setembro" (com **espaço** entre
+      "nacional" e "a")
+- [ ] **#4** — `/me` tem na ordem: hero (com PioneerBadge + CountdownSet2026)
+      → Beneficios → Como Funciona → **Comparativo summary (4 colunas)** →
+      **PricingSection (3 cards)** → FAQ → CTA Final
+- [ ] **#7** — `/login?produto=me` tem `document.title` = "Entrar — NotaFácil
+      Empresa". Trocar `produto=mei` → "Entrar — Nota Fácil MEI", `produto=gateway`
+      → "Entrar — NotaFácil API"
+- [ ] **#11** — FAQ na `/me`: clicar pergunta seta `aria-expanded="true"` no
+      button + `aria-controls="me-faq-panel-N"`. Panel tem `role="region"` +
+      `aria-labelledby`
+- [ ] **#12** — `/cadastro/me` Step 1: digitar CNPJ válido matematicamente mas
+      fictício (ex: `11.222.333/0001-81`) → BrasilAPI 404 → mensagem inline
+      "CNPJ não encontrado na Receita Federal..." → botão "Continuar" bloqueia
+- [ ] **#14** — `/cadastro/me` Step 1: digitar CNPJ real (`34.488.964/0001-42`)
+      → após 400ms, request pra `brasilapi.com.br/api/cnpj/v1/...` aparece em
+      Network → razão social, e-mail, CNAE, CEP preenchem sozinhos (campos
+      antes vazios)
+
+### P2 fixados
+
+- [ ] **#3** + **#9** — `/me` SÓ tem 1 botão "Fechar aviso" no DOM (era 2 com
+      UrgencyBannerME duplicando). Dismiss da topbar persiste por **7 dias**
+      via cookie `nf_topbar_dismissed_v1` (não localStorage `urgency_banner_dismissed`)
+
+### Falsos-positivos confirmados (NÃO reabrir como bug)
+
+- **#5** — `/me` não tem toggle MEI/ME-EPP/Dev em "Como funciona". Está
+  intencional: na home `/` o toggle existe; na `/me` o conteúdo é dedicado ME/EPP
+- **#10** — 2 `ThemeToggle` no DOM: 1 desktop (`hidden sm:flex`), 1 mobile
+  (`sm:hidden`). Só 1 visível por viewport. WCAG 4.1.2 OK
+- **#13** — `NavigationProgress` não aparece em `querySelector` no estado idle
+  porque só renderiza durante transição SPA. Pra testar: clicar link "Preços"
+  no header e observar a barra cyan de 3px no topo durante carregamento
+
+Se algum desses 3 voltar a parecer bug, **antes de reportar**, leia o racional
+acima e descreva PORQUE acha que continua sendo bug nesse contexto específico.
 
 ---
 
