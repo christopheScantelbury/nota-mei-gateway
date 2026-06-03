@@ -1,7 +1,10 @@
-// Layout do grupo (landing) — todas as páginas públicas (home, /mei, /me,
-// /gateway, /precos, /blog, /docs, /comparativo) compartilham:
-//   - UrgencyTopBar (HIST-1.1) acima de tudo
-//   - O Navbar fica em cada página/sub-layout (alguns têm topbar próprio)
+// Layout do grupo (landing) — UrgencyTopBar acima de todo o conteúdo.
+//
+// Spec: HIST-1.1.
+//
+// Estratégia: UrgencyTopBar é `fixed top-0 z-[60]` (acima do Navbar z-50).
+// Cada página continua renderizando seu próprio Navbar — o Navbar usa
+// `top: var(--topbar-height)` definida em globals.css (SSR-safe, sem race).
 
 import UrgencyTopBar from '@/components/topbar/UrgencyTopBar'
 

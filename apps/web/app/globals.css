@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Altura da UrgencyTopBar consumida pelo Navbar via `top: var(--topbar-height)`.
+   Valor default = altura quando topbar está visível (SSR-safe, sem race condition
+   com useEffect). UrgencyTopBar.tsx faz override no documentElement pra '0px'
+   ao dismiss (cookie). */
+:root {
+  --topbar-height: 36px;
+}
+@media (max-width: 640px) {
+  :root { --topbar-height: 32px; }
+}
+
 /* ── NotaFácil Design Tokens (v2.0 — brand-kit-completo)
    RGB channels enable Tailwind opacity modifiers:
      bg-navy-700/50 → rgb(var(--navy-700) / 0.5)
