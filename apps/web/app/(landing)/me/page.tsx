@@ -2,7 +2,7 @@ import Link from 'next/link'
 import Navbar from '@/components/landing/Navbar'
 import LandingFooter from '@/components/landing/LandingFooter'
 import { SoftwareAppStructuredData } from '@/components/seo/StructuredData'
-import { UrgencyBannerME } from '@/components/landing/UrgencyBannerME'
+// UrgencyBannerME legado removido — UrgencyTopBar no (landing)/layout já cobre (Bug #9)
 import { MEHero }         from './components/MEHero'
 import { MEBeneficios }   from './components/MEBeneficios'
 import { MEComoFunciona } from './components/MEComoFunciona'
@@ -21,7 +21,6 @@ export default function LandingME() {
       />
       <Navbar />
       <div className="pt-14 sm:pt-16">
-        <UrgencyBannerME />
         <MEHero />
         <MEBeneficios />
         <MEComoFunciona />

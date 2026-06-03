@@ -211,6 +211,10 @@ export default function CadastroMEPage() {
     const errs: typeof errors = {}
     const cnpjDigits = form.cnpj.replace(/\D/g, '')
     if (cnpjDigits.length !== 14) errs.cnpj = 'CNPJ deve conter 14 dígitos'
+    // Bug #12: bloqueia se a BrasilAPI retornou CNPJ inexistente. Caso o
+    // lookup esteja em andamento, pede pra aguardar.
+    if (cnpjLookupLoading) errs.cnpj = 'Aguarde — validando CNPJ na Receita…'
+    else if (cnpjLookupError && cnpjDigits.length === 14) errs.cnpj = cnpjLookupError
     if (!form.razaoSocial.trim())  errs.razaoSocial = 'Razão social obrigatória'
     if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
       errs.email = 'E-mail inválido'
