@@ -26,7 +26,7 @@ export default function MobileMenu({ isOpen, onClose, links, cta, secondaryCta }
     <>
       {/* Overlay fullscreen abaixo da navbar (top-14 = 56px = h-14 mobile) */}
       <div
-        className="sm:hidden fixed inset-0 top-14 z-40 bg-white dark:bg-navy-900 flex flex-col overflow-y-auto"
+        className="sm:hidden fixed inset-0 top-14 z-40 bg-navy-900 flex flex-col overflow-y-auto"
         role="dialog"
         aria-modal="true"
         aria-label="Menu de navegação"
@@ -37,7 +37,7 @@ export default function MobileMenu({ isOpen, onClose, links, cta, secondaryCta }
           size="icon-sm"
           onClick={onClose}
           aria-label="Fechar menu"
-          className="absolute top-4 right-4 hover:bg-slate-100 dark:hover:bg-navy-700"
+          className="absolute top-4 right-4 hover:bg-navy-700"
         >
           <X className="w-5 h-5" />
         </Button>
@@ -50,7 +50,7 @@ export default function MobileMenu({ isOpen, onClose, links, cta, secondaryCta }
                 key={label}
                 href={href}
                 onClick={onClose}
-                className="py-4 text-base font-semibold text-text-1 border-b border-slate-200 dark:border-navy-600 hover:text-brand-cyan transition"
+                className="py-4 text-base font-semibold text-text-1 border-b border-navy-600 hover:text-brand-cyan transition"
               >
                 {label}
               </a>
@@ -59,7 +59,7 @@ export default function MobileMenu({ isOpen, onClose, links, cta, secondaryCta }
                 key={label}
                 href={href}
                 onClick={onClose}
-                className="py-4 text-base font-semibold text-text-1 border-b border-slate-200 dark:border-navy-600 hover:text-brand-cyan transition"
+                className="py-4 text-base font-semibold text-text-1 border-b border-navy-600 hover:text-brand-cyan transition"
               >
                 {label}
               </Link>
