@@ -10,11 +10,9 @@ import LogoAdaptive from '@/components/ui/LogoAdaptive'
 type LogoConfig = { src: string; darkSrc: string; alt: string; width: number }
 
 function getLogoForPath(pathname: string): LogoConfig {
-  // TODO: criar versões dark dos 3 logos persona (MEI/Empresa/API).
-  // Por enquanto darkSrc = src nas personas que não têm versão.
-  if (pathname.startsWith('/mei'))     return { src: '/brand/notafacil-mei.svg',     darkSrc: '/brand/notafacil-mei.svg',     alt: 'NotaFácil MEI',     width: 200 }
-  if (pathname.startsWith('/me'))      return { src: '/brand/notafacil-empresa.svg', darkSrc: '/brand/notafacil-empresa.svg', alt: 'NotaFácil Empresa', width: 240 }
-  if (pathname.startsWith('/gateway')) return { src: '/brand/notafacil-api.svg',     darkSrc: '/brand/notafacil-api.svg',     alt: 'NotaFácil API',     width: 195 }
+  if (pathname.startsWith('/mei'))     return { src: '/brand/notafacil-mei.svg',     darkSrc: '/brand/notafacil-mei-dark.svg',     alt: 'NotaFácil MEI',     width: 200 }
+  if (pathname.startsWith('/me'))      return { src: '/brand/notafacil-empresa.svg', darkSrc: '/brand/notafacil-empresa-dark.svg', alt: 'NotaFácil Empresa', width: 240 }
+  if (pathname.startsWith('/gateway')) return { src: '/brand/notafacil-api.svg',     darkSrc: '/brand/notafacil-api-dark.svg',     alt: 'NotaFácil API',     width: 195 }
   return { src: '/brand/notafacil-logo.svg', darkSrc: '/brand/notafacil-logo-dark.svg', alt: 'NotaFácil', width: 170 }
 }
 

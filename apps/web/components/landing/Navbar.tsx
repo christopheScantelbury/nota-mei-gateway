@@ -20,9 +20,8 @@ type Persona = {
   ctaClass: string
 }
 
-// Como a landing é dark-forçada, todos os logos da Navbar usam o SVG dark.
-// Pra persona DEFAULT (NotaFácil principal) temos logo-dark.svg pronto.
-// Pra MEI/ME/Gateway ainda não há versão dark — usar mesmo SVG (TODO: criar).
+// Logos adaptam ao tema: light → SVG com texto "Nota" preto, dark → SVG com
+// texto "Nota" branco. Versões dark geradas via script (fill #0F172A → #F8FAFC).
 const PERSONA_DEFAULT: Persona = {
   logoSrc:     '/brand/notafacil-logo.svg',
   logoDarkSrc: '/brand/notafacil-logo-dark.svg',
@@ -34,21 +33,21 @@ const PERSONA_DEFAULT: Persona = {
 function getPersonaForPath(pathname: string): Persona {
   if (pathname.startsWith('/mei')) {
     return {
-      logoSrc: '/brand/notafacil-mei.svg', logoDarkSrc: '/brand/notafacil-mei.svg', // TODO: versão dark
+      logoSrc: '/brand/notafacil-mei.svg', logoDarkSrc: '/brand/notafacil-mei-dark.svg',
       alt: 'NotaFácil MEI', width: 200,
       ctaClass: 'bg-persona-mei text-white shadow-sm hover:bg-persona-mei-dark',
     }
   }
   if (pathname.startsWith('/me')) {
     return {
-      logoSrc: '/brand/notafacil-empresa.svg', logoDarkSrc: '/brand/notafacil-empresa.svg', // TODO: versão dark
+      logoSrc: '/brand/notafacil-empresa.svg', logoDarkSrc: '/brand/notafacil-empresa-dark.svg',
       alt: 'NotaFácil Empresa', width: 240,
       ctaClass: 'bg-persona-emp text-white shadow-sm hover:bg-persona-emp-dark',
     }
   }
   if (pathname.startsWith('/gateway')) {
     return {
-      logoSrc: '/brand/notafacil-api.svg', logoDarkSrc: '/brand/notafacil-api.svg', // TODO: versão dark
+      logoSrc: '/brand/notafacil-api.svg', logoDarkSrc: '/brand/notafacil-api-dark.svg',
       alt: 'NotaFácil API', width: 195,
       ctaClass: 'bg-persona-api text-white shadow-sm hover:bg-persona-api-dark',
     }
