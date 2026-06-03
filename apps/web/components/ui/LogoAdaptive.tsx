@@ -1,19 +1,19 @@
-'use client'
-
 /**
- * LogoAdaptive — troca o SVG da logo conforme o tema ativo (light / dark).
+ * LogoAdaptive — troca o SVG do logo conforme tema light/dark.
  *
- * Antes do mount renderiza um placeholder invisível com as mesmas dimensões
- * para evitar layout shift (CLS). Após mount, usa resolvedTheme do next-themes.
+ * IMPLEMENTAÇÃO (SSR-safe, sem race condition):
+ * Renderiza **ambas as versões** e usa CSS class `.dark` no `<html>` (controlada
+ * pelo next-themes `attribute="class"`) pra alternar visibilidade. Funciona
+ * imediatamente no SSR — não depende de useEffect/resolvedTheme.
  *
- * Props extras:
- *   iconLightSrc / iconDarkSrc — versão só-ícone para telas muito pequenas (≤ 360px).
- *   Se não fornecidos, exibe sempre a logo completa.
+ * Tinha um bug N+1 da rodada 2 QA: durante hidratação, `resolvedTheme`
+ * retornava 'light' por um frame mesmo quando o user tinha tema dark salvo,
+ * a imagem dark nunca era usada dependendo do timing.
+ *
+ * `forceTheme` ainda funciona pra superfícies que ignoram o toggle.
  */
 
-import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { useTheme } from 'next-themes'
 
 interface LogoAdaptiveProps {
   lightSrc: string
@@ -23,11 +23,11 @@ interface LogoAdaptiveProps {
   height: number
   priority?: boolean
   className?: string
-  /** Ícone compacto para telas ≤ 360px */
+  /** Ícone compacto para telas ≤ 360px. Quando fornecido, alterna entre
+   *  full e ícone POR BREAKPOINT — independente do tema. */
   iconLightSrc?: string
   iconDarkSrc?: string
-  /** Força um tema específico, ignorando resolvedTheme. Útil em superfícies
-   *  com cor fixa (landing dark-forçada, footer escuro, etc.). */
+  /** Força um tema específico, ignorando .dark class. */
   forceTheme?: 'light' | 'dark'
 }
 
@@ -43,59 +43,60 @@ export default function LogoAdaptive({
   iconDarkSrc,
   forceTheme,
 }: LogoAdaptiveProps) {
-  const { resolvedTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => { setMounted(true) }, [])
-
-  // forceTheme funciona SEM esperar mount — evita flash do logo errado
-  // em superfícies com cor fixa.
+  // ── forceTheme: renderiza só uma versão (cor fixa, ignora tema) ───────
   if (forceTheme) {
     const isDark = forceTheme === 'dark'
-    const src     = isDark ? darkSrc  : lightSrc
-    const iconSrc = isDark ? iconDarkSrc : iconLightSrc
+    const src     = isDark ? darkSrc      : lightSrc
+    const iconSrc = isDark ? iconDarkSrc  : iconLightSrc
     return (
       <>
-        <Image src={src} alt={alt} width={width} height={height} priority={priority} unoptimized
-          className={`${iconSrc ? 'hidden min-[361px]:block' : ''} ${className ?? ''}`} />
+        <Image
+          src={src} alt={alt} width={width} height={height} priority={priority} unoptimized
+          className={`${iconSrc ? 'hidden min-[361px]:block' : ''} ${className ?? ''}`}
+        />
         {iconSrc && (
-          <Image src={iconSrc} alt={alt} width={40} height={40} priority={priority} unoptimized
-            className="block min-[361px]:hidden w-10 h-10" />
+          <Image
+            src={iconSrc} alt={alt} width={40} height={40} priority={priority} unoptimized
+            className="block min-[361px]:hidden w-10 h-10"
+          />
         )}
       </>
     )
   }
 
-  if (!mounted) {
-    return <div style={{ width, height: Math.min(height, 44), display: 'inline-block' }} aria-hidden />
-  }
+  // ── Tema-aware via CSS class (sem JS, sem race) ────────────────────────
+  // Renderiza AMBAS as versões; `.dark` no <html> controla qual aparece.
+  const hasIcons = !!iconLightSrc && !!iconDarkSrc
+  const base = className ?? ''
 
-  const isDark = resolvedTheme === 'dark'
-  const src     = isDark ? darkSrc  : lightSrc
-  const iconSrc = isDark ? iconDarkSrc : iconLightSrc
+  // Mobile ≤ 360 só recebe ícones SE ambos foram fornecidos
+  const fullVisible = hasIcons ? 'hidden min-[361px]:block' : 'block'
 
   return (
     <>
-      {/* Logo completa — desktop e mobile ≥ 361px */}
+      {/* Logo completa LIGHT — visível em tema light */}
       <Image
-        src={src}
-        alt={alt}
-        width={width}
-        height={height}
-        priority={priority}
-        unoptimized
-        className={`${iconSrc ? 'hidden min-[361px]:block' : ''} ${className ?? ''}`}
+        src={lightSrc} alt={alt} width={width} height={height} priority={priority} unoptimized
+        className={`${fullVisible} dark:!hidden ${base}`}
       />
-      {/* Ícone compacto — apenas em telas ≤ 360px, se fornecido */}
-      {iconSrc && (
+      {/* Logo completa DARK — visível em tema dark */}
+      <Image
+        src={darkSrc} alt={alt} width={width} height={height} priority={priority} unoptimized
+        className={`hidden dark:${hasIcons ? 'min-[361px]:block' : 'block'} ${base}`}
+      />
+
+      {/* Ícone compacto LIGHT (≤ 360px, tema light) */}
+      {hasIcons && (
         <Image
-          src={iconSrc}
-          alt={alt}
-          width={40}
-          height={40}
-          priority={priority}
-          unoptimized
-          className="block min-[361px]:hidden w-10 h-10"
+          src={iconLightSrc!} alt={alt} width={40} height={40} priority={priority} unoptimized
+          className="block min-[361px]:hidden dark:!hidden w-10 h-10"
+        />
+      )}
+      {/* Ícone compacto DARK (≤ 360px, tema dark) */}
+      {hasIcons && (
+        <Image
+          src={iconDarkSrc!} alt={alt} width={40} height={40} priority={priority} unoptimized
+          className="hidden dark:block min-[361px]:dark:hidden w-10 h-10"
         />
       )}
     </>

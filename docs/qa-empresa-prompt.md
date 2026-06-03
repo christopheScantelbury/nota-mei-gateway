@@ -560,14 +560,18 @@ seguem em pé. Cada item: marca ✅ se está OK, ❌ se voltou (vira bug).
       1. CNPJ com DV inválido (`12.345.678/0001-00`) → mensagem **"CNPJ inválido
          — verifique os dígitos."** sem chamada de rede + botão "Continuar"
          **disabled** (validação módulo 11 client-side, Bug N+3 fix)
-      2. CNPJ matematicamente válido mas inexistente na Receita (sequência
-         que retorna 404 na BrasilAPI — verifique antes via
-         `curl brasilapi.com.br/api/cnpj/v1/<dígitos>`) → mensagem
-         **"CNPJ não encontrado na Receita Federal..."** + botão disabled
+      2. CNPJ matematicamente válido mas inexistente na Receita:
+         **`99.999.999/0001-91`** (testado 2026-06-03 — BrasilAPI retorna 404)
+         → mensagem **"CNPJ não encontrado na Receita Federal..."** + botão disabled
       3. CNPJ real (ex: `34.488.964/0001-42`) → autofill OK + botão habilitado
 
-      ⚠️ **Não use** `11.222.333/0001-81` ou `11.111.111/0001-91` — ambos
-      retornam 200 na BrasilAPI (são CNPJs reais). Bug N+5 do retorno anterior.
+      ⚠️ **CNPJs que NÃO funcionam como "fictícios"** (eu testei):
+      - `11.222.333/0001-81` → 200 (Caixa Escolar real)
+      - `11.111.111/0001-91` → 200 (Elaine Ap. Pinheiro real)
+      - `12.345.678/0001-95` → 200 (existe)
+      - `88.888.888/0001-61` → 400 (DV inválido — vai pelo path do cenário 1)
+      - `77.777.777/0001-31` → 400 (DV inválido — idem)
+      Use `99.999.999/0001-91` que é DV-válido + Receita-inexistente.
 - [ ] **#14** — `/cadastro/me` Step 1: digitar CNPJ real (`34.488.964/0001-42`)
       → após 400ms, request pra `brasilapi.com.br/api/cnpj/v1/...` aparece em
       Network → razão social, e-mail, CNAE, CEP preenchem sozinhos (campos
