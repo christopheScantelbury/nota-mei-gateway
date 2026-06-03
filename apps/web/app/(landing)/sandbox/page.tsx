@@ -77,10 +77,20 @@ print(response.json())`
 
 const LS_HISTORY = 'sandbox_history'
 function loadHistory(): HistoryEntry[] {
-  try { return JSON.parse(localStorage.getItem(LS_HISTORY) ?? '[]') } catch { return [] }
+  try {
+    const raw = localStorage.getItem(LS_HISTORY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    // Garante array — localStorage pode ter sido corrompido por versão antiga
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
 }
 function saveHistory(h: HistoryEntry[]) {
-  localStorage.setItem(LS_HISTORY, JSON.stringify(h.slice(0, 10)))
+  try {
+    localStorage.setItem(LS_HISTORY, JSON.stringify(Array.isArray(h) ? h.slice(0, 10) : []))
+  } catch { /* quota cheia, modo privado, etc. */ }
 }
 
 function StatusBadge({ code }: { code: number }) {
@@ -158,7 +168,14 @@ export default function SandboxPage() {
   async function fetchWebhooks() {
     try {
       const res = await fetch(`${WEBHOOK_URL}`)
-      if (res.ok) setWebhooks(await res.json())
+      if (!res.ok) return
+      const data = await res.json().catch(() => null)
+      // API pode retornar objeto {error} ou null — garante que state SEMPRE é array
+      if (Array.isArray(data)) {
+        setWebhooks(data)
+      } else if (data && Array.isArray((data as { webhooks?: unknown }).webhooks)) {
+        setWebhooks((data as { webhooks: WebhookPayload[] }).webhooks)
+      }
     } catch { /* non-fatal */ }
   }
 
