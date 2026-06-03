@@ -213,7 +213,7 @@ export default function SandboxPage() {
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Link href="/gateway" className="flex items-center shrink-0">
               <LogoAdaptive
-                darkSrc="/brand/notafacil-logo.svg"
+                darkSrc="/brand/notafacil-logo-dark.svg"
                 lightSrc="/brand/notafacil-logo.svg"
                 alt="NotaFácil API"
                 width={160}

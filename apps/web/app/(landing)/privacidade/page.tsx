@@ -1,6 +1,6 @@
 ﻿import type { Metadata } from 'next'
 import Link from 'next/link'
-import Image from 'next/image'
+import LogoAdaptive from '@/components/ui/LogoAdaptive'
 
 export const metadata: Metadata = {
   title: 'Política de Privacidade',
@@ -19,9 +19,10 @@ export default function PrivacidadePage() {
       <header className="border-b border-navy-600 bg-navy-900/90 backdrop-blur sticky top-0 z-20">
         <div className="max-w-3xl mx-auto px-6 py-3 flex items-center justify-between">
           <Link href="/" className="flex items-center shrink-0">
-            <Image
-              src="/brand/notafacil-logo.svg"
-              alt="Nota MEI Gateway"
+            <LogoAdaptive
+              lightSrc="/brand/notafacil-logo.svg"
+              darkSrc="/brand/notafacil-logo-dark.svg"
+              alt="NotaFácil"
               width={140}
               height={34}
               className="h-7 w-auto"

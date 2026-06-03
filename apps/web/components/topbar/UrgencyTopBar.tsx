@@ -20,7 +20,11 @@ import { trackTopbarView, trackTopbarDismiss, trackCtaClick } from '@/lib/analyt
  *   volta a `top: 0px`.
  */
 export default function UrgencyTopBar() {
-  const [visible, setVisible] = useState(false)
+  // Bug N+2: começamos com `visible=true` pra que o SSR já renderize a topbar.
+  // Quem nunca dismissou (caso comum) vê instantaneamente — sem flash de
+  // 'sem topbar' enquanto JS hidrata. Quem já dismissou (cookie 7d) tem
+  // micro-flash de ~50ms — trade-off aceitável.
+  const [visible, setVisible] = useState(true)
   const [isPostVigencia, setIsPostVigencia] = useState(false)
 
   useEffect(() => {

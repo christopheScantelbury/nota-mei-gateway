@@ -6,6 +6,7 @@ import { CepMunicipioInput } from '@/components/ui/CepMunicipioInput'
 import { maskCNPJ as formatCNPJ } from '@/lib/format'
 import { Button } from '@/components/ui/Button'
 import { fetchCNPJ, extractCNAEs } from '@/lib/brasilapi'
+import { validarCNPJ } from '@/lib/cnpj'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
 
@@ -154,12 +155,19 @@ export default function CadastroMEPage() {
     setErrors(e => ({ ...e, [k]: undefined }))
   }
 
-  // ── Bug #14 fix: auto-busca BrasilAPI quando CNPJ atinge 14 dígitos ───────
+  // ── Bug N+3 fix: validação módulo 11 client-side ANTES de chamar BrasilAPI.
+  // Evita request desnecessário pra CNPJ com DV inválido + mensagem específica.
+  // ── Bug #14 fix: auto-busca BrasilAPI quando CNPJ atinge 14 dígitos válidos.
   // Preenche razao_social, CNAE, CEP, município (somente se ainda vazios — não
   // sobrescreve edição manual). Debounce 400ms + cache do último CNPJ buscado.
   useEffect(() => {
     const digits = form.cnpj.replace(/\D/g, '')
     if (digits.length !== 14) return
+    // Bloqueia request se DV inválido — mensagem específica de "CNPJ inválido"
+    if (!validarCNPJ(digits)) {
+      setCnpjLookupError('CNPJ inválido — verifique os dígitos.')
+      return
+    }
     if (digits === lastFetchedCnpjRef.current) return
 
     const tid = setTimeout(async () => {
@@ -435,8 +443,15 @@ export default function CadastroMEPage() {
               />
             </Field>
 
-            <Button variant="primary" className="w-full" onClick={nextStep1}>
-              Continuar →
+            <Button
+              variant="primary"
+              className="w-full"
+              onClick={nextStep1}
+              loading={cnpjLookupLoading}
+              disabled={cnpjLookupLoading || !!cnpjLookupError}
+              title={cnpjLookupError ?? undefined}
+            >
+              {cnpjLookupLoading ? 'Validando CNPJ…' : 'Continuar →'}
             </Button>
 
             <p className="text-center text-xs text-text-2">

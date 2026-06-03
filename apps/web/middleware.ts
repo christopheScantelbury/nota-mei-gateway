@@ -2,10 +2,12 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 // Routes that require an authenticated Supabase session.
+// Bug N+4: faltavam /clientes e /links no middleware — server components davam
+// `redirect('/login')` SEM `next` param, perdendo o destino do user pós-login.
 const PROTECTED_PREFIXES = [
   '/home', '/notas', '/billing', '/configuracoes',
   '/templates', '/recorrencias', '/api-keys', '/webhooks',
-  '/seletor-empresa',
+  '/seletor-empresa', '/clientes', '/links',
 ]
 
 // Routes that require admin role (app_metadata.role === 'admin').

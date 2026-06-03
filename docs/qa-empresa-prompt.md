@@ -556,9 +556,18 @@ seguem em pé. Cada item: marca ✅ se está OK, ❌ se voltou (vira bug).
 - [ ] **#11** — FAQ na `/me`: clicar pergunta seta `aria-expanded="true"` no
       button + `aria-controls="me-faq-panel-N"`. Panel tem `role="region"` +
       `aria-labelledby`
-- [ ] **#12** — `/cadastro/me` Step 1: digitar CNPJ válido matematicamente mas
-      fictício (ex: `11.222.333/0001-81`) → BrasilAPI 404 → mensagem inline
-      "CNPJ não encontrado na Receita Federal..." → botão "Continuar" bloqueia
+- [ ] **#12** — `/cadastro/me` Step 1: testar 3 cenários distintos:
+      1. CNPJ com DV inválido (`12.345.678/0001-00`) → mensagem **"CNPJ inválido
+         — verifique os dígitos."** sem chamada de rede + botão "Continuar"
+         **disabled** (validação módulo 11 client-side, Bug N+3 fix)
+      2. CNPJ matematicamente válido mas inexistente na Receita (sequência
+         que retorna 404 na BrasilAPI — verifique antes via
+         `curl brasilapi.com.br/api/cnpj/v1/<dígitos>`) → mensagem
+         **"CNPJ não encontrado na Receita Federal..."** + botão disabled
+      3. CNPJ real (ex: `34.488.964/0001-42`) → autofill OK + botão habilitado
+
+      ⚠️ **Não use** `11.222.333/0001-81` ou `11.111.111/0001-91` — ambos
+      retornam 200 na BrasilAPI (são CNPJs reais). Bug N+5 do retorno anterior.
 - [ ] **#14** — `/cadastro/me` Step 1: digitar CNPJ real (`34.488.964/0001-42`)
       → após 400ms, request pra `brasilapi.com.br/api/cnpj/v1/...` aparece em
       Network → razão social, e-mail, CNAE, CEP preenchem sozinhos (campos

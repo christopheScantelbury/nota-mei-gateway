@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
+import LogoAdaptive from '@/components/ui/LogoAdaptive'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 import { Button } from '@/components/ui/Button'
 
@@ -119,20 +119,13 @@ export default function StatusPage() {
       <header className="border-b border-navy-600 bg-navy-900/90 backdrop-blur sticky top-0 z-20">
         <div className="max-w-3xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/gateway" className="flex items-center shrink-0">
-            <Image
-              src="/brand/notafacil-logo.svg"
-              alt="Nota MEI Gateway"
+            <LogoAdaptive
+              lightSrc="/brand/notafacil-logo.svg"
+              darkSrc="/brand/notafacil-logo-dark.svg"
+              alt="NotaFácil API"
               width={160}
               height={40}
-              className="h-8 w-auto dark:block hidden"
-              priority
-            />
-            <Image
-              src="/brand/notafacil-logo.svg"
-              alt="Nota MEI Gateway"
-              width={160}
-              height={40}
-              className="h-8 w-auto dark:hidden block"
+              className="h-8 w-auto"
               priority
             />
           </Link>

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import Image from 'next/image'
+import LogoAdaptive from '@/components/ui/LogoAdaptive'
 
 export const metadata: Metadata = {
   title: 'Certificado Digital A1 para MEI — O que é e onde obter',
@@ -69,20 +69,13 @@ export default function CertificadoA1Page() {
       <header className="border-b border-navy-600 bg-navy-900/90 backdrop-blur sticky top-0 z-20">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link href="/mei" className="flex items-center shrink-0">
-            <Image
-              src="/brand/notafacil-logo.svg"
+            <LogoAdaptive
+              lightSrc="/brand/notafacil-logo.svg"
+              darkSrc="/brand/notafacil-logo-dark.svg"
               alt="Nota Fácil MEI"
               width={140}
               height={38}
-              className="h-8 w-auto dark:block hidden"
-              priority
-            />
-            <Image
-              src="/brand/notafacil-logo.svg"
-              alt="Nota Fácil MEI"
-              width={140}
-              height={38}
-              className="h-8 w-auto block dark:hidden"
+              className="h-8 w-auto"
               priority
             />
           </Link>
