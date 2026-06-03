@@ -48,7 +48,7 @@ const planosAPI = [
     description: 'Para experimentar sem compromisso.',
     context: null,
     cta: 'Começar grátis',
-    href: '/cadastro?produto=gateway',
+    href: '/cadastro/dev',
     highlight: false,
   },
   {
@@ -59,7 +59,7 @@ const planosAPI = [
     description: 'Para freelancers com baixo volume.',
     context: null,
     cta: 'Assinar Starter',
-    href: '/cadastro?produto=gateway&plano=starter',
+    href: '/cadastro/dev&plano=starter',
     highlight: false,
   },
   {
@@ -70,7 +70,7 @@ const planosAPI = [
     description: 'Para SaaS e MVPs em produção.',
     context: null,
     cta: 'Assinar Basic',
-    href: '/cadastro?produto=gateway&plano=basic',
+    href: '/cadastro/dev&plano=basic',
     highlight: true,
   },
   {
@@ -81,7 +81,7 @@ const planosAPI = [
     description: 'Para agências e plataformas em crescimento.',
     context: null,
     cta: 'Assinar Pro',
-    href: '/cadastro?produto=gateway&plano=pro',
+    href: '/cadastro/dev&plano=pro',
     highlight: false,
   },
   {
@@ -92,7 +92,7 @@ const planosAPI = [
     description: 'Para alto volume e múltiplos clientes.',
     context: null,
     cta: 'Assinar Business',
-    href: '/cadastro?produto=gateway&plano=business',
+    href: '/cadastro/dev&plano=business',
     highlight: false,
   },
 ]

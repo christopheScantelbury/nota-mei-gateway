@@ -84,7 +84,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
 
             {/* Criar conta — sm+ */}
             <Link
-              href="/cadastro?produto=gateway"
+              href="/cadastro/dev"
               className="hidden sm:inline-flex whitespace-nowrap text-sm px-3 py-1.5 rounded-lg bg-brand-cyan/10 hover:bg-brand-cyan/20 border border-brand-cyan/30 text-brand-cyan transition-colors"
             >
               Criar conta
@@ -197,7 +197,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
               Status
             </Link>
             <Link
-              href="/cadastro?produto=gateway"
+              href="/cadastro/dev"
               onClick={() => setOpen(false)}
               className="block text-center mt-2 px-3 py-2.5 rounded-lg text-sm font-semibold bg-brand-cyan/10 border border-brand-cyan/30 text-brand-cyan hover:bg-brand-cyan/20 transition-colors"
             >

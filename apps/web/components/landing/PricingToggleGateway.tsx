@@ -29,7 +29,7 @@ const PLANS: Plan[] = [
     desc: 'Desenvolvedor solo, prototipagem e MVPs.',
     extra: 'R$ 0,50 por nota acima do limite',
     cta: 'Criar conta de teste',
-    ctaHref: '/cadastro?produto=gateway&plano=dev',
+    ctaHref: '/cadastro/dev&plano=dev',
     highlight: false,
   },
   {
@@ -41,7 +41,7 @@ const PLANS: Plan[] = [
     desc: 'Agências e pequenos SaaS em produção.',
     extra: 'R$ 0,35 por nota acima do limite',
     cta: 'Assinar Pro',
-    ctaHref: '/cadastro?produto=gateway&plano=pro',
+    ctaHref: '/cadastro/dev&plano=pro',
     highlight: true,
   },
   {
@@ -53,7 +53,7 @@ const PLANS: Plan[] = [
     desc: 'Plataformas e marketplaces estabelecidos.',
     extra: 'R$ 0,20 por nota acima do limite',
     cta: 'Assinar Business',
-    ctaHref: '/cadastro?produto=gateway&plano=business',
+    ctaHref: '/cadastro/dev&plano=business',
     highlight: false,
   },
   {

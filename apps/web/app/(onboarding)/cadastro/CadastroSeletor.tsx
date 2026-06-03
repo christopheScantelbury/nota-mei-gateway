@@ -20,12 +20,12 @@ const OPCOES = [
     primary:  false,
   },
   {
-    href:     '/cadastro?produto=gateway',
-    titulo:   'Quero integrar via API',
-    subtitulo: 'Desenvolvedor / Gateway',
-    desc:     'Emita notas programaticamente para seus clientes via API REST com webhooks e SDKs.',
+    href:     '/cadastro/dev',
+    titulo:   'Sou desenvolvedor',
+    subtitulo: 'Integrador / SaaS / ERP',
+    desc:     'Cadastro rápido sem CNPJ. Receba API Key de sandbox em segundos e integre. As empresas emissoras você cadastra depois.',
     badge:    null,
-    ctaLabel: 'Criar conta Gateway',
+    ctaLabel: 'Cadastro rápido →',
     primary:  false,
   },
 ]

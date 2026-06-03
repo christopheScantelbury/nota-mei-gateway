@@ -196,7 +196,7 @@ export default function SDKsPage() {
         </div>
 
         <Link
-          href="/cadastro?produto=gateway&origem=sdk-woocommerce"
+          href="/cadastro/dev?origem=sdk-woocommerce"
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#00E8FF]/10 border border-[#00E8FF]/30 text-[#00E8FF] text-sm hover:bg-[#00E8FF]/20 transition-colors"
         >
           Criar conta e obter API Key →
@@ -231,7 +231,7 @@ export default function SDKsPage() {
         </div>
 
         <Link
-          href="/cadastro?produto=gateway&origem=sdk-zapier"
+          href="/cadastro/dev?origem=sdk-zapier"
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#00E8FF]/10 border border-[#00E8FF]/30 text-[#00E8FF] text-sm hover:bg-[#00E8FF]/20 transition-colors"
         >
           Criar conta para acessar o Zap →

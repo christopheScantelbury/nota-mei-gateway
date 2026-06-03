@@ -63,8 +63,8 @@ type Sdk = SdkPackage | SdkAccess
 const sdks: Sdk[] = [
   { type: 'package', name: 'Node.js',     subtitle: 'TypeScript · Mantido oficialmente',        install: 'npm install @notamei/gateway', docsHref: '/docs' },
   { type: 'package', name: 'Python',      subtitle: 'Python 3.10+ · Mantido oficialmente',      install: 'pip install notamei',           docsHref: '/docs' },
-  { type: 'access',  name: 'WooCommerce', subtitle: 'Plugin WordPress · Instalação em 1 clique', cadastroHref: '/cadastro?produto=gateway&origem=sdk-woocommerce' },
-  { type: 'access',  name: 'Zapier',      subtitle: 'No-code · 6.000+ integrações',               cadastroHref: '/cadastro?produto=gateway&origem=sdk-zapier' },
+  { type: 'access',  name: 'WooCommerce', subtitle: 'Plugin WordPress · Instalação em 1 clique', cadastroHref: '/cadastro/dev?origem=sdk-woocommerce' },
+  { type: 'access',  name: 'Zapier',      subtitle: 'No-code · 6.000+ integrações',               cadastroHref: '/cadastro/dev?origem=sdk-zapier' },
 ]
 
 const faqs = [
@@ -135,7 +135,7 @@ export default function GatewayLandingPage() {
                 Testar a API no sandbox
               </Link>
               <Link
-                href="/cadastro?produto=gateway"
+                href="/cadastro/dev"
                 className="border border-navy-600 text-text-1 font-semibold px-8 py-4 rounded-xl text-lg hover:border-persona-api transition text-center"
               >
                 Criar conta de desenvolvedor
@@ -373,7 +373,7 @@ export default function GatewayLandingPage() {
             <p className="text-sm text-text-2 mb-4">Precisa de uma linguagem não listada?</p>
             <div className="flex gap-3 justify-center flex-wrap">
               <Link
-                href="/cadastro?produto=gateway"
+                href="/cadastro/dev"
                 className="bg-persona-api text-white font-semibold px-6 py-2.5 rounded-lg text-sm hover:opacity-90 transition"
               >
                 Criar conta e acessar SDKs →
@@ -513,7 +513,7 @@ export default function GatewayLandingPage() {
               Ler a documentação
             </Link>
             <Link
-              href="/cadastro?produto=gateway"
+              href="/cadastro/dev"
               className="border border-navy-600 text-text-1 font-semibold px-10 py-4 rounded-xl text-lg hover:border-persona-api transition"
             >
               Testar no sandbox

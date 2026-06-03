@@ -319,7 +319,7 @@ export default function LoginClient() {
               <p className="text-xs text-text-2">
                 Não tem conta?{' '}
                 <Link
-                  href={isMei ? '/cadastro?produto=mei' : isMe ? '/cadastro/me' : '/cadastro?produto=gateway'}
+                  href={isMei ? '/cadastro?produto=mei' : isMe ? '/cadastro/me' : '/cadastro/dev'}
                   className="text-brand-cyan hover:underline"
                 >
                   Criar conta

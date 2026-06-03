@@ -229,7 +229,7 @@ export default function SandboxPage() {
             <ThemeToggle />
             <Link href="/docs" className="hidden sm:inline text-sm text-text-2 hover:text-text-1 transition">Docs</Link>
             <Link
-              href="/cadastro?produto=gateway"
+              href="/cadastro/dev"
               className="text-xs sm:text-sm font-semibold bg-brand-cyan text-navy-900 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:opacity-90 transition whitespace-nowrap"
             >
               Criar conta <span className="hidden sm:inline">→</span>
@@ -433,7 +433,7 @@ export default function SandboxPage() {
         <div className="text-center py-4 sm:py-6">
           <p className="text-text-2 mb-4 text-sm sm:text-base">Pronto para emitir notas reais?</p>
           <Link
-            href="/cadastro?produto=gateway"
+            href="/cadastro/dev"
             className="inline-block px-6 sm:px-8 py-3 bg-brand-cyan hover:opacity-90 text-navy-900 font-bold rounded-xl transition text-sm sm:text-base"
           >
             Criar conta grátis →

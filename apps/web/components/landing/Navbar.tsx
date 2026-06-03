@@ -62,7 +62,7 @@ function getPersonaForPath(pathname: string): Persona {
 function getHrefsForPath(pathname: string) {
   if (pathname.startsWith('/mei'))     return { loginHref: '/login?produto=mei',     cadastroHref: '/cadastro?produto=mei' }
   if (pathname.startsWith('/me'))      return { loginHref: '/login?produto=me',      cadastroHref: '/cadastro/me' }
-  if (pathname.startsWith('/gateway')) return { loginHref: '/login?produto=gateway', cadastroHref: '/cadastro?produto=gateway' }
+  if (pathname.startsWith('/gateway')) return { loginHref: '/login?produto=gateway', cadastroHref: '/cadastro/dev' }
   return { loginHref: '/login', cadastroHref: '/cadastro' }
 }
 
