@@ -1,19 +1,21 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname } from 'next/navigation'
+import LogoAdaptive from '@/components/ui/LogoAdaptive'
 
 // ── Persona-aware logo (igual ao Navbar) ────────────────────────────────────
-// Footer fica em superfície dark (landing dark-forçada) — usa versão dark do
-// logo principal. Pra MEI/ME/Gateway, ainda não há versão dark; TODO criar.
-type LogoConfig = { src: string; alt: string; width: number }
+// A landing é theme-aware (CSS variables): light → fundo claro com logo light
+// (texto preto); dark → fundo escuro com logo-dark (texto branco).
+type LogoConfig = { src: string; darkSrc: string; alt: string; width: number }
 
 function getLogoForPath(pathname: string): LogoConfig {
-  if (pathname.startsWith('/mei'))     return { src: '/brand/notafacil-mei.svg',     alt: 'NotaFácil MEI',     width: 200 }
-  if (pathname.startsWith('/me'))      return { src: '/brand/notafacil-empresa.svg', alt: 'NotaFácil Empresa', width: 240 }
-  if (pathname.startsWith('/gateway')) return { src: '/brand/notafacil-api.svg',     alt: 'NotaFácil API',     width: 195 }
-  return { src: '/brand/notafacil-logo-dark.svg', alt: 'NotaFácil', width: 170 }
+  // TODO: criar versões dark dos 3 logos persona (MEI/Empresa/API).
+  // Por enquanto darkSrc = src nas personas que não têm versão.
+  if (pathname.startsWith('/mei'))     return { src: '/brand/notafacil-mei.svg',     darkSrc: '/brand/notafacil-mei.svg',     alt: 'NotaFácil MEI',     width: 200 }
+  if (pathname.startsWith('/me'))      return { src: '/brand/notafacil-empresa.svg', darkSrc: '/brand/notafacil-empresa.svg', alt: 'NotaFácil Empresa', width: 240 }
+  if (pathname.startsWith('/gateway')) return { src: '/brand/notafacil-api.svg',     darkSrc: '/brand/notafacil-api.svg',     alt: 'NotaFácil API',     width: 195 }
+  return { src: '/brand/notafacil-logo.svg', darkSrc: '/brand/notafacil-logo-dark.svg', alt: 'NotaFácil', width: 170 }
 }
 
 // ── Footer único para todas as landings ──────────────────────────────────────
@@ -35,8 +37,9 @@ export default function LandingFooter() {
           {/* Marca */}
           <div className="sm:col-span-1 flex flex-col gap-3">
             <Link href={homeHref} className="inline-flex items-center" aria-label={logo.alt}>
-              <Image
-                src={logo.src}
+              <LogoAdaptive
+                lightSrc={logo.src}
+                darkSrc={logo.darkSrc}
                 alt={logo.alt}
                 width={logo.width}
                 height={36}

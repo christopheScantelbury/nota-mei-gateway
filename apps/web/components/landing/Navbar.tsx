@@ -101,15 +101,15 @@ function GatewayMenu() {
       {open && (
         <div
           role="menu"
-          className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-56 rounded-xl border border-navy-600 bg-navy-800 shadow-xl py-2 z-30"
+          className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-56 rounded-xl border border-slate-200 dark:border-navy-600 bg-white dark:bg-[#1e2a47] shadow-xl py-2 z-30"
         >
-          <Link role="menuitem" href="/gateway"  className="block px-4 py-2 text-sm text-text-1 hover:bg-navy-700 transition-colors">Visão geral</Link>
-          <Link role="menuitem" href="/sandbox"  className="block px-4 py-2 text-sm text-text-1 hover:bg-navy-700 transition-colors">
+          <Link role="menuitem" href="/gateway"  className="block px-4 py-2 text-sm text-text-1 hover:bg-slate-50 dark:hover:bg-navy-700 transition-colors">Visão geral</Link>
+          <Link role="menuitem" href="/sandbox"  className="block px-4 py-2 text-sm text-text-1 hover:bg-slate-50 dark:hover:bg-navy-700 transition-colors">
             ⚡ Sandbox <span className="text-[10px] text-brand-cyan ml-1">sem cadastro</span>
           </Link>
-          <Link role="menuitem" href="/docs"     className="block px-4 py-2 text-sm text-text-1 hover:bg-navy-700 transition-colors">Documentação</Link>
-          <Link role="menuitem" href="/docs/sdks" className="block px-4 py-2 text-sm text-text-1 hover:bg-navy-700 transition-colors">SDKs</Link>
-          <Link role="menuitem" href="/status"   className="block px-4 py-2 text-sm text-text-1 hover:bg-navy-700 transition-colors">Status</Link>
+          <Link role="menuitem" href="/docs"     className="block px-4 py-2 text-sm text-text-1 hover:bg-slate-50 dark:hover:bg-navy-700 transition-colors">Documentação</Link>
+          <Link role="menuitem" href="/docs/sdks" className="block px-4 py-2 text-sm text-text-1 hover:bg-slate-50 dark:hover:bg-navy-700 transition-colors">SDKs</Link>
+          <Link role="menuitem" href="/status"   className="block px-4 py-2 text-sm text-text-1 hover:bg-slate-50 dark:hover:bg-navy-700 transition-colors">Status</Link>
         </div>
       )}
     </div>
@@ -144,7 +144,7 @@ export default function Navbar() {
         style={{ top: 'var(--topbar-height, 0px)' }}
         className={`fixed inset-x-0 z-50 transition-all duration-300 ${
           scrolled || menuOpen
-            ? 'border-b border-navy-600 bg-navy-900/95 backdrop-blur-md shadow-sm'
+            ? 'border-b border-navy-600/30 dark:border-navy-600 bg-white/95 dark:bg-navy-900/95 backdrop-blur-md shadow-sm'
             : 'border-b border-transparent bg-transparent'
         }`}
       >
@@ -156,7 +156,6 @@ export default function Navbar() {
             <LogoAdaptive
               lightSrc={persona.logoSrc}
               darkSrc={persona.logoDarkSrc}
-              forceTheme="dark"
               iconLightSrc="/brand/notafacil-icon.svg"
               iconDarkSrc="/brand/notafacil-icon.svg"
               alt={persona.alt}
@@ -202,7 +201,7 @@ export default function Navbar() {
               onClick={() => setMenuOpen(v => !v)}
               aria-label={menuOpen ? 'Fechar menu' : 'Abrir menu'}
               aria-expanded={menuOpen}
-              className="hover:bg-navy-700"
+              className="hover:bg-slate-100 dark:hover:bg-navy-700"
             >
               <Menu className="w-5 h-5" />
             </Button>
