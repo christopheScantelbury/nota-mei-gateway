@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import Navbar from '@/components/landing/Navbar'
 import LandingFooter from '@/components/landing/LandingFooter'
-import EcossistemaScantelbury from '@/components/landing/EcossistemaScantelbury'
 import { BreadcrumbStructuredData } from '@/components/seo/StructuredData'
 import { getPost, getRelatedPosts, type BlogPost } from '@/lib/blog/manifest'
 
@@ -123,7 +122,6 @@ export default function PostLayout({
         </section>
       )}
 
-      <EcossistemaScantelbury />
       <LandingFooter />
     </main>
   )

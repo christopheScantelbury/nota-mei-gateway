@@ -4,7 +4,6 @@ import Image from 'next/image'
 import AnimatedSection from '@/components/landing/AnimatedSection'
 import Navbar from '@/components/landing/Navbar'
 import LandingFooter from '@/components/landing/LandingFooter'
-import EcossistemaScantelbury from '@/components/landing/EcossistemaScantelbury'
 import { SoftwareAppStructuredData, FAQStructuredData } from '@/components/seo/StructuredData'
 import PricingToggleGateway from '@/components/landing/PricingToggleGateway'
 import GatewayCurlSnippet from '@/components/landing/GatewayCurlSnippet'
@@ -528,8 +527,6 @@ export default function GatewayLandingPage() {
           </p>
         </div>
       </AnimatedSection>
-
-      <EcossistemaScantelbury />
 
       <LandingFooter />
     </main>

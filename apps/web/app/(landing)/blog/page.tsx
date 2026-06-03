@@ -2,7 +2,6 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import Navbar from '@/components/landing/Navbar'
 import LandingFooter from '@/components/landing/LandingFooter'
-import EcossistemaScantelbury from '@/components/landing/EcossistemaScantelbury'
 import { BLOG_POSTS } from '@/lib/blog/manifest'
 
 export const metadata: Metadata = {
@@ -77,7 +76,6 @@ export default function BlogIndex() {
         </div>
       </section>
 
-      <EcossistemaScantelbury />
       <LandingFooter />
     </main>
   )

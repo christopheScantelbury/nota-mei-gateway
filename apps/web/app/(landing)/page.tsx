@@ -2,7 +2,6 @@
 import Link from 'next/link'
 import Navbar from '@/components/landing/Navbar'
 import LandingFooter from '@/components/landing/LandingFooter'
-import EcossistemaScantelbury from '@/components/landing/EcossistemaScantelbury'
 import HeroSection from '@/components/landing/HeroSection'
 import SocialProof from '@/components/landing/SocialProof'
 import AnimatedSection from '@/components/landing/AnimatedSection'
@@ -168,8 +167,6 @@ export default function LandingPage() {
           </Link>
         </div>
       </AnimatedSection>
-
-      <EcossistemaScantelbury />
 
       <LandingFooter />
 
