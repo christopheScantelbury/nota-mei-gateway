@@ -9,23 +9,47 @@
 
 ## 🔁 ESTADO ATUAL DA QA — leia antes de começar
 
-**Rodada 1** rodou em **2026-06-03** pelo Claude Sonnet 4.6. Resultado:
-- 14 bugs reportados, **10 fixados**, 1 pendente (#6 SVG dark contexto externo),
-  3 falsos-positivos (#5, #10, #13)
-- Detalhe bug-por-bug em `docs/qa-empresa-status-rodada-1.md`
-- Cobertura limitada aos **Blocos 1-3** (landing /me, cadastro, login até OTP).
-  Blocos **4-14 NÃO foram testados** por falta de pré-requisitos (OTP em runtime,
-  cert hom, webhook público, Stripe ativo, multi-empresa)
+**3 rodadas executadas até agora**:
+- **R1** (Sonnet 4.6, 2026-06-03): 14 bugs reportados → 10 fixados +
+  3 falsos-positivos + 1 pendente design (#6)
+- **R2** (Sonnet 4.6, 2026-06-03): 5 novos + 2 ressalvas → 1 confirmado
+  (N+1 logo) + 3 falsos-positivos + 1 spec
+- **R2-Verify** (Sonnet 4.6, 2026-06-03): 4 falsos-positivos confirmados
+  + 1 novo P2 (notafacil-gateway.svg 404, fixado com alias)
+
+Status consolidado em `docs/qa-empresa-status-rodadas.md`.
+
+**Total**: 20 bugs únicos → 13 fixados, 6 falsos-positivos, 1 pendente.
+**Avaliação atual**: 🟡 release candidate.
+
+### 🆕 Novidade desde a última rodada
+
+**Cadastro Dev simplificado** (commit `26e0ce1`, 2026-06-03):
+Adicionado fluxo `/cadastro/dev` separado pro dev integrador. NÃO exige
+CNPJ próprio porque dev pode ser de uma empresa (não dono dela).
+
+- Migration `20260603000001_api_keys_dev_accounts.sql` aplicada em prod:
+  `api_keys.empresa_id` virou NULLABLE + `user_id` adicionado (FK auth.users) +
+  CHECK constraint (pelo menos um setado) + RLS policies pra dev ver suas keys.
+- API route `POST /api/auth/register-dev` cria auth.user com
+  `user_metadata.is_dev_account=true` + api_key `sk_test_` vinculada user_id.
+- Antiga rota `/cadastro?produto=gateway` foi REDIRECIONADA pra `/cadastro/dev`
+  em 7 lugares (CadastroSeletor, Navbar, docs, sandbox, login, SDKs, etc).
+
+**Novo bloco de teste**: Bloco 2-Dev (depois do Bloco 2 normal) — cobre
+o fluxo simplificado.
 
 ### 🎯 Foco da rodada atual (Rodada N+1)
 
-1. **REGRESSÃO** — confirmar que os 10 bugs marcados como fixados não voltaram.
-   Lista no fim deste prompt (seção "Regressão da rodada 1").
+1. **REGRESSÃO** — confirmar que os 13 fixes acumulados não voltaram.
+   Lista no fim deste prompt (seção "Regressão acumulada").
 
-2. **COBERTURA NOVA** — atacar **Blocos 4-14** que ficaram fora. Foque aqui o
-   tempo, esses blocos são o coração funcional do produto.
+2. **NOVO FLUXO DEV** — testar `/cadastro/dev` (Bloco 2-Dev abaixo).
+   Esse é P0 da rodada porque é fluxo crítico recém-criado.
 
-3. **EXPLORAR NOVOS BUGS** em qualquer área que rodar.
+3. **COBERTURA NOVA** — atacar **Blocos 4-14** que ficaram fora.
+
+4. **EXPLORAR NOVOS BUGS** em qualquer área que rodar.
 
 ### 🛠️ Pré-requisitos pra cobrir Blocos 4-14
 
@@ -41,6 +65,11 @@ Antes de começar, **confirme com o dev** se você tem acesso a:
 - [ ] **Cartão Stripe teste** (`4242 4242 4242 4242`) pra Bloco 12 (Billing)
 - [ ] **2ª empresa vinculada** ao `user_id` da conta teste pra Bloco 13
       (Multi-empresa). Pode pedir pro dev inserir via Supabase SQL
+- [ ] **E-mail descartável** (ex: mailinator, tempmail.io) pra testar
+      cadastro Dev (Bloco 2-Dev) sem poluir caixa de entrada real
+- [ ] **Acesso ao Supabase Dashboard** (somente leitura) pra validar Bloco
+      2-Dev.6 (verificar que `auth.users.user_metadata.is_dev_account=true`
+      foi setado + `api_keys` linha com `user_id` e `empresa_id=NULL`)
 
 Se algum item faltar, **marque os blocos correspondentes como "PULEI por falta
 de pré-requisito"** no relatório de cobertura — não invente fluxos.
@@ -64,7 +93,17 @@ Você é um QA Engineer sênior testando o **NotaFácil Empresa** — o produto 
 
 **Contas de teste** (em `ACESSOS.local.md` ou perguntar ao dev):
 - `teste-empresa@notafacil.com` (senha `TesteEmp2026!`) — ME Simples Nacional, CNPJ teste
-- Pra cadastro novo: usar email pessoal + CNPJ válido seu
+- `teste-api@notafacil.com` (senha `TesteApi2026!`) — Dev integrador (Bloco 2-Dev),
+  já cadastrado via fluxo novo. Pra testar cadastro novo, use e-mail descartável
+  (ex: `qa-dev-{timestamp}@scantelburydevs.com`)
+- Pra cadastro ME novo: usar email pessoal + CNPJ válido seu
+
+**CNPJs úteis pra testes** (validados 2026-06-03 via BrasilAPI):
+| Cenário | CNPJ | Comportamento esperado |
+|---|---|---|
+| DV inválido | `12.345.678/0001-00` | Erro "CNPJ inválido" sem chamar rede |
+| Válido + 404 Receita | `99.999.999/0001-91` | "CNPJ não encontrado…" |
+| Real (autofill) | `34.488.964/0001-42` | BrasilAPI 200 + preenche razão social |
 
 ---
 
@@ -144,6 +183,73 @@ Você é um QA Engineer sênior testando o **NotaFácil Empresa** — o produto 
 - [ ] Tela final mostra "Verifique seu e-mail"
 - [ ] Não exibe API key (Empresa usa OTP, não API key como Gateway)
 - [ ] CTA pra `/login?produto=me`
+
+---
+
+### 🔹 BLOCO 2-DEV — Cadastro Dev `/cadastro/dev`
+
+> **Novo fluxo de 2026-06-03**. Diferente do Bloco 2 (ME): dev NÃO precisa
+> de CNPJ próprio. Sai com `sk_test_` + sandbox liberado. Cadastro de
+> empresa emissora fica pra depois (no painel).
+
+#### 2-Dev.1 Acesso ao fluxo
+- [ ] `/cadastro/dev` carrega direto (rota dedicada, não query string)
+- [ ] Link da Navbar em `/gateway` (botão "Cadastrar grátis") leva PRA
+      `/cadastro/dev` (NÃO mais pra `/cadastro?produto=gateway`)
+- [ ] Link da `/sandbox`, `/docs`, `/docs/sdks` (CTA "Criar conta") leva PRA
+      `/cadastro/dev`
+- [ ] CadastroSeletor opção 3 ("Sou desenvolvedor") leva PRA `/cadastro/dev`
+- [ ] Tentar acessar URL antiga `/cadastro?produto=gateway` — pode renderizar
+      seletor genérico (não-crítico, mas vale anotar como UX)
+
+#### 2-Dev.2 Form
+- [ ] Header: "👨‍💻 Cadastro de Desenvolvedor" + título "Cadastro rápido — sem CNPJ"
+- [ ] **3 campos visíveis** (NÃO 5+):
+  1. Seu nome (required)
+  2. E-mail (required)
+  3. Empresa onde você trabalha (**opcional**)
+- [ ] Mensagem azul "📧 Vamos enviar um link mágico…" presente
+- [ ] Checkbox "Concordo com Termos + Política de Privacidade" obrigatório
+- [ ] Botão CTA "Criar conta e gerar API Key" (NÃO "Continuar →")
+
+#### 2-Dev.3 Validações client-side
+- [ ] Nome < 2 chars → erro inline "Informe seu nome"
+- [ ] E-mail sem @ → erro inline "E-mail inválido"
+- [ ] Sem aceitar termos → error banner vermelho "Você precisa aceitar os termos"
+- [ ] Envio bem-sucedido com mínimo (nome + e-mail) sem preencher "Empresa"
+
+#### 2-Dev.4 API + sucesso
+- [ ] POST `/api/auth/register-dev` com body `{nome, email, empresa_trabalha?}`
+- [ ] Resposta 201 com `{user_id, api_key (sk_test_), email_otp_pending: true}`
+- [ ] Tela de sucesso mostra:
+  - "🎉 Conta criada! Você está em modo sandbox."
+  - Bloco com **API key sk_test_** completa (cor cyan, monospace, select-all)
+  - Botão "📋 Copiar API Key" funciona (clipboard)
+  - Aviso amber "⚠️ Guarde com segurança... só sandbox"
+  - CTA "Ver Quickstart →" (link pra `/docs/quickstart`)
+  - CTA "Testar no Sandbox" (link pra `/sandbox`)
+  - Texto "Já enviamos um link de acesso pro seu e-mail X@Y.com"
+
+#### 2-Dev.5 Edge cases
+- [ ] E-mail já cadastrado → erro 409 "E-mail já cadastrado. Vá para Entrar."
+- [ ] Sem `NEXT_PUBLIC_API_URL`/Supabase configurado → erro 500 "CREATE_USER_FAILED" (não 200 silencioso)
+- [ ] Rede offline → mensagem "Falha de conexão. Tente novamente."
+- [ ] Submit duplicado (botão clicado 2× rápido) — botão fica `disabled`+`loading`,
+      não faz 2 requests
+- [ ] Pular e voltar pra mesma página com browser back → form mantém estado ou
+      limpa? (qualquer comportamento OK; só não pode crashar)
+
+#### 2-Dev.6 Migration & schema
+> Não dá pra testar via UI. Só via SQL/Supabase Dashboard:
+- [ ] `api_keys.empresa_id` é nullable (não causa erro `null violates not-null`)
+- [ ] `api_keys.user_id` existe e é FK pra `auth.users(id)`
+- [ ] Constraint `api_keys_owner_required` rejeita INSERT com ambos NULL
+- [ ] Index `idx_api_keys_user_id` aparece em `\d api_keys`
+
+#### 2-Dev.7 Próximos passos (NÃO testar agora — anote como pendência da UX)
+- Após login do dev, o `/home` deveria mostrar "modo sandbox" + CTA "Adicionar
+  empresa emissora" → `/cadastro/me`. Esse fluxo ainda NÃO foi implementado
+  no painel. Reporte como "gap conhecido" se for cobrir Blocos 4-14.
 
 ---
 
@@ -530,10 +636,26 @@ Sugira **novos casos de teste** que não estão no checklist mas você acha que 
 
 ---
 
-## REGRESSÃO DA RODADA 1 — checagem rápida obrigatória
+## REGRESSÃO ACUMULADA (R1 + R2 + R2-Verify) — checagem rápida obrigatória
 
-Antes de explorar áreas novas, validar que as **10 correções da rodada 1**
-seguem em pé. Cada item: marca ✅ se está OK, ❌ se voltou (vira bug).
+Antes de explorar áreas novas, validar que os **13 fixes acumulados** seguem
+em pé. Cada item: marca ✅ se está OK, ❌ se voltou (vira bug).
+
+### Da Rodada 2 (logo + cadastro dev + gateway alias)
+
+- [ ] **N+1** — logo "Nota" visível em DARK MODE. Testar nas 4 personas
+      (`/`, `/mei`, `/me`, `/gateway`) trocando o toggle de tema. O texto
+      "Nota" deve aparecer claro sobre fundo escuro. LogoAdaptive agora
+      renderiza **2 `<Image>` tags** com classes `dark:hidden` e `hidden
+      dark:block` — confirme no DOM.
+- [ ] **N+5** — CNPJ exemplo do prompt `99.999.999/0001-91` retorna 404
+      na BrasilAPI (testado 2026-06-03). Se algum dia retornar 200, atualizar
+      esse prompt.
+- [ ] **Novo R2-Verify** — `GET /brand/notafacil-gateway.svg` retorna **200**
+      (era 404). Mesmo SVG do `notafacil-api.svg`. `-dark.svg` idem.
+- [ ] **Cadastro Dev novo** — Bloco 2-Dev acima.
+
+### Da Rodada 1
 
 ### P0 fixados
 
