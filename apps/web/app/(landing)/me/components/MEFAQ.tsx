@@ -54,30 +54,44 @@ export function MEFAQ() {
         Perguntas frequentes
       </h2>
       <div className="space-y-3">
-        {FAQS.map((faq, i) => (
-          <div
-            key={i}
-            className="rounded-xl border border-navy-600 bg-navy-700 overflow-hidden"
-          >
-            <button
-              onClick={() => setAberto(aberto === i ? null : i)}
-              className="w-full flex items-center justify-between px-6 py-4
-                         text-left text-text-1 font-medium hover:text-brand-cyan
-                         transition-colors"
+        {FAQS.map((faq, i) => {
+          const isOpen = aberto === i
+          const panelId = `me-faq-panel-${i}`
+          const buttonId = `me-faq-button-${i}`
+          return (
+            <div
+              key={i}
+              className="rounded-xl border border-navy-600 bg-navy-700 overflow-hidden"
             >
-              {faq.pergunta}
-              <span className={`text-brand-cyan transition-transform duration-200
-                               ${aberto === i ? 'rotate-45' : ''}`}>
-                +
-              </span>
-            </button>
-            {aberto === i && (
-              <div className="px-6 pb-5 text-text-2 text-sm leading-relaxed">
+              <button
+                id={buttonId}
+                aria-expanded={isOpen}
+                aria-controls={panelId}
+                onClick={() => setAberto(isOpen ? null : i)}
+                className="w-full flex items-center justify-between px-6 py-4
+                           text-left text-text-1 font-medium hover:text-brand-cyan
+                           transition-colors"
+              >
+                {faq.pergunta}
+                <span
+                  aria-hidden="true"
+                  className={`text-brand-cyan transition-transform duration-200 ${isOpen ? 'rotate-45' : ''}`}
+                >
+                  +
+                </span>
+              </button>
+              <div
+                id={panelId}
+                role="region"
+                aria-labelledby={buttonId}
+                hidden={!isOpen}
+                className="px-6 pb-5 text-text-2 text-sm leading-relaxed"
+              >
                 {faq.resposta}
               </div>
-            )}
-          </div>
-        ))}
+            </div>
+          )
+        })}
       </div>
     </section>
   )

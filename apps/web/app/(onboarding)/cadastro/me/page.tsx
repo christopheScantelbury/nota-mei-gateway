@@ -5,12 +5,13 @@ import Link from 'next/link'
 import { CepMunicipioInput } from '@/components/ui/CepMunicipioInput'
 import { maskCNPJ as formatCNPJ } from '@/lib/format'
 import { Button } from '@/components/ui/Button'
+import { fetchCNPJ, extractCNAEs } from '@/lib/brasilapi'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type WizardStep = 1 | 2 | 3 | 4
+type WizardStep = 1 | 2 | 3
 type AppStep = 'wizard' | 'success'
 
 interface FormState {
@@ -34,6 +35,7 @@ interface FormState {
 
 interface SuccessState {
   empresaId: string
+  /** API key NÃO é exibida ao usuário — só usada pra upload de cert na step 3 */
   apiKey: string
   tipo: string
   regime: string
@@ -56,7 +58,7 @@ function Spinner() {
 
 // ── Stepper UI ────────────────────────────────────────────────────────────────
 
-const STEP_LABELS = ['Dados', 'Regime', 'Certificado', 'API Key']
+const STEP_LABELS = ['Dados', 'Regime', 'Certificado']
 
 function StepIndicator({ current }: { current: WizardStep }) {
   return (
@@ -142,12 +144,66 @@ export default function CadastroMEPage() {
   })
 
   const [errors, setErrors] = useState<Partial<Record<keyof FormState | 'form', string>>>({})
+  const [cnpjLookupLoading, setCnpjLookupLoading] = useState(false)
+  const [cnpjLookupError, setCnpjLookupError]     = useState<string | null>(null)
   const certFileRef = useRef<HTMLInputElement>(null)
+  const lastFetchedCnpjRef = useRef<string>('')
 
   function setField<K extends keyof FormState>(k: K, v: FormState[K]) {
     setForm(f => ({ ...f, [k]: v }))
     setErrors(e => ({ ...e, [k]: undefined }))
   }
+
+  // ── Bug #14 fix: auto-busca BrasilAPI quando CNPJ atinge 14 dígitos ───────
+  // Preenche razao_social, CNAE, CEP, município (somente se ainda vazios — não
+  // sobrescreve edição manual). Debounce 400ms + cache do último CNPJ buscado.
+  useEffect(() => {
+    const digits = form.cnpj.replace(/\D/g, '')
+    if (digits.length !== 14) return
+    if (digits === lastFetchedCnpjRef.current) return
+
+    const tid = setTimeout(async () => {
+      lastFetchedCnpjRef.current = digits
+      setCnpjLookupLoading(true)
+      setCnpjLookupError(null)
+      try {
+        const data = await fetchCNPJ(digits)
+        if (!data) {
+          setCnpjLookupError('CNPJ não encontrado na Receita Federal. Verifique e preencha manualmente.')
+          return
+        }
+        // Preenche somente campos vazios
+        setForm(prev => ({
+          ...prev,
+          razaoSocial: prev.razaoSocial || (data.razao_social ?? ''),
+          email:       prev.email       || (data.email ?? ''),
+          cnae:        prev.cnae        || (data.cnae_fiscal
+                                              ? formatCNAE(String(data.cnae_fiscal).padStart(7, '0'))
+                                              : ''),
+          cep:         prev.cep         || (data.cep?.replace(/\D/g, '') ?? ''),
+          municipioIBGE: prev.municipioIBGE || (data.codigo_municipio_ibge
+                                                  ? String(data.codigo_municipio_ibge).padStart(7, '0')
+                                                  : ''),
+          municipioNome: prev.municipioNome || (data.municipio ?? ''),
+          municipioUF:   prev.municipioUF   || (data.uf ?? ''),
+        }))
+        // Limpa erros dos campos que acabaram de ser preenchidos
+        setErrors(prev => ({ ...prev, razaoSocial: undefined, cnae: undefined, cep: undefined, email: undefined }))
+        // Indica visualmente que veio do CNPJ pelos CNAEs (info pro UX)
+        const cnaes = extractCNAEs(data)
+        if (cnaes.length > 0) {
+          // (uso futuro: persistir cnaes pra filtrar NBS)
+        }
+      } catch {
+        setCnpjLookupError('Falha ao consultar Receita. Preencha manualmente.')
+      } finally {
+        setCnpjLookupLoading(false)
+      }
+    }, 400)
+
+    return () => clearTimeout(tid)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.cnpj])
 
   // ── Validation per step ───────────────────────────────────────────────────
 
@@ -276,6 +332,49 @@ export default function CadastroMEPage() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
+  // ── Tela final de sucesso (sem API key — ME usa OTP por e-mail) ──────────
+  if (appStep === 'success') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 w-full max-w-lg space-y-6 text-center">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <span className="text-xl font-bold text-brand-cyan">NotaFácil Empresa</span>
+          </div>
+
+          <div className="w-14 h-14 bg-nota-autorizada/10 rounded-full flex items-center justify-center mx-auto">
+            <svg className="w-7 h-7 text-nota-autorizada" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+
+          <div>
+            <h2 className="font-display text-2xl font-extrabold text-text-1">Empresa cadastrada!</h2>
+            {success && (
+              <p className="text-text-2 text-sm mt-1">
+                {success.tipo} · {REGIME_LABELS[success.regime] ?? success.regime}
+              </p>
+            )}
+          </div>
+
+          <div className="bg-brand-cyan/5 border border-brand-cyan/20 rounded-xl p-4 text-left">
+            <p className="text-sm font-semibold text-brand-cyan mb-1">📬 Verifique seu e-mail</p>
+            <p className="text-xs text-text-2">
+              Enviamos um código de 6 dígitos para <strong className="text-text-1">{form.email}</strong>.
+              Use-o pra entrar — não precisa criar senha, e a sessão é renovada automaticamente.
+            </p>
+          </div>
+
+          <Link
+            href="/login?produto=me"
+            className="block w-full text-center bg-brand-cyan text-navy-900 font-bold py-3 rounded-xl text-sm hover:opacity-90 transition"
+          >
+            Fazer login →
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 w-full max-w-lg">
@@ -296,7 +395,11 @@ export default function CadastroMEPage() {
               <p className="text-text-2 text-sm mt-1">Informações básicas do CNPJ registrado na Receita Federal.</p>
             </div>
 
-            <Field label="CNPJ" error={errors.cnpj}>
+            <Field
+              label="CNPJ"
+              error={errors.cnpj ?? cnpjLookupError ?? undefined}
+              hint={cnpjLookupLoading ? 'Buscando dados na Receita…' : 'Digite o CNPJ — preenchemos razão social, CNAE e endereço automaticamente'}
+            >
               <input
                 className={inputCls}
                 placeholder="00.000.000/0001-00"
@@ -529,65 +632,9 @@ export default function CadastroMEPage() {
               </>
             )}
 
-            <Button variant="secondary" className="w-full" onClick={() => setStep(4)}>
-              {certUploaded ? 'Continuar →' : 'Pular por agora →'}
+            <Button variant="secondary" className="w-full" onClick={() => setAppStep('success')}>
+              {certUploaded ? 'Concluir cadastro →' : 'Pular por agora →'}
             </Button>
-          </div>
-        )}
-
-        {/* ── Step 4: API Key ── */}
-        {step === 4 && success && (
-          <div className="space-y-6">
-            <div className="text-center">
-              <div className="w-14 h-14 bg-nota-autorizada/10 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-7 h-7 text-nota-autorizada" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h2 className="font-display text-2xl font-extrabold text-text-1">Empresa cadastrada!</h2>
-              <p className="text-text-2 text-sm mt-1">
-                {success.tipo} · {REGIME_LABELS[success.regime] ?? success.regime}
-              </p>
-            </div>
-
-            {/* Trial notice */}
-            <div className="bg-brand-cyan/5 border border-brand-cyan/20 rounded-xl p-4">
-              <p className="text-sm font-semibold text-brand-cyan mb-1">✦ Período trial ativo</p>
-              <p className="text-xs text-text-2">
-                Você tem acesso completo durante o período de avaliação. O plano comercial estará disponível em breve.
-              </p>
-            </div>
-
-            {/* API Key */}
-            <div>
-              <p className="text-sm font-semibold text-text-1 mb-2">Sua API Key</p>
-              <div className="bg-navy-900 rounded-xl p-4 flex items-center gap-3 border border-navy-600">
-                <code className="flex-1 text-xs text-brand-cyan font-mono break-all select-all">
-                  {success.apiKey}
-                </code>
-                <Button variant="secondary" size="sm" className="shrink-0" onClick={copyKey}>
-                  {copied ? '✓ Copiado' : 'Copiar'}
-                </Button>
-              </div>
-              <p className="text-xs text-nota-rejeitada mt-2 font-medium">
-                ⚠ Guarde esta chave agora — ela não será exibida novamente.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <a
-                href={`${process.env.NEXT_PUBLIC_API_URL?.replace('api.', '')}/docs`}
-                className="block w-full text-center border border-gray-200 text-text-2 font-semibold py-3 rounded-xl text-sm hover:border-brand-cyan/50 transition"
-              >
-                Ver documentação →
-              </a>
-              <Link
-                href="/login?produto=me"
-                className="block w-full text-center bg-brand-cyan text-navy-900 font-bold py-3 rounded-xl text-sm hover:opacity-90 transition"
-              >
-                Ir para o dashboard
-              </Link>
-            </div>
           </div>
         )}
 
