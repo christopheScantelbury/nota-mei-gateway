@@ -5,13 +5,15 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 
 // ── Persona-aware logo (igual ao Navbar) ────────────────────────────────────
+// Footer fica em superfície dark (landing dark-forçada) — usa versão dark do
+// logo principal. Pra MEI/ME/Gateway, ainda não há versão dark; TODO criar.
 type LogoConfig = { src: string; alt: string; width: number }
 
 function getLogoForPath(pathname: string): LogoConfig {
   if (pathname.startsWith('/mei'))     return { src: '/brand/notafacil-mei.svg',     alt: 'NotaFácil MEI',     width: 200 }
   if (pathname.startsWith('/me'))      return { src: '/brand/notafacil-empresa.svg', alt: 'NotaFácil Empresa', width: 240 }
   if (pathname.startsWith('/gateway')) return { src: '/brand/notafacil-api.svg',     alt: 'NotaFácil API',     width: 195 }
-  return { src: '/brand/notafacil-logo.svg', alt: 'NotaFácil', width: 170 }
+  return { src: '/brand/notafacil-logo-dark.svg', alt: 'NotaFácil', width: 170 }
 }
 
 // ── Footer único para todas as landings ──────────────────────────────────────
