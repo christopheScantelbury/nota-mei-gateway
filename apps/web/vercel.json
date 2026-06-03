@@ -3,6 +3,6 @@
   "buildCommand": "node -e \"require('fs').copyFileSync('../../docs/openapi.yaml','public/openapi.yaml')\" && NEXT_IGNORE_INCORRECT_LOCKFILE=1 npx next build",
   "framework": "nextjs",
   "crons": [
-    { "path": "/api/cron/brevo-queue", "schedule": "* * * * *" }
+    { "path": "/api/cron/brevo-queue", "schedule": "0 9 * * *" }
   ]
 }
