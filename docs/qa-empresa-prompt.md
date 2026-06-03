@@ -418,11 +418,88 @@ Lista de "armadilhas conhecidas" — verificar essas explicitamente:
 
 ---
 
+## MAPA DE COBERTURA — O QUE NÃO TESTOU
+
+Tão importante quanto reportar bugs: **mapear honestamente o que NÃO conseguiu cobrir**. A gente usa isso pra expandir o checklist na próxima rodada e construir suíte automatizada (Playwright) depois.
+
+Pra cada um dos 14 blocos do checklist, classifique seu nível de cobertura:
+
+```
+## Bloco X.Y — [nome do bloco]
+- **Cobertura**: Completa | Parcial | Pulei
+- **O que NÃO testei e por quê**: (1 frase por item)
+  - Ex: "Não testei substituição porque não consegui produzir uma AUTORIZADA na janela do trial"
+  - Ex: "Não testei multi-empresa porque a conta de teste só tem 1 CNPJ"
+  - Ex: "Não testei webhook real porque não tenho endpoint público pra receber"
+- **Pré-requisitos que faltam pra cobrir**: o que precisa existir (conta, cert, CNPJ, etc.)
+- **Risco se NÃO testar**: P0 (pode quebrar lançamento) / P1 / P2
+```
+
+### Fluxos que provavelmente vão ser PULADOS sem ajuda
+Se você ESPECÍFICAMENTE não conseguir cobrir, registrar:
+
+- [ ] **Emissão real contra Receita Federal** (precisa cert ICP-Brasil + CNPJ ativo)
+- [ ] **Webhook entregando em endpoint público** (precisa URL HTTPS recebendo)
+- [ ] **Cancelamento de nota AUTORIZADA** (depende de ter autorização sucessful)
+- [ ] **Substituição e105102** (depende de ter autorização)
+- [ ] **Multi-empresa** (precisa conta com 2+ CNPJs vinculados)
+- [ ] **Upgrade Stripe real** (precisa cartão teste)
+- [ ] **Customer Portal Stripe** (precisa subscription ativa)
+- [ ] **Recorrência disparando** (precisa esperar 24h ou job manual)
+- [ ] **Cert vencendo em 30d** (precisa cert real prestes a vencer)
+- [ ] **Brevo cron processando queue** (precisa acesso ao painel Brevo)
+- [ ] **Conta com plano pago** (precisa Stripe live ou seed manual)
+- [ ] **Métricas Looker** (precisa dashboard configurado)
+- [ ] **Performance Lighthouse** (precisa rodar lighthouse CLI)
+- [ ] **Acessibilidade WCAG** (precisa axe-core, leitor de tela)
+
+### Cenários "pensei mas não rodei"
+Liste cenários que **te ocorreram** durante o teste mas você decidiu pular:
+- Por falta de tempo
+- Por achar irrelevante mas talvez seja
+- Por não saber como reproduzir
+- Por não ter dados/contexto
+
+Formato:
+```
+- "O que aconteceria se [X]?" — não testei porque [motivo]
+- Ex: "O que acontece se cancelo uma nota substituída?" — não testei pq nunca cheguei na substituição
+- Ex: "Trial expirando no meio de emissão?" — não testei pq não sei como forçar trial fim
+- Ex: "Sessão Supabase expira no meio do form?" — não testei pq dura 1h
+```
+
+### Cenários DE BORDA que provavelmente faltam
+Sugira **novos casos de teste** que não estão no checklist mas você acha que valem:
+- Concorrência (2 abas abertas emitindo)
+- Conexão lenta / offline (Network throttling)
+- Volume (50+ notas pra paginar, importação em massa)
+- Internacionalização (CNPJ estrangeiro? endereço fora do BR?)
+- Refresh durante POST de nota (interrompe a request)
+- Voltar do browser durante wizard (perde dados?)
+- Copiar/colar em campos formatados (CNPJ com pontos vs sem)
+- Acentos/caracteres especiais em razão social, discriminação
+- Timezone diferente (visualizar nota emitida no Brasil estando no exterior)
+- Latência alta (BrasilAPI demorando 5s+)
+
+---
+
 ## FIM
 
 Quando terminar, gerar **relatório consolidado** com:
-- Total de bugs encontrados por severidade
+
+### Parte 1 — Bugs encontrados
+- Total por severidade (P0/P1/P2)
 - Top 5 mais críticos com link/screenshot
 - Avaliação geral (vai pro lançamento? bloqueador? release candidate?)
+
+### Parte 2 — Mapa de cobertura
+- % estimado de cobertura por bloco (1-14)
+- Lista PRIORIZADA dos fluxos não cobertos que mais preocupam
+- Pré-requisitos que precisamos pra cobrir tudo (contas, cert hom, CNPJs, etc.)
+
+### Parte 3 — Sugestões pro próximo round
+- 5-10 novos casos de teste que valem adicionar ao checklist
+- Áreas que merecem automação Playwright primeiro (alto risco + alta repetição)
+- Dados/ambientes que precisam ser criados antes da próxima rodada
 
 Boa caça 🐛
