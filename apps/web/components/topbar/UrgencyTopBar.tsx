@@ -19,25 +19,31 @@ import { trackTopbarView, trackTopbarDismiss, trackCtaClick } from '@/lib/analyt
  * - Ao dismiss, sobrescreve `--topbar-height: 0px` no documentElement → Navbar
  *   volta a `top: 0px`.
  */
-export default function UrgencyTopBar() {
-  // Bug N+2: começamos com `visible=true` pra que o SSR já renderize a topbar.
-  // Quem nunca dismissou (caso comum) vê instantaneamente — sem flash de
-  // 'sem topbar' enquanto JS hidrata. Quem já dismissou (cookie 7d) tem
-  // micro-flash de ~50ms — trade-off aceitável.
-  const [visible, setVisible] = useState(true)
+interface UrgencyTopBarProps {
+  /** Lido do cookie no servidor (Server Component pai). Elimina o flash
+   *  laranja no primeiro paint pra quem já dismissou antes. */
+  initialDismissed?: boolean
+}
+
+export default function UrgencyTopBar({ initialDismissed = false }: UrgencyTopBarProps) {
+  // SSR já sabe se está dismissed (via cookie lido no servidor) — sem flash.
+  const [visible, setVisible] = useState(!initialDismissed)
   const [isPostVigencia, setIsPostVigencia] = useState(false)
 
   useEffect(() => {
-    const dismissed = isTopbarDismissed()
     setIsPostVigencia(new Date() >= VIGENCIA_DATE)
-    setVisible(!dismissed)
+    // Reconfirma do cookie do browser (cobre caso de cookie expirar entre SSR
+    // e hydration, ou dismiss em outra aba). Mantém em sincronia.
+    const dismissed = isTopbarDismissed()
+    if (dismissed !== initialDismissed) {
+      setVisible(!dismissed)
+    }
     if (dismissed) {
-      // Já dispensada antes: zera o offset pra Navbar não ficar com gap.
       document.documentElement.style.setProperty('--topbar-height', '0px')
     } else {
       trackTopbarView()
     }
-  }, [])
+  }, [initialDismissed])
 
   function handleDismiss() {
     dismissTopbar()
