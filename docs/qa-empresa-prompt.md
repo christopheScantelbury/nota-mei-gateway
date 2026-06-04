@@ -9,24 +9,73 @@
 
 ## 🔁 ESTADO ATUAL DA QA — leia antes de começar
 
-**3 rodadas executadas até agora**:
+**Rodadas executadas até agora**:
 - **R1** (Sonnet 4.6, 2026-06-03): 14 bugs reportados → 10 fixados +
   3 falsos-positivos + 1 pendente design (#6)
 - **R2** (Sonnet 4.6, 2026-06-03): 5 novos + 2 ressalvas → 1 confirmado
   (N+1 logo) + 3 falsos-positivos + 1 spec
 - **R2-Verify** (Sonnet 4.6, 2026-06-03): 4 falsos-positivos confirmados
   + 1 novo P2 (notafacil-gateway.svg 404, fixado com alias)
+- **Pós-handoff** (sessão 2026-06-03/04): 4 fixes adicionais aplicados
+  fora de QA formal (logo dark mode 2ª iteração, topbar flash SSR,
+  PricingToggle hrefs dev, Login com senha — feature nova)
 
 Status consolidado em `docs/qa-empresa-status-rodadas.md`.
 
-**Total**: 20 bugs únicos → 13 fixados, 6 falsos-positivos, 1 pendente.
+**Total**: 20 bugs únicos → 13 fixados em QA + 4 fixes pós-handoff =
+**17 verificações** que precisam regredir nesta rodada.
 **Avaliação atual**: 🟡 release candidate.
 
-### 🆕 Novidade desde a última rodada
+### 🆕 Novidades desde a última rodada
 
-**Cadastro Dev simplificado** (commit `26e0ce1`, 2026-06-03):
-Adicionado fluxo `/cadastro/dev` separado pro dev integrador. NÃO exige
-CNPJ próprio porque dev pode ser de uma empresa (não dono dela).
+**🔐 Login com senha** (commit `61d7d03`, 2026-06-03):
+Feature nova grande — `/login` agora tem toggle entre **Código por e-mail**
+(magic link OTP, default) e **Senha**. Usuário define senha em
+`/configuracoes/senha` (após estar logado via magic link).
+
+Componentes/políticas envolvidos:
+- `apps/web/lib/auth/password.ts` — validador puro (8+ chars, minúscula,
+  maiúscula, número) + score 0..4 pra barra de força
+- `apps/web/components/auth/TurnstileChallenge.tsx` — captcha feature-flag
+  via `NEXT_PUBLIC_TURNSTILE_SITE_KEY`. Aparece **após 3 tentativas falhas**
+  (track `localStorage.nf_login_failed_attempts`)
+- `/configuracoes/senha` (rota nova server-protected) com SenhaForm
+- Link "Definir / trocar senha" na aba Perfil de `/configuracoes`
+- Supabase Auth config aplicada via Management API:
+  - `password_min_length: 8` ✅
+  - `password_required_characters: minúscula+maiúscula+número` ✅
+  - `mailer_notifications_password_changed_enabled: true` ✅ (e-mail PT-BR
+    "Sua senha foi alterada — NotaFácil")
+  - HIBP (Have I Been Pwned): ❌ feature paga Supabase Pro, não ativada
+  - Captcha Turnstile: ⏳ aguardando provisionar (dormente, zero impacto até)
+
+Cadastros (Empresa/MEI/Dev) **NÃO mudaram** — magic link continua o único
+caminho de signup. Senha é opt-in pós-login.
+
+**Novos blocos de teste**: Bloco 3-SENHA (login com senha) + Bloco 11.5
+(definir/trocar senha em Configurações).
+
+**🟠 UrgencyTopBar SSR-safe** (commit `6cabf05`, 2026-06-03):
+Resolveu o "flash laranja" de ~50ms no 1º paint pra usuários que já
+dismissaram a barra. Agora cookie é lido no servidor com `next/headers`
++ override CSS `:root{--topbar-height:0px}` no SSR. Regressão na Regressão
+Acumulada (item RA-1).
+
+**🔠 LogoAdaptive root cause real** (commit `0c77c73`, 2026-06-03):
+Bug N+1 foi DE FATO fixado nesta iteração. A versão anterior (commit
+`5f95d6d` da R2-Verify) ainda tinha o problema porque Tailwind JIT não
+detecta classes formadas por template strings interpoladas
+(`dark:${variable}`). Agora usa 2 wrappers `<span class="contents">` com
+classes 100% literais. Regressão obrigatória (item RA-2).
+
+**🔗 PricingToggle hrefs dev** (commit `d32c8c7`, 2026-06-03):
+Hrefs dos planos dev tinham `/cadastro/dev&plano=...` (gerava 404).
+Corrigido pra `/cadastro/dev?plano=...` em Starter/Basic/Pro/Business
+(item RA-3).
+
+**📦 Cadastro Dev simplificado** (commit `26e0ce1`, 2026-06-03):
+Fluxo `/cadastro/dev` separado pro dev integrador. NÃO exige CNPJ próprio
+porque dev pode ser de uma empresa (não dono dela).
 
 - Migration `20260603000001_api_keys_dev_accounts.sql` aplicada em prod:
   `api_keys.empresa_id` virou NULLABLE + `user_id` adicionado (FK auth.users) +
@@ -36,18 +85,18 @@ CNPJ próprio porque dev pode ser de uma empresa (não dono dela).
 - Antiga rota `/cadastro?produto=gateway` foi REDIRECIONADA pra `/cadastro/dev`
   em 7 lugares (CadastroSeletor, Navbar, docs, sandbox, login, SDKs, etc).
 
-**Novo bloco de teste**: Bloco 2-Dev (depois do Bloco 2 normal) — cobre
-o fluxo simplificado.
+**Bloco de teste já existente**: Bloco 2-Dev (depois do Bloco 2 normal).
 
-### 🎯 Foco da rodada atual (Rodada N+1)
+### 🎯 Foco da rodada atual (Rodada N+2)
 
-1. **REGRESSÃO** — confirmar que os 13 fixes acumulados não voltaram.
-   Lista no fim deste prompt (seção "Regressão acumulada").
+1. **REGRESSÃO ACUMULADA** — 13 fixes da QA + 4 fixes pós-handoff = 17 itens
+   pra confirmar (seção "REGRESSÃO ACUMULADA" no fim).
 
-2. **NOVO FLUXO DEV** — testar `/cadastro/dev` (Bloco 2-Dev abaixo).
-   Esse é P0 da rodada porque é fluxo crítico recém-criado.
+2. **🔐 LOGIN COM SENHA** (feature nova) — Bloco 3-SENHA + Bloco 11.5.
+   P0 da rodada porque é fluxo crítico recém-criado tocando auth.
 
-3. **COBERTURA NOVA** — atacar **Blocos 4-14** que ficaram fora.
+3. **COBERTURA NOVA** — atacar **Blocos 4-14** que ficaram fora nas rodadas
+   anteriores.
 
 4. **EXPLORAR NOVOS BUGS** em qualquer área que rodar.
 
@@ -273,6 +322,70 @@ Você é um QA Engineer sênior testando o **NotaFácil Empresa** — o produto 
 
 ---
 
+### 🔹 BLOCO 3-SENHA — Login com senha `/login` (FEATURE NOVA)
+
+⚠️ **Pré-requisito:** definir senha na conta de teste ANTES de testar este
+bloco. Faça login via magic link → vá em **Configurações → Perfil → "Definir
+/ trocar senha"** → defina (ex: `TesteSenh@2026`). Sem isso, todos os testes
+abaixo retornam "credenciais inválidas".
+
+#### 3-SENHA.1 — Toggle visível
+- [ ] Em `/login` (ou `/login?produto=me`), no topo do form, vê toggle com 2
+      abas: **Código por e-mail** (selecionada default) e **Senha**
+- [ ] `role="tablist"` no container + `aria-selected` nos botões (WCAG)
+- [ ] Aba ativa tem fundo `bg-white dark:bg-navy-700` + sombra leve
+- [ ] Clicar entre abas é instantâneo (sem reload)
+
+#### 3-SENHA.2 — Fluxo feliz com senha correta
+- [ ] Clicar aba "Senha"
+- [ ] Form mostra: input E-mail + input Senha (`type="password"`)
+- [ ] `autoComplete="email"` no campo email + `autoComplete="current-password"`
+      na senha — gerenciadores de senha (1Password, Bitwarden, Chrome) oferecem
+      preenchimento
+- [ ] Digitar e-mail + senha corretos → "Entrar" → redireciona pra `/home`
+- [ ] Sessão Supabase ativa (verifica em DevTools → Application → Cookies
+      `sb-pzjvgtwnstfyangfwdom-auth-token`)
+
+#### 3-SENHA.3 — Segurança contra ataques
+- [ ] **Senha errada** (e-mail certo + senha errada): aparece mensagem
+      **EXATAMENTE** `"E-mail ou senha incorretos."` — nunca pode vazar
+      "senha incorreta" ou "usuário não existe" separadamente
+- [ ] **E-mail inexistente** (`naoexiste@fake.com` + qualquer senha): MESMA
+      mensagem genérica `"E-mail ou senha incorretos."` (anti user-enumeration)
+- [ ] **Política de senha forte aplicada no Supabase** (já não é mais possível
+      definir senha fraca em /configuracoes/senha — ver Bloco 11.5)
+- [ ] **Rate limit Supabase**: tentar 31 logins falhos em 1h → deveria retornar
+      429 (pode pular se for muito custoso testar; confirmar no `auth.config`
+      do Supabase Dashboard: `rate_limit_verify=30`)
+
+#### 3-SENHA.4 — Tracking de tentativas falhas
+- [ ] Após cada login falho, abrir DevTools → Application → Local Storage
+      → key `nf_login_failed_attempts` incrementa: 1, 2, 3, ...
+- [ ] Após login com sucesso, a key é REMOVIDA do localStorage
+- [ ] (Se Turnstile estiver ativo via env `NEXT_PUBLIC_TURNSTILE_SITE_KEY`)
+      após **3 falhas**, aparece widget Cloudflare Turnstile no form. Submit
+      bloqueado até resolver. Como Turnstile está dormente em prod hoje, **se
+      a env var não existe, captcha NÃO deve aparecer (verifica via inspect
+      do DOM — não deve ter `iframe` Cloudflare)**
+
+#### 3-SENHA.5 — Esqueci a senha (fallback)
+- [ ] No form de senha, abaixo do botão "Entrar", vê texto
+      **"Esqueceu a senha?"** com link clicável **"Entrar por código no e-mail"**
+- [ ] Clicar volta pro modo Magic Link com o e-mail já preenchido
+- [ ] Erro anterior é limpo
+
+#### 3-SENHA.6 — Persistência do modo
+- [ ] Trocar entre abas Magic Link ↔ Senha **NÃO** preserva o que foi digitado
+      em cada modo (intencional — campos isolados)
+- [ ] Recarregar `/login` → sempre volta pra aba **Magic Link** (default)
+
+#### 3-SENHA.7 — Mobile + Dark mode
+- [ ] No iPhone 14 Pro Max (430x932), as 2 abas cabem na largura
+- [ ] Dark mode: aba ativa fica `bg-navy-700` (não branco)
+- [ ] Logo persona muda corretamente conforme `?produto=me/mei/gateway`
+
+---
+
 ### 🔹 BLOCO 4 — Dashboard `/home`
 
 #### 4.1 Hero saudação
@@ -485,6 +598,72 @@ Você é um QA Engineer sênior testando o **NotaFácil Empresa** — o produto 
 - [ ] Log de últimas entregas com status (200/4xx/5xx)
 - [ ] Botão "Reenviar" tentativa específica
 
+#### 11.5 Definir / trocar senha (FEATURE NOVA — `/configuracoes/senha`)
+
+##### 11.5.1 Entrada
+- [ ] Em `/configuracoes` aba **Perfil**, abaixo do botão "Salvar alterações",
+      vê seção **"Segurança"** com link `Definir / trocar senha →`
+- [ ] Texto explicativo: "Sua conta usa código por e-mail por padrão. Defina
+      uma senha pra ter um login alternativo (útil pra testes)."
+- [ ] Clicar leva pra `/configuracoes/senha`
+
+##### 11.5.2 Tela `/configuracoes/senha`
+- [ ] Cabeçalho mostra `← Voltar para Configurações`
+- [ ] Título: **"Definir senha"** (se nunca definiu) ou **"Trocar senha"**
+- [ ] Form com 2 campos: **Nova senha** + **Confirmar nova senha**
+- [ ] **NÃO pede senha antiga** (segurança vem da sessão ativa)
+- [ ] Aviso textual no fim do form: "ℹ️ Você está autenticado nesta sessão
+      — não pedimos a senha antiga. Se você não foi quem iniciou esta troca,
+      faça logout em todos os dispositivos."
+
+##### 11.5.3 Barra de força visível
+- [ ] Digitar `abc` (3 chars) → barra aparece, **vermelha**, label "Muito
+      fraca", lista de erros mostra: "Mínimo 8 caracteres" + "Pelo menos 1
+      letra MAIÚSCULA" + "Pelo menos 1 número"
+- [ ] Digitar `Abcdefg1` (8 chars + mixed) → barra **verde** (3-4
+      segmentos), label "Forte" ou "Muito forte"
+- [ ] Sem campo preenchido, barra não aparece
+- [ ] Botão "Definir senha" **disabled** até validation.ok=true E
+      passwordsMatch=true
+
+##### 11.5.4 Submit com sucesso
+- [ ] Senha válida + confirmação igual → "Definir senha" → loading → tela
+      de sucesso verde "Senha definida com sucesso ✓" + CTA "entre em /login
+      usando {email} + sua senha"
+- [ ] Receber e-mail PT-BR no inbox da conta com assunto **"Sua senha foi
+      alterada — NotaFácil"**
+
+##### 11.5.5 Validação da política Supabase (segurança real)
+Mesmo se você forçasse `validation.ok=true` no DevTools (ex: manipulando
+o estado React), o Supabase Auth bloqueia. Pra testar:
+- [ ] Abrir DevTools console
+- [ ] Executar:
+      ```js
+      const sb = (await import('/_next/static/chunks/main-app.js')); // ou similar
+      // Mais simples: tentar diretamente via fetch da API auth
+      await fetch('https://pzjvgtwnstfyangfwdom.supabase.co/auth/v1/user', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + document.cookie.match(/sb-[a-z0-9]+-auth-token=([^;]+)/)[1],
+          'apikey': '<NEXT_PUBLIC_SUPABASE_ANON_KEY>'
+        },
+        body: JSON.stringify({password: 'abc'})
+      }).then(r => r.json())
+      ```
+- [ ] Resposta deve ser erro: **"Password should be at least 8 characters"**
+      ou similar (política aplicada via Management API em 2026-06-03)
+
+##### 11.5.6 Voltar e logar com senha
+- [ ] Logout
+- [ ] `/login` aba Senha + e-mail + senha recém-definida → entra em `/home` ✓
+
+##### 11.5.7 Tentativa em sessão expirada
+- [ ] Em `/configuracoes/senha`, com sessão válida, abrir DevTools →
+      Application → deletar cookie `sb-...-auth-token`
+- [ ] Tentar submeter → erro "Sessão expirada. Faça login novamente."
+- [ ] **NÃO** deve dar erro genérico de network
+
 ---
 
 ### 🔹 BLOCO 12 — Billing `/billing`
@@ -636,18 +815,44 @@ Sugira **novos casos de teste** que não estão no checklist mas você acha que 
 
 ---
 
-## REGRESSÃO ACUMULADA (R1 + R2 + R2-Verify) — checagem rápida obrigatória
+## REGRESSÃO ACUMULADA (R1 + R2 + R2-Verify + Pós-handoff) — checagem obrigatória
 
-Antes de explorar áreas novas, validar que os **13 fixes acumulados** seguem
+Antes de explorar áreas novas, validar que os **17 fixes acumulados** seguem
 em pé. Cada item: marca ✅ se está OK, ❌ se voltou (vira bug).
+
+### Pós-handoff (fixes 2026-06-03/04 fora de QA formal)
+
+- [ ] **RA-1 — UrgencyTopBar SSR-safe** (commit `6cabf05`). Limpar cookies
+      do navegador. Carregar `/me` pela primeira vez → topbar laranja já
+      aparece no SSR (sem flash do tipo "aparece-some"). Clicar X →
+      topbar some + `paddingTop` do wrapper vira `0`. Recarregar → topbar
+      **NÃO aparece** mesmo por 1 frame (cookie agora é lido server-side
+      via `next/headers`). DevTools → Application → Cookies →
+      `nf_topbar_dismissed_v1=1` presente, age=7d.
+
+- [ ] **RA-2 — LogoAdaptive dark mode (root cause real)** (commit `0c77c73`).
+      Toggle dark mode em `/`, `/mei`, `/me`, `/gateway`. O texto "Nota"
+      deve aparecer **legível** (cor clara) em todos os temas e todas
+      personas. Inspecionar elemento da logo → vê **2 wrappers
+      `<span class="contents">`**, um com `dark:hidden` outro com
+      `hidden dark:contents`. NÃO deve ter classes interpoladas
+      (`dark:${...}`) — Tailwind JIT não detecta.
+
+- [ ] **RA-3 — PricingToggle hrefs dev** (commit `d32c8c7`). Em `/precos`
+      ou `/gateway` clicar aba "Sou dev" → 4 cards (Starter / Basic / Pro /
+      Business). Inspecionar `href` dos botões → todos devem ser
+      `/cadastro/dev?plano=XXX` (com `?`, não `&`). Clicar Starter →
+      URL final `/cadastro/dev?plano=starter` (não 404).
+
+- [ ] **RA-4 — Login com senha implementado** (commit `61d7d03`).
+      `/login` tem toggle Magic Link ↔ Senha. Ver Bloco 3-SENHA completo.
 
 ### Da Rodada 2 (logo + cadastro dev + gateway alias)
 
-- [ ] **N+1** — logo "Nota" visível em DARK MODE. Testar nas 4 personas
-      (`/`, `/mei`, `/me`, `/gateway`) trocando o toggle de tema. O texto
-      "Nota" deve aparecer claro sobre fundo escuro. LogoAdaptive agora
-      renderiza **2 `<Image>` tags** com classes `dark:hidden` e `hidden
-      dark:block` — confirme no DOM.
+- [ ] **N+1** — logo "Nota" visível em DARK MODE. ⚠️ **SUPERSEDIDO** —
+      este item teve fix inicial (`5f95d6d`) e fix real (`0c77c73`). Validar
+      via **RA-2 acima** que cobre a versão correta (wrappers `<span class="contents">`,
+      não `<Image>` separadas).
 - [ ] **N+5** — CNPJ exemplo do prompt `99.999.999/0001-91` retorna 404
       na BrasilAPI (testado 2026-06-03). Se algum dia retornar 200, atualizar
       esse prompt.
