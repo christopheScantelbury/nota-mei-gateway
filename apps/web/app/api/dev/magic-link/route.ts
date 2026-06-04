@@ -90,8 +90,12 @@ export async function POST(req: Request) {
   // parece "quebrado" pro user. Apontando pra /auth/callback ativa PKCE
   // (code no query string), e o handler troca code por session + redirect
   // pra /home.
-  const siteURL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.emitirnotafacil.com.br'
-  const callbackURL = `${siteURL.replace(/\/$/, '')}/auth/callback?next=/home`
+  //
+  // ⚠️ Tem que ser SEM `www.` — Supabase tem `site_url` apex configurado
+  // (https://emitirnotafacil.com.br) e ignora silenciosamente redirectTo
+  // com subdomínio www, mesmo que esteja na allow list. O CDN da Vercel
+  // serve o apex direto sem redirect, então o /auth/callback responde.
+  const callbackURL = 'https://emitirnotafacil.com.br/auth/callback?next=/home'
 
   const { data, error } = await sb.auth.admin.generateLink({
     type: 'magiclink',
