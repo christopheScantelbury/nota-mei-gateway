@@ -85,9 +85,18 @@ export async function POST(req: Request) {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
+  // IMPORTANTE: sem redirectTo, Supabase manda pra site URL raiz com tokens
+  // no fragment (#access_token=...). Frontend na raiz não captura — link
+  // parece "quebrado" pro user. Apontando pra /auth/callback ativa PKCE
+  // (code no query string), e o handler troca code por session + redirect
+  // pra /home.
+  const siteURL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://www.emitirnotafacil.com.br'
+  const callbackURL = `${siteURL.replace(/\/$/, '')}/auth/callback?next=/home`
+
   const { data, error } = await sb.auth.admin.generateLink({
     type: 'magiclink',
     email,
+    options: { redirectTo: callbackURL },
   })
 
   if (error) {
