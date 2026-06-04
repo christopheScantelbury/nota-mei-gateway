@@ -663,6 +663,43 @@ vercel --prod               # deploy manual produção
 
 ---
 
+## 10-bis. POLÍTICA DE DEPLOY — pacotes batched (economia Railway+Vercel)
+
+> **Razão**: Railway cobra por build minutes + tempo de container; Vercel Hobby tem cota de 100 build minutes/mês. Cada `git push origin main` dispara rebuild. Otimizar = poupar dinheiro real.
+
+### Como o filtro funciona (já configurado)
+
+| Local | Mecanismo |
+|---|---|
+| **Vercel** (`apps/web/vercel.json`) | `ignoreCommand: bash .vercel-ignore-build.sh` — skippa build se nenhum arquivo de `apps/web/`, `packages/`, `docs/openapi.yaml`, `package*.json`, `turbo.json` mudou |
+| **Railway API** (`railway.toml` raiz + `apps/api/railway.toml`) | `watchPatterns = ["apps/api/**", "Dockerfile", "go.mod", "go.sum", "railway.toml"]` — só rebuilda quando código Go ou Dockerfile mudou |
+
+### Resultado prático
+
+| Commit muda… | Vercel builda? | Railway builda? |
+|---|---|---|
+| `apps/web/**` (React/Next.js) | ✅ sim | ⛔ skip |
+| `apps/api/**` (Go) | ⛔ skip | ✅ sim |
+| `docs/**`, `memory/**`, `*.md` | ⛔ skip | ⛔ skip |
+| `supabase/migrations/**` | ⛔ skip | ⛔ skip (rodar `supabase db push` manual) |
+| `apps/web/vercel.json` ou `railway.toml` | ✅ sim | ✅ sim |
+
+### Convenções de commit pra Claude e devs
+
+1. **Acumule mudanças antes de pushar.** Em vez de 5 pushes/dia, faça 1. Cada push é um billing event.
+2. **Separe commits por área.** `docs:` e `chore(memory)` em commits dedicados — assim mesmo se você pushar, os filtros skipam ambos.
+3. **NÃO misture** `apps/api` + `apps/web` no mesmo commit a menos que seja necessário (ambos rebuildarão).
+4. **Migrations aplicam-se manualmente** via `supabase db push` — não dependem de deploy.
+5. **Antes de `git push`**, pergunte ao Chris se quer aguardar mais alguma mudança pra entrar no mesmo pacote.
+
+### Bypass de emergência
+
+Se precisar forçar build (ex: env var nova no Vercel + redeploy):
+- **Vercel**: `vercel --prod --force` (CLI) ou Redeploy no Dashboard
+- **Railway**: `railway up` (CLI) ou Redeploy no Dashboard
+
+---
+
 ## 11. SEGURANÇA — REGRAS INEGOCIÁVEIS
 
 1. **Certificado A1 nunca em disco** — sempre em memória, via AWS Secrets Manager

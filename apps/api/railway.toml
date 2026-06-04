@@ -15,6 +15,14 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "apps/api/Dockerfile"
+# Mesma política do railway.toml raiz — pacote único de deploy.
+watchPatterns = [
+  "apps/api/**",
+  "Dockerfile",
+  "apps/api/Dockerfile",
+  "go.mod",
+  "go.sum",
+]
 
 [deploy]
 startCommand = "./server"

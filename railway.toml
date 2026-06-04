@@ -1,6 +1,15 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
+# Pacote de deploy: só rebuilda quando algo da API Go realmente mudou.
+# Evita rebuild caro pra mudanças de docs/web/migrations.
+watchPatterns = [
+  "apps/api/**",
+  "Dockerfile",
+  "go.mod",
+  "go.sum",
+  "railway.toml",
+]
 
 [deploy]
 startCommand = "./server"
