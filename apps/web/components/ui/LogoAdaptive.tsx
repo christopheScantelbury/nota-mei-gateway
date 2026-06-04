@@ -66,39 +66,53 @@ export default function LogoAdaptive({
 
   // ── Tema-aware via CSS class (sem JS, sem race) ────────────────────────
   // Renderiza AMBAS as versões; `.dark` no <html> controla qual aparece.
+  //
+  // ⚠️ IMPORTANTE: Tailwind JIT só detecta classes LITERAIS no source.
+  // NUNCA usar `dark:${variable}` ou interpolação — a classe não é gerada.
+  // Por isso os dois ramos (hasIcons / sem ícones) têm strings completas.
   const hasIcons = !!iconLightSrc && !!iconDarkSrc
   const base = className ?? ''
 
-  // Mobile ≤ 360 só recebe ícones SE ambos foram fornecidos
-  const fullVisible = hasIcons ? 'hidden min-[361px]:block' : 'block'
+  if (!hasIcons) {
+    return (
+      <>
+        <Image
+          src={lightSrc} alt={alt} width={width} height={height} priority={priority} unoptimized
+          className={`block dark:hidden ${base}`}
+        />
+        <Image
+          src={darkSrc} alt={alt} width={width} height={height} priority={priority} unoptimized
+          className={`hidden dark:block ${base}`}
+        />
+      </>
+    )
+  }
 
+  // Com ícones: wrappers separados por tema; cada um troca ícone↔full por breakpoint.
   return (
     <>
-      {/* Logo completa LIGHT — visível em tema light */}
-      <Image
-        src={lightSrc} alt={alt} width={width} height={height} priority={priority} unoptimized
-        className={`${fullVisible} dark:!hidden ${base}`}
-      />
-      {/* Logo completa DARK — visível em tema dark */}
-      <Image
-        src={darkSrc} alt={alt} width={width} height={height} priority={priority} unoptimized
-        className={`hidden dark:${hasIcons ? 'min-[361px]:block' : 'block'} ${base}`}
-      />
-
-      {/* Ícone compacto LIGHT (≤ 360px, tema light) */}
-      {hasIcons && (
+      {/* ─── Tema LIGHT ─── */}
+      <span className="contents dark:hidden">
         <Image
           src={iconLightSrc!} alt={alt} width={40} height={40} priority={priority} unoptimized
-          className="block min-[361px]:hidden dark:!hidden w-10 h-10"
+          className="block min-[361px]:hidden w-10 h-10"
         />
-      )}
-      {/* Ícone compacto DARK (≤ 360px, tema dark) */}
-      {hasIcons && (
+        <Image
+          src={lightSrc} alt={alt} width={width} height={height} priority={priority} unoptimized
+          className={`hidden min-[361px]:block ${base}`}
+        />
+      </span>
+      {/* ─── Tema DARK ─── */}
+      <span className="hidden dark:contents">
         <Image
           src={iconDarkSrc!} alt={alt} width={40} height={40} priority={priority} unoptimized
-          className="hidden dark:block min-[361px]:dark:hidden w-10 h-10"
+          className="block min-[361px]:hidden w-10 h-10"
         />
-      )}
+        <Image
+          src={darkSrc} alt={alt} width={width} height={height} priority={priority} unoptimized
+          className={`hidden min-[361px]:block ${base}`}
+        />
+      </span>
     </>
   )
 }
