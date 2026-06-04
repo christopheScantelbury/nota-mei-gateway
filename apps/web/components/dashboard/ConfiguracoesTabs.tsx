@@ -119,6 +119,21 @@ function PerfilTab({ mei }: { mei: MEIData }) {
       >
         Salvar alterações
       </Button>
+
+      {/* Segurança — link pra definir/trocar senha */}
+      <div className="mt-6 pt-6 border-t border-gray-200 dark:border-navy-600">
+        <h3 className="font-semibold text-sm text-text-1 mb-1">Segurança</h3>
+        <p className="text-xs text-text-2 mb-3">
+          Sua conta usa código por e-mail por padrão. Defina uma senha pra ter
+          um login alternativo (útil pra testes).
+        </p>
+        <a
+          href="/configuracoes/senha"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-brand-cyan hover:underline"
+        >
+          Definir / trocar senha →
+        </a>
+      </div>
     </div>
   )
 }

@@ -7,8 +7,15 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/browser'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import TurnstileChallenge, { isCaptchaEnabled } from '@/components/auth/TurnstileChallenge'
 
 type Step = 'pick' | 'email' | 'otp'
+type Mode = 'magic' | 'password'
+
+// Mensagem genérica — nunca revela se o email existe (anti user-enumeration).
+const GENERIC_AUTH_ERROR = 'E-mail ou senha incorretos.'
+const FAILED_ATTEMPTS_KEY = 'nf_login_failed_attempts'
+const CAPTCHA_THRESHOLD = 3
 
 const OTP_LENGTH     = 6
 const RESEND_COOLDOWN = 60 // seconds
@@ -153,6 +160,8 @@ export default function LoginClient() {
     setStep('email')
   }
   const [email, setEmail]     = useState('')
+  const [password, setPassword] = useState('')
+  const [mode, setMode]       = useState<Mode>('magic')
   const [otp, setOtp]         = useState<string[]>(Array(OTP_LENGTH).fill(''))
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState<string | null>(
@@ -160,6 +169,35 @@ export default function LoginClient() {
       ? 'O link expirou ou é inválido. Solicite um novo código.'
       : null,
   )
+
+  // ── Captcha (Turnstile) — só renderiza se NEXT_PUBLIC_TURNSTILE_SITE_KEY ─
+  // e o user falhou ≥ CAPTCHA_THRESHOLD tentativas. Track local em localStorage
+  // (defesa em profundidade — rate limit real é no Supabase).
+  const [failedAttempts, setFailedAttempts] = useState(0)
+  const [captchaToken, setCaptchaToken]     = useState<string>('')
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const stored = parseInt(localStorage.getItem(FAILED_ATTEMPTS_KEY) ?? '0', 10)
+    setFailedAttempts(Number.isFinite(stored) ? stored : 0)
+  }, [])
+
+  function recordFailedAttempt() {
+    const next = failedAttempts + 1
+    setFailedAttempts(next)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(FAILED_ATTEMPTS_KEY, String(next))
+    }
+  }
+
+  function clearFailedAttempts() {
+    setFailedAttempts(0)
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(FAILED_ATTEMPTS_KEY)
+    }
+  }
+
+  const showCaptcha = isCaptchaEnabled() && failedAttempts >= CAPTCHA_THRESHOLD
 
   // ── Step 1: enviar OTP ─────────────────────────────────────────────────────
 
@@ -198,6 +236,45 @@ export default function LoginClient() {
       email: email.trim().toLowerCase(),
       options: { shouldCreateUser: false },
     })
+  }
+
+  // ── Senha: signInWithPassword ──────────────────────────────────────────────
+  async function handlePasswordSubmit(e: FormEvent) {
+    e.preventDefault()
+    const trimmedEmail = email.trim().toLowerCase()
+    if (!trimmedEmail || !password) return
+
+    // Se captcha está visível, exige token
+    if (showCaptcha && !captchaToken) {
+      setError('Complete o desafio de segurança acima.')
+      return
+    }
+
+    setError(null)
+    setLoading(true)
+
+    const supabase = createClient()
+    const { error: sbError } = await supabase.auth.signInWithPassword({
+      email: trimmedEmail,
+      password,
+      // captchaToken é ignorado pelo Supabase quando captcha não está
+      // habilitado no projeto — safe-passthrough.
+      options: captchaToken ? { captchaToken } : undefined,
+    })
+
+    setLoading(false)
+
+    if (sbError) {
+      recordFailedAttempt()
+      // SEMPRE mensagem genérica — não revela se email existe nem se senha está errada
+      setError(GENERIC_AUTH_ERROR)
+      return
+    }
+
+    // Sucesso — zera contador
+    clearFailedAttempts()
+    const target = next.startsWith('/') ? next : '/home'
+    router.replace(target)
   }
 
   // ── Step 2: verificar OTP + redirecionar para o domínio do produto ─────────
@@ -298,24 +375,116 @@ export default function LoginClient() {
 
         {/* ── STEP 1: e-mail ── */}
         {step === 'email' && (
-          <form onSubmit={handleEmailSubmit} className="space-y-4">
-            <Input
-              label="E-mail"
-              type="email"
-              placeholder="contato@empresa.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoFocus
-              autoComplete="email"
-              error={error ?? undefined}
-            />
+          <>
+            {/* Toggle Magic Link ↔ Senha */}
+            <div
+              role="tablist"
+              aria-label="Método de login"
+              className="flex rounded-lg border border-gray-200 dark:border-navy-600 p-1 mb-5 bg-gray-50 dark:bg-navy-800"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'magic'}
+                onClick={() => { setMode('magic'); setError(null) }}
+                className={[
+                  'flex-1 text-xs font-semibold py-2 rounded-md transition',
+                  mode === 'magic'
+                    ? 'bg-white dark:bg-navy-700 text-text-1 shadow-sm'
+                    : 'text-text-2 hover:text-text-1',
+                ].join(' ')}
+              >
+                Código por e-mail
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === 'password'}
+                onClick={() => { setMode('password'); setError(null) }}
+                className={[
+                  'flex-1 text-xs font-semibold py-2 rounded-md transition',
+                  mode === 'password'
+                    ? 'bg-white dark:bg-navy-700 text-text-1 shadow-sm'
+                    : 'text-text-2 hover:text-text-1',
+                ].join(' ')}
+              >
+                Senha
+              </button>
+            </div>
 
-            <Button type="submit" loading={loading} className="w-full" size="lg">
-              Enviar código de acesso
-            </Button>
+            {mode === 'magic' ? (
+              <form onSubmit={handleEmailSubmit} className="space-y-4">
+                <Input
+                  label="E-mail"
+                  type="email"
+                  placeholder="contato@empresa.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoFocus
+                  autoComplete="email"
+                  error={error ?? undefined}
+                />
 
-            <div className="text-center pt-1">
+                <Button type="submit" loading={loading} className="w-full" size="lg">
+                  Enviar código de acesso
+                </Button>
+              </form>
+            ) : (
+              <form onSubmit={handlePasswordSubmit} className="space-y-4">
+                <Input
+                  label="E-mail"
+                  type="email"
+                  placeholder="contato@empresa.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoFocus
+                  autoComplete="email"
+                />
+                <Input
+                  label="Senha"
+                  type="password"
+                  placeholder="Sua senha"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  error={error ?? undefined}
+                />
+
+                {/* Captcha aparece só após N falhas + env var configurada */}
+                {showCaptcha && (
+                  <TurnstileChallenge
+                    onToken={setCaptchaToken}
+                    onError={() => setCaptchaToken('')}
+                  />
+                )}
+
+                <Button
+                  type="submit"
+                  loading={loading}
+                  disabled={!email || !password || (showCaptcha && !captchaToken)}
+                  className="w-full"
+                  size="lg"
+                >
+                  Entrar
+                </Button>
+
+                <p className="text-xs text-text-2 text-center">
+                  Esqueceu a senha?{' '}
+                  <button
+                    type="button"
+                    onClick={() => { setMode('magic'); setError(null) }}
+                    className="text-brand-cyan hover:underline"
+                  >
+                    Entrar por código no e-mail
+                  </button>
+                </p>
+              </form>
+            )}
+
+            <div className="text-center pt-4">
               <p className="text-xs text-text-2">
                 Não tem conta?{' '}
                 <Link
@@ -326,7 +495,7 @@ export default function LoginClient() {
                 </Link>
               </p>
             </div>
-          </form>
+          </>
         )}
 
         {/* ── STEP 2: OTP ── */}
