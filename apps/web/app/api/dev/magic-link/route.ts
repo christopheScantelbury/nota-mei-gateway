@@ -91,11 +91,11 @@ export async function POST(req: Request) {
   // (code no query string), e o handler troca code por session + redirect
   // pra /home.
   //
-  // ⚠️ Tem que ser SEM `www.` — Supabase tem `site_url` apex configurado
-  // (https://emitirnotafacil.com.br) e ignora silenciosamente redirectTo
-  // com subdomínio www, mesmo que esteja na allow list. O CDN da Vercel
-  // serve o apex direto sem redirect, então o /auth/callback responde.
-  const callbackURL = 'https://emitirnotafacil.com.br/auth/callback?next=/home'
+  // ⚠️ Tem que bater EXATAMENTE com Supabase `site_url` (config Auth) —
+  // atualmente `https://www.emitirnotafacil.com.br`. O apex
+  // (sem www) tem SSL/routing intermitente no Vercel, então não confiável
+  // como fallback. Sincronizar este hostname com o site_url do Supabase.
+  const callbackURL = 'https://www.emitirnotafacil.com.br/auth/callback?next=/home'
 
   const { data, error } = await sb.auth.admin.generateLink({
     type: 'magiclink',
