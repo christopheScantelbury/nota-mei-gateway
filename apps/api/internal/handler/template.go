@@ -6,10 +6,30 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/auth"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/template"
 	"github.com/gofiber/fiber/v2"
 	"github.com/rs/zerolog/log"
 )
+
+// ownerIDOrUnauthorized centralizes the c.Locals("mei_id") replacement.
+// Returns the owner id (MEI or Empresa UUID, same column in DB per ARCH-03)
+// or writes a 401 response and returns "" so the caller can short-circuit.
+//
+// Fix histórico: estes handlers liam `c.Locals("mei_id").(string)` mas o
+// middleware nunca seta essa key como string — só `mei`/`empresa` como struct.
+// Type assertion no nil → panic → 500 (descoberto pelo smoke test QA R3).
+func ownerIDOrUnauthorized(c *fiber.Ctx) string {
+	id := auth.OwnerID(c)
+	if id == "" {
+		_ = c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error":      "INVALID_API_KEY",
+			"message":    "autenticação ausente ou inválida",
+			"request_id": c.Locals("request_id"),
+		})
+	}
+	return id
+}
 
 // templateRepo is the interface consumed by TemplateHandler.
 type templateRepo interface {
@@ -52,7 +72,10 @@ type templateUpdateRequest struct {
 
 // ListTemplates handles GET /v1/templates.
 func (h *TemplateHandler) ListTemplates(c *fiber.Ctx) error {
-	meiID := c.Locals("mei_id").(string)
+	meiID := ownerIDOrUnauthorized(c)
+	if meiID == "" {
+		return nil
+	}
 
 	templates, err := h.repo.List(c.Context(), meiID)
 	if err != nil {
@@ -77,7 +100,10 @@ func (h *TemplateHandler) ListTemplates(c *fiber.Ctx) error {
 
 // CreateTemplate handles POST /v1/templates.
 func (h *TemplateHandler) CreateTemplate(c *fiber.Ctx) error {
-	meiID := c.Locals("mei_id").(string)
+	meiID := ownerIDOrUnauthorized(c)
+	if meiID == "" {
+		return nil
+	}
 
 	var req templateCreateRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -118,7 +144,10 @@ func (h *TemplateHandler) CreateTemplate(c *fiber.Ctx) error {
 
 // GetTemplate handles GET /v1/templates/:id.
 func (h *TemplateHandler) GetTemplate(c *fiber.Ctx) error {
-	meiID := c.Locals("mei_id").(string)
+	meiID := ownerIDOrUnauthorized(c)
+	if meiID == "" {
+		return nil
+	}
 	id := c.Params("id")
 
 	t, err := h.repo.Get(c.Context(), id, meiID)
@@ -143,7 +172,10 @@ func (h *TemplateHandler) GetTemplate(c *fiber.Ctx) error {
 
 // UpdateTemplate handles PUT /v1/templates/:id.
 func (h *TemplateHandler) UpdateTemplate(c *fiber.Ctx) error {
-	meiID := c.Locals("mei_id").(string)
+	meiID := ownerIDOrUnauthorized(c)
+	if meiID == "" {
+		return nil
+	}
 	id := c.Params("id")
 
 	var req templateUpdateRequest
@@ -213,7 +245,10 @@ func (h *TemplateHandler) UpdateTemplate(c *fiber.Ctx) error {
 
 // DeleteTemplate handles DELETE /v1/templates/:id.
 func (h *TemplateHandler) DeleteTemplate(c *fiber.Ctx) error {
-	meiID := c.Locals("mei_id").(string)
+	meiID := ownerIDOrUnauthorized(c)
+	if meiID == "" {
+		return nil
+	}
 	id := c.Params("id")
 
 	err := h.repo.Delete(c.Context(), id, meiID)

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/auth"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/handler"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/recorrencia"
 	"github.com/gofiber/fiber/v2"
@@ -53,8 +54,9 @@ func newRecorrenciaApp(stub *stubRecorrenciaRepo) *fiber.App {
 	app := fiber.New(fiber.Config{DisableStartupMessage: true})
 	h := handler.NewRecorrenciaHandler(stub)
 
+	// Inject the real Locals shape: middleware stores *auth.MEI, not raw string.
 	authMw := func(c *fiber.Ctx) error {
-		c.Locals("mei_id", "test-mei-id")
+		c.Locals("mei", &auth.MEI{ID: fixedMeiUUID})
 		return c.Next()
 	}
 

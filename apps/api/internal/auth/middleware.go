@@ -117,6 +117,23 @@ func GetEmpresa(c *fiber.Ctx) *Empresa {
 	return nil
 }
 
+// OwnerID returns the owner UUID as a string regardless of whether the caller
+// authenticated as a MEI or as an ME/EPP empresa. Empty string if neither is
+// present (handlers should treat as unauthenticated and return 401).
+//
+// ARCH-03 invariant: for MEI users, mei.ID == empresa.ID. So this is the
+// canonical key for tables that scope per-owner (nota_templates,
+// nota_recorrencias, clientes) without needing two columns.
+func OwnerID(c *fiber.Ctx) string {
+	if mei := GetMEI(c); mei != nil {
+		return mei.ID.String()
+	}
+	if emp := GetEmpresa(c); emp != nil {
+		return emp.ID.String()
+	}
+	return ""
+}
+
 // safePrefix returns only the first 12 chars of a key (never the secret portion).
 func safePrefix(key string) string {
 	if len(key) < 12 {

@@ -56,7 +56,10 @@ type recorrenciaUpdateRequest struct {
 
 // ListRecorrencias handles GET /v1/recorrencias → 200 {"data":[],"total":n}.
 func (h *RecorrenciaHandler) ListRecorrencias(c *fiber.Ctx) error {
-	meiID := c.Locals("mei_id").(string)
+	meiID := ownerIDOrUnauthorized(c)
+	if meiID == "" {
+		return nil
+	}
 
 	items, err := h.repo.List(c.Context(), meiID)
 	if err != nil {
@@ -80,7 +83,10 @@ func (h *RecorrenciaHandler) ListRecorrencias(c *fiber.Ctx) error {
 
 // CreateRecorrencia handles POST /v1/recorrencias → 201 or 422.
 func (h *RecorrenciaHandler) CreateRecorrencia(c *fiber.Ctx) error {
-	meiID := c.Locals("mei_id").(string)
+	meiID := ownerIDOrUnauthorized(c)
+	if meiID == "" {
+		return nil
+	}
 
 	var req recorrenciaCreateRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -122,7 +128,10 @@ func (h *RecorrenciaHandler) CreateRecorrencia(c *fiber.Ctx) error {
 
 // GetRecorrencia handles GET /v1/recorrencias/:id → 200 or 404.
 func (h *RecorrenciaHandler) GetRecorrencia(c *fiber.Ctx) error {
-	meiID := c.Locals("mei_id").(string)
+	meiID := ownerIDOrUnauthorized(c)
+	if meiID == "" {
+		return nil
+	}
 	id := c.Params("id")
 
 	rec, err := h.repo.Get(c.Context(), id, meiID)
@@ -147,7 +156,10 @@ func (h *RecorrenciaHandler) GetRecorrencia(c *fiber.Ctx) error {
 
 // UpdateRecorrencia handles PUT /v1/recorrencias/:id → 200 or 404.
 func (h *RecorrenciaHandler) UpdateRecorrencia(c *fiber.Ctx) error {
-	meiID := c.Locals("mei_id").(string)
+	meiID := ownerIDOrUnauthorized(c)
+	if meiID == "" {
+		return nil
+	}
 	id := c.Params("id")
 
 	var req recorrenciaUpdateRequest
@@ -189,7 +201,10 @@ func (h *RecorrenciaHandler) UpdateRecorrencia(c *fiber.Ctx) error {
 
 // DeleteRecorrencia handles DELETE /v1/recorrencias/:id → 204 or 404.
 func (h *RecorrenciaHandler) DeleteRecorrencia(c *fiber.Ctx) error {
-	meiID := c.Locals("mei_id").(string)
+	meiID := ownerIDOrUnauthorized(c)
+	if meiID == "" {
+		return nil
+	}
 	id := c.Params("id")
 
 	err := h.repo.Delete(c.Context(), id, meiID)

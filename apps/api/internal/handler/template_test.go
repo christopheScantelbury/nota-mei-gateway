@@ -8,10 +8,18 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/auth"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/handler"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/template"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
+
+// fixedMeiUUID is the canonical owner ID used across handler tests.
+// Tests need this concrete value because the real handlers call
+// auth.OwnerID(c) which reads c.Locals("mei").(*auth.MEI).ID — not a raw
+// string locals key.
+var fixedMeiUUID = uuid.MustParse("11111111-2222-3333-4444-555555555555")
 
 // ─── stub repo ───────────────────────────────────────────────────────────────
 
@@ -53,9 +61,10 @@ func newTemplateApp(stub *stubTemplateRepo) *fiber.App {
 	app := fiber.New(fiber.Config{DisableStartupMessage: true})
 	h := handler.NewTemplateHandler(stub)
 
-	// Inject a fake mei_id into Locals — mirrors what the real auth middleware does.
+	// Inject a fake *auth.MEI into Locals — mirrors the real middleware which
+	// stores the struct, not a bare string id. Handler reads via auth.OwnerID(c).
 	authMw := func(c *fiber.Ctx) error {
-		c.Locals("mei_id", "test-mei-id")
+		c.Locals("mei", &auth.MEI{ID: fixedMeiUUID})
 		return c.Next()
 	}
 
