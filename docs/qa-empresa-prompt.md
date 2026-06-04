@@ -472,29 +472,40 @@ abaixo retornam "credenciais inválidas".
 > ### 🔀 Testando as 3 personas (MEI, ME, EPP) com 1 cert só
 >
 > Não temos cert ME/EPP separado. Mas podemos forçar a UI das 3 personas
-> trocando `empresas.tipo` no banco via curl. Comandos completos em
-> `ACESSOS.local.md` seção `9-quarter` (toggle MEI/ME/EPP).
+> trocando `empresas.tipo` no banco. Use o script único:
+>
+> ```bash
+> ./scripts/qa-persona.sh mei      # MEI Simples Nacional MEI (default)
+> ./scripts/qa-persona.sh me-sn    # ME Simples Nacional
+> ./scripts/qa-persona.sh me-lp    # ME Lucro Presumido
+> ./scripts/qa-persona.sh epp-lr   # EPP Lucro Real
+> ```
+>
+> O script troca o tipo no DB **E** gera magic link novo na mesma execução.
+> Cola o link em **janela anônima** → cai já logado na persona certa, sem
+> precisar hard refresh. Credenciais do script (env vars
+> `SUPABASE_SERVICE_ROLE_KEY` + `DEV_ADMIN_TOKEN`) em `ACESSOS.local.md`
+> seções 2 e 9-ter.
 >
 > **Fluxo recomendado** (1 nota por persona, máximo 3 no total):
 >
-> 1. **MEI** (default) — `tipo=MEI, regime=SIMPLES_MEI`
->    - Esperado: emissão **AUTORIZADA** pela Receita. UI sem ISS/retenção.
+> 1. `./scripts/qa-persona.sh mei` → abrir link → emitir
+>    - Esperado: **AUTORIZADA** pela Receita. UI sem ISS/retenção.
 >      Disclaimer azul "Como Simples Nacional, basta...".
 >
-> 2. Trocar pra **ME Simples Nacional** via curl ACESSOS § 9-quarter →
->    **hard refresh** (Ctrl+Shift+R) → tentar emitir
+> 2. `./scripts/qa-persona.sh me-sn` → abrir link novo → emitir
 >    - Esperado: UI ainda sem ISS (SN). Receita Federal **REJEITA**
->      porque CNPJ Alef está cadastrado como MEI na base oficial dela —
->      essa rejeição **prova que o request chegou bem-formado**. Anote o
->      código de erro retornado.
+>      porque CNPJ Alef está cadastrado como MEI na base oficial — essa
+>      rejeição **prova que o request chegou bem-formado**. Anote código
+>      de erro retornado.
 >
-> 3. Trocar pra **EPP Lucro Real** via curl ACESSOS § 9-quarter →
->    hard refresh → tentar emitir
+> 3. `./scripts/qa-persona.sh epp-lr` → abrir link novo → emitir
 >    - Esperado: UI ganha campos ISS + retenção visíveis. Receita
 >      **REJEITA** pelo mesmo motivo. Anote o código de erro.
 >
-> 4. **OBRIGATÓRIO ao fim**: voltar empresa pra MEI/SIMPLES_MEI pra não
->    deixar conta inconsistente.
+> 4. **OBRIGATÓRIO ao fim**: `./scripts/qa-persona.sh mei` pra voltar conta
+>    pra estado default. Sem isso, dashboard real fica em ME/EPP até
+>    próxima execução do script.
 >
 > Critério de sucesso desta sub-bateria: **request bem-formado nas 3
 > personas** (UI muda corretamente + XML válido chega na Receita).
