@@ -104,9 +104,14 @@ porque dev pode ser de uma empresa (não dono dela).
 
 Antes de começar, **confirme com o dev** se você tem acesso a:
 
-- [ ] **Magic link admin** pra logar como `teste-empresa@notafacil.com` sem
-      esperar OTP. Comando curl em `ACESSOS.local.md` (Supabase service_role +
-      `auth/v1/admin/generate_link`). Sem isso, Bloco 3 vira o teto.
+- [x] **Magic link admin** (configurado 2026-06-04, commit `0e6d577` +
+      próximo). Rota `POST /api/dev/magic-link` aceita `DEV_ADMIN_TOKEN`
+      no header e devolve `action_link` da Supabase pronto pra abrir em
+      janela anônima → entra direto no `/home`. Comando completo em
+      `ACESSOS.local.md` seção **9-ter**. Use pra:
+      - `teste-empresa@notafacil.com` (conta ME pra Blocos 4–13)
+      - `teste-api@notafacil.com` (conta Dev pra Bloco 2-Dev fluxo feliz)
+      - qualquer outro email que vc cadastrar no meio do QA
 - [ ] **Cert A1 de homologação** (`certificado_hom.pfx` + senha) pra Bloco 5
       (Emissão) → 6 (cancel/subst) → 7 (listagem com notas reais)
 - [ ] **Webhook público** (webhook.site ou endpoint Vercel) pra Bloco 11.4
