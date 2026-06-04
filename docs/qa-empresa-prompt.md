@@ -112,8 +112,20 @@ Antes de começar, **confirme com o dev** se você tem acesso a:
       - `teste-empresa@notafacil.com` (conta ME pra Blocos 4–13)
       - `teste-api@notafacil.com` (conta Dev pra Bloco 2-Dev fluxo feliz)
       - qualquer outro email que vc cadastrar no meio do QA
-- [ ] **Cert A1 de homologação** (`certificado_hom.pfx` + senha) pra Bloco 5
-      (Emissão) → 6 (cancel/subst) → 7 (listagem com notas reais)
+- [x] **Cert A1 disponível** (configurado 2026-06-04). Arquivo em
+      `C:\Users\Chris\174031598_ALEF_HENRIQUE_DAS_CHAGAS_00256647275_34488964000142.pfx`
+      senha `060294`. Detalhes + comando curl de upload em `ACESSOS.local.md`
+      seção `## certificado A1`.
+
+      🚨 **ESTE CERT É DE PRODUÇÃO REAL** (não homologação). Toda emissão em
+      `api.emitirnotafacil.com.br` envia DPS pra Receita Federal Nacional
+      de verdade. Política RÍGIDA pra Blocos 5+6:
+      - **Máximo 3 notas teste** por rodada inteira
+      - **Cancelar em ≤30 min** após cada autorização (via evento e101101)
+      - **Valor R$ 1,00** em todas
+      - **Discriminação**: "Teste de QA — cancelar imediatamente"
+      - **NÃO tente** substituir nota (Bloco 6.3) sem confirmar com Chris primeiro
+      - Se algo der errado no cancelamento, **PARE** e avise Chris imediato
 - [ ] **Webhook público** (webhook.site ou endpoint Vercel) pra Bloco 11.4
       (Webhooks no painel) + entrega real
 - [ ] **Cartão Stripe teste** (`4242 4242 4242 4242`) pra Bloco 12 (Billing)
@@ -434,6 +446,21 @@ abaixo retornam "credenciais inválidas".
 ---
 
 ### 🔹 BLOCO 5 — Emissão de Nota `/notas/nova`
+
+> 🚨 **AVISO FISCAL** — releia antes de tocar este bloco:
+>
+> O cert A1 disponível é de **PRODUÇÃO REAL** (CNPJ 34488964000142, Alef
+> Henrique). Cada emissão neste bloco gera **NFS-e Nacional REAL** com
+> efeito fiscal. Política rígida:
+>
+> - **Máximo 3 notas** em toda a rodada (somando este bloco + Bloco 6)
+> - **Sempre R$ 1,00** valor de serviço
+> - **Discriminação**: `Teste de QA — cancelar imediatamente`
+> - **Cancelar em ≤ 30 min** após autorização (via Bloco 6.2)
+> - Se não conseguir cancelar uma nota, **PARE** e avise Chris no momento
+>
+> Se você só quer testar a UI/validações do form sem submeter, vá até o
+> botão final e **NÃO clique** em "Emitir" — só inspecione o estado.
 
 #### 5.1 Setup do form
 - [ ] **Subtítulo dinâmico por regime**:
