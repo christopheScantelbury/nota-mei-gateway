@@ -22,9 +22,16 @@
 
 Status consolidado em `docs/qa-empresa-status-rodadas.md`.
 
-**Total**: 20 bugs únicos → 13 fixados em QA + 4 fixes pós-handoff =
-**17 verificações** que precisam regredir nesta rodada.
+**Total**: 22 bugs únicos → 13 fixados em QA + 6 fixes pós-handoff =
+**19 verificações** que precisam regredir nesta rodada.
 **Avaliação atual**: 🟡 release candidate.
+
+### 🆕 Smoke HTTP da N+2 — falsos positivos descartados
+
+Agent QA HTTP encontrou em `api.emitirnotafacil.com.br`:
+- `/v1/clientes` → 404 → **NÃO É BUG**. Frontend usa `apps/web/app/api/clientes/` (Next.js API routes consumindo Supabase direto), não vai pelo Go API. Mesma coisa com `/v1/webhooks`.
+- `/v1/auth/me`, `/v1/me`, `/v1/empresa` → 404 → **NÃO É BUG**. Dashboard lê dados do user direto do JWT Supabase (`user_metadata`).
+- 404 retorna `error: INTERNAL_ERROR` em vez de `NOT_FOUND` → cosmético, pendente refactor (P3).
 
 ### 🆕 Novidades desde a última rodada
 
@@ -461,6 +468,36 @@ abaixo retornam "credenciais inválidas".
 >
 > Se você só quer testar a UI/validações do form sem submeter, vá até o
 > botão final e **NÃO clique** em "Emitir" — só inspecione o estado.
+>
+> ### 🔀 Testando as 3 personas (MEI, ME, EPP) com 1 cert só
+>
+> Não temos cert ME/EPP separado. Mas podemos forçar a UI das 3 personas
+> trocando `empresas.tipo` no banco via curl. Comandos completos em
+> `ACESSOS.local.md` seção `9-quarter` (toggle MEI/ME/EPP).
+>
+> **Fluxo recomendado** (1 nota por persona, máximo 3 no total):
+>
+> 1. **MEI** (default) — `tipo=MEI, regime=SIMPLES_MEI`
+>    - Esperado: emissão **AUTORIZADA** pela Receita. UI sem ISS/retenção.
+>      Disclaimer azul "Como Simples Nacional, basta...".
+>
+> 2. Trocar pra **ME Simples Nacional** via curl ACESSOS § 9-quarter →
+>    **hard refresh** (Ctrl+Shift+R) → tentar emitir
+>    - Esperado: UI ainda sem ISS (SN). Receita Federal **REJEITA**
+>      porque CNPJ Alef está cadastrado como MEI na base oficial dela —
+>      essa rejeição **prova que o request chegou bem-formado**. Anote o
+>      código de erro retornado.
+>
+> 3. Trocar pra **EPP Lucro Real** via curl ACESSOS § 9-quarter →
+>    hard refresh → tentar emitir
+>    - Esperado: UI ganha campos ISS + retenção visíveis. Receita
+>      **REJEITA** pelo mesmo motivo. Anote o código de erro.
+>
+> 4. **OBRIGATÓRIO ao fim**: voltar empresa pra MEI/SIMPLES_MEI pra não
+>    deixar conta inconsistente.
+>
+> Critério de sucesso desta sub-bateria: **request bem-formado nas 3
+> personas** (UI muda corretamente + XML válido chega na Receita).
 
 #### 5.1 Setup do form
 - [ ] **Subtítulo dinâmico por regime**:
@@ -853,6 +890,24 @@ Antes de explorar áreas novas, validar que os **17 fixes acumulados** seguem
 em pé. Cada item: marca ✅ se está OK, ❌ se voltou (vira bug).
 
 ### Pós-handoff (fixes 2026-06-03/04 fora de QA formal)
+
+- [ ] **RA-5 — /v1/templates 200** (commit `c850b07`, descoberto na rodada
+      N+2 via smoke HTTP). Antes: panic em `c.Locals("mei_id").(string)`
+      → 500. Agora: handler usa `auth.OwnerID(c)` que lê `mei`/`empresa`
+      struct corretos. Testar:
+      ```bash
+      curl -i https://api.emitirnotafacil.com.br/v1/templates \
+        -H "Authorization: Bearer $JWT_SUPABASE"
+      ```
+      Esperado: **200** com `{data: [...], total: N}`. NÃO pode ser 500.
+
+- [ ] **RA-6 — /v1/recorrencias 200** (commit `c850b07`). Mesma causa-raiz,
+      mesmo fix. Testar:
+      ```bash
+      curl -i https://api.emitirnotafacil.com.br/v1/recorrencias \
+        -H "Authorization: Bearer $JWT_SUPABASE"
+      ```
+      Esperado: **200** com `{data: [...], total: N}`.
 
 - [ ] **RA-1 — UrgencyTopBar SSR-safe** (commit `6cabf05`). Limpar cookies
       do navegador. Carregar `/me` pela primeira vez → topbar laranja já
