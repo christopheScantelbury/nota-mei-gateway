@@ -287,17 +287,42 @@ export default function NovaNota() {
         // Padrão obrigatório: toast flutuante + scroll-to-top automático
         // (lib/notify.ts) — banner inline morria abaixo da dobra em mobile.
         const msg = data.message ?? 'Erro ao emitir a nota. Tente novamente.'
-        const title =
-          data.error === 'PLAN_LIMIT_REACHED'
-            ? 'Limite do plano atingido'
-            : data.error === 'CERTIFICADO_AUSENTE'
-              ? 'Certificado A1 não configurado'
-              : data.error === 'INSCRICAO_MUNICIPAL_OBRIGATORIA'
-                ? 'Inscrição Municipal obrigatória'
-                : data.error === 'MUNICIPIO_NAO_HABILITADO'
-                  ? 'Município não habilitado'
-                  : 'Não foi possível emitir a nota'
-        notify.error(title, msg)
+
+        // Mapeia error code do backend pra (título + CTA acionável). Cada
+        // erro recoverable ganha link direto pra tela de fix.
+        let title = 'Não foi possível emitir a nota'
+        let action: { label: string; onClick: () => void } | undefined
+        switch (data.error) {
+          case 'PLAN_LIMIT_REACHED':
+            title = 'Limite do plano atingido'
+            action = { label: 'Ver planos', onClick: () => (window.location.href = '/billing') }
+            break
+          case 'CERTIFICADO_AUSENTE':
+            title = 'Certificado A1 não configurado'
+            action = {
+              label: 'Configurar agora',
+              onClick: () => (window.location.href = '/configuracoes?aba=certificado'),
+            }
+            break
+          case 'INSCRICAO_MUNICIPAL_OBRIGATORIA':
+            title = 'Inscrição Municipal obrigatória'
+            action = {
+              label: 'Cadastrar agora',
+              onClick: () => (window.location.href = '/configuracoes?aba=perfil'),
+            }
+            break
+          case 'MUNICIPIO_NAO_HABILITADO':
+            title = 'Município não habilitado'
+            break
+          case 'NO_ACCOUNT':
+            title = 'Sessão sem empresa vinculada'
+            action = {
+              label: 'Fazer login',
+              onClick: () => (window.location.href = '/login?produto=me'),
+            }
+            break
+        }
+        notify.error(title, msg, action ? { action } : undefined)
         setApiError(msg) // mantém banner inline como fallback acessibilidade
       }
     } catch {

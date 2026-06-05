@@ -14,6 +14,8 @@ interface Props {
   hasNota: boolean
   hasApiKey: boolean
   hasAuthorizedNota: boolean
+  /** Inscrição Municipal cadastrada. Obrigatória pra ME/EPP; ignorada pra MEI. */
+  hasInscricaoMunicipal?: boolean
   empresaTipo?: 'MEI' | 'ME' | 'EPP'
 }
 
@@ -22,6 +24,7 @@ export default function OnboardingChecklist({
   hasNota,
   hasApiKey,
   hasAuthorizedNota,
+  hasInscricaoMunicipal,
   empresaTipo,
 }: Props) {
   const isMei = !empresaTipo || empresaTipo === 'MEI'
@@ -34,6 +37,15 @@ export default function OnboardingChecklist({
       done: true,
       href: '#',
       cta: 'Feito',
+    },
+    {
+      id: 'im',
+      label: 'Inscrição Municipal cadastrada',
+      description:
+        'Obrigatória pra ME/EPP — sem ela a Receita rejeita a DPS com erro E0116.',
+      done: !!hasInscricaoMunicipal,
+      href: '/configuracoes?aba=perfil',
+      cta: 'Cadastrar agora',
     },
     {
       id: 'cert',
@@ -71,8 +83,11 @@ export default function OnboardingChecklist({
     },
   ]
 
-  // MEI users don't need an API Key — hide that step
-  const steps = isMei ? allSteps.filter(s => s.id !== 'apikey') : allSteps
+  // MEI dispensa: API Key (não emite via integração) + Inscrição Municipal
+  // (MEI tem regime simplificado, prefeitura não exige IM no CNC NFS-e).
+  const steps = isMei
+    ? allSteps.filter(s => s.id !== 'apikey' && s.id !== 'im')
+    : allSteps
 
   const allDone = steps.every(s => s.done)
   const doneCount = steps.filter(s => s.done).length

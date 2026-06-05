@@ -17,12 +17,13 @@ export default async function ConfiguracoesPage() {
     municipio_ibge: string
     cert_valid_until: string | null
     tipo?: string | null
+    inscricao_municipal?: string | null
   }
 
   // Try empresas first (ME/EPP), fall back to meis (MEI legacy)
   const empresaResult = await supabase
     .from('empresas')
-    .select('cnpj, razao_social, email, municipio_ibge, cert_valid_until, tipo')
+    .select('cnpj, razao_social, email, municipio_ibge, cert_valid_until, tipo, inscricao_municipal')
     .eq('user_id', user.id)
     .maybeSingle<ProfileData>()
 

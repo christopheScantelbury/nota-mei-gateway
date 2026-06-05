@@ -90,10 +90,15 @@ export default async function DashboardHome() {
   const competencia = currentCompetencia()
 
   // Profile: try empresas first (ME/EPP), fall back to meis (MEI legacy)
-  type ProfileData = { razao_social: string; cert_valid_until: string | null; tipo?: string | null }
+  type ProfileData = {
+    razao_social: string
+    cert_valid_until: string | null
+    tipo?: string | null
+    inscricao_municipal?: string | null
+  }
   const empresaProfile = await supabase
     .from('empresas')
-    .select('razao_social, cert_valid_until, tipo')
+    .select('razao_social, cert_valid_until, tipo, inscricao_municipal')
     .eq('user_id', user.id)
     .maybeSingle<ProfileData>()
 
@@ -180,6 +185,7 @@ export default async function DashboardHome() {
   const hasNota = notas.length > 0 || totalEmitidas > 0
   const hasApiKey = !!apiKey
   const hasAuthorizedNota = !!firstAutorizada
+  const hasInscricaoMunicipal = !!(empresaProfile.data?.inscricao_municipal ?? '').trim()
   // Show celebration only on first authorized nota (total === 1 means it just happened)
   const isFirstAutorized = hasAuthorizedNota && totalEmitidas === 1
 
@@ -204,6 +210,7 @@ export default async function DashboardHome() {
         hasNota={hasNota}
         hasApiKey={hasApiKey}
         hasAuthorizedNota={hasAuthorizedNota}
+        hasInscricaoMunicipal={hasInscricaoMunicipal}
         empresaTipo={empresaTipo}
       />
 

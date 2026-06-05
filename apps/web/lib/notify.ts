@@ -40,6 +40,8 @@ interface NotifyOptions {
   duration?: number
   /** Pular scroll-to-top automático em erro (raro — quase nunca usar). */
   skipScroll?: boolean
+  /** CTA acionável dentro do toast — ex: "Configurar agora → /configuracoes". */
+  action?: { label: string; onClick: () => void }
 }
 
 function scrollToTop() {
@@ -57,7 +59,8 @@ export const notify = {
     if (!opts?.skipScroll) scrollToTop()
     return toast.error(title, {
       description: message,
-      duration: opts?.duration,
+      duration: opts?.duration ?? (opts?.action ? 10000 : undefined),
+      action: opts?.action,
     })
   },
 

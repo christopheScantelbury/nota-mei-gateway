@@ -14,6 +14,9 @@ interface MEIData {
   email: string
   municipio_ibge: string
   cert_valid_until: string | null
+  /** Obrigatória pra ME/EPP. MEI dispensa (regime simplificado). */
+  inscricao_municipal?: string | null
+  tipo?: string | null
 }
 
 interface APIKey {
@@ -60,8 +63,14 @@ function Toast({ msg, type }: { msg: string; type: 'success' | 'error' }) {
 // ── Tab: Perfil ───────────────────────────────────────────────────────────────
 function PerfilTab({ mei }: { mei: MEIData }) {
   const [razaoSocial, setRazaoSocial] = useState(mei.razao_social)
+  const [inscricaoMunicipal, setInscricaoMunicipal] = useState(mei.inscricao_municipal ?? '')
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
+
+  const isMei = !mei.tipo || mei.tipo === 'MEI'
+  const initialIM = mei.inscricao_municipal ?? ''
+
+  const dirty = razaoSocial !== mei.razao_social || inscricaoMunicipal !== initialIM
 
   async function save() {
     setSaving(true)
@@ -70,7 +79,10 @@ function PerfilTab({ mei }: { mei: MEIData }) {
       const res = await fetch('/api/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ razao_social: razaoSocial }),
+        body: JSON.stringify({
+          razao_social: razaoSocial,
+          inscricao_municipal: inscricaoMunicipal.trim(),
+        }),
       })
       if (res.ok) {
         setToast({ msg: 'Perfil atualizado com sucesso.', type: 'success' })
@@ -109,11 +121,35 @@ function PerfilTab({ mei }: { mei: MEIData }) {
         <label className="text-sm font-medium text-text-2">Código IBGE do Município</label>
         <input className={readonlyCls} value={mei.municipio_ibge} readOnly />
       </div>
+
+      {/* Inscrição Municipal — só pra ME/EPP. Pre-flight do backend (NFS-e
+          Nacional E0116) exige IM cadastrada antes de emitir DPS. */}
+      {!isMei && (
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-text-1">
+            Inscrição Municipal{' '}
+            <span className="text-nota-rejeitada">*</span>
+          </label>
+          <input
+            className={inputCls}
+            value={inscricaoMunicipal}
+            onChange={e => setInscricaoMunicipal(e.target.value)}
+            placeholder="Número da prefeitura (ex: 12345)"
+            maxLength={30}
+          />
+          <p className="text-xs text-text-2">
+            Obrigatória pra ME/EPP. Sem ela a Receita rejeita a DPS com erro
+            E0116. Você encontra esse número no comprovante de inscrição da
+            prefeitura ou na consulta do CNPJ municipal.
+          </p>
+        </div>
+      )}
+
       <Button
         variant="primary"
         size="sm"
         loading={saving}
-        disabled={saving || razaoSocial === mei.razao_social}
+        disabled={saving || !dirty}
         onClick={save}
         className="self-start"
       >
