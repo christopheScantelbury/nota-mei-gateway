@@ -54,31 +54,55 @@ export async function GET(request: NextRequest) {
       // Uses service role to bypass RLS (the row has user_id=NULL so the user's
       // own RLS policy can't reach it yet).
       const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-      if (serviceRoleKey) {
+      const userEmail = sessionData.user.email
+      if (serviceRoleKey && userEmail) {
         try {
           const adminClient = createClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             serviceRoleKey,
-            { auth: { persistSession: false } }
+            { auth: { persistSession: false } },
           )
-          // Find any empresa with matching email and no user_id yet
-          const { data: unlinked } = await adminClient
+          // Case-insensitive (Supabase Auth normaliza emails pra lowercase, mas
+          // empresas pode ter sido inserida com case diferente vindo do form).
+          const emailNormalized = userEmail.toLowerCase()
+
+          const { data: unlinked, error: selectErr } = await adminClient
             .from('empresas')
-            .select('id')
-            .eq('email', sessionData.user.email!)
+            .select('id, email')
+            .ilike('email', emailNormalized)
             .is('user_id', null)
             .limit(1)
             .maybeSingle()
 
-          if (unlinked) {
-            await adminClient
+          if (selectErr) {
+            console.error('[callback] select unlinked empresa failed', selectErr)
+          } else if (unlinked) {
+            const { error: updateErr } = await adminClient
               .from('empresas')
               .update({ user_id: sessionData.user.id })
               .eq('id', unlinked.id)
+            if (updateErr) {
+              console.error('[callback] link user_id failed', {
+                empresa_id: unlinked.id,
+                user_id: sessionData.user.id,
+                err: updateErr,
+              })
+            } else {
+              console.info('[callback] linked empresa', {
+                empresa_id: unlinked.id,
+                user_id: sessionData.user.id,
+              })
+            }
+          } else {
+            // user logou mas nenhuma empresa com esse email aguarda link.
+            // OK pra dev accounts (não têm empresa) ou retorno de user existente.
+            console.info('[callback] no unlinked empresa for', emailNormalized)
           }
-        } catch {
-          // Non-fatal — user can still access dashboard if empresa was already linked
+        } catch (e) {
+          console.error('[callback] empresa linkage exception', e)
         }
+      } else if (!serviceRoleKey) {
+        console.warn('[callback] SUPABASE_SERVICE_ROLE_KEY missing — linkage skipped')
       }
 
       // HIST-6.1 — enfileira evento de signup (fire-and-forget, falha não bloqueia login)

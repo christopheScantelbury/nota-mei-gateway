@@ -11,11 +11,13 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const isMei = searchParams.produto === 'mei'
   if (!searchParams.produto) {
-    return { title: { absolute: 'Criar conta — Nota Fácil MEI' } }
+    // Seletor genérico (CadastroSeletor) — antes era hardcoded "Nota Fácil
+    // MEI" mesmo mostrando MEI + ME/EPP + Dev. Agora neutro.
+    return { title: { absolute: 'Criar conta — NotaFácil' } }
   }
   return {
     title: {
-      absolute: isMei ? 'Cadastrar — Nota Fácil MEI' : 'Cadastrar — Nota MEI Gateway',
+      absolute: isMei ? 'Cadastrar — Nota Fácil MEI' : 'Cadastrar — NotaFácil API',
     },
   }
 }
