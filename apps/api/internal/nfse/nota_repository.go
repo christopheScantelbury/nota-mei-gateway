@@ -263,7 +263,66 @@ func (r *NotaRepository) ListByEmpresa(ctx context.Context, empresaID uuid.UUID,
 	return notas, total, nil
 }
 
+// ListByOwner busca notas filtrando pela coluna que casar (mei_id OR empresa_id).
+//
+// Cobre os 2 schemas históricos:
+//   - MEI-legacy: notas têm mei_id preenchido e empresa_id NULL
+//   - ME/EPP: notas têm empresa_id preenchido e mei_id pode ser NULL
+//   - MEI moderno (após ARCH-03): ambos preenchidos com mesmo UUID
+//
+// QA cascade R3 mostrou que notas criadas com persona ME (tipo=ME, regime=SN/LP)
+// somem da listagem porque o middleware híbrido só consegue setar `mei` no
+// contexto (ele resolve via FindMEI(userID) primeiro e retorna early), então
+// o handler chamava ListByMEI(mei.ID) que filtra WHERE mei_id = $1 — mas as
+// notas ME têm mei_id = NULL (empresa.Tipo != "MEI" no momento do INSERT).
+//
+// Esta query OR garante consistência independente de como a nota foi criada.
+func (r *NotaRepository) ListByOwner(ctx context.Context, ownerID uuid.UUID, limit, offset int) ([]Nota, int, error) {
+	rows, err := r.db.Pool().Query(ctx, `
+		SELECT id, mei_id, numero_rps, status,
+		       protocolo_receita, numero_nfse, codigo_verificacao,
+		       xml_enviado, xml_retorno, pdf_path, xml_s3_key, pdf_s3_key,
+		       webhook_url, webhook_entregue, webhook_tentativas,
+		       idempotency_key, tomador_doc, tomador_nome,
+		       valor_servico, competencia,
+		       erro_codigo, erro_descricao,
+		       cancelada_em, emitida_em,
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido,
+		       tomador_tipo, motivo_cancelamento
+		FROM notas_fiscais
+		WHERE mei_id = $1 OR empresa_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
+	`, ownerID, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var notas []Nota
+	for rows.Next() {
+		n, err := scanNotaFromRows(rows)
+		if err != nil {
+			return nil, 0, err
+		}
+		notas = append(notas, *n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	var total int
+	if err := r.db.Pool().QueryRow(ctx, `
+		SELECT COUNT(*) FROM notas_fiscais WHERE mei_id = $1 OR empresa_id = $1
+	`, ownerID).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	return notas, total, nil
+}
+
 // ListByMEI returns a paginated list of notas for a given MEI, newest first.
+// DEPRECATED: prefira ListByOwner — esta variant perde notas onde mei_id é NULL.
 func (r *NotaRepository) ListByMEI(ctx context.Context, meiID uuid.UUID, limit, offset int) ([]Nota, int, error) {
 	rows, err := r.db.Pool().Query(ctx, `
 		SELECT id, mei_id, numero_rps, status,

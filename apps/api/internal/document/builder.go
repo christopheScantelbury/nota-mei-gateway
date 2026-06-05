@@ -28,6 +28,14 @@ type EmissaoRequest struct {
 	Subst *SubstParams `json:"-"`
 }
 
+// Normalize copia campos que aceitam alias (servico.iss_retido) pro root
+// quando o root estiver vazio. Chamar logo após BodyParser no handler de POST.
+func (r *EmissaoRequest) Normalize() {
+	if r.IssRetido == nil && r.Servico.IssRetido != nil {
+		r.IssRetido = r.Servico.IssRetido
+	}
+}
+
 // SubstParams carries the data needed to emit a DPS-as-substitute.
 type SubstParams struct {
 	ChaveSubstituida string // 50-digit chave de acesso da NFS-e original
@@ -45,6 +53,11 @@ type ServicoRequest struct {
 	Discriminacao string  `json:"discriminacao"`
 	Valor         float64 `json:"valor"`
 	AliquotaISS   float64 `json:"aliquota_iss"` // percentage e.g. 2.0 = 2%; 0 = lookup from ISS table
+	// IssRetido (opcional) — alias do campo root `iss_retido`. Aceito aqui
+	// porque integradores e DPS XML aninham retenção dentro do serviço,
+	// então o schema mais natural é `servico.iss_retido`. Quando ambos vêm,
+	// root vence (compat). EmissaoRequest.Normalize() promove este pro root.
+	IssRetido *bool `json:"iss_retido,omitempty"`
 }
 
 // TomadorRequest holds the service recipient details.

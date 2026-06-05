@@ -154,6 +154,10 @@ func (h *NFSeHandler) EmitirNota(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return validationError(c, "corpo da requisição inválido: "+err.Error())
 	}
+	// Aceita `iss_retido` em servico.iss_retido como alias do root iss_retido —
+	// integradores e DPS XML aninham retenção dentro do serviço, root é
+	// histórico. Promove pro root antes da validação.
+	req.Normalize()
 	if errs := validateEmissaoRequest(req); len(errs) > 0 {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"error":      "VALIDATION_ERROR",
@@ -305,6 +309,20 @@ func (h *NFSeHandler) emitirNotaMEI(c *fiber.Ctx, req document.EmissaoRequest, m
 // emitirNotaME handles POST /v1/nfse for ME/EPP companies (DPS/SEFIN path).
 func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, empresa *auth.Empresa) error {
 	ctx := c.Context()
+
+	// ── Pre-flight (R3-P2 NOVO): ME/EPP precisa de Inscrição Municipal ────
+	// QA cascade R3 confirmou que a Receita rejeita TODAS as DPS de não-MEI
+	// sem IM com erro E0116 ("A IM deve ser informada..."). É erro determinístico
+	// upstream do CNC NFS-e municipal, antes de avaliar regime/alíquota.
+	// Devolvemos 422 local pra economizar request + dar mensagem acionável.
+	if empresa.Tipo != "MEI" && (empresa.InscricaoMunicipal == nil || *empresa.InscricaoMunicipal == "") {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error":      "INSCRICAO_MUNICIPAL_OBRIGATORIA",
+			"message":    "ME/EPP precisa de Inscrição Municipal cadastrada — a Receita Federal rejeita DPS sem IM com erro E0116. Configure em Configurações > Dados antes de emitir.",
+			"fields":     []fiber.Map{{"field": "empresa.inscricao_municipal", "message": "obrigatório para ME/EPP — preencha no cadastro"}},
+			"request_id": c.Locals("request_id"),
+		})
+	}
 
 	// ── ME-21: Validar município habilitado para NFS-e Nacional ───────────
 	// MunicipioAtivo checks the municipios_nfse table (Redis-cached 24 h).
@@ -657,11 +675,24 @@ func (h *NFSeHandler) enviarEProcessar(
 // ─── GET /v1/nfse ──────────────────────────────────────────────────────────
 
 // ListarNotas handles GET /v1/nfse.
+//
+// Bug R3-P2 fix (2026-06-04): antes escolhíamos entre ListByMEI/ListByEmpresa
+// baseado em qual struct estava no contexto. Mas o hybrid middleware seta
+// só um deles (resolve via FindMEI primeiro), enquanto o emit handler salva
+// nota com mei_id=NULL pra ME/EPP. Resultado: nota nova sumia da listagem.
+// Agora usamos OwnerID + ListByOwner (mei_id OR empresa_id).
 func (h *NFSeHandler) ListarNotas(c *fiber.Ctx) error {
 	mei := auth.GetMEI(c)
 	empresa := auth.GetEmpresa(c)
 	if mei == nil && empresa == nil {
 		return internalError(c, "nenhuma empresa autenticada no contexto")
+	}
+
+	var ownerID uuid.UUID
+	if mei != nil {
+		ownerID = mei.ID
+	} else {
+		ownerID = empresa.ID
 	}
 
 	limit := 20
@@ -677,14 +708,7 @@ func (h *NFSeHandler) ListarNotas(c *fiber.Ctx) error {
 		}
 	}
 
-	var notas []nfse.Nota
-	var total int
-	var listErr error
-	if empresa != nil {
-		notas, total, listErr = h.notaRepo.ListByEmpresa(c.Context(), empresa.ID, limit, offset)
-	} else {
-		notas, total, listErr = h.notaRepo.ListByMEI(c.Context(), mei.ID, limit, offset)
-	}
+	notas, total, listErr := h.notaRepo.ListByOwner(c.Context(), ownerID, limit, offset)
 	if listErr != nil {
 		return internalError(c, "erro ao listar notas")
 	}

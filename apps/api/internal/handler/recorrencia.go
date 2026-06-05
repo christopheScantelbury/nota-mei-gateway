@@ -97,6 +97,13 @@ func (h *RecorrenciaHandler) CreateRecorrencia(c *fiber.Ctx) error {
 		})
 	}
 
+	// Bug R3-P1: client não precisa enviar proxima_emissao — derivamos da
+	// próxima ocorrência de `dia_vencimento` a partir de hoje. Se dia já
+	// passou no mês corrente, vai pro mês seguinte.
+	if req.ProximaEmissao == "" && req.DiaVencimento >= 1 && req.DiaVencimento <= 28 {
+		req.ProximaEmissao = nextOccurrenceOfDay(time.Now().UTC(), req.DiaVencimento)
+	}
+
 	if errs := validateRecorrenciaCreate(req); len(errs) > 0 {
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
 			"error":      "VALIDATION_ERROR",
@@ -265,4 +272,22 @@ func validateRecorrenciaCreate(req recorrenciaCreateRequest) []fieldError {
 	}
 
 	return errs
+}
+
+// nextOccurrenceOfDay devolve YYYY-MM-DD da próxima vez que o dia do mês `day`
+// vai ocorrer a partir de `from` (inclusive). Se day já passou no mês corrente,
+// vai pro mês seguinte. Usa UTC pra evitar drift entre TZ do cliente e DB.
+//
+// Exemplos (assumindo from = 2026-06-04):
+//
+//	day=15 → "2026-06-15" (no futuro mesmo mês)
+//	day=4  → "2026-06-04" (hoje)
+//	day=1  → "2026-07-01" (já passou, vai pro mês seguinte)
+func nextOccurrenceOfDay(from time.Time, day int) string {
+	year, month, today := from.Date()
+	if day >= today {
+		return time.Date(year, month, day, 0, 0, 0, 0, time.UTC).Format("2006-01-02")
+	}
+	next := time.Date(year, month+1, day, 0, 0, 0, 0, time.UTC)
+	return next.Format("2006-01-02")
 }
