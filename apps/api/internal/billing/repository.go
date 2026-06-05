@@ -256,3 +256,62 @@ func (r *Repository) GetPlano(ctx context.Context, planoID *uuid.UUID, tipoEmpre
 	}
 	return &p, nil
 }
+
+// slugToPlanoNome maps the frontend slug (sent in POST /v1/billing/checkout body)
+// to the canonical plan name stored in the planos table.
+//
+// MEI: trial-mei, avulso, mensal, plus, premium
+// ME/EPP: trial-me, start, pro, business
+// Legacy keys (starter/basic) accepted for backward compatibility.
+func slugToPlanoNome(slug string) string {
+	switch strings.ToLower(strings.TrimSpace(slug)) {
+	case "trial-mei", "trial_mei":
+		return "Trial MEI"
+	case "avulso":
+		return "Avulso MEI"
+	case "mensal", "mei-mensal":
+		return "MEI Mensal"
+	case "plus", "mei-plus":
+		return "MEI Plus"
+	case "premium", "mei-premium":
+		return "MEI Premium"
+	case "trial-me", "trial_me":
+		return "Trial ME"
+	case "start", "me-start":
+		return "ME Start"
+	case "pro", "me-pro":
+		return "ME Pro"
+	case "business", "me-business":
+		return "ME Business"
+	// Legacy keys (pre-2026-06)
+	case "starter":
+		return "ME Start"
+	case "basic":
+		return "MEI Plus"
+	}
+	return ""
+}
+
+// FindStripePriceBySlug resolves a frontend plan slug to its current
+// stripe_price_id by querying the planos table. Returns "" if the slug is
+// unknown or the plan has no price (e.g. EPP placeholder).
+func (r *Repository) FindStripePriceBySlug(ctx context.Context, slug string) (string, string, error) {
+	nome := slugToPlanoNome(slug)
+	if nome == "" {
+		return "", "", nil
+	}
+	var priceID *string
+	err := r.db.Pool().QueryRow(ctx, `
+		SELECT stripe_price_id
+		FROM planos
+		WHERE nome = $1 AND ativo = true
+		LIMIT 1
+	`, nome).Scan(&priceID)
+	if err != nil {
+		return "", nome, fmt.Errorf("FindStripePriceBySlug(%s): %w", slug, err)
+	}
+	if priceID == nil {
+		return "", nome, nil
+	}
+	return *priceID, nome, nil
+}

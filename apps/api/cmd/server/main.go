@@ -241,6 +241,7 @@ func main() {
 	}
 	billingH := handler.NewBillingHandler(
 		sc,
+		billingRepo,
 		cfg.StripePriceStarter, cfg.StripePriceBasic,
 		cfg.StripePricePro, cfg.StripePriceBusiness,
 		apiBase,
