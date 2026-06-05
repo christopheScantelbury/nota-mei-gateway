@@ -53,7 +53,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
                 darkSrc="/brand/notafacil-logo-dark.svg"
                 iconLightSrc="/brand/notafacil-icon.svg"
                 iconDarkSrc="/brand/notafacil-icon.svg"
-                alt="Nota MEI Gateway"
+                alt="NotaFácil API"
                 width={160}
                 height={38}
                 priority
