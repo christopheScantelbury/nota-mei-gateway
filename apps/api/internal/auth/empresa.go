@@ -99,7 +99,7 @@ func (r *Repository) FindEmpresa(ctx context.Context, empresaID uuid.UUID) (*Emp
 			em.stripe_subscription_id,
 			em.stripe_subscription_status,
 			COALESCE(p.nome, 'Trial ME')      AS plano_nome,
-			COALESCE(p.emissoes_limite, 9999) AS plano_limite,
+			COALESCE(p.emissoes_limite, 5)    AS plano_limite,
 			COALESCE(p.preco_excedente_brl, 0) AS plano_prec_excedente,
 			COALESCE(em.total_emitidas, 0)    AS total_emitidas
 		FROM empresas e
