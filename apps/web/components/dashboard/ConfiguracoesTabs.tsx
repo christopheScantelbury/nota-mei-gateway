@@ -4,6 +4,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { formatCNPJ } from '@/lib/format'
 import { Button } from '@/components/ui/Button'
+import { features, type PlanTier } from '@/lib/plan-tier'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Aba = 'perfil' | 'certificado' | 'api-keys' | 'webhook'
@@ -30,6 +31,8 @@ interface Props {
   mei: MEIData
   apiKeys: APIKey[]
   empresaTipo?: 'MEI' | 'ME' | 'EPP'
+  /** Plan tier — trial/starter esconde abas API Keys + Webhook (feature Pro+). */
+  planTier?: PlanTier
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -492,21 +495,22 @@ function WebhookTab() {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 const ALL_ABAS: { value: Aba; label: string; apiOnly?: boolean }[] = [
-  { value: 'perfil',      label: 'Perfil'         },
-  { value: 'certificado', label: 'Certificado A1' },
-  { value: 'api-keys',    label: 'API Keys',        apiOnly: true },
-  { value: 'webhook',     label: 'Webhook',         apiOnly: true },
+  { value: 'perfil',      label: 'Dados da empresa' },
+  { value: 'certificado', label: 'Certificado A1'   },
+  { value: 'api-keys',    label: 'Chaves de API',   apiOnly: true },
+  { value: 'webhook',     label: 'Webhooks',        apiOnly: true },
 ]
 
-export default function ConfiguracoesTabs({ mei, apiKeys, empresaTipo }: Props) {
+export default function ConfiguracoesTabs({ mei, apiKeys, empresaTipo, planTier = 'trial' }: Props) {
   const router    = useRouter()
   const pathname  = usePathname()
   const params    = useSearchParams()
   const abaParam  = params.get('aba') as Aba | null
 
-  // MEI users cannot access api-keys or webhook tabs
+  // MEI dispensa abas API. ME/EPP em trial/starter também — feature Pro+.
   const isMei = !empresaTipo || empresaTipo === 'MEI'
-  const ABAS = ALL_ABAS.filter(a => !isMei || !a.apiOnly)
+  const apiAllowed = !isMei && features.canUseAPI(planTier)
+  const ABAS = ALL_ABAS.filter(a => !a.apiOnly || apiAllowed)
 
   // If MEI navigates directly to ?aba=api-keys via URL, fall back to perfil
   const aba: Aba  = ABAS.some(a => a.value === abaParam) ? abaParam! : 'perfil'

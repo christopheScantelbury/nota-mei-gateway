@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { firstWord } from '@/lib/strings'
 import StatusBadge from '@/components/ui/StatusBadge'
 import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist'
+import { features, resolvePlanTier } from '@/lib/plan-tier'
 import PrimeiraNotaCelebration from '@/components/dashboard/PrimeiraNotaCelebration'
 import type { Nota, NotaStatus, EmissaoMensal } from '@/lib/types'
 import { formatBRL } from '@/lib/format'
@@ -169,6 +170,7 @@ export default async function DashboardHome() {
   const totalEmitidas = emissao?.total_emitidas ?? 0
   const limite = emissao?.planos?.emissoes_limite ?? 5
   const planoNome = emissao?.planos?.nome ?? 'Trial'
+  const planTier = resolvePlanTier(planoNome)
   const usagePct = Math.min(100, Math.round((totalEmitidas / limite) * 100))
 
   // Breakdown por status (mês atual)
@@ -212,6 +214,7 @@ export default async function DashboardHome() {
         hasAuthorizedNota={hasAuthorizedNota}
         hasInscricaoMunicipal={hasInscricaoMunicipal}
         empresaTipo={empresaTipo}
+        planTier={planTier}
       />
 
       {/* Certificate alert */}
@@ -268,8 +271,12 @@ export default async function DashboardHome() {
             )}
           </div>
 
-          {/* Breakdown por status — só renderiza se houver alguma nota */}
-          {(nAutorizadas + nProcessando + nRejeitadas) > 0 && (
+          {/* Breakdown por status — só notas que CONSUMIRAM cota.
+              Rejeitadas NÃO entram aqui pra não dar impressão errada de
+              que estão consumindo o trial (backend só incrementa
+              total_emitidas em sucesso). Quem quiser ver rejeitadas usa
+              o filtro na listagem /notas. */}
+          {(nAutorizadas + nProcessando) > 0 && (
             <div className="mt-4 flex flex-wrap gap-2 text-xs">
               {nAutorizadas > 0 && (
                 <span className="inline-flex items-center gap-1.5 bg-nota-autorizada/10 border border-nota-autorizada/30 text-nota-autorizada rounded-full px-2.5 py-0.5">
@@ -281,12 +288,6 @@ export default async function DashboardHome() {
                 <span className="inline-flex items-center gap-1.5 bg-nota-processando/10 border border-nota-processando/30 text-nota-processando rounded-full px-2.5 py-0.5">
                   <span className="h-1.5 w-1.5 rounded-full bg-nota-processando animate-pulse" />
                   {nProcessando} processando
-                </span>
-              )}
-              {nRejeitadas > 0 && (
-                <span className="inline-flex items-center gap-1.5 bg-nota-rejeitada/10 border border-nota-rejeitada/30 text-nota-rejeitada rounded-full px-2.5 py-0.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-nota-rejeitada" />
-                  {nRejeitadas} rejeitada{nRejeitadas !== 1 ? 's' : ''}
                 </span>
               )}
             </div>
@@ -370,8 +371,10 @@ export default async function DashboardHome() {
           )}
         </div>
 
-        {/* API key card (1/3 width) — only for ME/EPP/gateway users */}
-        {empresaTipo !== 'MEI' && (
+        {/* API key card — só pra ME/EPP em plano Pro+. Trial e Starter não
+            veem esse card (API/Webhook são features Pro). Quem quer integrar
+            faz upgrade pelo /billing. */}
+        {empresaTipo !== 'MEI' && features.canUseAPI(planTier) && (
           <div className="rounded-xl border border-navy-600 bg-navy-700 p-5">
             <p className="text-xs text-text-2 uppercase tracking-wider font-semibold mb-4">
               Integração via API

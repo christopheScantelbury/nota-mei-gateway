@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/dashboard/Sidebar'
+import { resolvePlanTier } from '@/lib/plan-tier'
 import NotificationBell from '@/components/dashboard/NotificationBell'
 import type { MEI } from '@/lib/types'
 
@@ -96,12 +97,23 @@ export default async function DashboardLayout({
       empresaAtiva = preferred!
     }
 
+    // Resolve plan tier pra plan-gating (sidebar nav, etc).
+    const competencia = `${new Date().getUTCFullYear()}-${String(new Date().getUTCMonth() + 1).padStart(2, '0')}`
+    const { data: planoData } = await supabase
+      .from('emissoes_mensais')
+      .select('planos(nome)')
+      .eq('empresa_id', empresaAtiva.id)
+      .eq('competencia', competencia)
+      .maybeSingle<{ planos: { nome: string } | null }>()
+    const planTier = resolvePlanTier(planoData?.planos?.nome)
+
     return (
       <div className="min-h-screen bg-navy-900 text-text-1 font-body lg:flex">
         <Sidebar
           razaoSocial={empresaAtiva.razao_social}
           isAdmin={isAdmin}
           empresaTipo={empresaAtiva.tipo}
+          planTier={planTier}
           empresaAtiva={{
             id: empresaAtiva.id,
             tipo: empresaAtiva.tipo,

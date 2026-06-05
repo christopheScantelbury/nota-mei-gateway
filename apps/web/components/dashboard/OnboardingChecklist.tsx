@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { features, type PlanTier } from '@/lib/plan-tier'
 
 interface Step {
   id: string
@@ -17,6 +18,8 @@ interface Props {
   /** Inscrição Municipal cadastrada. Obrigatória pra ME/EPP; ignorada pra MEI. */
   hasInscricaoMunicipal?: boolean
   empresaTipo?: 'MEI' | 'ME' | 'EPP'
+  /** Plan tier — usado pra esconder step "API Key criada" em trial/starter. */
+  planTier?: PlanTier
 }
 
 export default function OnboardingChecklist({
@@ -26,6 +29,7 @@ export default function OnboardingChecklist({
   hasAuthorizedNota,
   hasInscricaoMunicipal,
   empresaTipo,
+  planTier = 'trial',
 }: Props) {
   const isMei = !empresaTipo || empresaTipo === 'MEI'
 
@@ -85,9 +89,14 @@ export default function OnboardingChecklist({
 
   // MEI dispensa: API Key (não emite via integração) + Inscrição Municipal
   // (MEI tem regime simplificado, prefeitura não exige IM no CNC NFS-e).
-  const steps = isMei
-    ? allSteps.filter(s => s.id !== 'apikey' && s.id !== 'im')
-    : allSteps
+  // ME/EPP em trial/starter NÃO veem API Key (feature Pro+) — quem quer
+  // integrar precisa fazer upgrade. Esconde do checklist pra não sugerir
+  // que é obrigatório no onboarding básico.
+  const steps = allSteps.filter(s => {
+    if (isMei && (s.id === 'apikey' || s.id === 'im')) return false
+    if (s.id === 'apikey' && !features.canUseAPI(planTier)) return false
+    return true
+  })
 
   const allDone = steps.every(s => s.done)
   const doneCount = steps.filter(s => s.done).length

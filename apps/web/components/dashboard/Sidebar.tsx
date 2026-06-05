@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react'
 import ThemeToggle from '@/components/ui/ThemeToggle'
 import { EmpresaSwitcher } from '@/components/dashboard/EmpresaSwitcher'
 import { Button } from '@/components/ui/Button'
+import { features, type PlanTier } from '@/lib/plan-tier'
 
 // ── Nav item definitions ────────────────────────────────────────────────────
 
@@ -17,26 +18,35 @@ type NavItem = {
   label: string
   icon: string
   badge: string | null
-  /** which empresa types see this item */
+  /** Empresa types que veem o item. */
   tipos: EmpresaTipo[] | 'all'
+  /** Plan tier mínimo. Default: 'trial' (qualquer). */
+  minTier?: PlanTier
 }
 
+// Labels em PT-BR claro pra usuário não-técnico. "Configurações" virou
+// "Minha empresa" (pediu o user 2026-06-05 — mais fácil de entender).
 const NAV_ITEMS: NavItem[] = [
-  { href: '/notas',         label: 'Notas Fiscais',       icon: '🧾', badge: null,       tipos: 'all'                },
-  { href: '/clientes',      label: 'Clientes',            icon: '👥', badge: 'STARTER',  tipos: 'all'                },
-  { href: '/templates',     label: 'Templates',           icon: '📄', badge: 'PRO',      tipos: 'all'                },
-  { href: '/recorrencias',  label: 'Automações',          icon: '🔄', badge: 'STARTER',  tipos: 'all'                },
-  { href: '/links',         label: 'Links de Emissão',    icon: '🔗', badge: 'STARTER',  tipos: 'all'                },
-  { href: '/api-keys',      label: 'API Keys',            icon: '🔑', badge: null,       tipos: ['ME', 'EPP']        },
-  { href: '/webhooks',      label: 'Webhooks',            icon: '🔗', badge: null,       tipos: ['ME', 'EPP']        },
-  { href: '/billing',       label: 'Plano & Faturamento', icon: '💳', badge: null,       tipos: 'all'                },
-  { href: '/configuracoes', label: 'Configurações',       icon: '⚙️', badge: null,       tipos: 'all'                },
+  { href: '/notas',         label: 'Notas Fiscais',         icon: '🧾', badge: null,       tipos: 'all' },
+  { href: '/clientes',      label: 'Clientes',              icon: '👥', badge: 'Starter',  tipos: 'all',         minTier: 'starter' },
+  { href: '/templates',     label: 'Modelos de Nota',       icon: '📄', badge: 'Starter',  tipos: 'all',         minTier: 'starter' },
+  { href: '/recorrencias',  label: 'Notas Recorrentes',     icon: '🔄', badge: 'Starter',  tipos: 'all',         minTier: 'starter' },
+  { href: '/links',         label: 'Links de Cobrança',     icon: '🔗', badge: 'Starter',  tipos: 'all',         minTier: 'starter' },
+  { href: '/api-keys',      label: 'Chaves de API',         icon: '🔑', badge: 'Pro',      tipos: ['ME', 'EPP'], minTier: 'pro' },
+  { href: '/webhooks',      label: 'Webhooks',              icon: '🔔', badge: 'Pro',      tipos: ['ME', 'EPP'], minTier: 'pro' },
+  { href: '/billing',       label: 'Plano e Pagamento',     icon: '💳', badge: null,       tipos: 'all' },
+  { href: '/configuracoes', label: 'Minha empresa',         icon: '⚙️', badge: null,       tipos: 'all' },
 ]
 
-function getVisibleItems(empresaTipo: EmpresaTipo): NavItem[] {
-  return NAV_ITEMS.filter(
-    (item) => item.tipos === 'all' || item.tipos.includes(empresaTipo),
-  )
+function getVisibleItems(empresaTipo: EmpresaTipo, planTier: PlanTier): NavItem[] {
+  return NAV_ITEMS.filter((item) => {
+    const tipoOk = item.tipos === 'all' || item.tipos.includes(empresaTipo)
+    if (!tipoOk) return false
+    // Plan gating: filtra premium pra trial.
+    if (item.minTier === 'pro' && !features.canUseAPI(planTier)) return false
+    if (item.minTier === 'starter' && !features.canUseClientes(planTier)) return false
+    return true
+  })
 }
 
 const ADMIN_ITEM = { href: '/admin', label: 'Painel Admin', icon: '🛡️' }
@@ -93,6 +103,7 @@ function NavContent({
   isAdmin,
   tipoUsuario,
   empresaTipo,
+  planTier = 'trial',
   empresaAtiva,
   todasEmpresas,
   onNavClick,
@@ -102,6 +113,7 @@ function NavContent({
   isAdmin: boolean
   tipoUsuario?: 'mei' | 'gateway'
   empresaTipo?: EmpresaTipo
+  planTier?: PlanTier
   empresaAtiva?: SwitcherEmpresa
   todasEmpresas?: SwitcherEmpresa[]
   onNavClick?: () => void
@@ -113,7 +125,7 @@ function NavContent({
   const effectiveTipo: EmpresaTipo = empresaTipo
     ?? (tipoUsuario === 'mei' ? 'MEI' : 'ME')
 
-  const visibleItems = getVisibleItems(effectiveTipo)
+  const visibleItems = getVisibleItems(effectiveTipo, planTier)
 
   return (
     <div className="flex flex-col h-full">
@@ -205,6 +217,7 @@ export default function Sidebar({
   isAdmin = false,
   tipoUsuario = 'gateway',
   empresaTipo,
+  planTier = 'trial',
   empresaAtiva,
   todasEmpresas,
   notificationBell,
@@ -213,6 +226,8 @@ export default function Sidebar({
   isAdmin?: boolean
   tipoUsuario?: 'mei' | 'gateway'
   empresaTipo?: EmpresaTipo
+  /** Tier do plano ativo. Trial esconde API Keys/Webhooks/Templates/etc. */
+  planTier?: PlanTier
   empresaAtiva?: SwitcherEmpresa
   todasEmpresas?: SwitcherEmpresa[]
   notificationBell?: React.ReactNode
@@ -227,7 +242,7 @@ export default function Sidebar({
     return () => { document.body.style.overflow = '' }
   }, [open])
 
-  const navProps = { razaoSocial, isAdmin, tipoUsuario, empresaTipo, empresaAtiva, todasEmpresas, notificationBell }
+  const navProps = { razaoSocial, isAdmin, tipoUsuario, empresaTipo, planTier, empresaAtiva, todasEmpresas, notificationBell }
 
   return (
     <>

@@ -3,6 +3,7 @@ export const metadata = { title: 'Configurações' }
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import ConfiguracoesTabs from '@/components/dashboard/ConfiguracoesTabs'
+import { resolvePlanTier } from '@/lib/plan-tier'
 
 export default async function ConfiguracoesPage() {
   const supabase = createClient()
@@ -53,14 +54,23 @@ export default async function ConfiguracoesPage() {
     .order('created_at', { ascending: false })
     .returns<{ id: string; key_prefix: string; label: string | null; created_at: string }[]>()
 
+  // Plan tier pra gating das abas API.
+  const competencia = `${new Date().getUTCFullYear()}-${String(new Date().getUTCMonth() + 1).padStart(2, '0')}`
+  const { data: planoData } = await supabase
+    .from('emissoes_mensais')
+    .select('planos(nome)')
+    .eq('competencia', competencia)
+    .maybeSingle<{ planos: { nome: string } | null }>()
+  const planTier = resolvePlanTier(planoData?.planos?.nome)
+
   return (
     <div className="p-4 sm:p-8 max-w-3xl">
       <div className="mb-8">
-        <h1 className="font-display text-3xl font-extrabold">Configurações</h1>
+        <h1 className="font-display text-3xl font-extrabold">Minha empresa</h1>
         <p className="text-text-2 mt-1 text-sm">
           {isMei
-            ? 'Gerencie seu perfil e certificado digital.'
-            : 'Gerencie seu perfil, certificado, API Keys e webhook padrão.'}
+            ? 'Gerencie os dados do seu MEI e o certificado digital.'
+            : 'Gerencie os dados da empresa, certificado digital e integrações.'}
         </p>
       </div>
 
@@ -68,6 +78,7 @@ export default async function ConfiguracoesPage() {
         mei={profileData}
         apiKeys={keysResult.data ?? []}
         empresaTipo={empresaTipo}
+        planTier={planTier}
       />
     </div>
   )
