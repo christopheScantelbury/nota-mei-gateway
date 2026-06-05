@@ -56,6 +56,28 @@ type RegisterEmpresaResult struct {
 	APIKey    string // raw key, shown once
 }
 
+// FindEmpresaByUserID loads an empresa linked to the given Supabase auth.user.id.
+//
+// Bug 2026-06-05 motivou: ME/EPP novos cadastrados via /v1/auth/register/me têm
+// empresa.id como UUID random e empresa.user_id apontando pro auth.user.id. O
+// hybrid_middleware antes chamava FindEmpresa(userID) que busca WHERE id=$1 —
+// só funcionava pra MEI legacy ARCH-03 (onde empresa.id == auth.user.id).
+// Resultado: NO_ACCOUNT pra todo cadastro ME/EPP feito após a migração.
+//
+// Esta função usa a coluna `user_id` que é o link semântico correto.
+func (r *Repository) FindEmpresaByUserID(ctx context.Context, userID uuid.UUID) (*Empresa, error) {
+	var empresaID uuid.UUID
+	if err := r.db.Pool().QueryRow(ctx, `
+		SELECT id FROM empresas WHERE user_id = $1 LIMIT 1
+	`, userID).Scan(&empresaID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrInvalidKey{Reason: "no empresa linked to user"}
+		}
+		return nil, err
+	}
+	return r.FindEmpresa(ctx, empresaID)
+}
+
 // FindEmpresa loads an empresa and their active subscription info for the current month.
 func (r *Repository) FindEmpresa(ctx context.Context, empresaID uuid.UUID) (*Empresa, error) {
 	row := r.db.Pool().QueryRow(ctx, `

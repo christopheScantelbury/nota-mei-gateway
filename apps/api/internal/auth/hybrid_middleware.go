@@ -80,6 +80,16 @@ func HybridMiddleware(repo *Repository, supabaseURL, serviceRoleKey string) fibe
 			return c.Next()
 		}
 
+		// ME/EPP novo: empresa.user_id aponta pro auth.user.id (empresa.id
+		// é UUID random, NÃO bate com user.id). Caminho semântico correto.
+		empresaByUser, errEU := repo.FindEmpresaByUserID(c.Context(), userID)
+		if errEU == nil {
+			c.Locals(localsEmpresa, empresaByUser)
+			return c.Next()
+		}
+
+		// Fallback ARCH-03 legacy: empresa.id == auth.user.id pra MEIs
+		// antigos onde a migração de user_id ainda não rodou.
 		empresa, errE := repo.FindEmpresa(c.Context(), userID)
 		if errE == nil {
 			c.Locals(localsEmpresa, empresa)
@@ -89,11 +99,14 @@ func HybridMiddleware(repo *Repository, supabaseURL, serviceRoleKey string) fibe
 		log.Ctx(c.UserContext()).Error().
 			Str("user_id", userID.String()).
 			Err(errM).
+			AnErr("empresa_by_user_err", errEU).
 			AnErr("empresa_err", errE).
 			Msg("hybrid auth: user has no MEI/Empresa row")
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error":      "NO_ACCOUNT",
-			"message":    "Account not found for this session",
+			"error": "NO_ACCOUNT",
+			"message": "Sua sessão é válida mas nenhuma empresa está vinculada a este e-mail. " +
+				"Se você acabou de se cadastrar, a vinculação pode levar alguns segundos — recarregue. " +
+				"Persistindo, contate o suporte com o request_id.",
 			"request_id": c.Locals("request_id"),
 		})
 	}

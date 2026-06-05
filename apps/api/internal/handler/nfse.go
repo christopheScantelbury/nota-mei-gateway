@@ -310,6 +310,21 @@ func (h *NFSeHandler) emitirNotaMEI(c *fiber.Ctx, req document.EmissaoRequest, m
 func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, empresa *auth.Empresa) error {
 	ctx := c.Context()
 
+	// ── Pre-flight: certificado A1 obrigatório ───────────────────────────
+	// Sem CertSecretARN não dá pra assinar a DPS. O erro acontecia depois
+	// na etapa de assinatura (passo 5), mas a mensagem ficava genérica
+	// ("erro ao carregar certificado"). Pre-check aqui devolve mensagem
+	// acionável e link pra Configurações.
+	if empresa.CertSecretARN == nil || *empresa.CertSecretARN == "" {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error": "CERTIFICADO_AUSENTE",
+			"message": "Você precisa enviar seu certificado A1 (.pfx) antes de emitir. " +
+				"Acesse Configurações → Certificado A1 no painel pra fazer o upload.",
+			"fields":     []fiber.Map{{"field": "empresa.certificado_a1", "message": "obrigatório — faça upload em Configurações"}},
+			"request_id": c.Locals("request_id"),
+		})
+	}
+
 	// ── Pre-flight (R3-P2 NOVO): ME/EPP precisa de Inscrição Municipal ────
 	// QA cascade R3 confirmou que a Receita rejeita TODAS as DPS de não-MEI
 	// sem IM com erro E0116 ("A IM deve ser informada..."). É erro determinístico
