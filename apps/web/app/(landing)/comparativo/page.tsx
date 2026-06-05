@@ -122,7 +122,7 @@ export default function ComparativoPage() {
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="font-display text-3xl font-extrabold mb-3">Pronto para migrar?</h2>
           <p className="text-text-2 mb-6">
-            Trial de 30 dias sem cartão. Cancele quando quiser.
+            Trial grátis com 5 notas, sem cartão. Cancele quando quiser.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link

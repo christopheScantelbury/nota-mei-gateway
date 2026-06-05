@@ -13,7 +13,7 @@ export interface PricingPlan {
   persona: PricingPersona
   name: string
   description: string
-  /** texto pronto para exibição — ex: "R$ 79/mês" ou "Grátis · pague por uso" */
+  /** texto pronto para exibição — ex: "R$ 59,99/mês" ou "Grátis · pague por uso" */
   priceLabel: string
   /** ex: "50 notas/mês · R$ 0,60 por nota excedente" */
   notes: string

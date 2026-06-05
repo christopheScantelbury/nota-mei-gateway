@@ -305,13 +305,13 @@ export default function MeiLandingPage() {
             Pronto pra parar de perder tempo com nota fiscal?
           </h2>
           <p className="text-text-2 text-lg mb-8">
-            Trial grátis por 30 dias — 5 notas no trial, sem custo. Sem cartão. Cancele quando quiser.
+            Trial grátis com 5 notas — sem cartão, sem prazo. A partir de R$ 5,99/nota avulsa ou R$ 19,90/mês.
           </p>
           <Link
             href="/cadastro?produto=mei"
             className="bg-persona-mei text-white font-semibold px-10 py-4 rounded-xl text-lg hover:opacity-90 transition"
           >
-            Começar grátis — trial de 30 dias
+            Começar grátis — 5 notas no trial
           </Link>
           <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
             <a

@@ -59,7 +59,7 @@ const faqs = [
   },
   {
     q: 'O trial exige cartão de crédito?',
-    a: 'Não. O trial de 30 dias é completamente gratuito e não exige nenhuma forma de pagamento. Você só precisa fornecer cartão ao escolher um plano pago.',
+    a: 'Não. O trial é completamente gratuito (5 notas pra testar) e não exige cadastro de cartão. Você só fornece método de pagamento ao escolher um plano pago.',
   },
   {
     q: 'Sou desenvolvedor — como integro a API?',
@@ -157,7 +157,7 @@ export default function LandingPage() {
             Pronto para automatizar suas notas?
           </h2>
           <p className="text-text-2 text-lg mb-8">
-            30 dias grátis. Sem cartão. Cancele quando quiser.
+            5 notas grátis no trial. Sem cartão. Cancele quando quiser.
           </p>
           <Link
             href="/cadastro"

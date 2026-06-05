@@ -31,11 +31,13 @@ function lastMonths(n: number): string[] {
   return result
 }
 
+// Planos pra ME/EPP — alinhados com o catálogo Stripe 2026-06-05.
+// MEI usa lista separada (próximo refactor; hoje a página /billing
+// é otimizada pra ME/EPP que é o produto carro-chefe).
 const PLANOS = [
-  { key: 'starter',  name: 'Starter',  limit: 50,   price: 'R$ 29/mês'  },
-  { key: 'basic',    name: 'Basic',     limit: 200,  price: 'R$ 59/mês'  },
-  { key: 'pro',      name: 'Pro',       limit: 500,  price: 'R$ 119/mês' },
-  { key: 'business', name: 'Business',  limit: 2000, price: 'R$ 249/mês' },
+  { key: 'start',    name: 'ME Start',    limit: 10,  price: 'R$ 59,99/mês'  },
+  { key: 'pro',      name: 'ME Pro',      limit: 50,  price: 'R$ 149,90/mês' },
+  { key: 'business', name: 'ME Business', limit: 300, price: 'R$ 299,90/mês' },
 ]
 
 interface HistoricoRow {

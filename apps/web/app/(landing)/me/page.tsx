@@ -53,7 +53,7 @@ export default function LandingME() {
                 Planos para Microempresa
               </h2>
               <p className="mt-4 text-text-2 max-w-2xl mx-auto">
-                Escolha o plano certo para o volume da sua empresa. Comece com 30 dias grátis.
+                Escolha o plano certo para o volume da sua empresa. Trial grátis com 5 notas, sem cartão.
               </p>
             </header>
             <PricingToggleMe />
