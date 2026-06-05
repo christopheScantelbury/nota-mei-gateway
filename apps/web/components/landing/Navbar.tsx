@@ -66,16 +66,29 @@ function getHrefsForPath(pathname: string) {
   return { loginHref: '/login', cadastroHref: '/cadastro' }
 }
 
-const mobileLinks = [
-  { label: 'MEI',           href: '/mei',     isAnchor: false },
-  { label: 'ME / EPP',      href: '/me',      isAnchor: false },
-  { label: 'Gateway API',   href: '/gateway', isAnchor: false },
-  { label: 'Sandbox',       href: '/sandbox', isAnchor: false },
-  { label: 'Preços',        href: '/precos',  isAnchor: false },
-  { label: 'Blog',          href: '/blog',    isAnchor: false },
-  { label: 'Documentação',  href: '/docs',    isAnchor: false },
-  { label: 'Status',        href: '/status',  isAnchor: false },
-]
+// Quando o user está numa landing focada em persona, o link "Preços" da
+// nav rola até a âncora #precos da própria página (evita um redirect pra
+// /precos que mostra outra tabela). Em páginas neutras (home, docs, blog)
+// o link vai pra /precos completa.
+function getPricingHrefForPath(pathname: string) {
+  if (pathname.startsWith('/mei'))     return '/mei#precos'
+  if (pathname.startsWith('/me'))      return '/me#precos'
+  if (pathname.startsWith('/gateway')) return '/gateway#precos'
+  return '/precos'
+}
+
+function getMobileLinks(pathname: string) {
+  return [
+    { label: 'MEI',           href: '/mei',     isAnchor: false },
+    { label: 'ME / EPP',      href: '/me',      isAnchor: false },
+    { label: 'Gateway API',   href: '/gateway', isAnchor: false },
+    { label: 'Sandbox',       href: '/sandbox', isAnchor: false },
+    { label: 'Preços',        href: getPricingHrefForPath(pathname), isAnchor: false },
+    { label: 'Blog',          href: '/blog',    isAnchor: false },
+    { label: 'Documentação',  href: '/docs',    isAnchor: false },
+    { label: 'Status',        href: '/status',  isAnchor: false },
+  ]
+}
 
 // Dropdown "Gateway API" com submenu (Overview, Docs, Sandbox, SDKs, Status).
 // Spec: HIST-3.2 + D-08 (mantém hierarquia, sandbox dentro do produto Gateway).
@@ -121,6 +134,8 @@ export default function Navbar() {
   const pathname = usePathname() ?? '/'
   const persona = getPersonaForPath(pathname)
   const { loginHref, cadastroHref } = getHrefsForPath(pathname)
+  const pricingHref = getPricingHrefForPath(pathname)
+  const mobileLinks = getMobileLinks(pathname)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 60)
@@ -170,7 +185,7 @@ export default function Navbar() {
             <Link href="/mei"     className="text-sm text-text-2 hover:text-text-1 transition-colors">MEI</Link>
             <Link href="/me"      className="text-sm text-text-2 hover:text-text-1 transition-colors">ME / EPP</Link>
             <GatewayMenu />
-            <Link href="/precos"  className="text-sm text-text-2 hover:text-text-1 transition-colors">Preços</Link>
+            <Link href={pricingHref} className="text-sm text-text-2 hover:text-text-1 transition-colors">Preços</Link>
             <Link href="/blog"    className="text-sm text-text-2 hover:text-text-1 transition-colors">Blog</Link>
           </div>
 

@@ -9,21 +9,21 @@ import PricingToggleGateway from '@/components/landing/PricingToggleGateway'
 import GatewayCurlSnippet from '@/components/landing/GatewayCurlSnippet'
 
 export const metadata: Metadata = {
-  title: 'Nota MEI Gateway — A API de NFS-e para seu produto',
+  title: 'NotaFácil API — A API de NFS-e para seu produto',
   description:
     'Integre emissão de nota fiscal de MEI ao seu SaaS, ERP ou marketplace com um POST. Conexão direta com a Receita Federal Nacional. Trial grátis.',
   openGraph: {
-    title: 'Nota MEI Gateway — A API de NFS-e para seu produto',
+    title: 'NotaFácil API — A API de NFS-e para seu produto',
     description: 'Emita NFS-e de MEI via API REST. Um POST, webhook, PDF e XML automáticos.',
     url: 'https://emitirnotafacil.com.br/gateway',
-    siteName: 'Nota MEI Gateway',
-    images: [{ url: '/og/og-gateway-1200x630.png', width: 1200, height: 630, alt: 'Nota MEI Gateway — API de NFS-e para MEI' }],
+    siteName: 'NotaFácil API',
+    images: [{ url: '/og/og-gateway-1200x630.png', width: 1200, height: 630, alt: 'NotaFácil API — API de NFS-e Nacional para MEI, ME e EPP' }],
     locale: 'pt_BR',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Nota MEI Gateway — A API de NFS-e para seu produto',
+    title: 'NotaFácil API — A API de NFS-e para seu produto',
     description: 'Emita NFS-e de MEI via API REST. Um POST, webhook, PDF e XML automáticos.',
     images: ['/og/og-gateway-1200x630.png'],
   },
@@ -112,16 +112,16 @@ export default function GatewayLandingPage() {
           {/* Texto */}
           <div className="flex-1">
             <span className="inline-block bg-navy-700 border border-navy-600 text-persona-api text-xs font-semibold px-3 py-1 rounded-full mb-6">
-              Nota MEI Gateway — by ScantelburyDevs
+              NotaFácil API — by ScantelburyDevs
             </span>
             <h1 className="font-display text-4xl md:text-5xl font-extrabold leading-tight mb-5">
               A API de NFS-e que{' '}
               <span className="text-persona-api">seu produto precisa.</span>
             </h1>
             <p className="text-text-2 text-xl mb-4 leading-relaxed">
-              Integre emissão de nota fiscal de MEI ao seu SaaS, ERP ou marketplace
-              com um POST. Conexão direta com a Receita Federal Nacional, sem depender
-              de prefeituras.
+              Integre emissão de NFS-e Nacional pra <strong className="text-text-1">MEI, ME e EPP</strong>{' '}
+              ao seu SaaS, ERP ou marketplace com um POST. Conexão direta com a
+              Receita Federal, sem depender de prefeituras.
             </p>
             <p className="text-text-2 text-base mb-8 italic">
               &ldquo;Construa em uma tarde o que levaria 3 meses lendo manual da ABRASF.&rdquo;
@@ -293,7 +293,7 @@ export default function GatewayLandingPage() {
             <div className="bg-navy-900 border border-nota-autorizada/30 rounded-2xl p-7">
               <div className="flex items-center gap-2 mb-6">
                 <span className="text-nota-autorizada font-bold text-lg">✓</span>
-                <p className="font-semibold text-text-1">Nota MEI Gateway</p>
+                <p className="font-semibold text-text-1">NotaFácil API</p>
               </div>
               <ul className="flex flex-col gap-3">
                 {[
@@ -396,7 +396,7 @@ export default function GatewayLandingPage() {
       <AnimatedSection className="py-24 px-4" id="comparativo" delay={0.05}>
         <div className="mx-auto max-w-5xl">
           <h2 className="font-display text-3xl font-extrabold text-center mb-4">
-            Por que o Nota MEI Gateway?
+            Por que o NotaFácil API?
           </h2>
           <p className="text-text-2 text-center mb-16 max-w-xl mx-auto">
             Comparado com integração direta na Receita Federal e com APIs genéricas de NFS-e.
@@ -416,21 +416,24 @@ export default function GatewayLandingPage() {
                     APIs genéricas
                   </th>
                   <th className="py-4 px-5 text-center text-persona-api font-bold text-xs uppercase tracking-wider whitespace-nowrap">
-                    Nota MEI Gateway
+                    NotaFácil API
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-navy-600">
                 {(
                   [
-                    { feature: 'Integração em menos de 1 dia',          direto: false, genericas: null  as boolean | null, gateway: true },
-                    { feature: 'Foco exclusivo em MEI',                  direto: false, genericas: false as boolean | null, gateway: true },
-                    { feature: 'Certificado A1 gerenciado na nuvem',     direto: false, genericas: false as boolean | null, gateway: true },
-                    { feature: 'Sandbox incluso sem custo adicional',     direto: false, genericas: null  as boolean | null, gateway: true },
-                    { feature: 'SDK Node.js e Python mantidos',          direto: false, genericas: null  as boolean | null, gateway: true },
-                    { feature: 'Webhooks assinados (HMAC-SHA256)',        direto: false, genericas: null  as boolean | null, gateway: true },
-                    { feature: 'NFS-e Nacional 2026 nativo',             direto: false, genericas: null  as boolean | null, gateway: true },
-                    { feature: 'Suporte técnico em pt-BR',               direto: false, genericas: null  as boolean | null, gateway: true },
+                    { feature: 'Integração em menos de 1 dia',                       direto: false, genericas: null  as boolean | null, gateway: true },
+                    { feature: 'Suporta MEI, ME e EPP nativamente',                  direto: false, genericas: null  as boolean | null, gateway: true },
+                    { feature: 'Simples Nacional, Lucro Presumido e Lucro Real',     direto: false, genericas: null  as boolean | null, gateway: true },
+                    { feature: 'Cálculo de ISS + retenção por regime',               direto: false, genericas: false as boolean | null, gateway: true },
+                    { feature: 'Certificado A1 gerenciado na nuvem',                 direto: false, genericas: false as boolean | null, gateway: true },
+                    { feature: 'Cancelamento e substituição (e101101/e105102)',      direto: false, genericas: null  as boolean | null, gateway: true },
+                    { feature: 'Sandbox incluso sem custo adicional',                direto: false, genericas: null  as boolean | null, gateway: true },
+                    { feature: 'SDK Node.js, Python e PHP mantidos',                 direto: false, genericas: null  as boolean | null, gateway: true },
+                    { feature: 'Webhooks assinados (HMAC-SHA256) com retry',         direto: false, genericas: null  as boolean | null, gateway: true },
+                    { feature: 'NFS-e Nacional v1.01 (set/2026)',                    direto: false, genericas: null  as boolean | null, gateway: true },
+                    { feature: 'Suporte técnico em pt-BR',                           direto: false, genericas: null  as boolean | null, gateway: true },
                   ]
                 ).map(({ feature, direto, genericas, gateway }) => (
                   <tr key={feature} className="bg-navy-900/20 hover:bg-navy-700/30 transition">
@@ -457,8 +460,9 @@ export default function GatewayLandingPage() {
           </div>
 
           <p className="text-center text-xs text-text-2 mt-4">
-            &ldquo;APIs genéricas&rdquo; refere-se a APIs de NFS-e de uso geral, não especializadas em MEI.
-            Funcionalidades variam por fornecedor — consulte cada produto.
+            &ldquo;APIs genéricas&rdquo; refere-se a APIs de NFS-e de uso geral, sem suporte
+            específico ao compliance fiscal brasileiro (regime tributário, CRegTrib,
+            cTribNac, IM municipal). Funcionalidades variam por fornecedor — consulte cada produto.
           </p>
         </div>
       </AnimatedSection>
