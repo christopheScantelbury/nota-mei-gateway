@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"os"
 	"regexp"
@@ -199,26 +200,56 @@ func (h *RegisterMEHandler) RegisterME(c *fiber.Ctx) error {
 	})
 }
 
+// supabaseProjectURL derives the Supabase REST URL.
+//
+// Priority: explicit env (SUPABASE_URL / NEXT_PUBLIC_SUPABASE_URL) → derive
+// from DATABASE_URL (Railway has it as postgresql://postgres.<ref>:...) →
+// hardcoded prod default.
+func supabaseProjectURL() string {
+	if v := os.Getenv("SUPABASE_URL"); v != "" {
+		return v
+	}
+	if v := os.Getenv("NEXT_PUBLIC_SUPABASE_URL"); v != "" {
+		return v
+	}
+	if db := os.Getenv("DATABASE_URL"); strings.Contains(db, "postgres.") {
+		// "postgresql://postgres.<ref>:..." → ref entre "postgres." e ":"
+		i := strings.Index(db, "postgres.")
+		j := strings.Index(db[i:], ":")
+		if i >= 0 && j > 0 {
+			ref := db[i+len("postgres.") : i+j]
+			if ref != "" {
+				return "https://" + ref + ".supabase.co"
+			}
+		}
+	}
+	return "https://pzjvgtwnstfyangfwdom.supabase.co"
+}
+
 // triggerSupabaseSignupMagicLink dispara um signup-OTP no Supabase Auth para
 // o email informado. Supabase cria o auth.users row (create_user: true) E
 // envia o e-mail magic link automaticamente usando o template customizado
 // em PT-BR. O callback /auth/callback consome o token PKCE e linka o user_id
 // ao empresa.email correspondente.
+//
+// Apikey: usa SUPABASE_SERVICE_ROLE_KEY (Railway tem essa env, NÃO tem a
+// anon_key). /auth/v1/otp aceita ambas — service_role inclusive bypassa
+// rate limit por IP que afeta a anon_key.
 func triggerSupabaseSignupMagicLink(ctx context.Context, email string) error {
-	supabaseURL := os.Getenv("NEXT_PUBLIC_SUPABASE_URL")
-	if supabaseURL == "" {
-		supabaseURL = os.Getenv("SUPABASE_URL")
+	supabaseURL := supabaseProjectURL()
+	apiKey := os.Getenv("SUPABASE_SERVICE_ROLE_KEY")
+	if apiKey == "" {
+		apiKey = os.Getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
 	}
-	anonKey := os.Getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-	if anonKey == "" {
-		anonKey = os.Getenv("SUPABASE_ANON_KEY")
+	if apiKey == "" {
+		apiKey = os.Getenv("SUPABASE_ANON_KEY")
 	}
 	siteURL := os.Getenv("APP_SITE_URL")
 	if siteURL == "" {
 		siteURL = "https://www.emitirnotafacil.com.br"
 	}
-	if supabaseURL == "" || anonKey == "" {
-		return errors.New("supabase URL/anon-key not configured")
+	if apiKey == "" {
+		return errors.New("supabase apikey not configured (set SUPABASE_SERVICE_ROLE_KEY)")
 	}
 
 	payload, _ := json.Marshal(map[string]any{
@@ -234,7 +265,8 @@ func triggerSupabaseSignupMagicLink(ctx context.Context, email string) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("apikey", anonKey)
+	req.Header.Set("apikey", apiKey)
+	req.Header.Set("Authorization", "Bearer "+apiKey)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -243,7 +275,8 @@ func triggerSupabaseSignupMagicLink(ctx context.Context, email string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		return errors.New("supabase otp non-2xx: " + resp.Status)
+		body, _ := io.ReadAll(resp.Body)
+		return errors.New("supabase otp non-2xx: " + resp.Status + " · " + string(body))
 	}
 	return nil
 }
