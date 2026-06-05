@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { CepMunicipioInput } from '@/components/ui/CepMunicipioInput'
 import { validarCNPJ } from '@/lib/cnpj'
+import { notify } from '@/lib/notify'
 import { maskCNPJ, maskCPF } from '@/lib/format'
 import ISSRecolhimentoCard from '@/components/nota/ISSRecolhimentoCard'
 import SugestorNBS from '@/components/nota/SugestorNBS'
@@ -277,21 +278,34 @@ export default function NovaNota() {
 
       if (res.ok || res.status === 202) {
         setNotaId(data.nota_id ?? '')
-        // Capture regime from response for ISSRecolhimentoCard (ME-42)
         if (data.regime_tributario) {
           setUserRegime(data.regime_tributario as RegimeTributario)
         }
         setSubmitted(true)
+        notify.success('Nota enviada para processamento', 'Acompanhe o status na lista de notas.')
       } else {
-        const msg = data.message ?? data.error ?? 'Erro ao emitir a nota. Tente novamente.'
-        if (data.error === 'PLAN_LIMIT_REACHED') {
-          setApiError('Limite do plano atingido. Faça upgrade para continuar emitindo.')
-        } else {
-          setApiError(msg)
-        }
+        // Padrão obrigatório: toast flutuante + scroll-to-top automático
+        // (lib/notify.ts) — banner inline morria abaixo da dobra em mobile.
+        const msg = data.message ?? 'Erro ao emitir a nota. Tente novamente.'
+        const title =
+          data.error === 'PLAN_LIMIT_REACHED'
+            ? 'Limite do plano atingido'
+            : data.error === 'CERTIFICADO_AUSENTE'
+              ? 'Certificado A1 não configurado'
+              : data.error === 'INSCRICAO_MUNICIPAL_OBRIGATORIA'
+                ? 'Inscrição Municipal obrigatória'
+                : data.error === 'MUNICIPIO_NAO_HABILITADO'
+                  ? 'Município não habilitado'
+                  : 'Não foi possível emitir a nota'
+        notify.error(title, msg)
+        setApiError(msg) // mantém banner inline como fallback acessibilidade
       }
     } catch {
-      setApiError('Não foi possível conectar ao servidor. Verifique sua conexão.')
+      notify.error(
+        'Falha de conexão',
+        'Não foi possível alcançar o servidor. Verifique sua internet e tente novamente.',
+      )
+      setApiError('Falha de conexão — verifique sua internet.')
     } finally {
       setSubmitting(false)
     }

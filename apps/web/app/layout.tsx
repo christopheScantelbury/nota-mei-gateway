@@ -179,12 +179,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
           <PWAProvider />
 
+          {/* Toaster global — padrão obrigatório de feedback de erro/sucesso
+              em todas as telas. Veja memory/design_system.md "Toast padrão". */}
           <Toaster
             theme="system"
-            position="bottom-right"
+            position="top-center"
+            richColors
+            closeButton
+            duration={6000}
+            visibleToasts={4}
             toastOptions={{
               classNames: {
-                toast: 'bg-navy-700 border border-navy-600 text-text-1 font-body text-sm',
+                toast:
+                  '!bg-white dark:!bg-navy-800 !border !border-navy-600 !text-text-1 font-body !text-sm !shadow-lg',
+                title: '!text-text-1 !font-semibold',
+                description: '!text-text-2',
+                actionButton: '!bg-brand-blue dark:!bg-brand-cyan !text-white',
+                cancelButton: '!bg-navy-700 !text-text-2',
+                closeButton: '!bg-white dark:!bg-navy-700 !text-text-2 !border-navy-600',
               },
             }}
           />
