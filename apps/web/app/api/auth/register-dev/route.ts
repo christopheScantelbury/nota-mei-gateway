@@ -118,14 +118,32 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // ── 3. Dispara magic link OTP (fire-and-forget) ────────────────────────
+  // ── 3. Dispara magic link OTP por e-mail (fire-and-forget) ────────────
+  // IMPORTANTE: generateLink SÓ gera mas NÃO envia. Pra fazer o Supabase
+  // mandar o e-mail (template PT-BR já configurado), precisamos chamar o
+  // endpoint /auth/v1/otp com create_user=false (user já existe via
+  // createUser acima). Bug descoberto pelo user que se cadastrou como dev
+  // mas nunca recebeu o magic link.
   try {
-    await sb.auth.admin.generateLink({
-      type: 'magiclink',
-      email,
-      options: { redirectTo: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://emitirnotafacil.com.br'}/home` },
+    await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/otp`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      },
+      body: JSON.stringify({
+        email,
+        create_user: false,
+        // PKCE callback que troca code por session + redirect /home.
+        // Apex sem www porque Supabase site_url=www e ele substitui
+        // silenciosamente quando hostname diverge.
+        email_redirect_to:
+          'https://www.emitirnotafacil.com.br/auth/callback?next=/home',
+      }),
     })
-  } catch { /* não-fatal — user pode pedir reenviar OTP no login */ }
+  } catch {
+    /* não-fatal — user pode pedir reenviar OTP no login */
+  }
 
   return NextResponse.json({
     user_id: userId,

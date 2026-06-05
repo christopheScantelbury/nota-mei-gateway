@@ -132,7 +132,44 @@ export default async function DashboardLayout({
     .eq('id', user.id)
     .single<MEI>()
 
-  if (!mei) redirect('/cadastro')
+  if (!mei) {
+    // Bug 2026-06-05: dev accounts (criados via /cadastro/dev) têm
+    // auth.users com user_metadata.is_dev_account=true mas SEM empresa nem
+    // mei correspondente. Antes caíamos no redirect('/cadastro') aqui,
+    // mandando o user pro CadastroSeletor de novo — UX confusa pois ele
+    // já tinha cadastrado. Agora renderizamos o dashboard "gateway" como
+    // fallback: ele vê API Keys/Sandbox/Docs/Configurações imediatamente,
+    // e pode cadastrar uma empresa real depois pra emitir notas em prod.
+    const isDevAccount = user.user_metadata?.is_dev_account === true
+    if (isDevAccount) {
+      const nome =
+        (user.user_metadata?.nome as string | undefined) ??
+        user.email ??
+        'Conta de desenvolvedor'
+      return (
+        <div className="min-h-screen bg-navy-900 text-text-1 font-body lg:flex">
+          <Sidebar
+            razaoSocial={nome}
+            isAdmin={isAdmin}
+            // Reaproveita o tier 'EPP' do filtro de NAV pra liberar
+            // API Keys + Webhooks. Quando o dev cadastrar uma empresa,
+            // o tipo real toma o lugar deste fallback.
+            empresaTipo="EPP"
+            tipoUsuario="gateway"
+            notificationBell={<NotificationBell />}
+          />
+          <main
+            id="main-content"
+            className="flex-1 overflow-auto pt-14 lg:pt-0 pb-8"
+            tabIndex={-1}
+          >
+            {children}
+          </main>
+        </div>
+      )
+    }
+    redirect('/cadastro')
+  }
 
   const razaoSocial = mei.razao_social ?? user.email ?? 'Meu painel'
   const tipoUsuario: 'mei' | 'gateway' = mei.tipo_usuario ?? 'gateway'
