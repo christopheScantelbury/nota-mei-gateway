@@ -507,10 +507,13 @@ export default function ConfiguracoesTabs({ mei, apiKeys, empresaTipo, planTier 
   const params    = useSearchParams()
   const abaParam  = params.get('aba') as Aba | null
 
-  // MEI dispensa abas API. ME/EPP em trial/starter também — feature Pro+.
+  // MEI dispensa abas API (não emite via integração — fica sempre hidden).
+  // ME/EPP em qualquer tier VÊ as abas API; em trial/starter elas ficam
+  // "locked" e clique leva pra /billing pra ver o que tá perdendo
+  // (estratégia de gancho de upgrade — user pediu 2026-06-05).
   const isMei = !empresaTipo || empresaTipo === 'MEI'
-  const apiAllowed = !isMei && features.canUseAPI(planTier)
-  const ABAS = ALL_ABAS.filter(a => !a.apiOnly || apiAllowed)
+  const apiUnlocked = !isMei && features.canUseAPI(planTier)
+  const ABAS = ALL_ABAS.filter(a => !a.apiOnly || !isMei)
 
   // If MEI navigates directly to ?aba=api-keys via URL, fall back to perfil
   const aba: Aba  = ABAS.some(a => a.value === abaParam) ? abaParam! : 'perfil'
@@ -519,30 +522,79 @@ export default function ConfiguracoesTabs({ mei, apiKeys, empresaTipo, planTier 
     router.push(`${pathname}?aba=${a}`)
   }
 
+  function isAbaLocked(value: Aba): boolean {
+    if (value === 'api-keys' || value === 'webhook') return !apiUnlocked
+    return false
+  }
+
+  // Se user tentou acessar aba bloqueada via URL ?aba=api-keys, mantém a aba
+  // selecionada (mostra paywall) — não redireciona pra perfil silenciosamente.
+
   return (
     <div>
       {/* Tab bar */}
       <div className="flex flex-wrap gap-1 border-b border-navy-600 mb-8">
-        {ABAS.map(({ value, label }) => (
-          <button
-            key={value}
-            onClick={() => setAba(value)}
-            className={`px-3 sm:px-4 py-3 text-sm font-semibold transition -mb-px border-b-2 whitespace-nowrap ${
-              aba === value
-                ? 'text-brand-cyan border-brand-cyan'
-                : 'text-text-2 border-transparent hover:text-text-1'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+        {ABAS.map(({ value, label }) => {
+          const locked = isAbaLocked(value)
+          return (
+            <button
+              key={value}
+              onClick={() => setAba(value)}
+              title={locked ? 'Disponível no plano Pro — faça upgrade pra usar.' : undefined}
+              className={`px-3 sm:px-4 py-3 text-sm font-semibold transition -mb-px border-b-2 whitespace-nowrap inline-flex items-center gap-1.5 ${
+                aba === value
+                  ? 'text-brand-cyan border-brand-cyan'
+                  : locked
+                    ? 'text-text-2/70 border-transparent hover:text-text-2'
+                    : 'text-text-2 border-transparent hover:text-text-1'
+              }`}
+            >
+              {label}
+              {locked && (
+                <>
+                  <span aria-hidden>🔒</span>
+                  <span className="text-[9px] font-bold tracking-wide text-nota-upgrade border border-nota-upgrade/40 rounded-full px-1 py-px leading-none">
+                    Pro
+                  </span>
+                </>
+              )}
+            </button>
+          )
+        })}
       </div>
 
-      {/* Tab content */}
+      {/* Tab content — paywall in-place pra abas bloqueadas. */}
       {aba === 'perfil'      && <PerfilTab mei={mei} />}
       {aba === 'certificado' && <CertificadoTab cert_valid_until={mei.cert_valid_until} />}
-      {aba === 'api-keys'    && !isMei && <APIKeysTab initialKeys={apiKeys} />}
-      {aba === 'webhook'     && !isMei && <WebhookTab />}
+      {aba === 'api-keys'    && !isMei && (apiUnlocked
+        ? <APIKeysTab initialKeys={apiKeys} />
+        : <PaywallPanel feature="Chaves de API" tierRequired="Pro" />)}
+      {aba === 'webhook'     && !isMei && (apiUnlocked
+        ? <WebhookTab />
+        : <PaywallPanel feature="Webhooks" tierRequired="Pro" />)}
+    </div>
+  )
+}
+
+// ── Paywall reutilizável ───────────────────────────────────────────────────
+function PaywallPanel({ feature, tierRequired }: { feature: string; tierRequired: string }) {
+  return (
+    <div className="max-w-md rounded-xl border border-nota-upgrade/30 bg-nota-upgrade/5 p-6 text-center space-y-3">
+      <div className="text-3xl">🔒</div>
+      <h3 className="font-display text-lg font-extrabold text-text-1">
+        {feature} disponível no {tierRequired}
+      </h3>
+      <p className="text-sm text-text-2">
+        Esta funcionalidade está no plano <strong className="text-text-1">{tierRequired}</strong>.
+        Faça upgrade pra integrar seu sistema, automatizar emissões e receber
+        notificações em tempo real.
+      </p>
+      <a
+        href="/billing"
+        className="inline-flex items-center justify-center bg-nota-upgrade text-white font-semibold text-sm px-4 py-2 rounded-lg hover:opacity-90 transition"
+      >
+        Ver planos →
+      </a>
     </div>
   )
 }

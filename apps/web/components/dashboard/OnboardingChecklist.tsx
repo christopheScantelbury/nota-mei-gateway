@@ -89,14 +89,16 @@ export default function OnboardingChecklist({
 
   // MEI dispensa: API Key (não emite via integração) + Inscrição Municipal
   // (MEI tem regime simplificado, prefeitura não exige IM no CNC NFS-e).
-  // ME/EPP em trial/starter NÃO veem API Key (feature Pro+) — quem quer
-  // integrar precisa fazer upgrade. Esconde do checklist pra não sugerir
-  // que é obrigatório no onboarding básico.
+  // ME/EPP veem TODOS os steps em qualquer tier — incluindo "API Key criada"
+  // mesmo em trial pra saber o que está perdendo (estratégia upgrade).
   const steps = allSteps.filter(s => {
     if (isMei && (s.id === 'apikey' || s.id === 'im')) return false
-    if (s.id === 'apikey' && !features.canUseAPI(planTier)) return false
     return true
   })
+
+  // Step apikey em tier < Pro: redireciona pra /billing em vez de
+  // /configuracoes?aba=api-keys (que mostra paywall).
+  const apiAccessible = features.canUseAPI(planTier)
 
   const allDone = steps.every(s => s.done)
   const doneCount = steps.filter(s => s.done).length
@@ -127,7 +129,13 @@ export default function OnboardingChecklist({
       </div>
 
       <ol className="space-y-2">
-        {steps.map((step, idx) => (
+        {steps.map((step, idx) => {
+          // Step API Key em tier < Pro: vira upsell — leva pro /billing
+          // em vez de /configuracoes (que mostra paywall mesmo).
+          const isApiLocked = step.id === 'apikey' && !apiAccessible
+          const effectiveHref = isApiLocked ? '/billing?upgrade=api' : step.href
+          const effectiveCta  = isApiLocked ? 'Ver planos' : step.cta
+          return (
           <li key={step.id} className="flex items-start gap-3">
             {/* Step number / check */}
             <span
@@ -142,21 +150,35 @@ export default function OnboardingChecklist({
             <div className="flex-1 min-w-0">
               <p className={`text-sm font-medium ${step.done ? 'text-text-2 line-through decoration-text-2/40' : 'text-text-1'}`}>
                 {step.label}
+                {isApiLocked && (
+                  <span className="ml-2 text-[10px] font-bold tracking-wide text-nota-upgrade border border-nota-upgrade/40 rounded-full px-1.5 py-px align-middle">
+                    🔒 Pro
+                  </span>
+                )}
               </p>
               {!step.done && (
-                <p className="text-xs text-text-2 mt-0.5">{step.description}</p>
+                <p className="text-xs text-text-2 mt-0.5">
+                  {isApiLocked
+                    ? 'Integre seu sistema via API REST. Disponível no plano Pro.'
+                    : step.description}
+                </p>
               )}
             </div>
-            {!step.done && step.href !== '#' && (
+            {!step.done && effectiveHref !== '#' && (
               <Link
-                href={step.href}
-                className="shrink-0 text-xs font-semibold text-brand-cyan border border-brand-cyan/30 rounded-lg px-2.5 py-1 hover:bg-brand-cyan/10 transition whitespace-nowrap"
+                href={effectiveHref}
+                className={`shrink-0 text-xs font-semibold border rounded-lg px-2.5 py-1 transition whitespace-nowrap ${
+                  isApiLocked
+                    ? 'text-nota-upgrade border-nota-upgrade/30 hover:bg-nota-upgrade/10'
+                    : 'text-brand-cyan border-brand-cyan/30 hover:bg-brand-cyan/10'
+                }`}
               >
-                {step.cta}
+                {effectiveCta}
               </Link>
             )}
           </li>
-        ))}
+          )
+        })}
       </ol>
     </div>
   )

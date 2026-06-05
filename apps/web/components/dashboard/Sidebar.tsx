@@ -38,15 +38,23 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/configuracoes', label: 'Minha empresa',         icon: '⚙️', badge: null,       tipos: 'all' },
 ]
 
-function getVisibleItems(empresaTipo: EmpresaTipo, planTier: PlanTier): NavItem[] {
-  return NAV_ITEMS.filter((item) => {
-    const tipoOk = item.tipos === 'all' || item.tipos.includes(empresaTipo)
-    if (!tipoOk) return false
-    // Plan gating: filtra premium pra trial.
-    if (item.minTier === 'pro' && !features.canUseAPI(planTier)) return false
-    if (item.minTier === 'starter' && !features.canUseClientes(planTier)) return false
-    return true
-  })
+function getVisibleItems(empresaTipo: EmpresaTipo): NavItem[] {
+  // Decisão de UX 2026-06-05: trial vê TODOS os itens (não esconde
+  // features premium). Itens que o tier do user não acessa ficam
+  // visualmente "locked" (cinza + cadeado) com tooltip e click leva
+  // pra /billing?upgrade=label — estratégia de gancho de upgrade.
+  return NAV_ITEMS.filter((item) => item.tipos === 'all' || item.tipos.includes(empresaTipo))
+}
+
+/**
+ * Retorna true se o item da nav é acessível no tier atual. Itens sem
+ * `minTier` (nav básica) sempre acessíveis.
+ */
+function itemAccessible(item: NavItem, planTier: PlanTier): boolean {
+  if (!item.minTier) return true
+  if (item.minTier === 'pro') return features.canUseAPI(planTier)
+  if (item.minTier === 'starter') return features.canUseClientes(planTier)
+  return true
 }
 
 const ADMIN_ITEM = { href: '/admin', label: 'Painel Admin', icon: '🛡️' }
@@ -125,7 +133,7 @@ function NavContent({
   const effectiveTipo: EmpresaTipo = empresaTipo
     ?? (tipoUsuario === 'mei' ? 'MEI' : 'ME')
 
-  const visibleItems = getVisibleItems(effectiveTipo, planTier)
+  const visibleItems = getVisibleItems(effectiveTipo)
 
   return (
     <div className="flex flex-col h-full">
@@ -143,25 +151,46 @@ function NavContent({
 
       {/* Nav principal */}
       <nav className="flex-1 py-3 px-3 space-y-1" aria-label="Menu principal">
-        {visibleItems.map(({ href, label, icon, badge }) => {
-          const active = pathname.startsWith(href)
+        {visibleItems.map((item) => {
+          const { href, label, icon, badge } = item
+          const accessible = itemAccessible(item, planTier)
+          // Bloqueado: aponta pro billing com o feature alvo no query — ajuda
+          // a página de upgrade a contextualizar o CTA.
+          const finalHref = accessible ? href : `/billing?upgrade=${encodeURIComponent(label)}`
+          const active = pathname.startsWith(href) && accessible
           return (
             <Link
               key={href}
-              href={href}
+              href={finalHref}
               onClick={onNavClick}
+              title={accessible ? undefined : `Disponível no plano ${badge ?? 'pago'} — faça upgrade pra usar.`}
               className={[
                 'flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-lg text-sm font-medium transition-colors',
                 active
                   ? 'bg-brand-cyan/10 text-brand-cyan'
-                  : 'text-text-2 hover:text-text-1 hover:bg-navy-600',
+                  : accessible
+                    ? 'text-text-2 hover:text-text-1 hover:bg-navy-600'
+                    : 'text-text-2/60 hover:text-text-2 hover:bg-navy-600/50',
               ].join(' ')}
               aria-current={active ? 'page' : undefined}
+              aria-disabled={!accessible}
             >
-              <span className="shrink-0" aria-hidden="true">{icon}</span>
+              <span className="shrink-0 relative" aria-hidden="true">
+                <span className={accessible ? '' : 'opacity-60'}>{icon}</span>
+                {!accessible && (
+                  <span className="absolute -bottom-1 -right-1 text-[10px] leading-none">🔒</span>
+                )}
+              </span>
               <span className="flex-1">{label}</span>
               {badge && (
-                <span className="text-[10px] font-bold tracking-wide text-nota-upgrade border border-nota-upgrade/40 rounded-full px-1.5 py-px leading-none">
+                <span
+                  className={[
+                    'text-[10px] font-bold tracking-wide rounded-full px-1.5 py-px leading-none border',
+                    accessible
+                      ? 'text-nota-upgrade border-nota-upgrade/40'
+                      : 'text-nota-upgrade/80 border-nota-upgrade/30 bg-nota-upgrade/5',
+                  ].join(' ')}
+                >
                   {badge}
                 </span>
               )}
