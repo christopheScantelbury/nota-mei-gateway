@@ -498,7 +498,7 @@ const ALL_ABAS: { value: Aba; label: string; apiOnly?: boolean }[] = [
   { value: 'perfil',      label: 'Dados da empresa' },
   { value: 'certificado', label: 'Certificado A1'   },
   { value: 'api-keys',    label: 'Chaves de API',   apiOnly: true },
-  { value: 'webhook',     label: 'Webhooks',        apiOnly: true },
+  { value: 'webhook',     label: 'Notificações automáticas', apiOnly: true },
 ]
 
 export default function ConfiguracoesTabs({ mei, apiKeys, empresaTipo, planTier = 'trial' }: Props) {
@@ -571,7 +571,7 @@ export default function ConfiguracoesTabs({ mei, apiKeys, empresaTipo, planTier 
         : <PaywallPanel feature="Chaves de API" tierRequired="Pro" />)}
       {aba === 'webhook'     && !isMei && (apiUnlocked
         ? <WebhookTab />
-        : <PaywallPanel feature="Webhooks" tierRequired="Pro" />)}
+        : <PaywallPanel feature="Notificações automáticas" tierRequired="Pro" />)}
     </div>
   )
 }

@@ -33,7 +33,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/recorrencias',  label: 'Notas Recorrentes',     icon: '🔄', badge: 'Starter',  tipos: 'all',         minTier: 'starter' },
   { href: '/links',         label: 'Links de Cobrança',     icon: '🔗', badge: 'Starter',  tipos: 'all',         minTier: 'starter' },
   { href: '/api-keys',      label: 'Chaves de API',         icon: '🔑', badge: 'Pro',      tipos: ['ME', 'EPP'], minTier: 'pro' },
-  { href: '/webhooks',      label: 'Webhooks',              icon: '🔔', badge: 'Pro',      tipos: ['ME', 'EPP'], minTier: 'pro' },
+  { href: '/webhooks',      label: 'Notificações automáticas', icon: '🔔', badge: 'Pro',   tipos: ['ME', 'EPP'], minTier: 'pro' },
   { href: '/billing',       label: 'Plano e Pagamento',     icon: '💳', badge: null,       tipos: 'all' },
   { href: '/configuracoes', label: 'Minha empresa',         icon: '⚙️', badge: null,       tipos: 'all' },
 ]
