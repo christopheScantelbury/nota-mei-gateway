@@ -8,7 +8,7 @@ import { MEBeneficios }   from './components/MEBeneficios'
 import { MEComoFunciona } from './components/MEComoFunciona'
 import { MEFAQ }          from './components/MEFAQ'
 import { MECTAFinal }     from './components/MECTAFinal'
-import PricingSection from '@/components/pricing/PricingSection'
+import PricingToggleMe from '@/components/landing/PricingToggleMe'
 import CompetitorTable from '@/components/competitor/CompetitorTable'
 
 export default function LandingME() {
@@ -45,8 +45,20 @@ export default function LandingME() {
           </div>
         </section>
 
-        {/* Planos — 3 cards âncora (HIST-2.1/2.2/2.3) */}
-        <PricingSection />
+        {/* Planos — todos os planos ME completos (Start/Pro/Business/Scale) */}
+        <section id="precos" className="py-16 md:py-24 px-4">
+          <div className="mx-auto max-w-7xl">
+            <header className="text-center mb-12">
+              <h2 className="font-display text-3xl md:text-4xl font-extrabold text-text-1">
+                Planos para Microempresa
+              </h2>
+              <p className="mt-4 text-text-2 max-w-2xl mx-auto">
+                Escolha o plano certo para o volume da sua empresa. Comece com 30 dias grátis.
+              </p>
+            </header>
+            <PricingToggleMe />
+          </div>
+        </section>
 
         <MEFAQ />
         <MECTAFinal />
