@@ -40,14 +40,16 @@ export default function GatewayCurlSnippet() {
 
   return (
     <div className="mt-8 max-w-2xl">
-      <div className="relative rounded-xl border border-navy-600 bg-navy-900 overflow-hidden">
+      {/* Code block: bg fica escuro nos dois temas (terminal-like). Texto
+          em slate-100 garante leitura tanto no light quanto no dark. */}
+      <div className="relative rounded-xl border border-navy-600 bg-slate-900 dark:bg-navy-900 overflow-hidden">
         <pre className="text-slate-100 p-4 text-xs sm:text-sm overflow-x-auto whitespace-pre leading-relaxed">
           <code>{SNIPPET}</code>
         </pre>
         <button
           type="button"
           onClick={copy}
-          className="absolute top-2 right-2 text-xs bg-navy-700 hover:bg-navy-600 border border-navy-500 text-text-1 px-3 py-1 rounded-md transition"
+          className="absolute top-2 right-2 text-xs bg-slate-700 hover:bg-slate-600 dark:bg-navy-700 dark:hover:bg-navy-600 border border-slate-500 dark:border-navy-500 text-slate-100 px-3 py-1 rounded-md transition"
         >
           {copied ? '✓ Copiado' : '📋 Copiar'}
         </button>
