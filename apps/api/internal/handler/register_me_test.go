@@ -115,11 +115,17 @@ func TestRegisterME_Success(t *testing.T) {
 	if got["empresa_id"] == nil {
 		t.Error("response missing empresa_id")
 	}
-	if got["api_key"] == nil {
-		t.Error("response missing api_key")
+	// api_key NÃO é mais retornada na response — refactor 2026-06-05:
+	// fluxo ME/EPP agora manda magic link Supabase em vez de expor chave.
+	// A chave fica no banco; user vê via /v1/auth/api-keys após login.
+	if _, present := got["api_key"]; present {
+		t.Error("response should NOT include api_key (security refactor)")
 	}
 	if got["trial"] != true {
 		t.Errorf("trial = %v, want true", got["trial"])
+	}
+	if got["email_sent_to"] == nil {
+		t.Error("response should include email_sent_to to drive frontend success screen")
 	}
 }
 

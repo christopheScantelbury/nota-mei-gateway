@@ -36,8 +36,10 @@ interface FormState {
 
 interface SuccessState {
   empresaId: string
-  /** API key NÃO é exibida ao usuário — só usada pra upload de cert na step 3 */
-  apiKey: string
+  /** API key NÃO chega mais ao frontend desde o refactor — fica server-side.
+   *  Mantido opcional pra compat com builds antigos. Usuário gera/vê em
+   *  Configurações → API Keys quando precisar integrar com SaaS/ERP. */
+  apiKey?: string
   tipo: string
   regime: string
 }
@@ -286,11 +288,14 @@ export default function CadastroMEPage() {
 
       setSuccess({
         empresaId: data.empresa_id,
-        apiKey: data.api_key,
+        apiKey: data.api_key, // ausente após refactor — fica undefined
         tipo: data.tipo,
         regime: data.regime_tributario,
       })
-      setStep(3)
+      // Pula Step 3 (cert upload) — o user agora entra pelo magic link e
+      // faz upload do cert pelo dashboard. Sem a API key no frontend não dá
+      // pra autenticar o upload aqui mesmo.
+      setAppStep('success')
     } catch {
       setApiError('Falha de conexão. Verifique sua internet e tente novamente.')
     } finally {
@@ -299,7 +304,7 @@ export default function CadastroMEPage() {
   }
 
   async function uploadCert() {
-    if (!form.certFile || !success) return
+    if (!form.certFile || !success || !success.apiKey) return
     setCertUploading(true)
     setCertError('')
 
@@ -330,7 +335,7 @@ export default function CadastroMEPage() {
   }
 
   function copyKey() {
-    if (!success) return
+    if (!success || !success.apiKey) return
     navigator.clipboard.writeText(success.apiKey)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
@@ -371,16 +376,32 @@ export default function CadastroMEPage() {
           <div className="bg-brand-cyan/5 border border-brand-cyan/20 rounded-xl p-4 text-left">
             <p className="text-sm font-semibold text-brand-cyan mb-1">📬 Verifique seu e-mail</p>
             <p className="text-xs text-text-2">
-              Enviamos um código de 6 dígitos para <strong className="text-text-1">{form.email}</strong>.
-              Use-o pra entrar — não precisa criar senha, e a sessão é renovada automaticamente.
+              Enviamos um <strong className="text-text-1">link de acesso</strong> para{' '}
+              <strong className="text-text-1">{form.email}</strong>. Clique no link
+              pra entrar direto no painel — não precisa criar senha.
             </p>
+            <p className="text-xs text-text-2 mt-2">
+              Não chegou em alguns minutos? Confira spam ou{' '}
+              <Link href="/login?produto=me" className="text-brand-cyan hover:underline">
+                solicite novo link
+              </Link>.
+            </p>
+          </div>
+
+          <div className="text-left bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2">
+            <p className="text-xs font-semibold text-text-1">Próximos passos no painel</p>
+            <ul className="text-xs text-text-2 space-y-1 list-disc list-inside">
+              <li>Upload do certificado A1 em <strong>Configurações → Certificado</strong></li>
+              <li>Emissão da primeira NFS-e em <strong>Notas → Nova</strong></li>
+              <li>API Key pra integrar SaaS/ERP em <strong>Configurações → API Keys</strong></li>
+            </ul>
           </div>
 
           <Link
             href="/login?produto=me"
             className="block w-full text-center bg-brand-cyan text-navy-900 font-bold py-3 rounded-xl text-sm hover:opacity-90 transition"
           >
-            Fazer login →
+            Já abri o link · entrar →
           </Link>
         </div>
       </div>

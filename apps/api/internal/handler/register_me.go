@@ -1,8 +1,12 @@
 package handler
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -169,27 +173,77 @@ func (h *RegisterMEHandler) RegisterME(c *fiber.Ctx) error {
 		})
 	}
 
-	// Fire welcome email in background — failure must not block the response.
-	if h.emailSvc != nil {
-		toEmail := strings.TrimSpace(strings.ToLower(req.Email))
-		razaoSocial := strings.TrimSpace(req.RazaoSocial)
-		regime := req.RegimeTributario
-		rawAPIKey := result.APIKey
-		go func() {
-			ctx2, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer cancel()
-			if err := h.emailSvc.SendBoasVindasME(ctx2, toEmail, razaoSocial, rawAPIKey, regime); err != nil {
-				log.Warn().Err(err).Msg("email boas-vindas ME falhou")
-			}
-		}()
-	}
+	// Trigger Supabase OTP magic link em background — Supabase manda o email
+	// usando o template customizado em PT-BR (já configurado via Management API).
+	// A api_key fica armazenada no banco mas NÃO é exposta em response/email —
+	// usuário acessa via dashboard quando precisar (/configuracoes > API Keys).
+	toEmail := strings.TrimSpace(strings.ToLower(req.Email))
+	go func() {
+		ctx2, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := triggerSupabaseSignupMagicLink(ctx2, toEmail); err != nil {
+			log.Warn().Err(err).Str("email", toEmail).Msg("supabase signup OTP falhou")
+		}
+	}()
 
+	// Response NÃO inclui api_key — frontend mostra tela "verifique seu e-mail"
+	// em vez de exibir a chave. Para devs que querem API Key imediata, criar
+	// via /v1/auth/api-keys após login.
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"empresa_id":        result.EmpresaID,
-		"api_key":           result.APIKey,
 		"tipo":              req.Tipo,
 		"regime_tributario": req.RegimeTributario,
 		"trial":             true,
-		"message":           "Empresa cadastrada com sucesso. Guarde sua api_key — ela não será exibida novamente.",
+		"email_sent_to":     toEmail,
+		"message":           "Empresa cadastrada. Enviamos um link de acesso para seu e-mail.",
 	})
+}
+
+// triggerSupabaseSignupMagicLink dispara um signup-OTP no Supabase Auth para
+// o email informado. Supabase cria o auth.users row (create_user: true) E
+// envia o e-mail magic link automaticamente usando o template customizado
+// em PT-BR. O callback /auth/callback consome o token PKCE e linka o user_id
+// ao empresa.email correspondente.
+func triggerSupabaseSignupMagicLink(ctx context.Context, email string) error {
+	supabaseURL := os.Getenv("NEXT_PUBLIC_SUPABASE_URL")
+	if supabaseURL == "" {
+		supabaseURL = os.Getenv("SUPABASE_URL")
+	}
+	anonKey := os.Getenv("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+	if anonKey == "" {
+		anonKey = os.Getenv("SUPABASE_ANON_KEY")
+	}
+	siteURL := os.Getenv("APP_SITE_URL")
+	if siteURL == "" {
+		siteURL = "https://www.emitirnotafacil.com.br"
+	}
+	if supabaseURL == "" || anonKey == "" {
+		return errors.New("supabase URL/anon-key not configured")
+	}
+
+	payload, _ := json.Marshal(map[string]any{
+		"email":             email,
+		"create_user":       true,
+		"email_redirect_to": siteURL + "/auth/callback?next=/home",
+	})
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		strings.TrimRight(supabaseURL, "/")+"/auth/v1/otp",
+		bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("apikey", anonKey)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return errors.New("supabase otp non-2xx: " + resp.Status)
+	}
+	return nil
 }
