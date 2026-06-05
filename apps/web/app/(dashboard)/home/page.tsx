@@ -271,12 +271,11 @@ export default async function DashboardHome() {
             )}
           </div>
 
-          {/* Breakdown por status — só notas que CONSUMIRAM cota.
-              Rejeitadas NÃO entram aqui pra não dar impressão errada de
-              que estão consumindo o trial (backend só incrementa
-              total_emitidas em sucesso). Quem quiser ver rejeitadas usa
-              o filtro na listagem /notas. */}
-          {(nAutorizadas + nProcessando) > 0 && (
+          {/* Breakdown por status. Em TRIAL, todas (incluindo rejeitadas)
+              consomem cota — backend incrementa em qualquer outcome. Em
+              planos pagos, só AUTORIZADA conta. A pílula rejeitada
+              continua sempre informativa. */}
+          {(nAutorizadas + nProcessando + nRejeitadas) > 0 && (
             <div className="mt-4 flex flex-wrap gap-2 text-xs">
               {nAutorizadas > 0 && (
                 <span className="inline-flex items-center gap-1.5 bg-nota-autorizada/10 border border-nota-autorizada/30 text-nota-autorizada rounded-full px-2.5 py-0.5">
@@ -290,7 +289,21 @@ export default async function DashboardHome() {
                   {nProcessando} processando
                 </span>
               )}
+              {nRejeitadas > 0 && (
+                <span
+                  className="inline-flex items-center gap-1.5 bg-nota-rejeitada/10 border border-nota-rejeitada/30 text-nota-rejeitada rounded-full px-2.5 py-0.5"
+                  title={planTier === 'trial' ? 'Tentativas rejeitadas consomem cota no plano trial' : 'Rejeitadas não consomem cota'}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-nota-rejeitada" />
+                  {nRejeitadas} rejeitada{nRejeitadas !== 1 ? 's' : ''}
+                </span>
+              )}
             </div>
+          )}
+          {planTier === 'trial' && nRejeitadas > 0 && (
+            <p className="text-[11px] text-text-2 mt-2 italic">
+              No plano grátis, tentativas rejeitadas também contam no limite.
+            </p>
           )}
           {usagePct >= 80 && usagePct < 100 && (
             <p className="text-xs text-nota-processando mt-2">⚠️ Você está próximo do limite do plano.</p>

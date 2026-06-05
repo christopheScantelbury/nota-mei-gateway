@@ -542,8 +542,17 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 		warnings = append(warnings, "ISS forçado para retido: tomador é órgão público (Art. 6 LC 116/2003)")
 	}
 
+	// Regra de cota em trial: qualquer tentativa consome 1 — autorizada,
+	// rejeitada, erro transient ou PROCESSANDO. Evita que user trial fique
+	// tentando ajustar payload até autorizar de graça. Em planos pagos só
+	// AUTORIZADA conta (linha mais abaixo).
+	isTrial := billing.IsTrialPlanName(em.PlanoNome)
+
 	success, failure, envErr := h.adapter.EnviarNFSeNacional(ctx, signedXML, cert)
 	if envErr != nil && failure == nil {
+		if isTrial {
+			_, _ = h.billingRepo.IncrementEmitidasEmpresa(ctx, empresa.ID)
+		}
 		log.Ctx(ctx).Warn().Err(envErr).Str("nota_id", nota.ID.String()).Msg("envio DPS falhou (transient), mantendo PROCESSANDO")
 		resp := fiber.Map{
 			"nota_id":           nota.ID,
@@ -567,10 +576,14 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 			descricao = nfse.DescricaoRejeicao(codigo)
 		}
 		_, _ = h.notaRepo.Rejeitar(ctx, nota.ID, codigo, descricao)
+		if isTrial {
+			_, _ = h.billingRepo.IncrementEmitidasEmpresa(ctx, empresa.ID)
+		}
 		log.Ctx(ctx).Warn().
 			Str("nota_id", nota.ID.String()).
 			Str("erro_codigo", codigo).
 			Str("erro_descricao", descricao).
+			Bool("trial_counted", isTrial).
 			Msg("nota rejeitada pela SEFIN Nacional")
 		h.publishEvent(ctx, nota, webhook.EventRejeitada, "", "", codigo, descricao)
 		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
@@ -612,6 +625,12 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 		return c.Status(fiber.StatusCreated).JSON(resp)
 	}
 
+	// Trial: PROCESSANDO final também consome cota (não foi rejeitada nem
+	// autorizada — Receita pode autorizar depois via poller, mas o usuário
+	// já gastou uma tentativa).
+	if isTrial {
+		_, _ = h.billingRepo.IncrementEmitidasEmpresa(ctx, empresa.ID)
+	}
 	resp := fiber.Map{
 		"nota_id":           nota.ID,
 		"status":            "PROCESSANDO",
@@ -640,8 +659,15 @@ func (h *NFSeHandler) enviarEProcessar(
 ) error {
 	ctx := c.Context()
 
+	// Trial MEI: cota consome em qualquer outcome (autoriza, rejeita,
+	// transient ou aguarda processamento). Mesma regra do path ME/EPP.
+	isTrial := billing.IsTrialPlanName(em.PlanoNome)
+
 	envioResp, err := h.adapter.Enviar(ctx, signedXML, cert)
 	if err != nil {
+		if isTrial {
+			_, _ = h.billingRepo.IncrementEmitidas(ctx, ownerID)
+		}
 		log.Ctx(ctx).Warn().Err(err).Str("nota_id", nota.ID.String()).Msg("envio falhou, mantendo PROCESSANDO")
 		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
 			"nota_id":  nota.ID,
@@ -654,9 +680,13 @@ func (h *NFSeHandler) enviarEProcessar(
 		codigo := envioResp.Erros[0].Codigo
 		descricao := envioResp.Erros[0].Descricao
 		_, _ = h.notaRepo.Rejeitar(ctx, nota.ID, codigo, descricao)
+		if isTrial {
+			_, _ = h.billingRepo.IncrementEmitidas(ctx, ownerID)
+		}
 		log.Ctx(ctx).Warn().
 			Str("nota_id", nota.ID.String()).
 			Str("erro_codigo", codigo).
+			Bool("trial_counted", isTrial).
 			Msg("nota rejeitada pela Receita Federal")
 		h.publishEvent(ctx, nota, webhook.EventRejeitada, envioResp.NumeroNFSe, envioResp.CodVerificacao, codigo, descricao)
 		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
@@ -678,6 +708,9 @@ func (h *NFSeHandler) enviarEProcessar(
 		h.reportOverageIfNeeded(ctx, nota.ID.String(), total, planoLimite, em)
 	} else if envioResp.Protocolo != "" {
 		_ = h.notaRepo.SetProtocolo(ctx, nota.ID, envioResp.Protocolo)
+		if isTrial {
+			_, _ = h.billingRepo.IncrementEmitidas(ctx, ownerID)
+		}
 	}
 
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{

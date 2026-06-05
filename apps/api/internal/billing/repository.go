@@ -4,6 +4,7 @@ package billing
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/supabase"
 	"github.com/google/uuid"
@@ -31,11 +32,21 @@ type EmissaoMensal struct {
 	ID              uuid.UUID
 	MeiID           uuid.UUID
 	PlanoID         *uuid.UUID
+	PlanoNome       string // populated via LEFT JOIN planos — usado pra detectar trial
 	Competencia     string
 	TotalEmitidas   int
 	StripeSubID     *string
 	StripeSubStatus *string
 	StripeSubItemID *string // metered billing item for overage reporting
+}
+
+// IsTrialPlanName retorna true quando o plano é o trial gratuito (MEI/ME/EPP).
+// Em trial, QUALQUER tentativa de emissão consome cota — autorizada, rejeitada
+// ou cancelada — pra evitar abuso de "tenta várias vezes ajustando o payload".
+// Em planos pagos só nota AUTORIZADA conta.
+func IsTrialPlanName(name string) bool {
+	n := strings.ToLower(strings.TrimSpace(name))
+	return n == "" || strings.HasPrefix(n, "trial")
 }
 
 // Repository handles billing-related database operations.
@@ -64,18 +75,27 @@ func NewRepository(db *supabase.Client) *Repository {
 // the conflict target still uniquely identifies the row.
 func (r *Repository) GetOrCreateEmissaoMensal(ctx context.Context, meiID uuid.UUID) (*EmissaoMensal, error) {
 	row := r.db.Pool().QueryRow(ctx, `
-		INSERT INTO emissoes_mensais (mei_id, empresa_id, competencia, total_emitidas)
-		VALUES ($1, $1, to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM'), 0)
-		ON CONFLICT (empresa_id, competencia) DO UPDATE
-		    SET empresa_id = EXCLUDED.empresa_id   -- no-op; forces RETURNING to fire
-		RETURNING id, mei_id, plano_id, competencia, total_emitidas,
-		          stripe_subscription_id, stripe_subscription_status,
-		          stripe_subscription_item_id
+		WITH upserted AS (
+			INSERT INTO emissoes_mensais (mei_id, empresa_id, competencia, total_emitidas)
+			VALUES ($1, $1, to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM'), 0)
+			ON CONFLICT (empresa_id, competencia) DO UPDATE
+			    SET empresa_id = EXCLUDED.empresa_id   -- no-op; forces RETURNING to fire
+			RETURNING id, mei_id, plano_id, competencia, total_emitidas,
+			          stripe_subscription_id, stripe_subscription_status,
+			          stripe_subscription_item_id
+		)
+		SELECT u.id, u.mei_id, u.plano_id, COALESCE(p.nome, '') AS plano_nome,
+		       u.competencia, u.total_emitidas,
+		       u.stripe_subscription_id, u.stripe_subscription_status,
+		       u.stripe_subscription_item_id
+		FROM upserted u
+		LEFT JOIN planos p ON p.id = u.plano_id
 	`, meiID)
 
 	var em EmissaoMensal
 	if err := row.Scan(
-		&em.ID, &em.MeiID, &em.PlanoID, &em.Competencia, &em.TotalEmitidas,
+		&em.ID, &em.MeiID, &em.PlanoID, &em.PlanoNome,
+		&em.Competencia, &em.TotalEmitidas,
 		&em.StripeSubID, &em.StripeSubStatus, &em.StripeSubItemID,
 	); err != nil {
 		return nil, err
@@ -87,18 +107,27 @@ func (r *Repository) GetOrCreateEmissaoMensal(ctx context.Context, meiID uuid.UU
 // Uses empresa_id instead of mei_id to match the empresas table.
 func (r *Repository) GetOrCreateEmissaoMensalEmpresa(ctx context.Context, empresaID uuid.UUID) (*EmissaoMensal, error) {
 	row := r.db.Pool().QueryRow(ctx, `
-		INSERT INTO emissoes_mensais (empresa_id, competencia, total_emitidas)
-		VALUES ($1, to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM'), 0)
-		ON CONFLICT (empresa_id, competencia) DO UPDATE
-		    SET empresa_id = EXCLUDED.empresa_id  -- no-op; forces RETURNING to fire
-		RETURNING id, empresa_id, plano_id, competencia, total_emitidas,
-		          stripe_subscription_id, stripe_subscription_status,
-		          stripe_subscription_item_id
+		WITH upserted AS (
+			INSERT INTO emissoes_mensais (empresa_id, competencia, total_emitidas)
+			VALUES ($1, to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM'), 0)
+			ON CONFLICT (empresa_id, competencia) DO UPDATE
+			    SET empresa_id = EXCLUDED.empresa_id  -- no-op; forces RETURNING to fire
+			RETURNING id, empresa_id, plano_id, competencia, total_emitidas,
+			          stripe_subscription_id, stripe_subscription_status,
+			          stripe_subscription_item_id
+		)
+		SELECT u.id, u.empresa_id, u.plano_id, COALESCE(p.nome, '') AS plano_nome,
+		       u.competencia, u.total_emitidas,
+		       u.stripe_subscription_id, u.stripe_subscription_status,
+		       u.stripe_subscription_item_id
+		FROM upserted u
+		LEFT JOIN planos p ON p.id = u.plano_id
 	`, empresaID)
 
 	var em EmissaoMensal
 	if err := row.Scan(
-		&em.ID, &em.MeiID, &em.PlanoID, &em.Competencia, &em.TotalEmitidas,
+		&em.ID, &em.MeiID, &em.PlanoID, &em.PlanoNome,
+		&em.Competencia, &em.TotalEmitidas,
 		&em.StripeSubID, &em.StripeSubStatus, &em.StripeSubItemID,
 	); err != nil {
 		return nil, err
