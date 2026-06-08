@@ -182,14 +182,12 @@ function NavContent({
                 )}
               </span>
               <span className="flex-1">{label}</span>
-              {badge && (
+              {/* Badge "Starter/Pro" só aparece se o tier do user NÃO cobre a
+                  feature — funciona como gancho de upgrade. Quem já tem
+                  acesso não precisa de etiqueta (vira ruído visual). */}
+              {badge && !accessible && (
                 <span
-                  className={[
-                    'text-[10px] font-bold tracking-wide rounded-full px-1.5 py-px leading-none border',
-                    accessible
-                      ? 'text-nota-upgrade border-nota-upgrade/40'
-                      : 'text-nota-upgrade/80 border-nota-upgrade/30 bg-nota-upgrade/5',
-                  ].join(' ')}
+                  className="text-[10px] font-bold tracking-wide rounded-full px-1.5 py-px leading-none border text-nota-upgrade/80 border-nota-upgrade/30 bg-nota-upgrade/5"
                 >
                   {badge}
                 </span>
