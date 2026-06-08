@@ -31,10 +31,16 @@ function lastMonths(n: number): string[] {
   return result
 }
 
-// Planos pra ME/EPP — alinhados com o catálogo Stripe 2026-06-05.
-// MEI usa lista separada (próximo refactor; hoje a página /billing
-// é otimizada pra ME/EPP que é o produto carro-chefe).
-const PLANOS = [
+// Catálogos sincronizados com Stripe LIVE + tabela planos (2026-06-05).
+// Renderizado conforme o tipo da empresa do usuário — MEI vê planos MEI,
+// ME/EPP vê planos ME/EPP.
+const PLANOS_MEI = [
+  { key: 'avulso',  name: 'Avulso MEI',  limit: 0,   price: 'R$ 5,99/nota'  },
+  { key: 'mensal',  name: 'MEI Mensal',  limit: 5,   price: 'R$ 19,90/mês'  },
+  { key: 'plus',    name: 'MEI Plus',    limit: 15,  price: 'R$ 39,90/mês'  },
+  { key: 'premium', name: 'MEI Premium', limit: 100, price: 'R$ 79,90/mês'  },
+]
+const PLANOS_EMPRESA = [
   { key: 'start',    name: 'ME Start',    limit: 10,  price: 'R$ 59,99/mês'  },
   { key: 'pro',      name: 'ME Pro',      limit: 50,  price: 'R$ 149,90/mês' },
   { key: 'business', name: 'ME Business', limit: 300, price: 'R$ 299,90/mês' },
@@ -54,6 +60,15 @@ export default async function BillingPage() {
 
   const competencia = currentCompetencia()
   const months6 = lastMonths(6)
+
+  // Detecta se o user é MEI legacy (tabela meis) ou empresa ME/EPP.
+  // Catálogo de planos mostrado é selecionado conforme o tipo.
+  const [{ data: meiRow }, { data: empresaRow }] = await Promise.all([
+    supabase.from('meis').select('id').eq('id', user.id).maybeSingle<{ id: string }>(),
+    supabase.from('empresas').select('id, tipo').eq('user_id', user.id).maybeSingle<{ id: string; tipo: string }>(),
+  ])
+  const isMEI = !!meiRow || (empresaRow?.tipo === 'MEI')
+  const planosDisponiveis = isMEI ? PLANOS_MEI : PLANOS_EMPRESA
 
   // Parallel fetches
   const [emissaoResult, historico6Result] = await Promise.all([
@@ -262,7 +277,7 @@ export default async function BillingPage() {
         {emissao?.stripe_subscription_id ? 'Alterar plano' : 'Escolha seu plano'}
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {PLANOS.map((p) => {
+        {planosDisponiveis.map((p) => {
           const isCurrent = p.name.toLowerCase() === planoNome.toLowerCase()
           return (
             <div

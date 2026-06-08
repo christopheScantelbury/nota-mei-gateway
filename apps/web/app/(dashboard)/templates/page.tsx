@@ -4,16 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 import type { Metadata } from 'next'
 import TemplatesList from './TemplatesList'
 import type { NotaTemplate } from '@/app/api/templates/route'
+import { hasFeature } from '@/lib/plans'
 
 export const metadata: Metadata = {
   title: 'Templates de nota',
-}
-
-/** Plans that unlock the Templates feature */
-const PRO_PLANS = ['pro', 'business']
-
-function isPlanPro(nome: string | undefined): boolean {
-  return PRO_PLANS.includes((nome ?? '').toLowerCase())
 }
 
 // ── Plan guard ────────────────────────────────────────────────────────────────
@@ -83,7 +77,10 @@ export default async function TemplatesPage() {
 
   const planoNome = emissaoResult.data?.planos?.nome ?? 'Trial'
 
-  if (!isPlanPro(planoNome)) {
+  // hasFeature('templates') reconhece os 10 nomes do catálogo novo (MEI Plus,
+  // MEI Premium, ME Pro, ME Business) e os legacy. Sem ele, "MEI Premium"
+  // caía no fallback Trial e bloqueava mesmo no plano top.
+  if (!hasFeature(planoNome, 'templates')) {
     return <PlanGuard currentPlan={planoNome} />
   }
 
