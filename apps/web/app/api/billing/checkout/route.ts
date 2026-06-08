@@ -44,6 +44,8 @@ async function createStripeCheckoutSession(opts: {
   email:      string
   successUrl: string
   cancelUrl:  string
+  /** Metadata propagado pra Subscription e Customer — webhook lê isso pra atualizar o banco */
+  metadata:   Record<string, string>
 }): Promise<string> {
   const key = process.env.STRIPE_SECRET_KEY
   if (!key) throw new Error('STRIPE_SECRET_KEY não configurada')
@@ -60,6 +62,15 @@ async function createStripeCheckoutSession(opts: {
     body.set('customer', opts.customerId)
   } else {
     body.set('customer_email', opts.email)
+  }
+
+  // Metadata em 3 lugares pra garantir que o webhook sempre encontra:
+  //   - session.metadata           → checkout.session.completed
+  //   - subscription_data.metadata → customer.subscription.created/updated
+  //   - customer.metadata (já vem via session ao criar customer novo)
+  for (const [k, v] of Object.entries(opts.metadata)) {
+    body.set(`metadata[${k}]`, v)
+    body.set(`subscription_data[metadata][${k}]`, v)
   }
 
   const res = await fetch('https://api.stripe.com/v1/checkout/sessions', {
@@ -95,17 +106,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const plano = (body.plano ?? '').toLowerCase()
   const planoNome = slugToPlanoNome(plano)
 
-  // 1) Resolver stripe_price_id via tabela planos (single source of truth).
-  let priceId: string | undefined
+  // 1) Resolver stripe_price_id + plano_id via tabela planos (single source of truth).
+  let priceId:  string | undefined
+  let planoId:  string | undefined
   if (planoNome) {
     const { data: planoRow } = await supabase
       .from('planos')
-      .select('stripe_price_id')
+      .select('id, stripe_price_id')
       .eq('nome', planoNome)
       .eq('ativo', true)
       .limit(1)
-      .maybeSingle<{ stripe_price_id: string | null }>()
+      .maybeSingle<{ id: string; stripe_price_id: string | null }>()
     priceId = planoRow?.stripe_price_id ?? undefined
+    planoId = planoRow?.id              ?? undefined
   }
 
   // 2) Fallback: env-vars legacy (só pra rollback de emergência).
@@ -123,25 +136,70 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     )
   }
 
-  // Busca empresa do usuário (stripe_customer_id + email)
-  const { data: empresa } = await supabase
-    .from('empresas')
-    .select('stripe_customer_id, email')
-    .eq('user_id', session.user.id)
-    .limit(1)
-    .maybeSingle<{ stripe_customer_id: string | null; email: string }>()
+  // Resolve dono da conta — MEI legacy OU empresa ME/EPP.
+  // Buscamos em paralelo; um dos dois resolve, o outro fica null.
+  // ARCH-03 invariant: pra MEI legacy, mei.id == empresa.id (a empresa
+  // existe em empresas com tipo='MEI' apontando pra mesma row).
+  const [{ data: meiRow }, { data: empresaRow }] = await Promise.all([
+    supabase.from('meis')
+      .select('id, email, stripe_customer_id')
+      .eq('id', session.user.id)
+      .maybeSingle<{ id: string; email: string; stripe_customer_id: string | null }>(),
+    supabase.from('empresas')
+      .select('id, email, tipo, stripe_customer_id')
+      .eq('user_id', session.user.id)
+      .maybeSingle<{ id: string; email: string; tipo: string; stripe_customer_id: string | null }>(),
+  ])
+
+  if (!meiRow && !empresaRow) {
+    return NextResponse.json(
+      { error: 'NO_ACCOUNT', message: 'Conta não encontrada — refaça login.' },
+      { status: 404 },
+    )
+  }
+
+  // Preferência: empresa ME/EPP (rota nova) → MEI legacy.
+  // Para MEI legacy, ambos vão existir com o mesmo ID; usamos empresa pra ME/EPP
+  // e MEI pra MEI puro.
+  const isEmpresa = !!empresaRow && empresaRow.tipo !== 'MEI'
+  const owner = isEmpresa
+    ? {
+        kind:             'empresa' as const,
+        id:               empresaRow!.id,
+        email:            empresaRow!.email,
+        stripeCustomerId: empresaRow!.stripe_customer_id,
+        tipo:             empresaRow!.tipo,
+      }
+    : {
+        kind:             'mei' as const,
+        id:               meiRow?.id ?? empresaRow?.id ?? session.user.id,
+        email:            meiRow?.email ?? empresaRow?.email ?? session.user.email ?? '',
+        stripeCustomerId: meiRow?.stripe_customer_id ?? empresaRow?.stripe_customer_id ?? null,
+        tipo:             'MEI',
+      }
 
   const baseUrl = process.env.NEXT_PUBLIC_API_URL
     ?.replace(/^https:\/\/api\./, 'https://www.')  // api.emitirnotafacil.com.br → www.
     ?? 'https://www.emitirnotafacil.com.br'
 
+  // Metadata propagado pro webhook saber qual usuário/plano atualizar.
+  const metadata: Record<string, string> = {
+    plano_slug:   plano,
+    plano_nome:   planoNome,
+    tipo_empresa: owner.tipo,
+  }
+  if (planoId) metadata.plano_id = planoId
+  if (owner.kind === 'mei')     metadata.mei_id     = owner.id
+  if (owner.kind === 'empresa') metadata.empresa_id = owner.id
+
   try {
     const checkoutUrl = await createStripeCheckoutSession({
       priceId,
-      customerId: empresa?.stripe_customer_id ?? null,
-      email:      empresa?.email ?? session.user.email ?? '',
+      customerId: owner.stripeCustomerId,
+      email:      owner.email || session.user.email || '',
       successUrl: `${baseUrl}/billing?checkout=success`,
       cancelUrl:  `${baseUrl}/billing?checkout=cancel`,
+      metadata,
     })
 
     return NextResponse.json({ url: checkoutUrl })

@@ -94,37 +94,83 @@ func (h *StripeWebhookHandler) Handle(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusOK)
 }
 
-// handleSubscription updates the emissoes_mensais row with Stripe subscription data.
+// handleSubscription updates the emissoes_mensais row with Stripe subscription
+// data — INCLUDING the new plano_id when the user upgrades/downgrades.
+//
+// Reads from sub.Metadata (set by the checkout endpoint):
+//   - mei_id      → MEI legacy owner (also used as empresa_id under ARCH-03)
+//   - empresa_id  → ME/EPP empresa owner
+//   - plano_id    → uuid of the plan the user is moving to (preferred)
+//
+// Fallback: when plano_id metadata is missing, we resolve it by looking up
+// planos.stripe_price_id against the first subscription item's price.id.
+//
+// Side effects:
+//   - UPDATE emissoes_mensais SET plano_id, stripe_subscription_id/status
+//   - UPDATE empresas SET trial_me=false (if owner is ME/EPP)
+//   - Invalidate BillingGuard cache (MEI or empresa scope)
 func (h *StripeWebhookHandler) handleSubscription(ctx context.Context, event stripelib.Event) error {
 	var sub stripelib.Subscription
 	if err := json.Unmarshal(event.Data.Raw, &sub); err != nil {
 		return err
 	}
 
-	meiIDStr, ok := sub.Metadata["mei_id"]
-	if !ok {
-		log.Ctx(ctx).Warn().Str("sub_id", sub.ID).Msg("subscription missing mei_id metadata")
+	// Resolve owner: empresa_id wins over mei_id (ME/EPP path).
+	meiIDStr := sub.Metadata["mei_id"]
+	empresaIDStr := sub.Metadata["empresa_id"]
+	if meiIDStr == "" && empresaIDStr == "" {
+		log.Ctx(ctx).Warn().Str("sub_id", sub.ID).
+			Msg("subscription missing mei_id/empresa_id metadata — cannot update plan")
 		return nil
 	}
+
+	// Resolve plano_id: metadata first, then via stripe_price_id of the sub item.
+	planoID, _ := uuid.Parse(sub.Metadata["plano_id"]) // zero UUID if missing/invalid
+	if planoID == uuid.Nil && len(sub.Items.Data) > 0 && sub.Items.Data[0].Price != nil {
+		priceID := sub.Items.Data[0].Price.ID
+		var pid uuid.UUID
+		row := h.db.Pool().QueryRow(ctx, `
+			SELECT id FROM planos WHERE stripe_price_id = $1 AND ativo = true LIMIT 1
+		`, priceID)
+		if err := row.Scan(&pid); err == nil {
+			planoID = pid
+		} else {
+			log.Ctx(ctx).Warn().Str("sub_id", sub.ID).Str("price_id", priceID).
+				Msg("subscription: cannot resolve plano_id from stripe_price_id")
+		}
+	}
+
+	// Build UPDATE — only set plano_id when we resolved it (avoid wiping a
+	// good plan because metadata was missing).
+	if empresaIDStr != "" {
+		empresaID, err := uuid.Parse(empresaIDStr)
+		if err != nil {
+			return fmt.Errorf("invalid empresa_id: %w", err)
+		}
+		if err := h.updateSubscriptionByOwner(ctx, ownerKindEmpresa, empresaID, sub.ID, string(sub.Status), planoID); err != nil {
+			return err
+		}
+		// ME/EPP that paid → no more trial_me bypass.
+		if _, err := h.db.Pool().Exec(ctx, `
+			UPDATE empresas SET trial_me = false, updated_at = NOW() WHERE id = $1
+		`, empresaID); err != nil {
+			log.Ctx(ctx).Warn().Err(err).Str("empresa_id", empresaID.String()).
+				Msg("subscription: could not unset trial_me")
+		}
+		if h.billingGrd != nil {
+			h.billingGrd.InvalidateEmpresa(ctx, empresaID)
+		}
+		return nil
+	}
+
+	// MEI legacy path.
 	meiID, err := uuid.Parse(meiIDStr)
 	if err != nil {
+		return fmt.Errorf("invalid mei_id: %w", err)
+	}
+	if err := h.updateSubscriptionByOwner(ctx, ownerKindMEI, meiID, sub.ID, string(sub.Status), planoID); err != nil {
 		return err
 	}
-
-	_, err = h.db.Pool().Exec(ctx, `
-		UPDATE emissoes_mensais
-		SET stripe_subscription_id     = $1,
-		    stripe_subscription_status = $2,
-		    updated_at                 = NOW()
-		WHERE mei_id     = $3
-		  AND competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
-	`, sub.ID, string(sub.Status), meiID)
-	if err != nil {
-		return err
-	}
-
-	// Invalidate Redis cache so the next NFSe request sees the new status
-	// without waiting for the 5-minute TTL to expire.
 	if h.billingGrd != nil {
 		if cerr := h.billingGrd.InvalidateSubscriptionCache(ctx, meiID); cerr != nil {
 			log.Ctx(ctx).Warn().Err(cerr).Str("mei_id", meiID.String()).
@@ -134,35 +180,117 @@ func (h *StripeWebhookHandler) handleSubscription(ctx context.Context, event str
 	return nil
 }
 
+type ownerKind int
+
+const (
+	ownerKindMEI ownerKind = iota
+	ownerKindEmpresa
+)
+
+// updateSubscriptionByOwner upserts the current-month emissoes_mensais row
+// with subscription state. When planoID != Nil it also moves the plan;
+// otherwise the existing plan stays.
+func (h *StripeWebhookHandler) updateSubscriptionByOwner(
+	ctx context.Context,
+	kind ownerKind,
+	ownerID uuid.UUID,
+	subID, subStatus string,
+	planoID uuid.UUID,
+) error {
+	ownerCol := "mei_id"
+	if kind == ownerKindEmpresa {
+		ownerCol = "empresa_id"
+	}
+
+	// 2-step: try UPDATE first (keeps total_emitidas intact). If 0 rows
+	// affected, INSERT a fresh row for this competência.
+	planoUpdate := ""
+	planoUpsertCol := ""
+	planoUpsertVal := "DEFAULT"
+	args := []interface{}{subID, subStatus, ownerID}
+	if planoID != uuid.Nil {
+		planoUpdate = ", plano_id = $4"
+		planoUpsertCol = ", plano_id"
+		planoUpsertVal = "$4"
+		args = append(args, planoID)
+	}
+
+	tag, err := h.db.Pool().Exec(ctx, fmt.Sprintf(`
+		UPDATE emissoes_mensais
+		SET stripe_subscription_id     = $1,
+		    stripe_subscription_status = $2%s
+		WHERE %s = $3
+		  AND competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
+	`, planoUpdate, ownerCol), args...)
+	if err != nil {
+		return fmt.Errorf("update emissoes_mensais (%s): %w", ownerCol, err)
+	}
+
+	if tag.RowsAffected() == 0 {
+		// Row doesn't exist yet for this competência — INSERT it.
+		// For MEI legacy, the empresa_id mirrors mei_id (ARCH-03 invariant).
+		insertCols := ownerCol
+		insertVals := "$3"
+		if kind == ownerKindMEI {
+			insertCols = "mei_id, empresa_id"
+			insertVals = "$3, $3"
+		}
+		_, err = h.db.Pool().Exec(ctx, fmt.Sprintf(`
+			INSERT INTO emissoes_mensais (%s, competencia, stripe_subscription_id, stripe_subscription_status%s, total_emitidas)
+			VALUES (%s, to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM'), $1, $2, %s, 0)
+			ON CONFLICT DO NOTHING
+		`, insertCols, planoUpsertCol, insertVals, planoUpsertVal), args...)
+		if err != nil {
+			return fmt.Errorf("insert emissoes_mensais (%s): %w", ownerCol, err)
+		}
+	}
+	return nil
+}
+
 // handleCheckoutCompleted fires when a Stripe Checkout Session completes.
-// It saves the stripe_customer_id on the MEI so future portal/checkout calls
-// can reference the customer without creating a duplicate.
+// It persists stripe_customer_id on the owner row (meis OR empresas) so
+// future portal/checkout calls reuse the same customer instead of creating
+// duplicates in Stripe.
 func (h *StripeWebhookHandler) handleCheckoutCompleted(ctx context.Context, event stripelib.Event) error {
 	var session stripelib.CheckoutSession
 	if err := json.Unmarshal(event.Data.Raw, &session); err != nil {
 		return err
 	}
-
-	meiIDStr, ok := session.Metadata["mei_id"]
-	if !ok {
-		log.Ctx(ctx).Warn().Str("session_id", session.ID).Msg("checkout.session.completed missing mei_id metadata")
-		return nil
-	}
-	meiID, err := uuid.Parse(meiIDStr)
-	if err != nil {
-		return fmt.Errorf("invalid mei_id in checkout metadata: %w", err)
-	}
-
 	if session.Customer == nil {
 		return nil
 	}
+	customerID := session.Customer.ID
 
-	_, err = h.db.Pool().Exec(ctx, `
-		UPDATE meis
-		SET stripe_customer_id = $1, updated_at = NOW()
-		WHERE id = $2
-	`, session.Customer.ID, meiID)
-	return err
+	// Prefer empresa_id (new ME/EPP path); fallback to mei_id.
+	if empresaIDStr, ok := session.Metadata["empresa_id"]; ok && empresaIDStr != "" {
+		empresaID, err := uuid.Parse(empresaIDStr)
+		if err != nil {
+			return fmt.Errorf("invalid empresa_id in checkout metadata: %w", err)
+		}
+		_, err = h.db.Pool().Exec(ctx, `
+			UPDATE empresas
+			SET stripe_customer_id = $1, updated_at = NOW()
+			WHERE id = $2
+		`, customerID, empresaID)
+		return err
+	}
+
+	if meiIDStr, ok := session.Metadata["mei_id"]; ok && meiIDStr != "" {
+		meiID, err := uuid.Parse(meiIDStr)
+		if err != nil {
+			return fmt.Errorf("invalid mei_id in checkout metadata: %w", err)
+		}
+		_, err = h.db.Pool().Exec(ctx, `
+			UPDATE meis
+			SET stripe_customer_id = $1, updated_at = NOW()
+			WHERE id = $2
+		`, customerID, meiID)
+		return err
+	}
+
+	log.Ctx(ctx).Warn().Str("session_id", session.ID).
+		Msg("checkout.session.completed: missing both mei_id and empresa_id metadata")
+	return nil
 }
 
 // handleInvoicePaid ensures the subscription status is active when an
@@ -224,29 +352,39 @@ func (h *StripeWebhookHandler) handleInvoicePaymentFailed(ctx context.Context, e
 			ctx2, cancel := context.WithTimeout(baseCtx, 10*time.Second)
 			defer cancel()
 
-			type meiRow struct {
+			// Owner = MEI OR empresa. Try empresas first (ME/EPP), fall back to meis.
+			type ownerRow struct {
 				Email       string
 				RazaoSocial string
 			}
+			var owner ownerRow
 			row := db.Pool().QueryRow(ctx2, `
-				SELECT m.email, m.razao_social
-				FROM meis m
-				JOIN emissoes_mensais em ON em.mei_id = m.id
+				SELECT e.email, e.razao_social
+				FROM empresas e
+				JOIN emissoes_mensais em ON em.empresa_id = e.id
 				WHERE em.stripe_subscription_id = $1
 				LIMIT 1
 			`, subID)
-			var mei meiRow
-			if err := row.Scan(&mei.Email, &mei.RazaoSocial); err != nil {
-				log.Ctx(ctx2).Warn().Err(err).Str("sub_id", subID).
-					Msg("stripe webhook: could not fetch MEI for payment-failed email")
-				return
+			if err := row.Scan(&owner.Email, &owner.RazaoSocial); err != nil {
+				row = db.Pool().QueryRow(ctx2, `
+					SELECT m.email, m.razao_social
+					FROM meis m
+					JOIN emissoes_mensais em ON em.mei_id = m.id
+					WHERE em.stripe_subscription_id = $1
+					LIMIT 1
+				`, subID)
+				if err := row.Scan(&owner.Email, &owner.RazaoSocial); err != nil {
+					log.Ctx(ctx2).Warn().Err(err).Str("sub_id", subID).
+						Msg("stripe webhook: could not fetch owner for payment-failed email")
+					return
+				}
 			}
 
 			// Format amount: Stripe stores in centavos (BRL).
 			valorBRL := fmt.Sprintf("%.2f", float64(amountDue)/100.0)
 			portalURL := "https://billing.stripe.com/p/login/"
 
-			if err := emailSvc.SendPagamentoFalhou(ctx2, mei.Email, mei.RazaoSocial, "", valorBRL, portalURL); err != nil {
+			if err := emailSvc.SendPagamentoFalhou(ctx2, owner.Email, owner.RazaoSocial, "", valorBRL, portalURL); err != nil {
 				log.Ctx(ctx2).Warn().Err(err).Msg("email pagamento-falhou falhou")
 			}
 		}(context.WithoutCancel(ctx))
@@ -255,25 +393,31 @@ func (h *StripeWebhookHandler) handleInvoicePaymentFailed(ctx context.Context, e
 	return nil
 }
 
-// invalidateCacheBySubscriptionID looks up the MEI for a given Stripe
-// subscription ID and invalidates their subscription status cache.
-// Errors are logged but do not fail the webhook — the cache TTL is the fallback.
+// invalidateCacheBySubscriptionID looks up the owner (MEI or empresa) for a
+// given Stripe subscription ID and invalidates their billing cache.
+// Errors are logged but do not fail the webhook — the cache TTL is fallback.
 func (h *StripeWebhookHandler) invalidateCacheBySubscriptionID(ctx context.Context, subID string) {
 	if h.billingGrd == nil {
 		return
 	}
 	row := h.db.Pool().QueryRow(ctx, `
-		SELECT mei_id FROM emissoes_mensais
+		SELECT mei_id, empresa_id FROM emissoes_mensais
 		WHERE stripe_subscription_id = $1
 		LIMIT 1
 	`, subID)
-	var meiID uuid.UUID
-	if err := row.Scan(&meiID); err != nil {
+	var meiID, empresaID *uuid.UUID
+	if err := row.Scan(&meiID, &empresaID); err != nil {
 		return // subscription not yet in DB or already cleaned up
 	}
-	if err := h.billingGrd.InvalidateSubscriptionCache(ctx, meiID); err != nil {
-		log.Ctx(ctx).Warn().Err(err).Str("sub_id", subID).
-			Msg("failed to invalidate billing stripe-status cache")
+	// Empresa path takes precedence (ME/EPP). For MEI legacy both are equal.
+	if empresaID != nil {
+		h.billingGrd.InvalidateEmpresa(ctx, *empresaID)
+	}
+	if meiID != nil {
+		if err := h.billingGrd.InvalidateSubscriptionCache(ctx, *meiID); err != nil {
+			log.Ctx(ctx).Warn().Err(err).Str("sub_id", subID).
+				Msg("failed to invalidate billing stripe-status cache")
+		}
 	}
 }
 
