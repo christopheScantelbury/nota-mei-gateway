@@ -122,25 +122,38 @@ async function checkHealth() {
 }
 
 // ─── 4. AI endpoint removido ────────────────────────────────────────────────
-// IMPORTANTE: precisa retornar 404 (rota não existe no router).
-// Se retornar 401 → rota AINDA registrada, jwtMw bloqueando antes do handler.
-// Esse é um sinal de regressão real (deploy antigo, env var ANTHROPIC_API_KEY
-// ainda setada disparando o bloco de registro do endpoint).
+//
+// A rota /v1/* está sob o hybrid auth middleware (jwtMw) que responde 401
+// pra qualquer path sob /v1/ — mesmo paths inexistentes. Por isso comparar
+// só status code não dá pra distinguir "rota existe" vs "rota não existe".
+//
+// Estratégia: comparar com um path-irmão claramente inexistente.
+// Ambos devem retornar 401 (middleware). Se /v1/ai/nbs/sugerir devolver algo
+// DIFERENTE de uma rota inexistente, AI ainda está registrada.
 async function checkAIRemoved() {
   console.log('\n── 4. AI endpoint removido ──')
-  const res = await fetch(`${API}/v1/ai/nbs/sugerir`, {
+  const aiRes = await fetch(`${API}/v1/ai/nbs/sugerir`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ descricao: 'qualquer coisa' }),
   })
-  if (res.status === 404) {
-    ok('POST /v1/ai/nbs/sugerir', '404 — rota removida do router (✅ commit cee7c54 deployado)')
-  } else if (res.status === 401) {
+  const ghostRes = await fetch(`${API}/v1/__rota_que_nao_existe__`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  })
+  // Body shape comparison — strip request_id que muda a cada request.
+  const norm = (s) => s.replace(/"request_id":"[^"]+"/, '"request_id":"…"')
+  const aiBody = norm(await aiRes.text().catch(() => ''))
+  const ghostBody = norm(await ghostRes.text().catch(() => ''))
+
+  if (aiRes.status !== ghostRes.status || aiBody !== ghostBody) {
     fail('POST /v1/ai/nbs/sugerir',
-      `401 — rota AINDA registrada! Deploy antigo OU ANTHROPIC_API_KEY env não removida do Railway. ` +
-      `Verifique: railway logs OU remove ANTHROPIC_API_KEY do api production env vars.`)
+      `comportamento diferente de rota inexistente → AI ainda registrada. ` +
+      `ai: ${aiRes.status} ${aiBody.slice(0, 80)} | ghost: ${ghostRes.status} ${ghostBody.slice(0, 80)}`)
   } else {
-    fail('POST /v1/ai/nbs/sugerir', `status inesperado ${res.status} — feature pode estar exposta!`)
+    ok('POST /v1/ai/nbs/sugerir',
+      `${aiRes.status} idêntico a rota inexistente — AI removida do router ✅`)
   }
 }
 
