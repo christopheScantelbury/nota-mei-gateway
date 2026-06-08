@@ -8,7 +8,6 @@ import { validarCNPJ } from '@/lib/cnpj'
 import { notify } from '@/lib/notify'
 import { maskCNPJ, maskCPF } from '@/lib/format'
 import ISSRecolhimentoCard from '@/components/nota/ISSRecolhimentoCard'
-import SugestorNBS from '@/components/nota/SugestorNBS'
 import NBSServicoPicker from '@/components/nota/NBSServicoPicker'
 import ClienteCombobox from '@/components/nota/ClienteCombobox'
 import { Button } from '@/components/ui/Button'
@@ -455,13 +454,6 @@ export default function NovaNota() {
             <p className="text-xs text-text-2">
               Busque pelo nome do serviço. A lista é filtrada conforme a categoria da sua empresa.
             </p>
-            <SugestorNBS
-              descricao={discriminacao}
-              onSelect={(codigo, descricao) => {
-                setCodigoNbs(codigo)
-                setNbsDescricao(descricao)
-              }}
-            />
           </Field>
 
           <Field label="Discriminação do serviço" error={errors.discriminacao}>

@@ -8,7 +8,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/ai"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/audit"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/auth"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/billing"
@@ -446,17 +445,10 @@ func main() {
 	migrarH := handler.NewMigrarHandler(db.Pool(), auditor)
 	app.Post("/v1/auth/migrar", jwtMw, migrarH.MigrarMEI)
 
-	// AI: classificador NBS (Claude Haiku 4.5). Disponível via JWT (dashboard).
-	// Mantemos o registro antes do v1 group authMw pelo mesmo motivo do migrar.
-	if cfg.AnthropicAPIKey != "" {
-		llm := ai.NewClient(cfg.AnthropicAPIKey)
-		nbsClassifier := ai.NewNBSClassifier(db.Pool(), sharedRedis, llm)
-		nbsH := handler.NewAINBSHandler(nbsClassifier)
-		app.Post("/v1/ai/nbs/sugerir", jwtMw, nbsH.Sugerir)
-		log.Info().Msg("AI: classificador NBS habilitado (Claude Haiku 4.5)")
-	} else {
-		log.Warn().Msg("AI: ANTHROPIC_API_KEY ausente — classificador NBS desabilitado")
-	}
+	// AI: feature de classificação NBS via Claude removida em 2026-06-05.
+	// Motivos: custo (Anthropic API por call) sem retorno comercial claro +
+	// vetor de abuso por trial (endpoint não tinha rate limit + cota).
+	// Cliente usa a busca NBS por CNAE (lib/cnae) que cobre o catálogo todo.
 
 	// ── Authenticated endpoints (machine-to-machine + dashboard) ───────────
 	// Hybrid middleware: accepts API keys (sk_…) for B2B integrations OR

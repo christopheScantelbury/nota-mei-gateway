@@ -38,6 +38,19 @@ additional_redirect_urls = [
 jwt_expiry = 3600
 enable_signup = true
 
+# Session lifetime — hardening 2026-06-05.
+# Antes: sem inactivity timeout → sessão durava semanas (refresh token rotacionando).
+# Agora: 24h sem uso → logout forçado. timebox dá um teto absoluto de 7 dias
+# mesmo pra sessões ativas (defesa-em-profundidade contra token roubado).
+#
+# ⚠️ Estes valores também precisam estar configurados em produção:
+#    Supabase Dashboard → Authentication → Sessions
+#    inactivity_timeout: 86400  (24h em segundos)
+#    timebox:            604800 (7 dias em segundos)
+[auth.sessions]
+inactivity_timeout = "24h"
+timebox = "168h"
+
 [auth.email]
 enable_signup = true
 double_confirm_changes = true
@@ -46,18 +59,20 @@ enable_confirmations = false
 # Brand-aligned email templates (NotaFácil).
 # ⚠️  Produção é configurada separadamente no Supabase Dashboard
 #     em Authentication → Email Templates — cole o HTML destes arquivos lá.
-[auth.email.template.magic_link]
-subject = "Seu código de acesso · NotaFácil"
-content_path = "./templates/magic_link.html"
+# NOTE: content_path desativado temporariamente — bug CLI no Windows com caminhos relativos.
+#       Os templates estão em supabase/templates/ e devem ser aplicados manualmente no Dashboard.
+# [auth.email.template.magic_link]
+# subject = "Seu código de acesso · NotaFácil"
+# content_path = "./templates/magic_link.html"
 
-[auth.email.template.confirmation]
-subject = "Confirme seu e-mail · NotaFácil"
-content_path = "./templates/confirmation.html"
+# [auth.email.template.confirmation]
+# subject = "Confirme seu e-mail · NotaFácil"
+# content_path = "./templates/confirmation.html"
 
-[auth.email.template.recovery]
-subject = "Redefinir sua senha · NotaFácil"
-content_path = "./templates/recovery.html"
+# [auth.email.template.recovery]
+# subject = "Redefinir sua senha · NotaFácil"
+# content_path = "./templates/recovery.html"
 
-[auth.email.template.email_change]
-subject = "Confirme seu novo e-mail · NotaFácil"
-content_path = "./templates/email_change.html"
+# [auth.email.template.email_change]
+# subject = "Confirme seu novo e-mail · NotaFácil"
+# content_path = "./templates/email_change.html"
