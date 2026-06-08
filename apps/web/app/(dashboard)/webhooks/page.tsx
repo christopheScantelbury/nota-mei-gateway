@@ -24,12 +24,15 @@ export default async function WebhooksPage() {
 
   // Webhooks são feature de integração (produto Gateway/ME). MEI usa o
   // dashboard sem integração externa — bloqueia acesso direto via URL.
-  const { data: empresa } = await supabase
-    .from('empresas')
-    .select('tipo')
-    .eq('user_id', user.id)
-    .maybeSingle<{ tipo: 'MEI' | 'ME' | 'EPP' }>()
-  if (empresa?.tipo === 'MEI') redirect('/home')
+  //
+  // Detecção robusta: checa as duas tabelas em paralelo (ver comentário em
+  // /api-keys/page.tsx). RLS pode bloquear a query empresas, então meis
+  // serve como fallback confiável pra MEI legacy.
+  const [{ data: meiRow }, { data: empresaRow }] = await Promise.all([
+    supabase.from('meis').select('id').eq('id', user.id).maybeSingle<{ id: string }>(),
+    supabase.from('empresas').select('tipo').eq('user_id', user.id).maybeSingle<{ tipo: 'MEI' | 'ME' | 'EPP' }>(),
+  ])
+  if (meiRow || empresaRow?.tipo === 'MEI') redirect('/home')
 
   // Fetch plan info for gate — RLS enforces isolation for both MEI and ME/EPP
   const { data: usage } = await supabase
