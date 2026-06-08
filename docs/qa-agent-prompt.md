@@ -329,6 +329,125 @@ abaixo.
 - Force um 500 (chamada inválida via DevTools) → tela de erro estilizada
 - Validar tipos de erro: token expirado, sem permissão, validação
 
+# Pacote 2026-06-05 — upgrade flow + segurança
+
+Cenários NOVOS adicionados nesse pacote. Antes de rodar CT-19 a CT-22 execute:
+
+```bash
+STRIPE_SECRET_KEY=$(grep ^STRIPE_SECRET_KEY=sk_live ACESSOS.local.md | cut -d= -f2 | awk '{print $1}') \
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key-do-acessos> \
+node scripts/qa-upgrade-flow.mjs
+```
+
+→ Deve retornar `54 ok, 0 fail`. Se falhar, NÃO prosseguir com os cenários UI
+até resolver — significa que catálogo Stripe ou banco está fora de sync e
+qualquer teste de upgrade vai dar resultado inconsistente.
+
+## CT-19 · Upgrade de plano end-to-end (Stripe Checkout)
+
+**Pré-requisito:** uma conta MEI ou ME/EPP TRIAL recém-criada (sem subscription).
+
+- Logue na conta trial
+- Verifique em `/home` que aparece como "Trial" (qualquer feature paga aparece
+  com cadeado 🔒)
+- Vá em `/billing` (ou clique num menu com cadeado)
+- Selecione um plano pago (ex: **ME Start R$59,99/mês** se for ME; **MEI Mensal
+  R$19,90/mês** se for MEI)
+- Clique "Assinar"
+- Esperado: redirect pra `checkout.stripe.com` mostrando:
+  - Nome do plano correto (ex: "NotaFácil ME — Start")
+  - Description com **quantidade certa** (ex: "Emissão de até 10 NFS-e por mês")
+    — verifique que NÃO diz "100", "30", "1000" ou similar
+  - Valor correto
+  - Email da conta pré-preenchido
+- Pague com cartão de teste Stripe:
+  - Número: `4242 4242 4242 4242`
+  - Validade: qualquer data futura (ex: 12/30)
+  - CVC: `123`
+  - Nome: qualquer
+- Stripe redireciona pra `/billing?checkout=success`
+- **Validações pós-pagamento (cruciais — esses são os bugs corrigidos):**
+  1. `/home` deve mostrar o novo plano dentro de ~10s (cache TTL 5min, mas
+     webhook invalida instantaneamente)
+  2. Menus que estavam com cadeado 🔒 (Clientes, Webhooks, etc.) agora estão
+     desbloqueados (conforme tier do plano)
+  3. Recarregue `/clientes` (Ctrl+Shift+R) → deve mostrar lista de clientes,
+     NÃO o paywall "disponível a partir do Starter"
+  4. Banco (via Supabase SQL):
+     ```sql
+     SELECT planos.nome, em.stripe_subscription_status, em.stripe_subscription_id
+     FROM emissoes_mensais em
+     JOIN planos ON planos.id = em.plano_id
+     WHERE (em.mei_id = '<seu-id>' OR em.empresa_id = '<seu-id>')
+       AND em.competencia = to_char(NOW(), 'YYYY-MM');
+     ```
+     - `planos.nome` deve ser o plano comprado
+     - `stripe_subscription_status` deve ser `active`
+     - `stripe_subscription_id` deve estar preenchido (`sub_...`)
+  5. Se ME/EPP: `SELECT trial_me FROM empresas WHERE id='<id>'` deve ser
+     **false** (foi desligado pelo webhook).
+- **Bug-trap:** se após o pagamento o banco mostrar `plano_id` ainda do Trial,
+  isso é o bug do `handleSubscription` (não atualizava plano_id) — verifique
+  no Railway logs se commit `b484884` ou superior está deployado.
+
+## CT-20 · PlanGate reconhece todos os 10 planos
+
+Use SQL pra trocar o plano de uma conta MEI de teste sem passar pelo Stripe
+(rota admin direta no banco — só pra testar UI gating, não usar em prod
+fora deste cenário):
+
+```sql
+-- Pega plano_id alvo
+SELECT id, nome FROM planos WHERE nome IN ('MEI Mensal','MEI Plus','MEI Premium','ME Start','ME Pro','ME Business');
+
+-- Aplica no MEI de teste (substitua <MEI_ID> e <PLANO_ID>)
+UPDATE emissoes_mensais SET plano_id='<PLANO_ID>', stripe_subscription_status='active'
+WHERE mei_id='<MEI_ID>' AND competencia=to_char(NOW(),'YYYY-MM');
+```
+
+Para cada plano testado, recarregue `/home` (Ctrl+Shift+R), acesse os menus e
+verifique se libera/bloqueia conforme matriz:
+
+| Plano | Clientes | Webhooks | Templates | Recorrências |
+|---|---|---|---|---|
+| Trial* | 🔒 | 🔒 | 🔒 | 🔒 |
+| Avulso MEI · MEI Mensal · ME Start | ✅ | ✅ | 🔒 | 🔒 |
+| MEI Plus · ME Pro | ✅ | ✅ | ✅ | 🔒 |
+| MEI Premium · ME Business | ✅ | ✅ | ✅ | ✅ |
+
+→ Se algum plano mostrar paywall em algo que deveria liberar, é regressão da
+refatoração `lib/plans.ts` (commit `ab36076`).
+
+## CT-21 · AI endpoint removido
+
+- DevTools → console → cole:
+  ```js
+  fetch('/v1/ai/nbs/sugerir', { method: 'POST', body: '{}' }).then(r => r.status)
+  ```
+- Esperado: `404` (rota removida, não existe no router)
+- Se retornar `401`, `200` ou `500`: **regressão** — env var `ANTHROPIC_API_KEY`
+  pode estar setada no Railway disparando re-registro do endpoint, OU deploy
+  antigo. Removeer ANTHROPIC_API_KEY do Railway api production env vars.
+- Em `/notas/nova`, NÃO deve aparecer mais o sugestor por IA abaixo do campo
+  NBS — só o picker manual filtrado por CNAE.
+
+## CT-22 · Inactivity timeout 24h (validação por configuração)
+
+Não dá pra esperar 24h pra testar de verdade — então valide a configuração
+no Supabase Dashboard:
+
+1. Abra https://supabase.com/dashboard/project/pzjvgtwnstfyangfwdom/auth/users
+2. Vá em **Authentication → Sessions** (ou **Settings**)
+3. Confirme:
+   - **Inactivity timeout:** `24 hours` (86400 segundos)
+   - **Time-box:** `7 days` (604800 segundos)
+4. Se ainda mostrar default (sem timeout): aplicar manualmente (commit
+   `cee7c54` colocou no `config.toml` local mas Dashboard precisa ser editado
+   manualmente em prod).
+5. **Smoke teste real (opcional):** fazer login → fechar todas as abas → não
+   abrir por 24h → tentar acessar `/home` → deve ser redirecionado pra `/login`.
+   Esse smoke é manual e leva 1 dia — registre que ficará pra próxima rodada.
+
 # Deliverable — formato do relatório
 
 Ao final, gere um arquivo `docs/qa-report-{YYYY-MM-DD}.md` com:
@@ -337,9 +456,10 @@ Ao final, gere um arquivo `docs/qa-report-{YYYY-MM-DD}.md` com:
 # QA Report Frontend — Nota MEI Gateway · {date}
 
 ## Resumo executivo
-- Cenários executados: X de 18
+- Cenários executados: X de 22
 - Pass: X · Fail: X · Blocked: X (não pôde testar por dependência)
 - Bloqueadores: X · Críticos: X · Médios: X · Cosméticos: X
+- Smoke test `scripts/qa-upgrade-flow.mjs`: X ok / Y fail
 
 ## Ambiente testado
 - Navegador: Chrome XXX
@@ -388,20 +508,22 @@ Ao final, gere um arquivo `docs/qa-report-{YYYY-MM-DD}.md` com:
 2. **Confirme acesso ao navegador**: `mcp__Claude_in_Chrome__list_connected_browsers`
 3. **Smoke test:** abra `https://www.emitirnotafacil.com.br/` e tire um
    screenshot. Se carregar sem erro de console, o ambiente está saudável.
-4. **Execute os 18 cenários** na ordem (CT-01 → CT-18). Para cada um,
+4. **Rode o smoke test** primeiro: `node scripts/qa-upgrade-flow.mjs` —
+   se falhar, NÃO prossiga até resolver (banco/Stripe fora de sync).
+5. **Execute os 22 cenários** na ordem (CT-01 → CT-22). Para cada um,
    capture pelo menos 1 screenshot e marque pass/fail no relatório à medida
    que avança (não deixe pra acumular no final).
-5. **Antes de reportar um bug**: tente reproduzir 2-3 vezes, capture o
+6. **Antes de reportar um bug**: tente reproduzir 2-3 vezes, capture o
    console DevTools, capture as 5 últimas requisições de rede, e verifique
    o request_id no Railway logs (se 5xx).
-6. **Limpe notas de teste** no fim:
+7. **Limpe notas de teste** no fim:
    ```sql
    DELETE FROM notas_fiscais
    WHERE empresa_id = '5a7353a4-add4-48a0-9843-718eb4f72680'
      AND valor_servico <= 1
      AND created_at > NOW() - interval '6 hours';
    ```
-7. **Gere o relatório final** em `docs/qa-report-{date}.md` e commit.
+8. **Gere o relatório final** em `docs/qa-report-{date}.md` e commit.
 
 Bom trabalho. PT-BR no relatório.
 
