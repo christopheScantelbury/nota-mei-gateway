@@ -1,13 +1,29 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type EmailOtpType } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 import { enqueueBrevoEvent } from '@/lib/brevo/events'
 
 /**
- * Auth callback handler for Magic Link / OAuth providers.
- * Supabase redirects here after login with a `code` param (PKCE flow).
- * We exchange it for a session, set the cookie on the redirect response,
- * and forward the user to the dashboard.
+ * Auth callback handler — aceita DOIS flows:
+ *
+ * 1. **PKCE** (`?code=...`): usado quando o `/login` client-side faz
+ *    `signInWithOtp` com PKCE. Trocamos `code` por session via
+ *    `exchangeCodeForSession`.
+ *
+ * 2. **OTP token_hash** (`?token_hash=...&type=...`): usado quando o
+ *    magic link aponta direto pra cá com o hash do token. Verificamos
+ *    via `verifyOtp` que estabelece a session.
+ *
+ * ⚠️ Bug descoberto 2026-06-08: o callback antigo só lidava com PKCE.
+ * Supabase `auth.admin.generateLink({type:'magiclink'})` (usado por
+ * /api/dev/magic-link) e o template de email padrão geram URLs do tipo
+ * `https://<proj>.supabase.co/auth/v1/verify?token=...&redirect_to=...`
+ * que redirecionam pra `redirect_to` com token NO HASH (`#access_token=...`).
+ * Hash não chega no server → callback caía em auth_callback_failed.
+ *
+ * Fix: o magic-link agora aponta direto pra `/auth/callback?token_hash=...&
+ * type=magiclink&next=/home` (sem passar pelo /auth/v1/verify). Aqui
+ * chamamos `verifyOtp({type, token_hash})` que troca por session.
  *
  * Also handles first-time ME/EPP login: links auth.uid() to any empresa row
  * with matching email and user_id = NULL (created by POST /v1/auth/register/me
@@ -19,10 +35,15 @@ import { enqueueBrevoEvent } from '@/lib/brevo/events'
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
+  const tokenHash = searchParams.get('token_hash')
+  const otpType = searchParams.get('type')
   const next = searchParams.get('next') ?? '/home'
   const target = next.startsWith('/') ? next : '/home'
 
-  if (code) {
+  const hasPkce = !!code
+  const hasOtp = !!tokenHash && !!otpType
+
+  if (hasPkce || hasOtp) {
     // Build the redirect response first so we can attach cookies to it.
     const redirectResponse = NextResponse.redirect(`${origin}${target}`)
 
@@ -45,7 +66,16 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code)
+    // Troca o token por session conforme o flow detectado.
+    const authResult = hasPkce
+      ? await supabase.auth.exchangeCodeForSession(code!)
+      : await supabase.auth.verifyOtp({
+          type: otpType as EmailOtpType,
+          token_hash: tokenHash!,
+        })
+    const sessionData = authResult.data
+    const error = authResult.error
+
     if (!error && sessionData?.user) {
       // ── ME/EPP first-login linkage ────────────────────────────────────────
       // When a ME/EPP empresa is registered via POST /v1/auth/register/me, the

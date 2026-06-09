@@ -85,22 +85,15 @@ export async function POST(req: Request) {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 
-  // IMPORTANTE: sem redirectTo, Supabase manda pra site URL raiz com tokens
-  // no fragment (#access_token=...). Frontend na raiz não captura — link
-  // parece "quebrado" pro user. Apontando pra /auth/callback ativa PKCE
-  // (code no query string), e o handler troca code por session + redirect
-  // pra /home.
-  //
   // ⚠️ Tem que bater EXATAMENTE com Supabase `site_url` (config Auth) —
-  // atualmente `https://www.emitirnotafacil.com.br`. O apex
-  // (sem www) tem SSL/routing intermitente no Vercel, então não confiável
-  // como fallback. Sincronizar este hostname com o site_url do Supabase.
-  const callbackURL = 'https://www.emitirnotafacil.com.br/auth/callback?next=/home'
+  // atualmente `https://www.emitirnotafacil.com.br`. O apex (sem www) tem
+  // SSL/routing intermitente no Vercel, então não confiável como fallback.
+  const APP_ORIGIN = 'https://www.emitirnotafacil.com.br'
 
   const { data, error } = await sb.auth.admin.generateLink({
     type: 'magiclink',
     email,
-    options: { redirectTo: callbackURL },
+    options: { redirectTo: `${APP_ORIGIN}/auth/callback?next=/home` },
   })
 
   if (error) {
@@ -108,8 +101,37 @@ export async function POST(req: Request) {
     return denyResponse(500, 'generate_failed')
   }
 
+  // ⚠️ Bug fix 2026-06-08: o `action_link` original do Supabase aponta pra
+  //   https://<proj>.supabase.co/auth/v1/verify?token=<HASH>&type=magiclink&redirect_to=<APP>
+  // que ao ser seguido, redireciona pro APP com token NO HASH (#access_token=...).
+  // Hash não chega no server, então o callback falhava com `auth_callback_failed`.
+  //
+  // Solução: extraímos `token` (o token_hash) e construímos URL direto pra
+  // `/auth/callback?token_hash=...&type=magiclink&next=/home`. O callback agora
+  // aceita esse formato via `verifyOtp({type, token_hash})`.
+  const originalLink = data?.properties?.action_link ?? null
+  let actionLink: string | null = null
+  if (originalLink) {
+    try {
+      const parsed = new URL(originalLink)
+      const tokenHash = parsed.searchParams.get('token')
+      const linkType  = parsed.searchParams.get('type') ?? 'magiclink'
+      if (tokenHash) {
+        const direct = new URL(`${APP_ORIGIN}/auth/callback`)
+        direct.searchParams.set('token_hash', tokenHash)
+        direct.searchParams.set('type', linkType)
+        direct.searchParams.set('next', '/home')
+        actionLink = direct.toString()
+      } else {
+        actionLink = originalLink  // fallback se formato mudar
+      }
+    } catch {
+      actionLink = originalLink
+    }
+  }
+
   return NextResponse.json({
-    action_link: data?.properties?.action_link ?? null,
+    action_link: actionLink,
     email,
   })
 }
