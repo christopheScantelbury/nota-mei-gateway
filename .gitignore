@@ -55,7 +55,12 @@ __pycache__/
 ACESSOS*
 
 # Claude Code (configuração local do agente — não pertence ao repo público)
-.claude/
+# Padrão: ignora tudo dentro de .claude/ EXCETO skills/ (instruções
+# compartilhadas entre devs — padrões, convenções, bugs recorrentes).
+# Regra precisa ser por conteúdo (não diretório inteiro) pra permitir
+# negação no filho. Ver .claude/skills/README.md
+.claude/*
+!.claude/skills/
 
 # Arquivos internos de projeto (QA, tarefas, notas de desenvolvimento)
 bugs.txt
