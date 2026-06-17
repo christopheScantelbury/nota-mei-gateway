@@ -6,7 +6,7 @@ import AnimatedSection from '@/components/landing/AnimatedSection'
 import Navbar from '@/components/landing/Navbar'
 import LandingFooter from '@/components/landing/LandingFooter'
 import { SoftwareAppStructuredData, FAQStructuredData } from '@/components/seo/StructuredData'
-import PricingToggleMei from '@/components/landing/PricingToggleMei'
+import PricingToggleMei from '@/components/landing/PricingToggleMeiSSR'
 import TimeSavingsCalculator from '@/components/landing/TimeSavingsCalculator'
 
 export const metadata: Metadata = {

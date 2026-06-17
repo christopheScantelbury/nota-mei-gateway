@@ -145,18 +145,20 @@ function EditPlanoModal({
   const [descricaoCurta, setDescricaoCurta] = useState(plano.descricao_curta ?? '')
   const [emissoesLimite, setEmissoesLimite] = useState(plano.emissoes_limite)
   const [precoMensal, setPrecoMensal] = useState(plano.preco_mensal_brl ?? 0)
+  const [precoExcedente, setPrecoExcedente] = useState(plano.preco_excedente_brl ?? 0)
   const [destaque, setDestaque] = useState(plano.destaque)
   const [ordem, setOrdem] = useState(plano.ordem_exibicao)
   const [ativo, setAtivo] = useState(plano.ativo)
   const [submitting, setSubmitting] = useState(false)
 
   const precoMudou = Number(precoMensal) !== Number(plano.preco_mensal_brl ?? 0)
+  const excedenteMudou = Number(precoExcedente) !== Number(plano.preco_excedente_brl ?? 0)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (precoMudou) {
       const ok = confirm(
-        `Mudar o preço cria um novo Stripe price + migra todas as assinaturas ativas.\n\n` +
+        `Mudar o preço mensal cria um novo Stripe price + migra todas as assinaturas ativas.\n\n` +
           `Confirmar mudança de R$ ${Number(plano.preco_mensal_brl ?? 0).toFixed(2)} → R$ ${Number(precoMensal).toFixed(2)}?`,
       )
       if (!ok) return
@@ -167,6 +169,7 @@ function EditPlanoModal({
       descricao_curta: descricaoCurta || null,
       emissoes_limite: Number(emissoesLimite),
       preco_mensal_brl: Number(precoMensal) || null,
+      preco_excedente_brl: Number(precoExcedente) || null,
       destaque,
       ordem_exibicao: Number(ordem),
       ativo,
@@ -190,10 +193,17 @@ function EditPlanoModal({
           <Field label="Emissões/mês">
             <input type="number" value={emissoesLimite} onChange={(e) => setEmissoesLimite(Number(e.target.value))} className={inputCls} min={0} />
           </Field>
-          <Field label="Preço mensal (R$)">
+          <Field label="Preço mensal (R$) — assinatura">
             <input type="number" step="0.01" value={precoMensal} onChange={(e) => setPrecoMensal(Number(e.target.value))} className={inputCls} min={0} />
             {precoMudou && (
               <p className="text-xs text-nota-processando mt-1">⚠️ Mudar preço migra assinaturas ativas</p>
+            )}
+            <p className="text-xs text-text-2 mt-1">Use 0 pra planos sem mensalidade (Avulso, Trial).</p>
+          </Field>
+          <Field label="Preço por nota (R$) — avulso ou excedente">
+            <input type="number" step="0.01" value={precoExcedente} onChange={(e) => setPrecoExcedente(Number(e.target.value))} className={inputCls} min={0} />
+            {excedenteMudou && (
+              <p className="text-xs text-nota-processando mt-1">⚠️ Valor cobrado por nota acima do limite (ou cada nota, se Avulso).</p>
             )}
           </Field>
           <Field label="Ordem de exibição (menor primeiro)">

@@ -80,6 +80,7 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
   if (body.descricao_curta !== undefined) patch.descricao_curta = body.descricao_curta
   if (body.emissoes_limite !== undefined) patch.emissoes_limite = Number(body.emissoes_limite)
   if (body.preco_mensal_brl !== undefined) patch.preco_mensal_brl = Number(body.preco_mensal_brl) || null
+  if (body.preco_excedente_brl !== undefined) patch.preco_excedente_brl = Number(body.preco_excedente_brl) || null
   if (body.destaque !== undefined) patch.destaque = !!body.destaque
   if (body.ordem_exibicao !== undefined) patch.ordem_exibicao = Number(body.ordem_exibicao)
   if (body.ativo !== undefined) patch.ativo = !!body.ativo
