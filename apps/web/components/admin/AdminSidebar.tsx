@@ -3,14 +3,39 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-const adminNav = [
-  { href: '/admin',          label: 'Visão Geral',  icon: '📊', exact: true },
-  { href: '/admin/usuarios', label: 'Usuários',     icon: '👥', exact: false },
-  { href: '/admin/notas',    label: 'Notas Fiscais', icon: '🧾', exact: false },
+interface NavItem {
+  href: string
+  label: string
+  icon: string
+  exact: boolean
+}
+
+const adminNav: NavItem[] = [
+  { href: '/admin',            label: 'Visão Geral',     icon: '📊', exact: true  },
+  { href: '/admin/usuarios',   label: 'Usuários',        icon: '👥', exact: false },
+  { href: '/admin/notas',      label: 'Notas Fiscais',   icon: '🧾', exact: false },
+  { href: '/admin/planos',     label: 'Planos',          icon: '💳', exact: false },
+  { href: '/admin/landing',    label: 'Landing',         icon: '🌐', exact: false },
+  { href: '/admin/permissoes', label: 'Permissões',      icon: '🔐', exact: false },
 ]
 
-export default function AdminSidebar() {
+interface Props {
+  /** true = super_admin (mostra tudo). false = filtra por allowedPaths. */
+  isSuperAdmin: boolean
+  /** Paths que o user tem READ. null = todos (super_admin). */
+  allowedPaths: string[] | null
+}
+
+function isItemVisible(item: NavItem, isSuperAdmin: boolean, allowedPaths: string[] | null): boolean {
+  if (isSuperAdmin) return true
+  if (item.href === '/admin') return true  // dashboard root sempre visível pra qualquer admin ativo
+  if (!allowedPaths) return false
+  return allowedPaths.some((p) => item.href === p || item.href.startsWith(p + '/'))
+}
+
+export default function AdminSidebar({ isSuperAdmin, allowedPaths }: Props) {
   const pathname = usePathname()
+  const visibleItems = adminNav.filter((item) => isItemVisible(item, isSuperAdmin, allowedPaths))
 
   return (
     <aside className="hidden lg:flex w-56 shrink-0 bg-navy-700 min-h-screen flex-col border-r border-navy-600">
@@ -22,12 +47,14 @@ export default function AdminSidebar() {
         <p className="font-display font-extrabold text-lg text-nota-upgrade tracking-tight">
           🛡️ Admin
         </p>
-        <p className="text-xs text-text-2 mt-0.5">Nota Fácil MEI</p>
+        <p className="text-xs text-text-2 mt-0.5">
+          {isSuperAdmin ? 'Super admin' : 'Admin'}
+        </p>
       </div>
 
       {/* Nav */}
       <nav className="flex-1 py-4 px-3 space-y-1" aria-label="Menu admin">
-        {adminNav.map(({ href, label, icon, exact }) => {
+        {visibleItems.map(({ href, label, icon, exact }) => {
           const active = exact ? pathname === href : pathname.startsWith(href)
           return (
             <Link
