@@ -140,6 +140,43 @@ func (h *StripeWebhookHandler) handleSubscription(ctx context.Context, event str
 		}
 	}
 
+	// Downgrade pra Trial quando subscription é cancelada (user cancelou pelo
+	// Stripe Customer Portal ou Stripe expirou subscription com falha de
+	// pagamento). Resolve o Trial pelo tipo da empresa.
+	if string(sub.Status) == "canceled" {
+		tipoEmpresa := "MEI"
+		if empresaIDStr != "" {
+			var t string
+			if err := h.db.Pool().QueryRow(ctx, `
+				SELECT tipo FROM empresas WHERE id = $1
+			`, empresaIDStr).Scan(&t); err == nil && t != "" {
+				tipoEmpresa = t
+			}
+		}
+		var trialID uuid.UUID
+		err := h.db.Pool().QueryRow(ctx, `
+			SELECT id FROM planos
+			WHERE nome ILIKE 'Trial%'
+			  AND ativo = true
+			  AND (tipo_empresa = $1 OR tipo_empresa = 'ALL')
+			ORDER BY emissoes_limite DESC
+			LIMIT 1
+		`, tipoEmpresa).Scan(&trialID)
+		if err == nil {
+			planoID = trialID
+			log.Ctx(ctx).Info().
+				Str("sub_id", sub.ID).
+				Str("tipo_empresa", tipoEmpresa).
+				Str("trial_plano_id", trialID.String()).
+				Msg("subscription canceled — downgrading owner to Trial")
+		} else {
+			log.Ctx(ctx).Warn().Err(err).
+				Str("sub_id", sub.ID).
+				Str("tipo_empresa", tipoEmpresa).
+				Msg("subscription canceled but Trial plano not found — keeping current plano_id")
+		}
+	}
+
 	// Build UPDATE — only set plano_id when we resolved it (avoid wiping a
 	// good plan because metadata was missing).
 	if empresaIDStr != "" {
