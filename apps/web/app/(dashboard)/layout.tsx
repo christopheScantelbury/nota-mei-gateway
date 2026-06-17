@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import Sidebar from '@/components/dashboard/Sidebar'
 import { resolvePlanTier } from '@/lib/plan-tier'
 import NotificationBell from '@/components/dashboard/NotificationBell'
+import FeedbackButton from '@/components/dashboard/FeedbackButton'
 import type { MEI } from '@/lib/types'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -133,6 +134,7 @@ export default async function DashboardLayout({
         >
           {children}
         </main>
+        <FeedbackButton />
       </div>
     )
   }
@@ -201,6 +203,7 @@ export default async function DashboardLayout({
       >
         {children}
       </main>
+      <FeedbackButton />
     </div>
   )
 }
