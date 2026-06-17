@@ -79,6 +79,12 @@ func (h *StripeWebhookHandler) Handle(c *fiber.Ctx) error {
 		processingErr = h.handleInvoicePaid(ctx, event)
 	case "invoice.payment_failed":
 		processingErr = h.handleInvoicePaymentFailed(ctx, event)
+	case "price.updated", "price.deleted":
+		// #238 — Detecta mudanças externas (admin editou direto no Dashboard)
+		// e sincroniza nosso banco. Nãoreverte o estado, só reflete.
+		processingErr = h.handlePriceExternal(ctx, event)
+	case "product.updated":
+		processingErr = h.handleProductExternal(ctx, event)
 	default:
 		// Acknowledge unhandled events — Stripe will not retry.
 	}
@@ -476,4 +482,129 @@ func (h *StripeWebhookHandler) markProcessed(ctx context.Context, eventID, tipo 
 		ON CONFLICT (stripe_event_id) DO NOTHING
 	`, eventID, tipo)
 	return err
+}
+
+// handlePriceExternal sincroniza nosso banco quando admin edita preço direto
+// no Stripe Dashboard. #238.
+//
+// Eventos:
+//   - price.updated  → atualiza unit_amount + active no plano vinculado.
+//   - price.deleted  → marca plano.ativo=false.
+//
+// Match via planos.stripe_price_id = price.ID. Se não bate, ignora (price
+// pode ser de outro produto fora do nosso catálogo).
+func (h *StripeWebhookHandler) handlePriceExternal(ctx context.Context, event stripelib.Event) error {
+	var price stripelib.Price
+	if err := json.Unmarshal(event.Data.Raw, &price); err != nil {
+		return err
+	}
+	if price.ID == "" {
+		return nil
+	}
+
+	// Tenta achar plano pelo stripe_price_id.
+	var planoID uuid.UUID
+	var oldAmount int64
+	err := h.db.Pool().QueryRow(ctx, `
+		SELECT id, COALESCE((preco_mensal_brl * 100)::bigint, 0)
+		FROM planos
+		WHERE stripe_price_id = $1
+		LIMIT 1
+	`, price.ID).Scan(&planoID, &oldAmount)
+	if err != nil {
+		log.Ctx(ctx).Debug().Str("price_id", price.ID).Str("event", string(event.Type)).
+			Msg("price external — no matching plano, ignoring")
+		return nil
+	}
+
+	if event.Type == "price.deleted" {
+		_, err := h.db.Pool().Exec(ctx, `
+			UPDATE planos SET ativo = false, updated_at = NOW() WHERE id = $1
+		`, planoID)
+		if err == nil {
+			h.logPlanoChange(ctx, planoID, "ativo", "true", "false", "none", price.ID, "external: price.deleted")
+		}
+		return err
+	}
+
+	// price.updated → sincroniza unit_amount + active.
+	newAmount := price.UnitAmount
+	newActive := price.Active
+
+	if newAmount != oldAmount {
+		_, err := h.db.Pool().Exec(ctx, `
+			UPDATE planos
+			SET preco_mensal_brl = $1::numeric / 100, ativo = $2, updated_at = NOW(),
+			    stripe_sync_at = NOW(), stripe_sync_error = NULL
+			WHERE id = $3
+		`, newAmount, newActive, planoID)
+		if err != nil {
+			return err
+		}
+		h.logPlanoChange(ctx, planoID, "preco_mensal_brl",
+			fmt.Sprintf("%.2f", float64(oldAmount)/100),
+			fmt.Sprintf("%.2f", float64(newAmount)/100),
+			"none", price.ID, "external: price.updated")
+	}
+	return nil
+}
+
+// handleProductExternal sincroniza nome/description do produto Stripe.
+func (h *StripeWebhookHandler) handleProductExternal(ctx context.Context, event stripelib.Event) error {
+	var product stripelib.Product
+	if err := json.Unmarshal(event.Data.Raw, &product); err != nil {
+		return err
+	}
+	if product.ID == "" {
+		return nil
+	}
+
+	var planoID uuid.UUID
+	var oldNome, oldDesc string
+	err := h.db.Pool().QueryRow(ctx, `
+		SELECT id, nome, COALESCE(descricao_curta, '')
+		FROM planos WHERE stripe_product_id = $1 LIMIT 1
+	`, product.ID).Scan(&planoID, &oldNome, &oldDesc)
+	if err != nil {
+		return nil // produto não vinculado
+	}
+
+	newNome := product.Name
+	newDesc := product.Description
+
+	if newNome != oldNome || newDesc != oldDesc {
+		_, err := h.db.Pool().Exec(ctx, `
+			UPDATE planos
+			SET nome = $1, descricao_curta = NULLIF($2, ''),
+			    updated_at = NOW(),
+			    stripe_sync_at = NOW(), stripe_sync_error = NULL
+			WHERE id = $3
+		`, newNome, newDesc, planoID)
+		if err != nil {
+			return err
+		}
+		if newNome != oldNome {
+			h.logPlanoChange(ctx, planoID, "nome", oldNome, newNome, "none", product.ID, "external: product.updated")
+		}
+		if newDesc != oldDesc {
+			h.logPlanoChange(ctx, planoID, "descricao_curta", oldDesc, newDesc, "none", product.ID, "external: product.updated")
+		}
+	}
+	return nil
+}
+
+// logPlanoChange grava em planos_history. Falha não-fatal.
+func (h *StripeWebhookHandler) logPlanoChange(
+	ctx context.Context,
+	planoID uuid.UUID,
+	campo, valorAntigo, valorNovo, stripeAction, stripeRef, notes string,
+) {
+	_, err := h.db.Pool().Exec(ctx, `
+		INSERT INTO planos_history (plano_id, campo, valor_antigo, valor_novo, stripe_action, stripe_ref, notes)
+		VALUES ($1, $2, $3, $4, NULLIF($5, ''), NULLIF($6, ''), $7)
+	`, planoID, campo, valorAntigo, valorNovo, stripeAction, stripeRef, notes)
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Str("plano_id", planoID.String()).
+			Msg("planos_history insert failed")
+	}
 }
