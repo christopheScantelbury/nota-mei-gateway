@@ -17,7 +17,7 @@
  * banco (não usa cache) — defesa em profundidade.
  */
 
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { createClient as createSupabaseRawClient, type SupabaseClient } from '@supabase/supabase-js'
 
 export type AdminContext = {
   isAdmin: boolean
@@ -63,32 +63,72 @@ function setCached(userId: string, ctx: AdminContext): void {
 }
 
 /**
- * Resolve permissões do user. Cache 5min.
+ * Cliente raw com service_role pra bypassar RLS dentro do middleware/layout.
+ * Cacheado por singleton.
+ *
+ * Por quê: o cliente passado (server client com cookies do user) precisa
+ * passar pela RLS pra ler admin_users — quando a RLS bloqueia silently
+ * (cookie expired, runtime quirk Edge), `adminRes.data` vem null e o user
+ * vira NO_ACCESS sem log. Bug reportado no QA RV-2 2026-06-17.
+ *
+ * Como admin_users é tabela de controle de acesso (não dados sensíveis
+ * do user), usar service role pra leitura é seguro — não vaza nada que
+ * o user não poderia inferir.
+ */
+let adminRawClient: SupabaseClient | null = null
+function getAdminRawClient(): SupabaseClient | null {
+  if (adminRawClient) return adminRawClient
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return null
+  adminRawClient = createSupabaseRawClient(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+  return adminRawClient
+}
+
+/**
+ * Resolve permissões do user. Cache 30s (apenas hits positivos).
  * Retorna NO_ACCESS pra qualquer falha (defesa em profundidade).
+ *
+ * Usa service_role pra ler admin_users + grants (bypassa RLS — necessário
+ * pq RLS em admin_users pode bloquear silently no middleware Edge).
+ * O `supabase` parâmetro ficou como API compat — não usado mais.
  */
 export async function getAdminContext(
   userId: string,
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
 ): Promise<AdminContext> {
   if (!userId) return NO_ACCESS
 
   const cached = getCached(userId)
   if (cached) return cached
 
-  // Resolve em paralelo: registro de admin + grants.
+  const admin = getAdminRawClient()
+  if (!admin) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[permissions] SUPABASE_SERVICE_ROLE_KEY ausente — getAdminContext NO_ACCESS')
+    }
+    return NO_ACCESS
+  }
+
   const [adminRes, grantsRes] = await Promise.all([
-    supabase
+    admin
       .from('admin_users')
       .select('role, ativo')
       .eq('user_id', userId)
       .eq('ativo', true)
       .maybeSingle<{ role: 'admin' | 'super_admin'; ativo: boolean }>(),
-    supabase
+    admin
       .from('admin_page_grants')
       .select('page_path, can_read, can_write')
       .eq('user_id', userId)
       .returns<{ page_path: string; can_read: boolean; can_write: boolean }[]>(),
   ])
+
+  if (adminRes.error && process.env.NODE_ENV !== 'production') {
+    console.warn('[permissions] admin_users query error:', adminRes.error.message)
+  }
 
   if (!adminRes.data || !adminRes.data.ativo) {
     setCached(userId, NO_ACCESS)
