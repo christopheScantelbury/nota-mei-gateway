@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { canRead, getAdminContext } from '@/lib/admin/permissions'
 
 // Routes that require an authenticated Supabase session.
 // Bug N+4: faltavam /clientes e /links no middleware — server components davam
@@ -10,7 +11,10 @@ const PROTECTED_PREFIXES = [
   '/seletor-empresa', '/clientes', '/links',
 ]
 
-// Routes that require admin role (app_metadata.role === 'admin').
+// Routes that require admin access.
+// Permissões granulares: admin_users + admin_page_grants no banco (#231).
+// Super_admin tem acesso total; admin precisa de grant com can_read=true
+// pra o page_path solicitado.
 const ADMIN_PREFIXES = ['/admin']
 
 // Routes that should redirect to /notas if already authenticated.
@@ -48,18 +52,19 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // ── Admin routes: exige autenticação + role === 'admin' ──
-  const isAdmin = ADMIN_PREFIXES.some((p) => pathname.startsWith(p))
-  if (isAdmin) {
+  // ── Admin routes: exige autenticação + grant per-tela ──
+  const isAdminPath = ADMIN_PREFIXES.some((p) => pathname.startsWith(p))
+  if (isAdminPath) {
     if (!user) {
       const loginUrl = request.nextUrl.clone()
       loginUrl.pathname = '/login'
       loginUrl.searchParams.set('next', pathname)
       return NextResponse.redirect(loginUrl)
     }
-    // app_metadata só pode ser definido server-side — seguro contra adulteração
-    const role = user.app_metadata?.role
-    if (role !== 'admin') {
+    // Consulta admin_users + admin_page_grants (cache 5min in-memory).
+    // Super_admin libera tudo; admin precisa grant pra page_path.
+    const adminCtx = await getAdminContext(user.id, supabase)
+    if (!canRead(adminCtx, pathname)) {
       const homeUrl = request.nextUrl.clone()
       homeUrl.pathname = '/home'
       homeUrl.search = ''
