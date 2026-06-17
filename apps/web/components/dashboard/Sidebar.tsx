@@ -31,7 +31,7 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/clientes',      label: 'Clientes',              icon: '👥', badge: 'Starter',  tipos: 'all',         minTier: 'starter' },
   { href: '/templates',     label: 'Modelos de Nota',       icon: '📄', badge: 'Starter',  tipos: 'all',         minTier: 'starter' },
   { href: '/recorrencias',  label: 'Notas Recorrentes',     icon: '🔄', badge: 'Starter',  tipos: 'all',         minTier: 'starter' },
-  { href: '/links',         label: 'Links de Cobrança',     icon: '🔗', badge: 'Starter',  tipos: 'all',         minTier: 'starter' },
+  { href: '/links',         label: 'Emissão via WhatsApp',  icon: '💬', badge: 'Starter',  tipos: 'all',         minTier: 'starter' },
   { href: '/api-keys',      label: 'Chaves de API',         icon: '🔑', badge: 'Pro',      tipos: ['ME', 'EPP'], minTier: 'pro' },
   { href: '/webhooks',      label: 'Notificações automáticas', icon: '🔔', badge: 'Pro',   tipos: ['ME', 'EPP'], minTier: 'pro' },
   { href: '/billing',       label: 'Plano e Pagamento',     icon: '💳', badge: null,       tipos: 'all' },

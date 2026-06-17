@@ -5,6 +5,7 @@ import Sidebar from '@/components/dashboard/Sidebar'
 import { resolvePlanTier } from '@/lib/plan-tier'
 import NotificationBell from '@/components/dashboard/NotificationBell'
 import FeedbackButton from '@/components/dashboard/FeedbackButton'
+import { getAdminContext } from '@/lib/admin/permissions'
 import type { MEI } from '@/lib/types'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -66,7 +67,11 @@ export default async function DashboardLayout({
 
   if (!user) redirect('/login')
 
-  const isAdmin = user.app_metadata?.role === 'admin'
+  // Bug 2026-06-17: isAdmin antes lia app_metadata.role (legado pré-migration
+  // admin_users), por isso o link Admin no sidebar não aparecia mesmo pra
+  // super_admin. Agora usa o sistema admin_users + grants.
+  const adminCtx = await getAdminContext(user.id, supabase)
+  const isAdmin = adminCtx.isAdmin
 
   // ── Try new multi-empresa path (requires 20260620000001_multi_produto migration) ──
   const { data: empresas } = await supabase
