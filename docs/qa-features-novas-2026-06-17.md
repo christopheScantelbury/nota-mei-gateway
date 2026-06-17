@@ -126,8 +126,13 @@ localStorage.clear(); sessionStorage.clear()
 
 ## CT-P3 · Editar preço — CRIA novo Stripe price + migra subs
 
+**✅ LIBERADO pelo Chris 2026-06-17:** ainda não há usuários reais
+assinantes. Pode mudar o preço à vontade — não precisa reverter ao final
+nem se preocupar com cobrança incorreta. Salva o último valor que ficar
+bonito pra você.
+
 - Editar "Avulso MEI" (price atual R$5,99/nota)
-- Mudar pra R$6,99
+- Mudar pra R$6,99 (ou qualquer outro)
 - Salvar — esperado confirm modal: "Mudar o preço cria um novo Stripe
   price + migra todas as assinaturas ativas. Confirmar?"
 - Confirmar
@@ -135,7 +140,8 @@ localStorage.clear(); sessionStorage.clear()
   novo `stripe_ref` (sk_live_price_...).
 - Stripe Dashboard → Products → "NotaFácil MEI — Avulso" → 2 prices
   (1 novo ativo + 1 antigo arquivado)
-- **CRÍTICO:** Reverter pra R$5,99 ao final pra não afetar usuários reais.
+- Resultado deve ser: migrated=0 (sem subs ativas), errors=null. Pode
+  validar mudando 2-3 planos em sequência pra exercitar bem o fluxo.
 
 ## CT-P4 · Toggle ativo/inativo
 
@@ -308,11 +314,16 @@ localStorage.clear(); sessionStorage.clear()
 - NUNCA commitar credentials
 - NÃO confirmar pagamento real no Stripe Checkout (cartão 4242 é teste)
 
+**OK pra mexer livre:**
+- ✅ Mudar preços de planos (Chris confirmou 2026-06-17 — sem usuários reais)
+- ✅ Editar/publicar/rollback landing pages
+- ✅ Criar/desativar admins de teste
+
 # Como começar
 
 1. Setup Chrome MCP (acima)
 2. Rodar CT-A1 → A6 (Admin v2)
-3. CT-P1 → P4 (Planos) — **reverter mudanças de preço ao final**
+3. CT-P1 → P4 (Planos) — pode mudar preços livres (Chris liberou)
 4. CT-L1 → L7 (Landing) — pode publicar tudo, rollback no fim
 5. CT-H1, H2, H3 (Hard launch)
 6. Gerar relatório final
