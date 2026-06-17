@@ -14,7 +14,12 @@ export default function PlanosClient({ initialPlanos, canWrite }: Props) {
   const router = useRouter()
   const [planos, setPlanos] = useState(initialPlanos)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [showInativos, setShowInativos] = useState(false)
   const editing = planos.find((p) => p.id === editingId) ?? null
+  // QA 2026-06-17 observação: 5 planos legacy inativos poluíam a listagem.
+  // Fix: padrão é esconder; toggle "Mostrar inativos" pra inspecionar.
+  const visiblePlanos = showInativos ? planos : planos.filter((p) => p.ativo)
+  const inativoCount = planos.length - planos.filter((p) => p.ativo).length
 
   async function save(id: string, patch: Partial<PlanoRow>) {
     const res = await fetch(`/admin/api/planos/${id}`, {
@@ -46,6 +51,17 @@ export default function PlanosClient({ initialPlanos, canWrite }: Props) {
 
   return (
     <>
+      {inativoCount > 0 && (
+        <div className="mb-4 flex items-center justify-between text-xs">
+          <span className="text-text-2">{inativoCount} plano(s) inativo(s) ocultos</span>
+          <button
+            onClick={() => setShowInativos((v) => !v)}
+            className="text-brand-cyan hover:underline"
+          >
+            {showInativos ? 'Esconder inativos' : 'Mostrar inativos'}
+          </button>
+        </div>
+      )}
       <div className="rounded-xl border border-navy-600 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-navy-700 border-b border-navy-600">
@@ -59,7 +75,7 @@ export default function PlanosClient({ initialPlanos, canWrite }: Props) {
             </tr>
           </thead>
           <tbody>
-            {planos.map((p) => (
+            {visiblePlanos.map((p) => (
               <tr key={p.id} className="border-b border-navy-600 last:border-0 hover:bg-navy-700/30">
                 <td className="px-4 py-3">
                   <p className="text-text-1 font-medium">

@@ -19,13 +19,33 @@ export async function POST(request: NextRequest) {
   const ctx = await getAdminContext(user.id, sb)
   if (!canWrite(ctx, '/admin/landing')) return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
 
-  const formData = await request.formData()
+  // BUG-004 QA 2026-06-17: request.formData() joga 500 com body vazio quando
+  // o body NÃO é multipart. Try/catch + erro amigável.
+  let formData: FormData
+  try {
+    formData = await request.formData()
+  } catch (e) {
+    return NextResponse.json(
+      {
+        error: 'INVALID_BODY',
+        message: 'Body deve ser multipart/form-data com campo "file"',
+        detail: e instanceof Error ? e.message : String(e),
+      },
+      { status: 400 },
+    )
+  }
+
   const file = formData.get('file') as File | null
   const pageSlug = formData.get('pageSlug') as string | null
   const altText = (formData.get('altText') as string | null) ?? null
   const kind = (formData.get('kind') as string | null) ?? 'image'
 
-  if (!file) return NextResponse.json({ error: 'NO_FILE' }, { status: 400 })
+  if (!file) {
+    return NextResponse.json(
+      { error: 'NO_FILE', message: 'Campo "file" obrigatório no FormData' },
+      { status: 400 },
+    )
+  }
   if (!ALLOWED_MIME.includes(file.type)) {
     return NextResponse.json({ error: 'INVALID_MIME', message: `Tipo ${file.type} não permitido` }, { status: 422 })
   }

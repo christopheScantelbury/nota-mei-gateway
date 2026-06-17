@@ -1,12 +1,51 @@
 /**
- * POST /admin/api/permissoes — cria novo admin.
- * Apenas super_admin pode usar.
+ * GET  /admin/api/permissoes — lista admins + grants (super_admin only).
+ *                              Usado pelo client após mutations pra refetch
+ *                              sem reload (BUG-001 QA 2026-06-17).
+ * POST /admin/api/permissoes — cria novo admin (super_admin only).
  */
 import { NextResponse, type NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getAdminContext, invalidateAdminCache } from '@/lib/admin/permissions'
 import { logAdminAction } from '@/lib/admin/audit'
+
+export async function GET() {
+  const sb = createClient()
+  const { data: { user } } = await sb.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
+
+  const ctx = await getAdminContext(user.id, sb)
+  if (!ctx.isSuperAdmin) return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 })
+
+  const admin = createAdminClient()
+  const [{ data: admins }, { data: grants }, { data: usersListData }] = await Promise.all([
+    admin
+      .from('admin_users')
+      .select('user_id, role, ativo, notes, created_at')
+      .order('created_at', { ascending: false }),
+    admin.from('admin_page_grants').select('user_id, page_path, can_read, can_write'),
+    admin.auth.admin.listUsers({ perPage: 1000 }),
+  ])
+
+  const emailMap = new Map<string, string>()
+  for (const u of usersListData?.users ?? []) {
+    if (u.email) emailMap.set(u.id, u.email)
+  }
+  const grantsByUser = new Map<string, Array<{ page_path: string; can_read: boolean; can_write: boolean }>>()
+  for (const g of grants ?? []) {
+    if (!grantsByUser.has(g.user_id)) grantsByUser.set(g.user_id, [])
+    grantsByUser.get(g.user_id)!.push({ page_path: g.page_path, can_read: g.can_read, can_write: g.can_write })
+  }
+
+  const rows = (admins ?? []).map((a) => ({
+    ...a,
+    email: emailMap.get(a.user_id) ?? '—',
+    grants: grantsByUser.get(a.user_id) ?? [],
+  }))
+
+  return NextResponse.json({ admins: rows })
+}
 
 export async function POST(request: NextRequest) {
   const sb = createClient()

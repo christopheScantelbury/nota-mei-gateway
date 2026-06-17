@@ -130,11 +130,11 @@ export default function LandingBuilder({ page, canWrite }: Props) {
   }
 
   async function openPreview() {
-    // Token assinado: GET na API gera token efêmero. Implementação simples:
-    // usa o user_id em base64 + timestamp (server valida no SSR). Pra MVP
-    // basta um param ?preview=1 que o /(landing) detecta em modo logado.
-    const url = `/${page.slug === 'home' ? '' : page.slug}?preview=1`
-    window.open(url, '_blank')
+    // BUG-003 QA 2026-06-17: páginas estáticas /(landing)/mei|me|gateway etc
+    // têm precedência sobre o catch-all /[cmsSlug], então ?preview=1 não
+    // renderizava o draft. Fix: rota dedicada /admin/preview/[slug] que
+    // sempre lê draft_data (admin-only, sem conflito).
+    window.open(`/admin/preview/${page.slug}`, '_blank')
   }
 
   return (

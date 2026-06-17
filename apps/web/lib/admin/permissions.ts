@@ -32,7 +32,17 @@ const NO_ACCESS: AdminContext = {
   grants: new Map(),
 }
 
-const TTL_MS = 5 * 60 * 1000  // 5min — igual BillingGuard pattern
+// TTL curto (30s) porque o cache em-memória NÃO é compartilhado entre
+// Edge runtime (middleware) e Node runtime (route handlers / server actions).
+// Quando o super_admin promove alguém via POST (Node), o invalidate só limpa
+// o cache do runtime Node — o Edge continua com o snapshot antigo NO_ACCESS
+// até expirar. Bug reportado QA 2026-06-17 (BUG-002).
+//
+// Estratégia: cache APENAS hits positivos (isAdmin=true). Se um user
+// resolve como NO_ACCESS, NÃO cacheia → próxima request consulta banco.
+// Custo: 1 query extra por request de não-admin (área /admin é low-volume,
+// aceitável). Admins ativos têm cache curto pra reduzir latência.
+const TTL_MS = 30 * 1000
 type CacheEntry = { ctx: AdminContext; expiresAt: number }
 const cache = new Map<string, CacheEntry>()
 
@@ -47,6 +57,8 @@ function getCached(userId: string): AdminContext | null {
 }
 
 function setCached(userId: string, ctx: AdminContext): void {
+  // SÓ cacheia hits positivos (ver comentário acima sobre cache distribuído).
+  if (!ctx.isAdmin) return
   cache.set(userId, { ctx, expiresAt: Date.now() + TTL_MS })
 }
 

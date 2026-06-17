@@ -46,6 +46,17 @@ export default function PermissoesClient({ initialAdmins, currentUserId }: Props
     })
   }
 
+  // Re-fetch lista de admins via GET. Usado após criar/editar pra refletir
+  // sem reload manual (BUG-001 do QA 2026-06-17 — router.refresh() não
+  // re-popula state local porque initialAdmins é prop, não dependência).
+  async function refetchAdmins() {
+    const res = await fetch('/admin/api/permissoes', { method: 'GET' })
+    if (res.ok) {
+      const { admins: fresh } = await res.json()
+      setAdmins(fresh)
+    }
+  }
+
   async function toggleAtivo(userId: string, ativo: boolean) {
     const res = await fetch(`/admin/api/permissoes/${userId}/ativo`, {
       method: 'PATCH',
@@ -185,8 +196,9 @@ export default function PermissoesClient({ initialAdmins, currentUserId }: Props
       {showNewModal && (
         <NewAdminModal
           onClose={() => setShowNewModal(false)}
-          onCreated={() => {
+          onCreated={async () => {
             setShowNewModal(false)
+            await refetchAdmins()
             refresh()
           }}
         />
