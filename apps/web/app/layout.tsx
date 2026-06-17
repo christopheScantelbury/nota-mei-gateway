@@ -7,6 +7,7 @@ import { OrgStructuredData } from '@/components/seo/StructuredData'
 import PWAProvider from '@/components/pwa/PWAProvider'
 import NavigationProgress from '@/components/ui/NavigationProgress'
 import CookieBanner from '@/components/consent/CookieBanner'
+import ErrorTrackingSetup from '@/components/ErrorTrackingSetup'
 import { GA_ID, gtagInitScript } from '@/lib/analytics/gtag'
 import './globals.css'
 
@@ -178,6 +179,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <CookieBanner />
 
           <PWAProvider />
+
+          <ErrorTrackingSetup />
 
           {/* Toaster global — padrão obrigatório de feedback de erro/sucesso
               em todas as telas. Veja memory/design_system.md "Toast padrão". */}
