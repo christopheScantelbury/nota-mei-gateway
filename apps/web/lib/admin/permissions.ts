@@ -154,6 +154,11 @@ export async function getAdminContext(
 export function canRead(ctx: AdminContext, pathname: string): boolean {
   if (!ctx.isAdmin) return false
   if (ctx.isSuperAdmin) return true
+  // Índice /admin (Visão Geral) é sempre legível por qualquer admin ativo —
+  // espelha AdminSidebar.isItemVisible. Sem isto, admin não-super tem grants
+  // só pra sub-páginas (/admin/usuarios, /admin/notas) e o gate do middleware
+  // o joga pra /home ao acessar /admin raiz (BUG-002, QA RV-2 2026-06-17).
+  if (pathname === '/admin') return true
   return checkGrant(ctx.grants, pathname, 'canRead')
 }
 
