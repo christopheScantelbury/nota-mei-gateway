@@ -35,7 +35,7 @@ export default async function AdminNotasPage({
   let query = supabase
     .from('notas_fiscais')
     .select(
-      'id, mei_id, numero_rps, status, tomador_nome, tomador_doc, valor_servico, competencia, created_at, emitida_em, meis(razao_social)',
+      'id, mei_id, empresa_id, numero_rps, status, tomador_nome, tomador_doc, valor_servico, competencia, created_at, emitida_em, meis(razao_social), empresas(razao_social)',
       { count: 'exact' },
     )
     .order('created_at', { ascending: false })
@@ -51,7 +51,8 @@ export default async function AdminNotasPage({
 
   const { data: notas, count } = await query.returns<{
     id: string
-    mei_id: string
+    mei_id: string | null
+    empresa_id: string | null
     numero_rps: number
     status: string
     tomador_nome: string | null
@@ -61,6 +62,7 @@ export default async function AdminNotasPage({
     created_at: string
     emitida_em: string | null
     meis: { razao_social: string } | null
+    empresas: { razao_social: string } | null
   }[]>()
 
   const totalPages = Math.ceil((count ?? 0) / PAGE_SIZE)
@@ -148,7 +150,9 @@ export default async function AdminNotasPage({
                     <tr key={n.id} className="border-b border-navy-600 last:border-0 hover:bg-navy-700/50 transition-colors">
                       <td className="px-4 py-3 font-mono text-brand-cyan">#{n.numero_rps}</td>
                       <td className="px-4 py-3 text-text-2 max-w-[140px] truncate">
-                        {n.meis?.razao_social ?? n.mei_id.slice(0, 8) + '…'}
+                        {n.meis?.razao_social
+                          ?? n.empresas?.razao_social
+                          ?? (n.empresa_id ?? n.mei_id ?? '').slice(0, 8) + '…'}
                       </td>
                       <td className="px-4 py-3">
                         <div className="font-medium truncate max-w-[160px]">{n.tomador_nome ?? '—'}</div>
