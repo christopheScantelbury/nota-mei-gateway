@@ -13,7 +13,7 @@ import { formatBRL as brl } from '@/lib/format'
 
 const DISCOUNT = 0.8 // 20% off anual
 
-type Plan = {
+export type Plan = {
   name: string
   monthlyPrice: number | null // null = Enterprise (sob consulta)
   priceLabel: string
@@ -91,8 +91,10 @@ const PLANS: Plan[] = [
   },
 ]
 
-export default function PricingToggleMe() {
+export default function PricingToggleMe({ plans }: { plans?: Plan[] }) {
   const [annual, setAnnual] = useState(false)
+  // Fallback pro array hardcoded caso o caller não passe (compat).
+  const effectivePlans = plans ?? PLANS
 
   return (
     <div>
@@ -125,7 +127,7 @@ export default function PricingToggleMe() {
 
       {/* Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {PLANS.map((plan) => {
+        {effectivePlans.map((plan) => {
           const annualMonthly =
             plan.monthlyPrice !== null ? Math.round(plan.monthlyPrice * DISCOUNT * 100) / 100 : null
           const annualTotal = annualMonthly !== null ? annualMonthly * 12 : null

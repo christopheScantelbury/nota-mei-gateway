@@ -8,7 +8,7 @@ import { MEBeneficios }   from './components/MEBeneficios'
 import { MEComoFunciona } from './components/MEComoFunciona'
 import { MEFAQ }          from './components/MEFAQ'
 import { MECTAFinal }     from './components/MECTAFinal'
-import PricingToggleMe from '@/components/landing/PricingToggleMe'
+import PricingToggleMe from '@/components/landing/PricingToggleMeSSR'
 import CompetitorTable from '@/components/competitor/CompetitorTable'
 
 export default function LandingME() {

@@ -16,6 +16,8 @@ const adminNav: NavItem[] = [
   { href: '/admin/notas',      label: 'Notas Fiscais',   icon: '🧾', exact: false },
   { href: '/admin/planos',     label: 'Planos',          icon: '💳', exact: false },
   { href: '/admin/landing',    label: 'Landing',         icon: '🌐', exact: false },
+  { href: '/admin/feedback',   label: 'Feedback',        icon: '💬', exact: false },
+  { href: '/admin/errors',     label: 'Errors',          icon: '🐛', exact: false },
   { href: '/admin/permissoes', label: 'Permissões',      icon: '🔐', exact: false },
 ]
 

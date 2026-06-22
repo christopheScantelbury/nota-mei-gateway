@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { canRead, canWrite, type AdminContext } from './permissions'
 
 function ctx(
-  over: Partial<AdminContext> & {
+  over: Omit<Partial<AdminContext>, 'grants'> & {
     grants?: Record<string, { canRead: boolean; canWrite: boolean }>
   } = {},
 ): AdminContext {
