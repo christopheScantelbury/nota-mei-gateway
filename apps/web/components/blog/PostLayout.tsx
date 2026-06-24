@@ -55,28 +55,28 @@ export default function PostLayout({
       />
       <Navbar />
 
-      <article className="pt-32 pb-16 px-4">
+      <article className="pt-24 md:pt-32 pb-12 md:pb-16 px-4 sm:px-6">
         <div className="mx-auto max-w-3xl">
           {/* Breadcrumb visível */}
-          <nav className="text-sm text-text-2 mb-6" aria-label="breadcrumb">
+          <nav className="text-sm text-text-2 mb-4 md:mb-6" aria-label="breadcrumb">
             <Link href="/" className="hover:text-text-1">Início</Link>
             {' › '}
             <Link href="/blog" className="hover:text-text-1">Blog</Link>
           </nav>
 
-          <h1 className="font-display text-3xl md:text-4xl font-extrabold leading-tight mb-4">
+          <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-extrabold leading-tight mb-3 md:mb-4">
             {post.title}
           </h1>
-          <p className="text-text-2 text-lg leading-relaxed mb-6">
+          <p className="text-text-2 text-base md:text-lg leading-relaxed mb-5 md:mb-6">
             {post.description}
           </p>
-          <div className="flex flex-wrap items-center gap-3 text-xs text-text-2 mb-10 pb-6 border-b border-navy-600">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-text-2 mb-8 md:mb-10 pb-5 md:pb-6 border-b border-navy-600">
             <span>{dataPub}</span>
-            <span>·</span>
+            <span aria-hidden>·</span>
             <span>{post.readTimeMin} min de leitura</span>
-            <span>·</span>
+            <span aria-hidden>·</span>
             <span>por {post.author}</span>
-            <span className="ml-auto flex flex-wrap gap-2">
+            <span className="basis-full sm:basis-auto sm:ml-auto flex flex-wrap gap-2 mt-1 sm:mt-0">
               {post.tags.map((t) => (
                 <span key={t} className="rounded-full bg-navy-700 border border-navy-600 px-2 py-0.5 text-[10px] uppercase tracking-wider">
                   {t}
@@ -85,17 +85,18 @@ export default function PostLayout({
             </span>
           </div>
 
-          {/* Conteúdo do post */}
-          <div className="prose prose-invert max-w-none
-                          prose-headings:font-display prose-headings:font-extrabold
-                          prose-h2:text-2xl prose-h2:mt-12 prose-h2:mb-4
-                          prose-h3:text-xl  prose-h3:mt-8  prose-h3:mb-3
-                          prose-p:text-text-1 prose-p:leading-relaxed
-                          prose-a:text-brand-blue prose-a:no-underline hover:prose-a:underline
-                          prose-strong:text-text-1
-                          prose-ul:text-text-1 prose-li:my-1
-                          prose-blockquote:border-l-brand-blue prose-blockquote:bg-navy-700 prose-blockquote:rounded-r-xl prose-blockquote:py-2 prose-blockquote:px-4 prose-blockquote:not-italic
-                          prose-code:text-brand-blue prose-code:bg-navy-700 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:before:content-[''] prose-code:after:content-['']">
+          {/* Conteúdo do post — estilos por seletor de descendente (sem plugin typography) */}
+          <div className="text-text-1 text-base md:text-[17px] leading-relaxed
+                          [&_h2]:font-display [&_h2]:font-extrabold [&_h2]:text-text-1 [&_h2]:text-xl [&_h2]:sm:text-2xl [&_h2]:mt-10 [&_h2]:md:mt-12 [&_h2]:mb-3 [&_h2]:md:mb-4 [&_h2]:leading-tight
+                          [&_h3]:font-display [&_h3]:font-extrabold [&_h3]:text-text-1 [&_h3]:text-lg [&_h3]:sm:text-xl [&_h3]:mt-7 [&_h3]:md:mt-8 [&_h3]:mb-2 [&_h3]:md:mb-3 [&_h3]:leading-tight
+                          [&_p]:my-4 [&_p]:md:my-5
+                          [&_a]:text-brand-blue [&_a]:no-underline hover:[&_a]:underline [&_a]:break-words
+                          [&_strong]:text-text-1 [&_strong]:font-semibold
+                          [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:sm:pl-6 [&_ul]:my-4 [&_ul]:space-y-1.5
+                          [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:sm:pl-6 [&_ol]:my-4 [&_ol]:space-y-1.5
+                          [&_li]:leading-relaxed
+                          [&_blockquote]:border-l-4 [&_blockquote]:border-brand-blue [&_blockquote]:bg-navy-700 [&_blockquote]:rounded-r-xl [&_blockquote]:py-3 [&_blockquote]:px-4 [&_blockquote]:my-6 [&_blockquote]:text-text-1
+                          [&_code]:text-brand-blue [&_code]:bg-navy-700 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[0.92em]">
             {children}
           </div>
         </div>
