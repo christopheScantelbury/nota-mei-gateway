@@ -197,7 +197,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       priceId,
       customerId: owner.stripeCustomerId,
       email:      owner.email || session.user.email || '',
-      successUrl: `${baseUrl}/billing?checkout=success`,
+      successUrl: `${baseUrl}/obrigado/assinatura?session_id={CHECKOUT_SESSION_ID}&plan=${encodeURIComponent(planoNome)}`,
       cancelUrl:  `${baseUrl}/billing?checkout=cancel`,
       metadata,
     })

@@ -102,16 +102,31 @@ export default function LandingFooter() {
           </div>
         </div>
 
-        <div className="border-t border-navy-600 pt-6 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-text-2">
-          <span>© {new Date().getFullYear()} ScantelburyDevs · Todos os direitos reservados</span>
-          <a
-            href="https://www.scantelburydevs.com.br"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-text-1 transition font-mono"
-          >
-            Desenvolvido por ScantelburyDevs ↗
-          </a>
+        <div className="border-t border-navy-600 pt-6 flex flex-col gap-3 text-xs text-text-2">
+          {/* Linha 1 — dados legais (exigência Google Ads BR + LGPD)
+              Setar NEXT_PUBLIC_LEGAL_CNPJ, NEXT_PUBLIC_LEGAL_RAZAO, NEXT_PUBLIC_LEGAL_ADDRESS no Vercel.
+              Sem env vars setadas, esconde a linha — evita placeholders no ar. */}
+          {process.env.NEXT_PUBLIC_LEGAL_CNPJ && (
+            <div className="text-text-2/80 leading-relaxed">
+              {process.env.NEXT_PUBLIC_LEGAL_RAZAO ?? 'ScantelburyDevs'} · CNPJ{' '}
+              {process.env.NEXT_PUBLIC_LEGAL_CNPJ}
+              {process.env.NEXT_PUBLIC_LEGAL_ADDRESS && (
+                <> · {process.env.NEXT_PUBLIC_LEGAL_ADDRESS}</>
+              )}
+            </div>
+          )}
+          {/* Linha 2 — copyright + crédito */}
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
+            <span>© {new Date().getFullYear()} ScantelburyDevs · Todos os direitos reservados</span>
+            <a
+              href="https://www.scantelburydevs.com.br"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-text-1 transition font-mono"
+            >
+              Desenvolvido por ScantelburyDevs ↗
+            </a>
+          </div>
         </div>
       </div>
     </footer>
