@@ -38,12 +38,13 @@ function daysUntil(dateStr: string | null): number | null {
 function EmptyState({ showDocs = true }: { showDocs?: boolean }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center rounded-xl border border-dashed border-navy-600">
-      <svg width="72" height="72" viewBox="0 0 72 72" fill="none" className="mb-6 opacity-70">
-        <rect width="72" height="72" rx="16" fill="#142035" />
-        <rect x="18" y="14" width="36" height="44" rx="4" fill="#1E3050" />
-        <rect x="24" y="22" width="24" height="3" rx="1.5" fill="#8AA0B8" />
-        <rect x="24" y="30" width="18" height="3" rx="1.5" fill="#8AA0B8" />
-        <circle cx="50" cy="52" r="12" fill="#0A0F1E" />
+      {/* Cores theme-aware: claro vira tons de slate, escuro mantém navy. */}
+      <svg width="72" height="72" viewBox="0 0 72 72" fill="none" className="mb-6 opacity-90">
+        <rect width="72" height="72" rx="16" className="fill-slate-100 dark:fill-navy-700" />
+        <rect x="18" y="14" width="36" height="44" rx="4" className="fill-white dark:fill-navy-600" />
+        <rect x="24" y="22" width="24" height="3" rx="1.5" className="fill-slate-300 dark:fill-text-2" />
+        <rect x="24" y="30" width="18" height="3" rx="1.5" className="fill-slate-300 dark:fill-text-2" />
+        <circle cx="50" cy="52" r="12" className="fill-white dark:fill-navy-900" />
         <circle cx="50" cy="52" r="10" fill="#00E8FF" opacity="0.15" stroke="#00E8FF" strokeWidth="1.5" />
         <path d="M46 52l3 3 5-5" stroke="#00E8FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
