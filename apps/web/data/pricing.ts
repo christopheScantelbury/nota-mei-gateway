@@ -6,22 +6,9 @@ import type { PricingPlan } from '@/lib/pricing/types'
 
 const UTM_HOME_PRICING = 'utm_source=home&utm_medium=pricing'
 
+// Ordem reflete o pivô 2026-06-25: ME (foco principal, highlight) → Gateway → MEI.
+// Mantém os 3 personas representadas na home, mas com peso visual proporcional.
 export const ANCHOR_PLANS: PricingPlan[] = [
-  {
-    key: 'mei_mensal',
-    persona: 'mei',
-    name: 'MEI Mensal',
-    description: 'Para MEI com clientes fixos todo mês.',
-    priceLabel: 'R$ 19,90/mês',
-    notes: '5 notas/mês · R$ 0,80 por nota excedente',
-    bullets: ['Trial grátis com 5 notas', 'PDF + XML automáticos', 'Suporte humano'],
-    primaryCta: {
-      label: 'Começar grátis',
-      href: `/cadastro?produto=mei&plano=mensal&${UTM_HOME_PRICING}&utm_content=mei_card`,
-    },
-    secondaryCta: { label: 'Ver todos os planos MEI →', href: '/mei#precos' },
-    highlight: false,
-  },
   {
     key: 'me_start',
     persona: 'me',
@@ -60,6 +47,21 @@ export const ANCHOR_PLANS: PricingPlan[] = [
       href: `/sandbox?${UTM_HOME_PRICING}&utm_content=dev_card`,
     },
     secondaryCta: { label: 'Ver planos Gateway →', href: '/gateway#precos' },
+    highlight: false,
+  },
+  {
+    key: 'mei_mensal',
+    persona: 'mei',
+    name: 'MEI Mensal',
+    description: 'Para MEI com clientes fixos todo mês.',
+    priceLabel: 'R$ 19,90/mês',
+    notes: '5 notas/mês · R$ 0,80 por nota excedente',
+    bullets: ['Trial grátis com 5 notas', 'PDF + XML automáticos', 'Suporte humano'],
+    primaryCta: {
+      label: 'Começar grátis',
+      href: `/cadastro?produto=mei&plano=mensal&${UTM_HOME_PRICING}&utm_content=mei_card`,
+    },
+    secondaryCta: { label: 'Ver todos os planos MEI →', href: '/mei#precos' },
     highlight: false,
   },
 ]
