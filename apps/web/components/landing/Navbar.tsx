@@ -79,9 +79,10 @@ function getPricingHrefForPath(pathname: string) {
 
 function getMobileLinks(pathname: string) {
   return [
-    { label: 'MEI',           href: '/mei',     isAnchor: false },
+    // Foco do produto: ME/EPP + Gateway primeiro (MEI rebaixado pra terceiro).
     { label: 'ME / EPP',      href: '/me',      isAnchor: false },
     { label: 'Gateway API',   href: '/gateway', isAnchor: false },
+    { label: 'MEI',           href: '/mei',     isAnchor: false },
     { label: 'Sandbox',       href: '/sandbox', isAnchor: false },
     { label: 'Preços',        href: getPricingHrefForPath(pathname), isAnchor: false },
     { label: 'Blog',          href: '/blog',    isAnchor: false },
@@ -182,8 +183,8 @@ export default function Navbar() {
 
           {/* Produto links — centro, desktop only (lg+) */}
           <div className="hidden lg:flex items-center gap-6 flex-1 justify-center">
-            <Link href="/mei"     className="text-sm text-text-2 hover:text-text-1 transition-colors">MEI</Link>
             <Link href="/me"      className="text-sm text-text-2 hover:text-text-1 transition-colors">ME / EPP</Link>
+            <Link href="/mei"     className="text-sm text-text-2 hover:text-text-1 transition-colors">MEI</Link>
             <GatewayMenu />
             <Link href={pricingHref} className="text-sm text-text-2 hover:text-text-1 transition-colors">Preços</Link>
             <Link href="/blog"    className="text-sm text-text-2 hover:text-text-1 transition-colors">Blog</Link>

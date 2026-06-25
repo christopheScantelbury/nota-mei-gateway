@@ -9,26 +9,27 @@ import AnimatedSection from '@/components/landing/AnimatedSection'
 import HowItWorksToggle from '@/components/landing/HowItWorksToggle'
 import PricingSection from '@/components/pricing/PricingSection'
 import CompetitorTable from '@/components/competitor/CompetitorTable'
+import PorQueNaoGratuito from '@/components/landing/PorQueNaoGratuito'
 
 export const metadata: Metadata = {
   // Title curto importa para o diálogo de instalação do PWA — Chrome usa
   // o título da página como nome no prompt "Adicionar à tela inicial".
-  title: 'NotaFácil — Emissão de NFS-e Nacional para MEI, ME e EPP',
+  title: 'NotaFácil — NFS-e Nacional obrigatória para ME e EPP em Set/2026',
   description:
-    'Emita NFS-e Nacional em segundos. Para MEI: app simples sem burocracia. Para ME/EPP: obrigatório a partir de set/2026. Para devs: API REST integrada à Receita Federal.',
+    'A primeira plataforma pronta pra NFS-e Nacional ME/EPP — Simples Nacional + Lucro Presumido, multi-empresa nativo. Devs integram via API REST. MEI também é bem-vindo.',
   openGraph: {
-    title: 'NotaFácil — Emissão de NFS-e Nacional',
-    description: 'Emita NFS-e Nacional em segundos. Simples para o MEI, robusto para a empresa, poderoso para o dev.',
+    title: 'NotaFácil — NFS-e Nacional pra ME, EPP e devs',
+    description: 'A primeira plataforma pronta pra NFS-e Nacional ME/EPP. Obrigatório set/2026 — comece antes da multidão. API REST pra devs. MEI também atende.',
     url: 'https://emitirnotafacil.com.br',
     siteName: 'NotaFácil',
-    images: [{ url: '/og/og-gateway-1200x630.png', width: 1200, height: 630, alt: 'NotaFácil — Emissão de NFS-e Nacional' }],
+    images: [{ url: '/og/og-gateway-1200x630.png', width: 1200, height: 630, alt: 'NotaFácil — NFS-e Nacional pra ME, EPP e devs' }],
     locale: 'pt_BR',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'NotaFácil — Emissão de NFS-e Nacional',
-    description: 'Emita NFS-e Nacional em segundos. Simples para o MEI, robusto para a empresa, poderoso para o dev.',
+    title: 'NotaFácil — NFS-e Nacional pra ME, EPP e devs',
+    description: 'A primeira plataforma pronta pra NFS-e Nacional ME/EPP. Obrigatório set/2026. API REST pra devs. MEI também atende.',
     images: ['/og/og-gateway-1200x630.png'],
   },
   alternates: { canonical: 'https://emitirnotafacil.com.br' },
@@ -43,7 +44,7 @@ const jsonLd = {
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   url: APP_URL,
-  description: 'Plataforma de emissão de NFS-e Nacional para MEI, ME e EPP. Direto à Receita Federal, sem burocracia.',
+  description: 'Plataforma de emissão de NFS-e Nacional pra ME, EPP e devs (com API REST). MEI também atendido. Direto à Receita Federal, sem burocracia.',
   offers: { '@type': 'Offer', price: '0', priceCurrency: 'BRL', description: 'Trial gratuito' },
   author: { '@type': 'Organization', name: 'ScantelburyDevs', url: 'https://scantelburydevs.com.br' },
 }
@@ -103,6 +104,9 @@ export default function LandingPage() {
           <HowItWorksToggle />
         </div>
       </AnimatedSection>
+
+      {/* Objeção "o gov é grátis, por que pagar?" — pack Manaus §4.3 */}
+      <PorQueNaoGratuito variant="home" />
 
       {/* Por que escolher (embed comparativo summary) — HIST-4.3 */}
       <section className="py-16 px-4 bg-navy-700/30 border-y border-navy-600">
