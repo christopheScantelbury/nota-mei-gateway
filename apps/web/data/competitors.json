@@ -1,24 +1,29 @@
 {
-  "lastUpdated": "2026-06-02",
-  "competitors": ["notafacil", "focus_nfe", "enotas", "plugnotas"],
+  "lastUpdated": "2026-06-22",
+  "competitors": ["notafacil", "emissor_nacional", "focus_nfe", "enotas", "plugnotas"],
   "labels": {
     "notafacil": "NotaFácil",
+    "emissor_nacional": "Emissor Nacional (gov)",
     "focus_nfe": "Focus NFe",
     "enotas": "eNotas",
     "plugnotas": "PlugNotas"
   },
   "features": [
-    { "id": "nfse_nacional_native",  "label": "NFS-e Nacional nativa desde mai/2026",        "highlight": true,  "values": { "notafacil": "✅", "focus_nfe": "❌", "enotas": "❌", "plugnotas": "❌" } },
-    { "id": "rest_json",              "label": "API REST · JSON · Bearer",                    "highlight": false, "values": { "notafacil": "✅", "focus_nfe": "✅", "enotas": "Parcial", "plugnotas": "✅" } },
-    { "id": "sandbox_no_signup",      "label": "Sandbox público sem cadastro",                "highlight": true,  "values": { "notafacil": "✅", "focus_nfe": "❌", "enotas": "❌", "plugnotas": "❌" } },
-    { "id": "mei_dedicated",          "label": "Produto dedicado para MEI",                   "highlight": true,  "values": { "notafacil": "✅", "focus_nfe": "❌", "enotas": "❌ (não atende MEI)", "plugnotas": "❌" } },
-    { "id": "me_dedicated",           "label": "Produto dedicado para ME/EPP",                "highlight": false, "values": { "notafacil": "✅", "focus_nfe": "Parcial", "enotas": "✅", "plugnotas": "Parcial" } },
-    { "id": "dev_api",                "label": "API para desenvolvedores",                    "highlight": false, "values": { "notafacil": "✅", "focus_nfe": "✅", "enotas": "Plano Plus+", "plugnotas": "✅" } },
-    { "id": "multi_company",          "label": "Multi-empresa",                               "highlight": false, "values": { "notafacil": "✅", "focus_nfe": "✅", "enotas": "Plano Plus+", "plugnotas": "✅" } },
-    { "id": "sdks",                   "label": "SDKs prontos (Node/Python/PHP)",              "highlight": false, "values": { "notafacil": "✅", "focus_nfe": "Parcial", "enotas": "❌", "plugnotas": "Parcial" } },
-    { "id": "entry_price",            "label": "Preço de entrada",                            "highlight": false, "values": { "notafacil": "R$ 5,99/nota ou R$ 19,90/mês", "focus_nfe": "R$ 89/mês", "enotas": "R$ 137/mês", "plugnotas": "Sob consulta" } },
-    { "id": "trial_no_card",          "label": "Trial sem cartão",                            "highlight": false, "values": { "notafacil": "✅", "focus_nfe": "Limitado", "enotas": "✅", "plugnotas": "Sob consulta" } },
-    { "id": "webhooks_hmac",          "label": "Webhooks HMAC-SHA256",                        "highlight": false, "values": { "notafacil": "✅", "focus_nfe": "✅", "enotas": "Parcial", "plugnotas": "✅" } },
-    { "id": "mtls_receita",           "label": "mTLS direto com Receita Federal",             "highlight": true,  "values": { "notafacil": "✅", "focus_nfe": "Intermediado", "enotas": "Intermediado", "plugnotas": "Intermediado" } }
+    { "id": "nfse_nacional_native",  "label": "NFS-e Nacional nativa desde mai/2026",        "highlight": true,  "values": { "notafacil": "✅", "emissor_nacional": "✅",        "focus_nfe": "❌",         "enotas": "❌",            "plugnotas": "❌" } },
+    { "id": "client_data_saved",      "label": "Dados do cliente salvos para reusar",         "highlight": true,  "values": { "notafacil": "✅", "emissor_nacional": "❌",        "focus_nfe": "✅",         "enotas": "✅",            "plugnotas": "✅" } },
+    { "id": "fast_emission",          "label": "Emissão em ~30 segundos",                     "highlight": true,  "values": { "notafacil": "✅", "emissor_nacional": "❌",        "focus_nfe": "Parcial",    "enotas": "Parcial",       "plugnotas": "Parcial" } },
+    { "id": "email_auto",             "label": "PDF + XML automáticos por e-mail",            "highlight": false, "values": { "notafacil": "✅", "emissor_nacional": "❌",        "focus_nfe": "✅",         "enotas": "✅",            "plugnotas": "✅" } },
+    { "id": "recurring_emission",     "label": "Emissão recorrente / em lote",                "highlight": false, "values": { "notafacil": "✅", "emissor_nacional": "❌",        "focus_nfe": "Parcial",    "enotas": "Parcial",       "plugnotas": "Parcial" } },
+    { "id": "rest_json",              "label": "API REST · JSON · Bearer",                    "highlight": false, "values": { "notafacil": "✅", "emissor_nacional": "❌",        "focus_nfe": "✅",         "enotas": "Parcial",       "plugnotas": "✅" } },
+    { "id": "sandbox_no_signup",      "label": "Sandbox público sem cadastro",                "highlight": true,  "values": { "notafacil": "✅", "emissor_nacional": "❌",        "focus_nfe": "❌",         "enotas": "❌",            "plugnotas": "❌" } },
+    { "id": "mei_dedicated",          "label": "Produto dedicado para MEI",                   "highlight": true,  "values": { "notafacil": "✅", "emissor_nacional": "Genérico",  "focus_nfe": "❌",         "enotas": "❌ (não atende MEI)", "plugnotas": "❌" } },
+    { "id": "me_dedicated",           "label": "Produto dedicado para ME/EPP",                "highlight": false, "values": { "notafacil": "✅", "emissor_nacional": "Genérico",  "focus_nfe": "Parcial",    "enotas": "✅",            "plugnotas": "Parcial" } },
+    { "id": "dev_api",                "label": "API para desenvolvedores",                    "highlight": false, "values": { "notafacil": "✅", "emissor_nacional": "❌",        "focus_nfe": "✅",         "enotas": "Plano Plus+",   "plugnotas": "✅" } },
+    { "id": "multi_company",          "label": "Multi-empresa",                               "highlight": false, "values": { "notafacil": "✅", "emissor_nacional": "Por CNPJ",  "focus_nfe": "✅",         "enotas": "Plano Plus+",   "plugnotas": "✅" } },
+    { "id": "sdks",                   "label": "SDKs prontos (Node/Python/PHP)",              "highlight": false, "values": { "notafacil": "✅", "emissor_nacional": "❌",        "focus_nfe": "Parcial",    "enotas": "❌",            "plugnotas": "Parcial" } },
+    { "id": "entry_price",            "label": "Preço de entrada",                            "highlight": false, "values": { "notafacil": "R$ 5,99/nota ou R$ 19,90/mês", "emissor_nacional": "Grátis", "focus_nfe": "R$ 89/mês", "enotas": "R$ 137/mês", "plugnotas": "Sob consulta" } },
+    { "id": "trial_no_card",          "label": "Trial sem cartão",                            "highlight": false, "values": { "notafacil": "✅", "emissor_nacional": "Sempre grátis", "focus_nfe": "Limitado", "enotas": "✅",        "plugnotas": "Sob consulta" } },
+    { "id": "webhooks_hmac",          "label": "Webhooks HMAC-SHA256",                        "highlight": false, "values": { "notafacil": "✅", "emissor_nacional": "❌",        "focus_nfe": "✅",         "enotas": "Parcial",       "plugnotas": "✅" } },
+    { "id": "mtls_receita",           "label": "mTLS direto com Receita Federal",             "highlight": true,  "values": { "notafacil": "✅", "emissor_nacional": "✅ (próprio)", "focus_nfe": "Intermediado", "enotas": "Intermediado", "plugnotas": "Intermediado" } }
   ]
 }

@@ -13,13 +13,22 @@ function delay(ms: number) {
 }
 
 /**
- * Hero da home — copies finais HIST-1.4 + HIST-1.2 (PioneerBadge) + HIST-1.3 (Countdown)
- * + HIST-3.1 (sandbox CTA no card Dev). Tracking GA4 via trackCtaClick em todos os CTAs.
+ * Hero da home — hierarquia reordenada pelo pack Manaus (2026-06-22, §4.2).
+ *
+ * Antes: 3 cards iguais (MEI · ME · Gateway).
+ * Agora:
+ *   - ME/EPP e Gateway viram CARDS PRIMÁRIOS (lado a lado, peso visual igual)
+ *   - MEI vira CARD SECUNDÁRIO (faixa horizontal menor abaixo)
+ *
+ * Motivação: ME/EPP tem LTV alto + obrigação legal + multi-empresa nativo;
+ * Gateway tem margem 95%; MEI é mais sensível a preço e tem o emissor público
+ * grátis como concorrente direto. Não tirar o MEI do funil, só não gastar
+ * atenção primária com ele.
  */
 export default function HeroSection() {
   return (
     <section className="pt-32 pb-16 px-4 text-center">
-      <div className="mx-auto max-w-4xl">
+      <div className="mx-auto max-w-5xl">
         {/* Eyebrow */}
         <span
           className="animate-fade-up inline-block bg-navy-700 border border-navy-600 text-brand-cyan text-xs font-semibold px-3 py-1 rounded-full mb-4"
@@ -33,58 +42,63 @@ export default function HeroSection() {
           <PioneerBadge variant="hero" />
         </div>
 
-        {/* H1 — copy final aprovada (HIST-1.4 variante A controle) */}
+        {/* H1 — copy pack Manaus §4.2 */}
         <h1
           className="animate-fade-up font-display text-4xl md:text-5xl font-extrabold leading-tight mb-4"
           {...delay(80)}
         >
-          Sua NFS-e Nacional pronta{' '}
-          <span className="text-brand-cyan">antes de setembro/2026</span>
+          Sua empresa pronta para a{' '}
+          <span className="text-brand-cyan">NFS-e Nacional</span> — sem dor de cabeça fiscal
         </h1>
 
-        {/* Subtítulo final aprovado */}
+        {/* Subtítulo — pack Manaus §4.2 */}
         <p className="animate-fade-up text-text-2 text-lg mb-10 max-w-3xl mx-auto" {...delay(160)}>
-          Para MEI, ME/EPP e desenvolvedores. A primeira plataforma a emitir e cancelar NFS-e Nacional em produção. Migre agora — quanto mais perto da vigência, mais lotado fica o caminho.
+          Para ME, EPP e desenvolvedores. Emissão e cancelamento de NFS-e Nacional em produção,
+          com integração direta à Receita Federal. Onde a obrigatoriedade já chegou, a gente
+          resolve hoje.
         </p>
 
-        {/* Texto acima dos cards */}
         <p className="animate-fade-up text-text-2 text-sm font-semibold mb-6 uppercase tracking-wider" {...delay(200)}>
-          Escolha seu caminho:
+          Escolha seu caminho
         </p>
 
+        {/* ── Cards primários: ME + Gateway lado a lado ─────────────────────── */}
         <div
-          className="animate-fade-up grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto"
+          className="animate-fade-up grid grid-cols-1 md:grid-cols-2 gap-5 max-w-4xl mx-auto"
           {...delay(240)}
         >
-          <ProductCard
-            emoji="📱"
-            name="Nota Fácil MEI"
-            desc="Sou MEI e quero emitir minha nota em 30 segundos, sem entender de imposto."
-            cta="Quero usar →"
-            href="/mei"
-            persona="mei"
-            location="hero_card_mei"
-          />
-          <ProductCard
+          <PrimaryCard
             emoji="🏢"
             name="Nota ME / EPP"
-            desc="Sou Microempresa. NFS-e Nacional obrigatória em Set/2026. Simples Nacional e Lucro Presumido — pronto para os dois regimes."
-            cta="Cadastrar minha ME →"
+            desc="Simples Nacional e Lucro Presumido, multi-empresa nativo. Obrigatório e pronto."
+            cta="Cadastrar minha empresa →"
             href="/me"
             badge="Obrigatório Set/2026"
             persona="me"
             location="hero_card_me"
             showCountdown
           />
-          <ProductCard
+          <PrimaryCard
             emoji="</>"
-            name="Nota MEI Gateway"
-            desc="Sou desenvolvedor e quero integrar emissão de NFS-e ao meu produto via API."
+            name="Gateway API"
+            desc="Integre emissão ao seu produto via API REST. Sandbox público sem cadastro."
             cta="Ver a API →"
             href="/gateway"
             persona="dev"
             location="hero_card_dev"
             sandboxCta
+          />
+        </div>
+
+        {/* ── Card secundário: MEI (faixa horizontal menor) ─────────────────── */}
+        <div className="animate-fade-up max-w-4xl mx-auto mt-5" {...delay(280)}>
+          <SecondaryCard
+            name="É MEI?"
+            desc="Emita sua nota em 30 segundos, sem entender de imposto."
+            cta="Quero usar"
+            href="/mei"
+            persona="mei"
+            location="hero_card_mei"
           />
         </div>
 
@@ -104,7 +118,7 @@ export default function HeroSection() {
   )
 }
 
-interface ProductCardProps {
+interface PrimaryCardProps {
   emoji: string
   name: string
   desc: string
@@ -117,7 +131,7 @@ interface ProductCardProps {
   sandboxCta?: boolean
 }
 
-function ProductCard({
+function PrimaryCard({
   emoji,
   name,
   desc,
@@ -128,9 +142,9 @@ function ProductCard({
   badge,
   showCountdown,
   sandboxCta,
-}: ProductCardProps) {
+}: PrimaryCardProps) {
   return (
-    <div className="bg-navy-700 border border-navy-600 rounded-2xl p-8 flex flex-col gap-4 text-left hover:border-brand-cyan transition-colors group relative">
+    <div className="bg-navy-700 border border-navy-600 rounded-2xl p-7 sm:p-8 flex flex-col gap-4 text-left hover:border-brand-cyan transition-colors group relative">
       {badge && (
         <span className="absolute top-4 right-4 text-[10px] font-semibold bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-400/40 whitespace-nowrap">
           {badge}
@@ -152,7 +166,7 @@ function ProductCard({
       <Link
         href={href}
         onClick={() => trackCtaClick({ persona, location })}
-        className="mt-auto text-center text-sm font-semibold px-6 py-3 rounded-lg transition border border-navy-600 text-text-1 hover:border-brand-cyan hover:text-brand-cyan"
+        className="mt-auto text-center text-sm font-semibold px-6 py-3 rounded-lg transition bg-brand-cyan text-navy-900 hover:opacity-90"
       >
         {cta}
       </Link>
@@ -165,6 +179,34 @@ function ProductCard({
           ⚡ Testar no navegador em 30s · sem cadastro
         </Link>
       )}
+    </div>
+  )
+}
+
+interface SecondaryCardProps {
+  name: string
+  desc: string
+  cta: string
+  href: string
+  persona: Persona
+  location: CtaLocation
+}
+
+function SecondaryCard({ name, desc, cta, href, persona, location }: SecondaryCardProps) {
+  return (
+    <div className="bg-navy-700/50 border border-navy-600 rounded-xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5 text-left hover:border-brand-cyan transition-colors">
+      <span className="text-2xl shrink-0" aria-hidden>📱</span>
+      <div className="flex-1 min-w-0">
+        <p className="font-display font-bold text-text-1 text-base">{name}</p>
+        <p className="text-text-2 text-sm mt-0.5">{desc}</p>
+      </div>
+      <Link
+        href={href}
+        onClick={() => trackCtaClick({ persona, location })}
+        className="shrink-0 text-sm font-semibold px-5 py-2.5 rounded-lg border border-navy-600 text-text-1 hover:border-brand-cyan hover:text-brand-cyan transition whitespace-nowrap"
+      >
+        {cta} →
+      </Link>
     </div>
   )
 }
