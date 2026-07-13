@@ -11,6 +11,10 @@ import { MECTAFinal }     from './components/MECTAFinal'
 import PricingToggleMe from '@/components/landing/PricingToggleMeSSR'
 import CompetitorTable from '@/components/competitor/CompetitorTable'
 
+// ISR: preços/planos lidos do banco revalidam a cada 5 min (edição via /admin/planos reflete sem redeploy).
+export const revalidate = 300
+
+
 export default function LandingME() {
   return (
     <main className="bg-navy-900 min-h-screen text-text-1 font-body">

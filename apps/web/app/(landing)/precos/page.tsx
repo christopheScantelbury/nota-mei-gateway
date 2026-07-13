@@ -3,6 +3,11 @@ import Link from 'next/link'
 import Navbar from '@/components/landing/Navbar'
 import LandingFooter from '@/components/landing/LandingFooter'
 import { PlanosStructuredData } from '@/components/seo/StructuredData'
+import { getPrecosData } from '@/lib/pricing/precos'
+
+// ISR: re-lê preços do banco a cada 5 min. Edição de preço via /admin/planos
+// reflete aqui sem precisar de redeploy.
+export const revalidate = 300
 
 export const metadata: Metadata = {
   title: 'Planos e Preços — NotaFácil',
@@ -14,183 +19,13 @@ export const metadata: Metadata = {
   },
 }
 
-// ── MEI plans ────────────────────────────────────────────────────────────────
-
-const PLANS_MEI = [
-  {
-    key: 'trial',
-    name: 'Trial',
-    price: 'Grátis',
-    period: '',
-    limit: '5 notas grátis',
-    desc: 'Para experimentar a plataforma sem cartão.',
-    extra: null,
-    highlight: false,
-    cta: 'Começar grátis',
-    ctaHref: '/cadastro?produto=mei&plano=trial',
-  },
-  {
-    key: 'avulso',
-    name: 'Avulso',
-    price: 'R$ 5,99',
-    period: '/nota',
-    limit: 'Sem mensalidade',
-    desc: 'Cobra só quando emite. Sem compromisso mensal.',
-    extra: null,
-    highlight: false,
-    cta: 'Emitir nota avulsa',
-    ctaHref: '/cadastro?produto=mei&plano=avulso',
-  },
-  {
-    key: 'mensal',
-    name: 'MEI Mensal',
-    price: 'R$ 19,90',
-    period: '/mês',
-    limit: '10 notas/mês',
-    desc: 'Pra quem emite poucas notas com regularidade.',
-    extra: 'Excedente R$ 0,80/nota',
-    highlight: false,
-    cta: 'Assinar MEI Mensal',
-    ctaHref: '/cadastro?produto=mei&plano=mensal',
-  },
-  {
-    key: 'plus',
-    name: 'MEI Plus',
-    price: 'R$ 39,90',
-    period: '/mês',
-    limit: '30 notas/mês',
-    desc: 'Pra MEI com fluxo regular de clientes.',
-    extra: 'Excedente R$ 0,50/nota',
-    highlight: true,
-    cta: 'Assinar MEI Plus',
-    ctaHref: '/cadastro?produto=mei&plano=plus',
-  },
-  {
-    key: 'premium',
-    name: 'MEI Premium',
-    price: 'R$ 79,90',
-    period: '/mês',
-    limit: '100 notas/mês',
-    desc: 'Pra MEI com alto volume de emissões.',
-    extra: 'Excedente R$ 0,30/nota',
-    highlight: false,
-    cta: 'Assinar MEI Premium',
-    ctaHref: '/cadastro?produto=mei&plano=premium',
-  },
-]
-
-// ── Empresa / API plans ──────────────────────────────────────────────────────
-// Preços confirmados: billing/page.tsx + PricingToggle "Sou dev" + PricingToggleGateway
-
-const PLANS_EMPRESA = [
-  {
-    key: 'trial',
-    name: 'Trial ME',
-    price: 'Grátis',
-    period: '',
-    limit: '5 notas grátis',
-    highlight: false,
-    badge: null,
-    features: [
-      '5 notas grátis pra testar',
-      'Dashboard de gerenciamento',
-      'Certificado A1 (upload único)',
-      'Suporte por e-mail',
-    ],
-    cta: 'Começar grátis',
-    ctaHref: '/cadastro/me?plano=trial',
-    ctaVariant: 'secondary' as const,
-  },
-  {
-    key: 'start',
-    name: 'ME Start',
-    price: 'R$ 59,99',
-    period: '/mês',
-    limit: '30 notas/mês',
-    highlight: false,
-    badge: null,
-    features: [
-      '30 notas/mês incluídas',
-      'Excedente R$ 0,80/nota',
-      'Dashboard de gerenciamento',
-      'Simples Nacional e Lucro Presumido',
-      'Multi-empresa nativo',
-      'Suporte por e-mail',
-    ],
-    cta: 'Assinar Start',
-    ctaHref: '/cadastro/me?plano=start',
-    ctaVariant: 'secondary' as const,
-  },
-  {
-    key: 'pro',
-    name: 'ME Pro',
-    price: 'R$ 129,90',
-    period: '/mês',
-    limit: '100 notas/mês',
-    highlight: true,
-    badge: 'Mais popular',
-    features: [
-      '100 notas/mês incluídas',
-      'Excedente R$ 0,50/nota',
-      'Tudo do Start',
-      'Modelos de nota',
-      'Notas recorrentes',
-      'Links de cobrança',
-      'Suporte prioritário',
-    ],
-    cta: 'Assinar Pro',
-    ctaHref: '/cadastro/me?plano=pro',
-    ctaVariant: 'primary' as const,
-  },
-  {
-    key: 'business',
-    name: 'ME Business',
-    price: 'R$ 299,90',
-    period: '/mês',
-    limit: '300 notas/mês',
-    highlight: false,
-    badge: 'Alto volume',
-    features: [
-      '300 notas/mês incluídas',
-      'Excedente R$ 0,40/nota',
-      'Tudo do Pro',
-      'Chaves de API (integração)',
-      'Notificações automáticas (webhooks)',
-      'SLA 99,9% contratual',
-      'Suporte por chat',
-    ],
-    cta: 'Assinar Business',
-    ctaHref: '/cadastro/me?plano=business',
-    ctaVariant: 'secondary' as const,
-  },
-  {
-    key: 'scale',
-    name: 'EPP Scale',
-    price: 'Sob consulta',
-    period: '',
-    limit: '300+ notas/mês',
-    highlight: false,
-    badge: null,
-    features: [
-      'Volume sob consulta (300+)',
-      'Tudo do Business',
-      'IP dedicado na Receita Federal',
-      'Onboarding técnico dedicado',
-      'SLA com crédito por descumprimento',
-      'Suporte 24/7',
-    ],
-    cta: 'Falar com vendas',
-    ctaHref: 'mailto:vendas@emitirnotafacil.com.br?subject=EPP Scale - Cotação',
-    ctaVariant: 'secondary' as const,
-  },
-]
 
 // ── Feature comparison table (Empresa / API plans) ───────────────────────────
 
 // Tabela comparativa só pra planos ME/EPP (5 tiers). Coluna 'scale' = EPP Scale.
-const FEATURE_TABLE = [
-  { feature: 'Notas incluídas/mês',     trial: '5',    starter: '30',      basic: '100',        pro: '300',       business: '300+' },
-  { feature: 'Excedente por nota',      trial: '—',    starter: 'R$ 0,80', basic: 'R$ 0,50',    pro: 'R$ 0,40',   business: 'sob consulta' },
+// Linhas ESTÁTICAS da tabela. As 2 primeiras (Notas incluídas / Excedente)
+// são injetadas no render a partir do banco via getPrecosData().
+const FEATURE_TABLE_STATIC = [
   { feature: 'Dashboard',               trial: '✓',    starter: '✓',       basic: '✓',          pro: '✓',         business: '✓' },
   { feature: 'Simples Nacional + LP',   trial: '✓',    starter: '✓',       basic: '✓',          pro: '✓',         business: '✓' },
   { feature: 'Multi-empresa',           trial: '✓',    starter: '✓',       basic: '✓',          pro: '✓',         business: '✓' },
@@ -235,24 +70,22 @@ const FAQ = [
 
 // ── JSON-LD ───────────────────────────────────────────────────────────────────
 
-const planosSeo = [
-  { nome: 'Trial MEI',     descricao: '5 notas grátis pra testar',           precoBRL:    0 },
-  { nome: 'Avulso MEI',    descricao: 'Por nota emitida, sem mensalidade',   precoBRL:    6 },
-  { nome: 'MEI Mensal',    descricao: '10 notas/mês para MEI',               precoBRL:   20 },
-  { nome: 'MEI Plus',      descricao: '30 notas/mês para MEI',               precoBRL:   40 },
-  { nome: 'MEI Premium',   descricao: '100 notas/mês para MEI',              precoBRL:   80 },
-  { nome: 'Trial ME',      descricao: '5 notas grátis pra ME/EPP',           precoBRL:    0 },
-  { nome: 'ME Start',      descricao: '30 notas/mês, ME/EPP',                precoBRL:   60 },
-  { nome: 'ME Pro',        descricao: '100 notas/mês, ME/EPP',               precoBRL:  130 },
-  { nome: 'ME Business',   descricao: '300 notas/mês, ME/EPP',               precoBRL:  300 },
-]
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function PrecosPage() {
+export default async function PrecosPage() {
+  const data = await getPrecosData()
+
+  // Reconstitui as linhas dinâmicas da tabela (notas + excedente) do banco,
+  // no formato { feature, trial, starter, basic, pro, business }.
+  const featureTable = [
+    { feature: 'Notas incluídas/mês', trial: '5', ...data.featureNotes },
+    { feature: 'Excedente por nota',  trial: '—', ...data.featureExced },
+    ...FEATURE_TABLE_STATIC,
+  ]
+
   return (
     <main className="min-h-screen bg-navy-900 text-text-1 font-body">
-      <PlanosStructuredData planos={planosSeo} />
+      <PlanosStructuredData planos={data.seo} />
       <Navbar />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-16 pt-28">
@@ -299,7 +132,7 @@ export default function PrecosPage() {
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            {PLANS_MEI.map((plan) => (
+            {data.mei.map((plan) => (
               <div
                 key={plan.key}
                 className={[
@@ -358,7 +191,7 @@ export default function PrecosPage() {
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-            {PLANS_EMPRESA.map((plan) => (
+            {data.empresa.map((plan) => (
               <div
                 key={plan.key}
                 className={[
@@ -389,7 +222,7 @@ export default function PrecosPage() {
                   <p className="text-xs text-brand-cyan font-semibold mt-1">{plan.limit}</p>
                 </div>
                 <ul className="flex-1 space-y-1.5 mb-5">
-                  {plan.features.map((f) => (
+                  {(plan.features ?? []).map((f) => (
                     <li key={f} className="flex items-start gap-2 text-xs text-text-2">
                       <span className="text-brand-cyan mt-0.5 shrink-0">✓</span>
                       {f}
@@ -450,7 +283,7 @@ export default function PrecosPage() {
                 </tr>
               </thead>
               <tbody>
-                {FEATURE_TABLE.map((row, i) => (
+                {featureTable.map((row, i) => (
                   <tr
                     key={row.feature}
                     className={['border-b border-navy-600 last:border-0', i % 2 === 0 ? 'bg-navy-900/30' : ''].join(' ')}

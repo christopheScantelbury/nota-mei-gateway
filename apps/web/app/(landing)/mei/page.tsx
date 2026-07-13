@@ -9,6 +9,10 @@ import { SoftwareAppStructuredData, FAQStructuredData } from '@/components/seo/S
 import PricingToggleMei from '@/components/landing/PricingToggleMeiSSR'
 import TimeSavingsCalculator from '@/components/landing/TimeSavingsCalculator'
 
+// ISR: preços/planos lidos do banco revalidam a cada 5 min (edição via /admin/planos reflete sem redeploy).
+export const revalidate = 300
+
+
 export const metadata: Metadata = {
   title: 'Nota Fácil MEI — Emita sua NFS-e em 30 segundos',
   description:

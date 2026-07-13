@@ -11,6 +11,10 @@ import PricingSection from '@/components/pricing/PricingSection'
 import CompetitorTable from '@/components/competitor/CompetitorTable'
 import PorQueNaoGratuito from '@/components/landing/PorQueNaoGratuito'
 
+// ISR: preços/planos lidos do banco revalidam a cada 5 min (edição via /admin/planos reflete sem redeploy).
+export const revalidate = 300
+
+
 export const metadata: Metadata = {
   // Title curto importa para o diálogo de instalação do PWA — Chrome usa
   // o título da página como nome no prompt "Adicionar à tela inicial".
