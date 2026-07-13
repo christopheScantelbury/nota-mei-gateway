@@ -72,6 +72,25 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
       planoId: params.id,
     })
     if (stripe.newPriceId) newPriceId = stripe.newPriceId
+
+    // GUARD (#253): se o preço mudou e precisávamos criar um novo Stripe price
+    // recorrente mas a criação FALHOU (newPriceId undefined), ABORTA sem tocar
+    // no banco. Sem isto, o banco ficava com preço novo + stripe_price_id
+    // velho/null → checkout cobrava valor errado (ou 422 "indisponível") e o
+    // admin recebia 200 "ok" achando que deu certo. Foi a causa do ME Pro
+    // ficar sem price (embora aquele caso específico tenha vindo da migration).
+    if (precoMudou && newPrecoMensal > 0 && !stripe.newPriceId) {
+      return NextResponse.json(
+        {
+          error: 'STRIPE_SYNC_FAILED',
+          message:
+            'Falha ao criar o novo preço no Stripe — nenhuma alteração foi salva. ' +
+            'Tente de novo; se persistir, verifique o Stripe Dashboard. ' +
+            (stripe.errors?.join('; ') ?? ''),
+        },
+        { status: 502 },
+      )
+    }
   }
 
   // UPDATE no banco
