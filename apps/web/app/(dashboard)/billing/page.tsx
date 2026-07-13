@@ -7,6 +7,7 @@ import UsageChart from '@/components/dashboard/UsageChart'
 import InvoiceList from '@/components/dashboard/InvoiceList'
 import CheckoutModal from '@/components/dashboard/CheckoutModal'
 import { formatBRL } from '@/lib/format'
+import { getBillingPlans } from '@/lib/pricing/billing-plans'
 
 
 function currentCompetencia() {
@@ -31,20 +32,9 @@ function lastMonths(n: number): string[] {
   return result
 }
 
-// Catálogos sincronizados com Stripe LIVE + tabela planos (2026-06-05).
-// Renderizado conforme o tipo da empresa do usuário — MEI vê planos MEI,
-// ME/EPP vê planos ME/EPP.
-const PLANOS_MEI = [
-  { key: 'avulso',  name: 'Avulso MEI',  limit: 0,   price: 'R$ 5,99/nota'  },
-  { key: 'mensal',  name: 'MEI Mensal',  limit: 5,   price: 'R$ 19,90/mês'  },
-  { key: 'plus',    name: 'MEI Plus',    limit: 15,  price: 'R$ 39,90/mês'  },
-  { key: 'premium', name: 'MEI Premium', limit: 100, price: 'R$ 79,90/mês'  },
-]
-const PLANOS_EMPRESA = [
-  { key: 'start',    name: 'ME Start',    limit: 10,  price: 'R$ 59,99/mês'  },
-  { key: 'pro',      name: 'ME Pro',      limit: 50,  price: 'R$ 149,90/mês' },
-  { key: 'business', name: 'ME Business', limit: 300, price: 'R$ 299,90/mês' },
-]
+// Catálogo de planos vem do banco via getBillingPlans() (2026-06-25).
+// Antes eram arrays hardcoded que defasavam do banco/Stripe — ex: ME Pro
+// mostrava R$149,90/50 notas enquanto o Stripe já cobrava R$129,90/100.
 
 interface HistoricoRow {
   competencia: string
@@ -68,7 +58,7 @@ export default async function BillingPage() {
     supabase.from('empresas').select('id, tipo').eq('user_id', user.id).maybeSingle<{ id: string; tipo: string }>(),
   ])
   const isMEI = !!meiRow || (empresaRow?.tipo === 'MEI')
-  const planosDisponiveis = isMEI ? PLANOS_MEI : PLANOS_EMPRESA
+  const planosDisponiveis = await getBillingPlans(isMEI)
 
   // Parallel fetches
   const [emissaoResult, historico6Result] = await Promise.all([

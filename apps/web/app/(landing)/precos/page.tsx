@@ -46,7 +46,7 @@ const PLANS_MEI = [
     name: 'MEI Mensal',
     price: 'R$ 19,90',
     period: '/mês',
-    limit: '5 notas/mês',
+    limit: '10 notas/mês',
     desc: 'Pra quem emite poucas notas com regularidade.',
     extra: 'Excedente R$ 0,80/nota',
     highlight: false,
@@ -58,7 +58,7 @@ const PLANS_MEI = [
     name: 'MEI Plus',
     price: 'R$ 39,90',
     period: '/mês',
-    limit: '15 notas/mês',
+    limit: '30 notas/mês',
     desc: 'Pra MEI com fluxo regular de clientes.',
     extra: 'Excedente R$ 0,50/nota',
     highlight: true,
@@ -106,11 +106,11 @@ const PLANS_EMPRESA = [
     name: 'ME Start',
     price: 'R$ 59,99',
     period: '/mês',
-    limit: '10 notas/mês',
+    limit: '30 notas/mês',
     highlight: false,
     badge: null,
     features: [
-      '10 notas/mês incluídas',
+      '30 notas/mês incluídas',
       'Excedente R$ 0,80/nota',
       'Dashboard de gerenciamento',
       'Simples Nacional e Lucro Presumido',
@@ -124,14 +124,14 @@ const PLANS_EMPRESA = [
   {
     key: 'pro',
     name: 'ME Pro',
-    price: 'R$ 149,90',
+    price: 'R$ 129,90',
     period: '/mês',
-    limit: '50 notas/mês',
+    limit: '100 notas/mês',
     highlight: true,
     badge: 'Mais popular',
     features: [
-      '50 notas/mês incluídas',
-      'Excedente R$ 0,60/nota',
+      '100 notas/mês incluídas',
+      'Excedente R$ 0,50/nota',
       'Tudo do Start',
       'Modelos de nota',
       'Notas recorrentes',
@@ -189,8 +189,8 @@ const PLANS_EMPRESA = [
 
 // Tabela comparativa só pra planos ME/EPP (5 tiers). Coluna 'scale' = EPP Scale.
 const FEATURE_TABLE = [
-  { feature: 'Notas incluídas/mês',     trial: '5',    starter: '10',      basic: '50',         pro: '300',       business: '300+' },
-  { feature: 'Excedente por nota',      trial: '—',    starter: 'R$ 0,80', basic: 'R$ 0,60',    pro: 'R$ 0,40',   business: 'sob consulta' },
+  { feature: 'Notas incluídas/mês',     trial: '5',    starter: '30',      basic: '100',        pro: '300',       business: '300+' },
+  { feature: 'Excedente por nota',      trial: '—',    starter: 'R$ 0,80', basic: 'R$ 0,50',    pro: 'R$ 0,40',   business: 'sob consulta' },
   { feature: 'Dashboard',               trial: '✓',    starter: '✓',       basic: '✓',          pro: '✓',         business: '✓' },
   { feature: 'Simples Nacional + LP',   trial: '✓',    starter: '✓',       basic: '✓',          pro: '✓',         business: '✓' },
   { feature: 'Multi-empresa',           trial: '✓',    starter: '✓',       basic: '✓',          pro: '✓',         business: '✓' },
@@ -238,12 +238,12 @@ const FAQ = [
 const planosSeo = [
   { nome: 'Trial MEI',     descricao: '5 notas grátis pra testar',           precoBRL:    0 },
   { nome: 'Avulso MEI',    descricao: 'Por nota emitida, sem mensalidade',   precoBRL:    6 },
-  { nome: 'MEI Mensal',    descricao: '5 notas/mês para MEI',                precoBRL:   20 },
-  { nome: 'MEI Plus',      descricao: '15 notas/mês para MEI',               precoBRL:   40 },
+  { nome: 'MEI Mensal',    descricao: '10 notas/mês para MEI',               precoBRL:   20 },
+  { nome: 'MEI Plus',      descricao: '30 notas/mês para MEI',               precoBRL:   40 },
   { nome: 'MEI Premium',   descricao: '100 notas/mês para MEI',              precoBRL:   80 },
   { nome: 'Trial ME',      descricao: '5 notas grátis pra ME/EPP',           precoBRL:    0 },
-  { nome: 'ME Start',      descricao: '10 notas/mês, ME/EPP',                precoBRL:   60 },
-  { nome: 'ME Pro',        descricao: '50 notas/mês, ME/EPP',                precoBRL:  150 },
+  { nome: 'ME Start',      descricao: '30 notas/mês, ME/EPP',                precoBRL:   60 },
+  { nome: 'ME Pro',        descricao: '100 notas/mês, ME/EPP',               precoBRL:  130 },
   { nome: 'ME Business',   descricao: '300 notas/mês, ME/EPP',               precoBRL:  300 },
 ]
 
