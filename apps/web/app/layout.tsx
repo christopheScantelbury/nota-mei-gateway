@@ -8,7 +8,7 @@ import PWAProvider from '@/components/pwa/PWAProvider'
 import NavigationProgress from '@/components/ui/NavigationProgress'
 import CookieBanner from '@/components/consent/CookieBanner'
 import ErrorTrackingSetup from '@/components/ErrorTrackingSetup'
-import { GA_ID, gtagInitScript } from '@/lib/analytics/gtag'
+import { GA_ID, ADS_ID, gtagInitScript, gtagSrc } from '@/lib/analytics/gtag'
 import './globals.css'
 
 // ── Fonts ──────────────────────────────────────────────────────────────────
@@ -139,19 +139,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <head>
         <OrgStructuredData />
-        {/* GA4 + Consent Mode v2 — só renderiza se NEXT_PUBLIC_GA_MEASUREMENT_ID estiver configurada */}
-        {GA_ID && (
+        {/* GA4 + Google Ads + Consent Mode v2 — só renderiza se alguma env de
+            measurement estiver configurada (GA_ID e/ou ADS_ID). Ambos
+            compartilham o mesmo gtag namespace. */}
+        {(GA_ID || ADS_ID) && (
           <>
             <Script
               id="ga4-init"
               strategy="beforeInteractive"
               dangerouslySetInnerHTML={{ __html: gtagInitScript() }}
             />
-            <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-              strategy="afterInteractive"
-              async
-            />
+            {gtagSrc() && (
+              <Script
+                src={gtagSrc()!}
+                strategy="afterInteractive"
+                async
+              />
+            )}
           </>
         )}
       </head>
