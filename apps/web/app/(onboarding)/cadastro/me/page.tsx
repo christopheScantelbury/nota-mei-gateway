@@ -257,8 +257,15 @@ export default function CadastroMEPage() {
     const errs: typeof errors = {}
     if (!form.regimeTributario) errs.regimeTributario = 'Selecione o regime tributário'
     if (!form.municipioIBGE)    errs.cep = 'CEP / município obrigatório'
+    // CNAE é OPCIONAL no cadastro (backend aceita vazio — só valida formato se
+    // vier preenchido). Dono de ME raramente sabe o CNAE de cabeça; quando a
+    // BrasilAPI não preenche, exigir 7 dígitos aqui era ponto de abandono no
+    // funil pago. É cobrado na 1ª emissão, onde de fato importa (NBS/ISS).
+    // Se o usuário digitou algo, aí sim validamos o formato.
     const cnaeDigits = form.cnae.replace(/\D/g, '')
-    if (cnaeDigits.length !== 7) errs.cnae = 'CNAE deve conter 7 dígitos'
+    if (cnaeDigits.length > 0 && cnaeDigits.length !== 7) {
+      errs.cnae = 'CNAE deve conter 7 dígitos (ou deixe em branco pra preencher depois)'
+    }
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -589,10 +596,11 @@ export default function CadastroMEPage() {
               </div>
             </Field>
 
-            {/* CNAE */}
+            {/* CNAE — opcional no cadastro (ver validateStep2). Muita gente não
+                sabe o código de cabeça; exigir aqui derrubava o funil pago. */}
             <Field
-              label="CNAE Principal"
-              hint="Código Nacional de Atividades Econômicas — ex: 6201-5/01"
+              label="CNAE Principal (opcional)"
+              hint="Se não souber, deixe em branco — você preenche antes da primeira nota."
               error={errors.cnae}
             >
               <input
