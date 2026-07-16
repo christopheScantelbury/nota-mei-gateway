@@ -5,6 +5,59 @@
 
 ---
 
+## ✅ RESOLVIDO em 2026-07-16 — funil reaberto
+
+**O diagnóstico do BUG #1 estava certo.** Reproduzido, corrigido e provado em prod.
+Investigando o fix, apareceu um **segundo bloqueio** no backend que também matava o funil sozinho.
+
+| Item | Status | Commit |
+|---|---|---|
+| 🔴 #1 Beco sem saída Step 1 | ✅ corrigido + provado em prod | `7b9fb10` |
+| 🔴 #1b **Novo:** CNPJ não indexado (404) bloqueava no backend | ✅ corrigido + provado em prod | `aa83daa` |
+| 🟠 #2 `signup_complete` cego | ✅ dispara (opção **a**, ver nota) | `7b9fb10` |
+| 🟠 #2b Landmine de contagem dupla | ✅ `sendAdsConversion` removido | `592ee85` |
+| 🟡 §4 Dois fluxos coexistindo | ✅ fluxo morto removido | `592ee85` |
+| 🟡 §5 CNAE obrigatório | ✅ agora opcional | `18e91a3` |
+| 🟡 §6 E-mail do contador | ✅ hint "confirme que é seu" | `113ade2` |
+| 🟡 §7 API de pé | ✅ descartado (estava ok) | — |
+| 🔵 §8 Mobile / LCP / console | ✅ verificado | — |
+
+### 🔴 Segundo bloqueio encontrado (não estava no doc)
+
+`apps/api/internal/auth/cnpj_validator.go` — o `Validate()` não checa só os dígitos: consulta a existência do CNPJ em `publica.cnpj.ws`. E o **404 era dobrado em `ErrInvalidCNPJ`**:
+
+```go
+if resp.StatusCode == http.StatusNotFound { return cacheValInvalid, nil }
+// sentinelToError(cacheValInvalid) -> ErrInvalidCNPJ -> 400 "dígito verificador incorreto"
+```
+
+Empresa com CNPJ **estruturalmente válido** mas ainda não indexada na base pública era barrada com mensagem **factualmente errada**. Pior: o 404 é cacheado no Redis → seguia bloqueada mesmo depois da base atualizar. Atinge justamente o alvo da campanha (ME/EPP recém-aberta correndo pro prazo de set/2026).
+
+**Fix:** novo `ErrCNPJNotFound`, distinto de `ErrInvalidCNPJ`; 404 vira fail-open. Detalhe útil: `checkDigits` roda **antes** do cache, então o sentinel `INVALID` só podia vir de 404 — o remapeamento **curou também as entradas já cacheadas**, sem precisar limpar Redis. `register.go` (MEI) tinha um `default` que devolveria **500** — case explícito adicionado. Teste `TestNotFoundNeverBlocks` trava o contrato.
+
+**Racional:** o DV já prova validade estrutural, e CNPJ falso não emite (1ª emissão exige cert A1 daquele CNPJ). Não vale bloquear cliente pagante por lacuna de base externa — que ainda por cima tem rate limit de ~2 req/min.
+
+### Nota sobre §3 — ficou na opção (a), não (b)
+
+O doc preferia **(b)** (redirecionar pra `/obrigado/cadastro`) por ser fonte única de verdade. Ficou em **(a)** (disparo inline) porque a tela de sucesso do ME é **específica**: mostra o tipo (ME/EPP), "Próximos passos no painel" (cert A1 · 1ª NFS-e · API Key) e manda pro `/login?produto=me`. A `/obrigado/cadastro` é genérica/MEI-oriented — migrar perderia isso. O risco de divergência que motivava o (b) caiu bastante com a remoção do fluxo duplicado (§4). **Reversível se preferir.**
+
+### Evidências (prod, 2026-07-16)
+
+- **Beco #1:** BrasilAPI mockada pra falhar → botão habilita + aviso amigável → preenche na mão → **avança Step 2 → Step 3 → submete com `"cnae":""`** (API aceita).
+- **Beco #1b:** `POST /v1/auth/register/me` com CNPJ `77665544000105` (DV válido, 404 no cnpj.ws) → **201 empresa criada** + `"email_sent_to"` preenchido. Antes: `400 INVALID_CNPJ`. *(Isso também confirma o §6: o e-mail de acesso É disparado.)* Empresa de teste + auth.user removidos depois.
+- **Tracking:** dispara `["event","signup_complete",{"persona":"me","plan":"trial"}]` + tela "Empresa cadastrada!".
+- **Mobile (375px):** sem overflow, inputs 41px, botão 44px, fluxo completo passa até o Step 2 com a BrasilAPI caída.
+- **Perf:** home TTFB 421–716ms · `/me` 404–425ms (limite de 2,5s). O 2,1s inicial era cold start.
+- **`error_log`:** 1 erro só (jun/17, "Script error" genérico) e **zero em `/cadastro`** — consistente com bug de **lógica silencioso** (não lança exceção). Por isso não aparecia em log nenhum.
+
+### ⏳ Falta você fazer (não dá pra fazer daqui)
+
+1. **Criar a conversion action de cadastro no Ads**: Metas → Conversões → nova → importar evento GA4 `signup_complete`. Sem isso a campanha só otimiza por compra (sinal raro demais pra aprender). ⚠️ **Não** popular `NEXT_PUBLIC_ADS_CONV_*` — contaria em dobro.
+2. **Confirmar a chegada do e-mail**: a API confirma o envio (`email_sent_to`), mas não consigo ver caixa de entrada. Vale um cadastro real com e-mail seu — cronometrar, conferir spam, clicar até cair logado.
+3. **Passar o fluxo num celular real** (o teste acima foi viewport emulado 375px).
+
+---
+
 ## 1. Contexto — o que motivou
 
 Rodamos uma campanha de Pesquisa no Google Ads (13/jul → 16/jul) mirando ME/EPP, mandando tráfego para `emitirnotafacil.com.br/me`.
@@ -188,8 +241,8 @@ Se der 500/timeout/CORS, o usuário vê só *"Erro ao cadastrar empresa. Tente n
 
 ## 10. Definição de pronto
 
-- [ ] Com a BrasilAPI falhando, é possível concluir o cadastro preenchendo na mão.
-- [ ] Um cadastro de ponta a ponta cria a linha em `empresas` **e** dispara `signup_complete` no GA4.
-- [ ] O magic link chega e loga no painel.
-- [ ] Fluxo completo passa no celular.
-- [ ] Fica claro qual dos dois fluxos de cadastro ME é o vivo (e o morto foi removido).
+- [x] Com a BrasilAPI falhando, é possível concluir o cadastro preenchendo na mão. — *provado em prod; e o 2º beco (404) também foi fechado*
+- [x] Um cadastro de ponta a ponta cria a linha em `empresas` **e** dispara `signup_complete` no GA4. — *criação de empresa provada em prod (201 + `email_sent_to`); `signup_complete` provado disparando. **Ressalva honesta:** as duas metades foram provadas separadamente — a criação real usou curl na API, e o evento foi provado no browser com a resposta da API mockada (pra não deixar empresa lixo). Um cadastro real ponta-a-ponta pelo browser fecharia os dois de uma vez.*
+- [ ] O magic link chega e loga no painel. — *a API confirma o envio (`email_sent_to`), mas não consigo ver caixa de entrada. **Falta você.***
+- [x] Fluxo completo passa no celular. — *viewport 375px: sem overflow, tap targets ok, fluxo avança com a BrasilAPI caída. **Falta o celular físico.***
+- [x] Fica claro qual dos dois fluxos de cadastro ME é o vivo (e o morto foi removido). — */cadastro/me é o vivo; /me/cadastro removido (`592ee85`)*
