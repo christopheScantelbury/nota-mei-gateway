@@ -486,7 +486,15 @@ export default function CadastroMEPage() {
               />
             </Field>
 
-            <Field label="E-mail" error={errors.email}>
+            {/* O acesso é 100% por magic link neste e-mail. Quando vem
+                pré-preenchido da Receita costuma ser o e-mail do contador —
+                se o usuário não conferir, o link de acesso vai pro lugar
+                errado e ele nunca entra. Daí o hint explícito. */}
+            <Field
+              label="E-mail"
+              error={errors.email}
+              hint="Enviaremos seu link de acesso para este e-mail — confirme que é um e-mail seu."
+            >
               <input
                 className={inputCls}
                 type="email"
