@@ -6,6 +6,7 @@ import { CepMunicipioInput } from '@/components/ui/CepMunicipioInput'
 import { maskCNPJ as formatCNPJ } from '@/lib/format'
 import { Button } from '@/components/ui/Button'
 import { fetchCNPJ, extractCNAEs } from '@/lib/brasilapi'
+import { trackSignupComplete, sendAdsConversion } from '@/lib/analytics/events'
 import { validarCNPJ } from '@/lib/cnpj'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
@@ -148,7 +149,13 @@ export default function CadastroMEPage() {
 
   const [errors, setErrors] = useState<Partial<Record<keyof FormState | 'form', string>>>({})
   const [cnpjLookupLoading, setCnpjLookupLoading] = useState(false)
-  const [cnpjLookupError, setCnpjLookupError]     = useState<string | null>(null)
+  // AVISO (não bloqueia): a busca na Receita falhou/não achou. O usuário
+  // preenche na mão e segue — que é exatamente o que a mensagem promete.
+  const [cnpjLookupWarn, setCnpjLookupWarn]       = useState<string | null>(null)
+  // ERRO (bloqueia): o CNPJ em si é inválido (dígito verificador não bate).
+  // Separado do aviso acima — antes os dois eram o mesmo state e um lookup
+  // falho travava o cadastro pra sempre (beco sem saída).
+  const [cnpjInvalid, setCnpjInvalid]             = useState<string | null>(null)
   const certFileRef = useRef<HTMLInputElement>(null)
   const lastFetchedCnpjRef = useRef<string>('')
 
@@ -164,22 +171,32 @@ export default function CadastroMEPage() {
   // sobrescreve edição manual). Debounce 400ms + cache do último CNPJ buscado.
   useEffect(() => {
     const digits = form.cnpj.replace(/\D/g, '')
-    if (digits.length !== 14) return
-    // Bloqueia request se DV inválido — mensagem específica de "CNPJ inválido"
-    if (!validarCNPJ(digits)) {
-      setCnpjLookupError('CNPJ inválido — verifique os dígitos.')
+    // CNPJ incompleto: limpa ambos os estados (usuário ainda está digitando).
+    if (digits.length !== 14) {
+      setCnpjInvalid(null)
+      setCnpjLookupWarn(null)
       return
     }
+    // DV inválido → erro REAL que bloqueia.
+    if (!validarCNPJ(digits)) {
+      setCnpjInvalid('CNPJ inválido — verifique os dígitos.')
+      setCnpjLookupWarn(null)
+      return
+    }
+    setCnpjInvalid(null)
     if (digits === lastFetchedCnpjRef.current) return
 
     const tid = setTimeout(async () => {
       lastFetchedCnpjRef.current = digits
       setCnpjLookupLoading(true)
-      setCnpjLookupError(null)
+      setCnpjLookupWarn(null)
       try {
         const data = await fetchCNPJ(digits)
         if (!data) {
-          setCnpjLookupError('CNPJ não encontrado na Receita Federal. Verifique e preencha manualmente.')
+          // AVISO, não bloqueio — CNPJ pode ser novo/não indexado. Libera o
+          // preenchimento manual. Zera o ref pra permitir retry no mesmo CNPJ.
+          lastFetchedCnpjRef.current = ''
+          setCnpjLookupWarn('Não achamos esse CNPJ na Receita. Confira os dados e preencha na mão — dá pra continuar normalmente.')
           return
         }
         // Preenche somente campos vazios
@@ -205,7 +222,10 @@ export default function CadastroMEPage() {
           // (uso futuro: persistir cnaes pra filtrar NBS)
         }
       } catch {
-        setCnpjLookupError('Falha ao consultar Receita. Preencha manualmente.')
+        // AVISO, não bloqueio — rede/rate-limit/CORS não é culpa do usuário.
+        // Zera o ref pra permitir retry automático se ele reeditar o CNPJ.
+        lastFetchedCnpjRef.current = ''
+        setCnpjLookupWarn('Não conseguimos consultar a Receita agora. Preencha os dados na mão — dá pra continuar normalmente.')
       } finally {
         setCnpjLookupLoading(false)
       }
@@ -221,10 +241,11 @@ export default function CadastroMEPage() {
     const errs: typeof errors = {}
     const cnpjDigits = form.cnpj.replace(/\D/g, '')
     if (cnpjDigits.length !== 14) errs.cnpj = 'CNPJ deve conter 14 dígitos'
-    // Bug #12: bloqueia se a BrasilAPI retornou CNPJ inexistente. Caso o
-    // lookup esteja em andamento, pede pra aguardar.
+    // Só bloqueia por: CNPJ com DV inválido OU lookup em andamento.
+    // NÃO bloqueia por falha de lookup (cnpjLookupWarn) — a Receita estar fora
+    // do ar não pode impedir o cadastro; o usuário preenche na mão.
     if (cnpjLookupLoading) errs.cnpj = 'Aguarde — validando CNPJ na Receita…'
-    else if (cnpjLookupError && cnpjDigits.length === 14) errs.cnpj = cnpjLookupError
+    else if (cnpjInvalid && cnpjDigits.length === 14) errs.cnpj = cnpjInvalid
     if (!form.razaoSocial.trim())  errs.razaoSocial = 'Razão social obrigatória'
     if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
       errs.email = 'E-mail inválido'
@@ -292,6 +313,14 @@ export default function CadastroMEPage() {
         tipo: data.tipo,
         regime: data.regime_tributario,
       })
+
+      // Conversão de cadastro. Este fluxo mostra sucesso INLINE (não redireciona
+      // pra /obrigado/cadastro), então o evento precisa disparar aqui — sem isto
+      // o funil ME ficava 100% cego no GA4/Ads (só o form_start automático da
+      // métrica otimizada aparecia).
+      trackSignupComplete({ persona: 'me', plan: 'trial' })
+      sendAdsConversion('NEXT_PUBLIC_ADS_CONV_SIGNUP')
+
       // Pula Step 3 (cert upload) — o user agora entra pelo magic link e
       // faz upload do cert pelo dashboard. Sem a API key no frontend não dá
       // pra autenticar o upload aqui mesmo.
@@ -430,8 +459,12 @@ export default function CadastroMEPage() {
 
             <Field
               label="CNPJ"
-              error={errors.cnpj ?? cnpjLookupError ?? undefined}
-              hint={cnpjLookupLoading ? 'Buscando dados na Receita…' : 'Digite o CNPJ — preenchemos razão social, CNAE e endereço automaticamente'}
+              error={errors.cnpj ?? cnpjInvalid ?? undefined}
+              hint={
+                cnpjLookupLoading
+                  ? 'Buscando dados na Receita…'
+                  : cnpjLookupWarn ?? 'Digite o CNPJ — preenchemos razão social, CNAE e endereço automaticamente'
+              }
             >
               <input
                 className={inputCls}
@@ -464,13 +497,16 @@ export default function CadastroMEPage() {
               />
             </Field>
 
+            {/* disabled SÓ enquanto o lookup roda. Antes também desabilitava em
+                cnpjLookupError — se a Receita falhasse, o cadastro travava pra
+                sempre (a mensagem mandava "preencher manualmente" e o botão
+                ficava morto). Falha de lookup agora é aviso no hint. */}
             <Button
               variant="primary"
               className="w-full"
               onClick={nextStep1}
               loading={cnpjLookupLoading}
-              disabled={cnpjLookupLoading || !!cnpjLookupError}
-              title={cnpjLookupError ?? undefined}
+              disabled={cnpjLookupLoading}
             >
               {cnpjLookupLoading ? 'Validando CNPJ…' : 'Continuar →'}
             </Button>
