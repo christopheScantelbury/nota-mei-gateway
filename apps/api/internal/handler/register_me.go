@@ -132,7 +132,13 @@ func (h *RegisterMEHandler) RegisterME(c *fiber.Ctx) error {
 	// CNPJ check-digit validation only (no MEI category check for ME/EPP).
 	if h.cnpjValidator != nil {
 		if err := h.cnpjValidator.Validate(c.Context(), req.CNPJ); err != nil {
-			// For ME/EPP we only surface INVALID_CNPJ — NOT_MEI is irrelevant here.
+			// ONLY a malformed CNPJ blocks. Everything else soft-fails:
+			//   - ErrCNPJNotFound: empresa recém-aberta ainda não indexada na base
+			//     pública (nosso público-alvo!). Antes caía aqui como ErrInvalidCNPJ
+			//     e era barrada com "dígito verificador incorreto" — mensagem errada
+			//     e assassino silencioso do funil.
+			//   - ErrNotMEI: irrelevante pra ME/EPP.
+			//   - Erros de API (429/5xx/timeout): fail-open.
 			if errors.Is(err, auth.ErrInvalidCNPJ) {
 				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 					"error":      "INVALID_CNPJ",
@@ -140,7 +146,6 @@ func (h *RegisterMEHandler) RegisterME(c *fiber.Ctx) error {
 					"request_id": c.Locals("request_id"),
 				})
 			}
-			// Soft fail on RF API errors — do not block registration.
 			log.Ctx(c.Context()).Warn().Err(err).Str("cnpj", req.CNPJ).
 				Msg("cnpj validation soft-fail (ME registration proceeds)")
 		}

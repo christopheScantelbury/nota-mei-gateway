@@ -115,6 +115,13 @@ func (h *RegisterHandler) Register(c *fiber.Ctx) error {
 					"message":    "CNPJ não pertence a um MEI",
 					"request_id": c.Locals("request_id"),
 				})
+			case errors.Is(err, auth.ErrCNPJNotFound):
+				// CNPJ estruturalmente válido (DV ok) mas ausente da base pública —
+				// tipicamente empresa recém-aberta ainda não indexada. NÃO bloqueia:
+				// sem isso, o cadastro morria aqui no `default` com 500. A emissão
+				// exige cert A1 do próprio CNPJ, então um número falso não passa lá.
+				log.Ctx(c.UserContext()).Warn().Str("cnpj", req.CNPJ).
+					Msg("CNPJ não indexado na base pública — cadastro MEI prossegue")
 			default:
 				log.Ctx(c.UserContext()).Error().Err(err).Str("cnpj", req.CNPJ).Msg("cnpj validation error")
 				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

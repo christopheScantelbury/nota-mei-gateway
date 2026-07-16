@@ -31,6 +31,21 @@ var ErrInvalidCNPJ = errors.New("CNPJ inválido")
 // ErrNotMEI is returned when the CNPJ belongs to a company that is not a MEI.
 var ErrNotMEI = errors.New("CNPJ não pertence a um MEI")
 
+// ErrCNPJNotFound is returned when the CNPJ passes the check-digit algorithm
+// but is absent from the Receita's public base (cnpj.ws 404).
+//
+// This is NOT a malformed CNPJ — it is usually a recently-opened company that
+// the public base has not indexed yet, which is exactly our ME/EPP target
+// audience (companies getting ready for the Sep/2026 NFS-e obligation).
+// Callers MUST NOT block registration on this: the check digits already proved
+// the number is structurally valid, and a bogus CNPJ cannot emit anyway — the
+// first emission requires an A1 certificate issued to that very CNPJ.
+//
+// Before 2026-07-16 the 404 was folded into ErrInvalidCNPJ, which blocked those
+// companies with the message "dígito verificador incorreto" — factually wrong
+// and a silent funnel killer.
+var ErrCNPJNotFound = errors.New("CNPJ não encontrado na base pública da Receita")
+
 // CNPJValidator validates CNPJ check digits and confirms the company is a MEI
 // via the public Receita Federal API. Results are cached in Redis for 24 h.
 type CNPJValidator struct {
@@ -166,7 +181,11 @@ func sentinelToError(sentinel string) error {
 	case cacheValMEI:
 		return nil
 	case cacheValInvalid:
-		return ErrInvalidCNPJ
+		// This sentinel can ONLY originate from a cnpj.ws 404 — checkDigits runs
+		// BEFORE the cache lookup, so a malformed CNPJ never reaches here. Mapping
+		// it to ErrCNPJNotFound (instead of ErrInvalidCNPJ) therefore also heals
+		// entries already cached in Redis under the old meaning.
+		return ErrCNPJNotFound
 	default: // cacheValNotMEI or unknown
 		return ErrNotMEI
 	}

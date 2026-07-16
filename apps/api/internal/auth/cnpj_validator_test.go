@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -69,8 +70,13 @@ func TestSentinelToError(t *testing.T) {
 	if err := sentinelToError(cacheValMEI); err != nil {
 		t.Errorf("MEI sentinel: want nil, got %v", err)
 	}
-	if err := sentinelToError(cacheValInvalid); err != ErrInvalidCNPJ {
-		t.Errorf("INVALID sentinel: want ErrInvalidCNPJ, got %v", err)
+	// O sentinel INVALID só é gravado no cache a partir de um 404 do cnpj.ws —
+	// checkDigits roda ANTES do cache, então DV inválido nunca chega aqui.
+	// Portanto ele significa "não encontrado na base", não "CNPJ malformado".
+	// Mapear pra ErrCNPJNotFound (que NÃO bloqueia cadastro) também conserta
+	// as entradas já cacheadas no Redis sob o significado antigo.
+	if err := sentinelToError(cacheValInvalid); err != ErrCNPJNotFound {
+		t.Errorf("INVALID sentinel: want ErrCNPJNotFound, got %v", err)
 	}
 	if err := sentinelToError(cacheValNotMEI); err != ErrNotMEI {
 		t.Errorf("NOT_MEI sentinel: want ErrNotMEI, got %v", err)
@@ -85,6 +91,30 @@ func TestSentinelToError(t *testing.T) {
 func TestErrorsAreDistinct(t *testing.T) {
 	if ErrInvalidCNPJ == ErrNotMEI {
 		t.Error("ErrInvalidCNPJ and ErrNotMEI must be distinct")
+	}
+	// Regressão 2026-07-16: "não encontrado na base" era retornado como
+	// ErrInvalidCNPJ, o que bloqueava empresa recém-aberta com a mensagem
+	// "dígito verificador incorreto". Os dois DEVEM ser erros distintos —
+	// só ErrInvalidCNPJ pode bloquear cadastro.
+	if ErrCNPJNotFound == ErrInvalidCNPJ {
+		t.Error("ErrCNPJNotFound and ErrInvalidCNPJ must be distinct — 404 must never block registration")
+	}
+	if ErrCNPJNotFound == ErrNotMEI {
+		t.Error("ErrCNPJNotFound and ErrNotMEI must be distinct")
+	}
+}
+
+// TestNotFoundNeverBlocks trava o contrato: um CNPJ com DV VÁLIDO que o
+// cnpj.ws não conhece (404) NÃO pode ser confundido com CNPJ malformado.
+// Se alguém reintroduzir o mapeamento antigo, este teste quebra.
+func TestNotFoundNeverBlocks(t *testing.T) {
+	err := sentinelToError(cacheValInvalid)
+	if errors.Is(err, ErrInvalidCNPJ) {
+		t.Fatal("404 do cnpj.ws virou ErrInvalidCNPJ — isso bloqueia empresa recém-aberta " +
+			"com mensagem errada (bug do funil, 2026-07-16). Deve ser ErrCNPJNotFound.")
+	}
+	if !errors.Is(err, ErrCNPJNotFound) {
+		t.Fatalf("want ErrCNPJNotFound, got %v", err)
 	}
 }
 
