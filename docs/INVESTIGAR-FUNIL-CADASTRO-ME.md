@@ -45,6 +45,7 @@ O doc preferia **(b)** (redirecionar pra `/obrigado/cadastro`) por ser fonte ún
 
 - **Beco #1:** BrasilAPI mockada pra falhar → botão habilita + aviso amigável → preenche na mão → **avança Step 2 → Step 3 → submete com `"cnae":""`** (API aceita).
 - **Beco #1b:** `POST /v1/auth/register/me` com CNPJ `77665544000105` (DV válido, 404 no cnpj.ws) → **201 empresa criada** + `"email_sent_to"` preenchido. Antes: `400 INVALID_CNPJ`. *(Isso também confirma o §6: o e-mail de acesso É disparado.)* Empresa de teste + auth.user removidos depois.
+- **🎯 E2E real (2026-07-17):** um único cadastro pelo browser em prod, com **BrasilAPI caída + CNAE em branco**, provou tudo junto: `201` (`empresa_id 6b4ce043…`) → linha em `empresas` com `cnae: None` → tela "Empresa cadastrada!" → `["event","signup_complete",{"persona":"me","plan":"trial"}]` → **0 eventos `conversion`** (sem contagem dupla). Limpeza: a criação também gera `emissoes_mensais` + `api_keys` — tudo removido junto com a empresa e o `auth.user`. Banco sem resíduo.
 - **Tracking:** dispara `["event","signup_complete",{"persona":"me","plan":"trial"}]` + tela "Empresa cadastrada!".
 - **Mobile (375px):** sem overflow, inputs 41px, botão 44px, fluxo completo passa até o Step 2 com a BrasilAPI caída.
 - **Perf:** home TTFB 421–716ms · `/me` 404–425ms (limite de 2,5s). O 2,1s inicial era cold start.
@@ -242,7 +243,7 @@ Se der 500/timeout/CORS, o usuário vê só *"Erro ao cadastrar empresa. Tente n
 ## 10. Definição de pronto
 
 - [x] Com a BrasilAPI falhando, é possível concluir o cadastro preenchendo na mão. — *provado em prod; e o 2º beco (404) também foi fechado*
-- [x] Um cadastro de ponta a ponta cria a linha em `empresas` **e** dispara `signup_complete` no GA4. — *criação de empresa provada em prod (201 + `email_sent_to`); `signup_complete` provado disparando. **Ressalva honesta:** as duas metades foram provadas separadamente — a criação real usou curl na API, e o evento foi provado no browser com a resposta da API mockada (pra não deixar empresa lixo). Um cadastro real ponta-a-ponta pelo browser fecharia os dois de uma vez.*
+- [x] Um cadastro de ponta a ponta cria a linha em `empresas` **e** dispara `signup_complete` no GA4. — *fechado com **cadastro real único** pelo browser em prod (2026-07-17), com a BrasilAPI caída e CNAE em branco: API `201` (`empresa_id 6b4ce043…`, `email_sent_to` preenchido) + linha confirmada em `empresas` (`cnae: None`) + `["event","signup_complete",{"persona":"me","plan":"trial"}]` + tela "Empresa cadastrada!" + **zero** evento `conversion` (não conta em dobro). Empresa, `emissoes_mensais`, `api_keys` e `auth.user` do teste removidos — banco sem resíduo.*
 - [ ] O magic link chega e loga no painel. — *a API confirma o envio (`email_sent_to`), mas não consigo ver caixa de entrada. **Falta você.***
 - [x] Fluxo completo passa no celular. — *viewport 375px: sem overflow, tap targets ok, fluxo avança com a BrasilAPI caída. **Falta o celular físico.***
 - [x] Fica claro qual dos dois fluxos de cadastro ME é o vivo (e o morto foi removido). — */cadastro/me é o vivo; /me/cadastro removido (`592ee85`)*
