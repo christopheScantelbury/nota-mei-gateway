@@ -6,7 +6,7 @@ import { CepMunicipioInput } from '@/components/ui/CepMunicipioInput'
 import { maskCNPJ as formatCNPJ } from '@/lib/format'
 import { Button } from '@/components/ui/Button'
 import { fetchCNPJ, extractCNAEs } from '@/lib/brasilapi'
-import { trackSignupComplete, sendAdsConversion } from '@/lib/analytics/events'
+import { trackSignupComplete } from '@/lib/analytics/events'
 import { validarCNPJ } from '@/lib/cnpj'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
@@ -325,8 +325,12 @@ export default function CadastroMEPage() {
       // pra /obrigado/cadastro), então o evento precisa disparar aqui — sem isto
       // o funil ME ficava 100% cego no GA4/Ads (só o form_start automático da
       // métrica otimizada aparecia).
+      //
+      // NÃO chamar sendAdsConversion() aqui: a conversão chega no Google Ads por
+      // IMPORTAÇÃO do evento GA4 (mesmo caminho da ação "NotaFácil — Assinatura
+      // paga"). Disparar os dois caminhos contaria a conversão em DOBRO.
+      // Ver docs/INVESTIGAR-FUNIL-CADASTRO-ME.md §3.
       trackSignupComplete({ persona: 'me', plan: 'trial' })
-      sendAdsConversion('NEXT_PUBLIC_ADS_CONV_SIGNUP')
 
       // Pula Step 3 (cert upload) — o user agora entra pelo magic link e
       // faz upload do cert pelo dashboard. Sem a API key no frontend não dá
