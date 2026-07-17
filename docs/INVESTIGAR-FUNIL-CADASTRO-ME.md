@@ -54,8 +54,12 @@ O doc preferia **(b)** (redirecionar pra `/obrigado/cadastro`) por ser fonte ún
 ### ⏳ Falta você fazer (não dá pra fazer daqui)
 
 1. **Criar a conversion action de cadastro no Ads**: Metas → Conversões → nova → importar evento GA4 `signup_complete`. Sem isso a campanha só otimiza por compra (sinal raro demais pra aprender). ⚠️ **Não** popular `NEXT_PUBLIC_ADS_CONV_*` — contaria em dobro.
-2. **Confirmar a chegada do e-mail**: a API confirma o envio (`email_sent_to`), mas não consigo ver caixa de entrada. Vale um cadastro real com e-mail seu — cronometrar, conferir spam, clicar até cair logado.
+2. ~~Confirmar a chegada do e-mail~~ — ✅ **feito 2026-07-17**: chegou na caixa de entrada, visual ok, login de primeira.
 3. **Passar o fluxo num celular real** (o teste acima foi viewport emulado 375px).
+
+### 🔓 Veredito: porta reaberta
+
+Os dois bloqueios que zeravam o funil estão fechados e provados em prod. Um cadastro real ponta-a-ponta funciona **mesmo com a BrasilAPI fora do ar e sem CNAE**, cria a empresa, dispara `signup_complete` e o cliente recebe o acesso na caixa de entrada. Falta só ligar a conversion no Ads antes de despausar — senão a campanha compra clique sem conseguir aprender com o resultado.
 
 ---
 
@@ -244,6 +248,6 @@ Se der 500/timeout/CORS, o usuário vê só *"Erro ao cadastrar empresa. Tente n
 
 - [x] Com a BrasilAPI falhando, é possível concluir o cadastro preenchendo na mão. — *provado em prod; e o 2º beco (404) também foi fechado*
 - [x] Um cadastro de ponta a ponta cria a linha em `empresas` **e** dispara `signup_complete` no GA4. — *fechado com **cadastro real único** pelo browser em prod (2026-07-17), com a BrasilAPI caída e CNAE em branco: API `201` (`empresa_id 6b4ce043…`, `email_sent_to` preenchido) + linha confirmada em `empresas` (`cnae: None`) + `["event","signup_complete",{"persona":"me","plan":"trial"}]` + tela "Empresa cadastrada!" + **zero** evento `conversion` (não conta em dobro). Empresa, `emissoes_mensais`, `api_keys` e `auth.user` do teste removidos — banco sem resíduo.*
-- [ ] O magic link chega e loga no painel. — *a API confirma o envio (`email_sent_to`), mas não consigo ver caixa de entrada. **Falta você.***
+- [x] O magic link chega e loga no painel. — *✅ **validado pelo Chris em 2026-07-17**. Cadastro real com `christophescantelbury+funil@gmail.com` (plus-addressing: endereço distinto pro sistema, mesma inbox). E-mail chegou na **caixa de entrada — não em spam/promoções** (o risco maior pra tráfego pago), com visual correto (navy/cyan, código OTP grande, botão "Entrar no NotaFácil") e login funcionou de primeira. Bônus: o Gmail bloqueou as imagens remotas e o e-mail seguiu **perfeitamente legível** — o design é CSS puro, não depende de imagem.*
 - [x] Fluxo completo passa no celular. — *viewport 375px: sem overflow, tap targets ok, fluxo avança com a BrasilAPI caída. **Falta o celular físico.***
 - [x] Fica claro qual dos dois fluxos de cadastro ME é o vivo (e o morto foi removido). — */cadastro/me é o vivo; /me/cadastro removido (`592ee85`)*
