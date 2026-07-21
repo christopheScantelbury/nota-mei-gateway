@@ -48,6 +48,33 @@ type RegisterEmpresaParams struct {
 	CNAE               string // 7-digit CNAE activity code — required for DPS
 	CEP                string // 8-digit postal code — required for DPS enderNac
 	InscricaoMunicipal string // optional
+	Atribuicao         *Atribuicao // optional — origem do cadastro (gclid/utm_*)
+}
+
+// Atribuicao guarda a origem de marketing do cadastro.
+//
+// Medimos no banco porque o GA4 só reporta quem aceita o banner de cookies —
+// em 2026-07-21, 77 cliques do Google Ads viraram 8 sessões visíveis (~10%),
+// o que impedia responder se a campanha gerava cadastro. Campos vazios são
+// gravados como NULL.
+type Atribuicao struct {
+	GCLID       string
+	UTMSource   string
+	UTMMedium   string
+	UTMCampaign string
+	UTMTerm     string
+	UTMContent  string
+	LandingPage string
+	Referrer    string
+}
+
+// nilIfEmpty converte string vazia em NULL — evita gravar '' e depois ter que
+// tratar dois "vazios" diferentes nas consultas de atribuição.
+func nilIfEmpty(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }
 
 // RegisterEmpresaResult is returned after a successful ME/EPP registration.
@@ -155,14 +182,32 @@ func (r *Repository) RegisterEmpresa(ctx context.Context, p RegisterEmpresaParam
 		cep = &p.CEP
 	}
 
+	// Atribuição é opcional: cadastro orgânico grava NULL em todas as colunas.
+	var gclid, utmSource, utmMedium, utmCampaign, utmTerm, utmContent, landingPage, referrer *string
+	if a := p.Atribuicao; a != nil {
+		gclid = nilIfEmpty(a.GCLID)
+		utmSource = nilIfEmpty(a.UTMSource)
+		utmMedium = nilIfEmpty(a.UTMMedium)
+		utmCampaign = nilIfEmpty(a.UTMCampaign)
+		utmTerm = nilIfEmpty(a.UTMTerm)
+		utmContent = nilIfEmpty(a.UTMContent)
+		landingPage = nilIfEmpty(a.LandingPage)
+		referrer = nilIfEmpty(a.Referrer)
+	}
+
 	var empresaID uuid.UUID
 	err = tx.QueryRow(ctx, `
 		INSERT INTO empresas (tipo, regime_tributario, cnpj, razao_social, email,
-		                      municipio_ibge, cnae, cep, inscricao_municipal, trial_me, tipo_usuario)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, 'gateway')
+		                      municipio_ibge, cnae, cep, inscricao_municipal, trial_me, tipo_usuario,
+		                      gclid, utm_source, utm_medium, utm_campaign, utm_term, utm_content,
+		                      landing_page, referrer)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, 'gateway',
+		        $10, $11, $12, $13, $14, $15, $16, $17)
 		RETURNING id
 	`, p.Tipo, p.RegimeTributario, p.CNPJ, p.RazaoSocial, p.Email,
-		p.MunicipioIBGE, cnae, cep, inscricaoMunicipal).Scan(&empresaID)
+		p.MunicipioIBGE, cnae, cep, inscricaoMunicipal,
+		gclid, utmSource, utmMedium, utmCampaign, utmTerm, utmContent,
+		landingPage, referrer).Scan(&empresaID)
 	if err != nil {
 		return nil, err
 	}

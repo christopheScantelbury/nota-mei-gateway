@@ -72,6 +72,37 @@ type registerMERequest struct {
 	CNAE               string `json:"cnae"`                // 7-digit CNAE code — required for DPS
 	CEP                string `json:"cep"`                 // 8-digit CEP — required for DPS
 	InscricaoMunicipal string `json:"inscricao_municipal"` // optional
+	Atribuicao         *atribuicaoPayload `json:"atribuicao"` // optional — origem do cadastro
+}
+
+// atribuicaoPayload carrega gclid/utm_* capturados pelo frontend na URL de
+// entrada. Puramente informativo: nunca bloqueia o cadastro se vier ausente,
+// malformado ou gigante (os campos são truncados antes de persistir).
+//
+// Existe porque o GA4 só enxerga quem aceita o banner de cookies — ver
+// apps/web/lib/analytics/attribution.ts.
+type atribuicaoPayload struct {
+	GCLID       string `json:"gclid"`
+	UTMSource   string `json:"utm_source"`
+	UTMMedium   string `json:"utm_medium"`
+	UTMCampaign string `json:"utm_campaign"`
+	UTMTerm     string `json:"utm_term"`
+	UTMContent  string `json:"utm_content"`
+	LandingPage string `json:"landing_page"`
+	Referrer    string `json:"referrer"`
+}
+
+// truncAttr limpa e limita um campo de atribuição. Corta por runes (não bytes)
+// pra não partir caractere multibyte no meio — utm_campaign costuma ter acento.
+// Entrada é pública e não validada: assume-se hostil, só que sem bloquear o
+// cadastro por causa dela.
+func truncAttr(s string, max int) string {
+	s = strings.TrimSpace(s)
+	r := []rune(s)
+	if len(r) > max {
+		return string(r[:max])
+	}
+	return s
 }
 
 // RegisterME handles POST /v1/auth/register/me — public, no Bearer token required.
@@ -151,7 +182,7 @@ func (h *RegisterMEHandler) RegisterME(c *fiber.Ctx) error {
 		}
 	}
 
-	result, err := h.repo.RegisterEmpresa(c.Context(), auth.RegisterEmpresaParams{
+	params := auth.RegisterEmpresaParams{
 		Tipo:               req.Tipo,
 		RegimeTributario:   req.RegimeTributario,
 		CNPJ:               req.CNPJ,
@@ -161,7 +192,21 @@ func (h *RegisterMEHandler) RegisterME(c *fiber.Ctx) error {
 		CNAE:               strings.NewReplacer("-", "", "/", "").Replace(strings.TrimSpace(req.CNAE)),
 		CEP:                strings.NewReplacer("-", "").Replace(strings.TrimSpace(req.CEP)),
 		InscricaoMunicipal: strings.TrimSpace(req.InscricaoMunicipal),
-	})
+	}
+	if a := req.Atribuicao; a != nil {
+		params.Atribuicao = &auth.Atribuicao{
+			GCLID:       truncAttr(a.GCLID, 255),
+			UTMSource:   truncAttr(a.UTMSource, 255),
+			UTMMedium:   truncAttr(a.UTMMedium, 255),
+			UTMCampaign: truncAttr(a.UTMCampaign, 255),
+			UTMTerm:     truncAttr(a.UTMTerm, 255),
+			UTMContent:  truncAttr(a.UTMContent, 255),
+			LandingPage: truncAttr(a.LandingPage, 500),
+			Referrer:    truncAttr(a.Referrer, 255),
+		}
+	}
+
+	result, err := h.repo.RegisterEmpresa(c.Context(), params)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
