@@ -7,6 +7,7 @@ import { OrgStructuredData } from '@/components/seo/StructuredData'
 import PWAProvider from '@/components/pwa/PWAProvider'
 import NavigationProgress from '@/components/ui/NavigationProgress'
 import CookieBanner from '@/components/consent/CookieBanner'
+import AttributionCapture from '@/components/analytics/AttributionCapture'
 import ErrorTrackingSetup from '@/components/ErrorTrackingSetup'
 import { GA_ID, ADS_ID, gtagInitScript, gtagSrc } from '@/lib/analytics/gtag'
 import './globals.css'
@@ -181,6 +182,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
           {/* Banner LGPD de consent — só aparece na primeira visita (HIST-7.1) */}
           <CookieBanner />
+
+          {/* Captura gclid/utm_* da URL de entrada. Independe do consent do
+              GA4 de propósito: é como medimos se a campanha gera cadastro. */}
+          <AttributionCapture />
 
           <PWAProvider />
 

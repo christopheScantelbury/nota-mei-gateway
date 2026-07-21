@@ -7,6 +7,7 @@ import { maskCNPJ as formatCNPJ } from '@/lib/format'
 import { Button } from '@/components/ui/Button'
 import { fetchCNPJ, extractCNAEs } from '@/lib/brasilapi'
 import { trackSignupComplete } from '@/lib/analytics/events'
+import { getAttribution } from '@/lib/analytics/attribution'
 import { validarCNPJ } from '@/lib/cnpj'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
@@ -292,6 +293,9 @@ export default function CadastroMEPage() {
         cnae: form.cnae.replace(/\D/g, ''),
         cep: form.cep.replace(/\D/g, ''),
         inscricao_municipal: form.inscricaoMunicipal || undefined,
+        // Origem do cadastro (gclid/utm_*) capturada na chegada. Vai pro banco
+        // porque o GA4 só enxerga quem aceita cookie — ver attribution.ts.
+        atribuicao: getAttribution() ?? undefined,
       }
 
       const res = await fetch(`${API_BASE}/v1/auth/register/me`, {

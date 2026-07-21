@@ -152,8 +152,53 @@ export default function PrivacidadePage() {
           <section>
             <h2 className="text-text-1 text-lg font-semibold font-display mb-3">8. Cookies</h2>
             <p>
-              Utilizamos apenas cookies estritamente necessários para autenticação (sessão Supabase) e
-              preferências do dashboard. Não utilizamos cookies de rastreamento ou publicidade.
+              Usamos cookies em três categorias. As duas primeiras não dependem de escolha sua;
+              a terceira só é ativada se você aceitar no aviso exibido na primeira visita.
+            </p>
+
+            <div className="mt-4 space-y-4">
+              <div>
+                <p className="text-text-1 font-semibold">a) Necessários</p>
+                <p>
+                  Indispensáveis para o site funcionar: autenticação (sessão Supabase), preferências
+                  do painel e o registro da sua própria escolha sobre cookies. Sem eles não é possível
+                  entrar na conta.{' '}
+                  <span className="text-text-2">Base legal: execução de contrato (Art. 7º, V).</span>
+                </p>
+              </div>
+
+              <div>
+                <p className="text-text-1 font-semibold">b) Medição de origem (first-party)</p>
+                <p>
+                  Um cookie próprio (<code className="text-brand-cyan">nf_attr</code>, 90 dias) guarda
+                  de qual campanha ou link você chegou — identificadores de anúncio e parâmetros de
+                  campanha (<code className="text-brand-cyan">gclid</code>,{' '}
+                  <code className="text-brand-cyan">utm_*</code>). Não contém nome, e-mail, CNPJ nem
+                  qualquer dado que identifique você; serve só para sabermos quais divulgações
+                  funcionam. Não é compartilhado com terceiros.{' '}
+                  <span className="text-text-2">Base legal: legítimo interesse (Art. 7º, IX).</span>
+                </p>
+              </div>
+
+              <div>
+                <p className="text-text-1 font-semibold">c) Análise e publicidade — só com seu aceite</p>
+                <p>
+                  Se você aceitar no aviso de cookies, ativamos Google Analytics e Google Ads, que
+                  gravam cookies próprios (<code className="text-brand-cyan">_ga</code>,{' '}
+                  <code className="text-brand-cyan">_gcl_*</code>) para medir navegação e relacionar
+                  visitas a anúncios. Enquanto você não aceitar, esses recursos ficam desligados.
+                  Recusar não limita nenhuma funcionalidade do site.{' '}
+                  <span className="text-text-2">Base legal: consentimento (Art. 7º, I).</span>
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-4">
+              Para mudar sua escolha depois, use o link{' '}
+              <strong className="text-text-1">Preferências de cookies</strong> no rodapé do site, ou
+              apague os cookies do domínio pelo seu navegador — o aviso reaparece na visita seguinte.
+              Você também pode falar conosco em{' '}
+              <a href={`mailto:${EMAIL}`} className="text-brand-cyan hover:underline">{EMAIL}</a>.
             </p>
           </section>
 
