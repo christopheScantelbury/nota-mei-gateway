@@ -1,5 +1,6 @@
 ﻿import type { Metadata } from 'next'
 import Link from 'next/link'
+import CookiePreferencesLink from '@/components/consent/CookiePreferencesLink'
 import LogoAdaptive from '@/components/ui/LogoAdaptive'
 
 export const metadata: Metadata = {
@@ -170,6 +171,7 @@ export default function TermosPage() {
 
         <div className="mt-12 pt-8 border-t border-navy-600 flex gap-4 text-xs text-text-2">
           <Link href="/privacidade" className="hover:text-brand-cyan transition">Política de Privacidade</Link>
+          <CookiePreferencesLink className="hover:!text-brand-cyan" />
           <Link href="/" className="hover:text-brand-cyan transition">← Início</Link>
         </div>
       </div>

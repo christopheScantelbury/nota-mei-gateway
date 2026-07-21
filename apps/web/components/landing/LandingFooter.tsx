@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import LogoAdaptive from '@/components/ui/LogoAdaptive'
-import { resetConsent } from '@/lib/analytics/consent'
+import CookiePreferencesLink from '@/components/consent/CookiePreferencesLink'
 
 // ── Persona-aware logo (igual ao Navbar) ────────────────────────────────────
 // A landing é theme-aware (CSS variables): light → fundo claro com logo light
@@ -94,18 +94,7 @@ export default function LandingFooter() {
               </li>
               <li><Link href="/privacidade" className="hover:text-text-1 transition">Privacidade</Link></li>
               <li><Link href="/termos"      className="hover:text-text-1 transition">Termos de uso</Link></li>
-              <li>
-                {/* Revogar precisa ser tão fácil quanto consentir (LGPD Art. 8º, §5º).
-                    Antes disto o banner sumia após a 1ª escolha e só dava pra mudar
-                    apagando cookie na mão. Prometido em /privacidade §8. */}
-                <button
-                  type="button"
-                  onClick={resetConsent}
-                  className="hover:text-text-1 transition text-left"
-                >
-                  Preferências de cookies
-                </button>
-              </li>
+              <li><CookiePreferencesLink /></li>
               <li>
                 <a href="mailto:suporte@emitirnotafacil.com.br" className="hover:text-text-1 transition">
                   Suporte
