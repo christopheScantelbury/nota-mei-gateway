@@ -145,9 +145,60 @@ Ganho estimado: medição de ~10% → perto de 100%, sem tirar o controle do usu
 
 - [x] Bug do `ad_storage` corrigido + texto do banner alinhado
 - [x] Atribuição no banco (frontend + API + migration)
-- [ ] `supabase db push` pra aplicar a migration em produção
-- [ ] Deploy (web + api) — ver política de deploys batched no `CLAUDE.md` §10-bis
-- [ ] Conferir auto-tagging ligado no Google Ads
-- [ ] Reavaliar a campanha ME com dado do banco ao atingir ~R$150
-- [ ] Decidir sobre (C) após validação jurídica
-- [ ] Reabrir preferências de cookie (não existe hoje)
+- [x] `supabase db push` pra aplicar a migration em produção — *aplicada 2026-07-21; 19 empresas preservadas, colunas acessíveis*
+- [x] Deploy (web + api) — *commits `3f66c19` (api+migration) e `3c3ea92` (web), separados conforme §10-bis*
+- [x] Reabrir preferências de cookie — *`resetConsent()` + link "Preferências de cookies" no rodapé; banner reaparece via evento. Ver §5*
+- [ ] Conferir auto-tagging ligado no Google Ads ⏳ **Chris**
+- [ ] Reavaliar a campanha ME com dado do banco ao atingir ~R$150 ⏳ **Chris**
+- [ ] Decidir sobre (C) após validação jurídica ⏳ **Chris**
+
+---
+
+## 5. Achados da revisão pré-deploy (não estavam no plano)
+
+Dois problemas apareceram ao revisar o que iria pra produção. Ambos corrigidos
+no commit `3c3ea92`.
+
+### 5.1 🔴 A política de privacidade ficaria factualmente falsa
+
+`/privacidade` §8 dizia:
+
+> "Utilizamos **apenas cookies estritamente necessários** (…). **Não utilizamos
+> cookies de rastreamento ou publicidade.**"
+
+Já era impreciso (o GA4 roda quando o usuário aceita), mas a correção (A) tornaria
+a frase **diretamente falsa** — "Aceitar" passou a conceder `ad_storage`, ou seja,
+cookies de publicidade do Google. E (B) adiciona o `nf_attr`. Subir assim deixaria
+o **banner dizendo uma coisa e a política a oposta** — o consentimento deixaria de
+ser informado justamente no documento que deveria informá-lo.
+
+Seção 8 reescrita descrevendo o que o código de fato faz:
+
+| Categoria | Exemplos | Base legal |
+|---|---|---|
+| a) Necessários | sessão Supabase, preferências, o próprio `nf_consent` | Execução de contrato (Art. 7º, V) |
+| b) Medição de origem | `nf_attr` (90d, sem dado pessoal, não compartilhado) | Legítimo interesse (Art. 7º, IX) |
+| c) Análise e publicidade | `_ga`, `_gcl_*` — **só com aceite** | Consentimento (Art. 7º, I) |
+
+### 5.2 🟠 Não havia como revogar o consentimento
+
+O banner sumia após a primeira escolha e **não havia como mudar de ideia** sem
+apagar cookies na mão. A LGPD pede que revogar seja tão fácil quanto consentir
+(Art. 8º, §5º) — na prática a escolha ficava presa.
+
+Implementado: `resetConsent()` em `lib/analytics/consent.ts` (nega os quatro
+sinais **antes** de apagar o cookie, pra que o estado que vale seja o restritivo
+caso o usuário saia da página em seguida) + link **"Preferências de cookies"** no
+rodapé + `CONSENT_RESET_EVENT` pro banner reaparecer (banner e rodapé são
+componentes irmãos, sem estado compartilhado).
+
+**Validado no browser antes do deploy:**
+
+| Ação | Banner | Cookie | Sinais gtag |
+|---|---|---|---|
+| Aceitar | some | `granted` | 4× `granted` |
+| Revogar (rodapé) | **volta** | apagado | 4× `denied` |
+
+> Isso resolve também o item que a §3 listava como pendência a tratar junto da
+> proposta (C) — a revogação já existe **independente** de qualquer decisão sobre
+> mudar o modelo de consentimento.
