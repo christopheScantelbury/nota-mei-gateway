@@ -202,3 +202,37 @@ componentes irmãos, sem estado compartilhado).
 > Isso resolve também o item que a §3 listava como pendência a tratar junto da
 > proposta (C) — a revogação já existe **independente** de qualquer decisão sobre
 > mudar o modelo de consentimento.
+
+---
+
+## 6. Validação em produção (2026-07-21)
+
+Tudo verificado no ar, não só no build.
+
+### Consentimento
+
+| Ação | Banner | Sinais `gtag consent update` |
+|---|---|---|
+| Aceitar | some | `analytics_storage`, **`ad_storage`**, `ad_user_data`, `ad_personalization` = `granted` |
+| Revogar (rodapé) | **reaparece** | os quatro = `denied` |
+
+O `ad_storage` concedido no aceite é exatamente o bug da §1 — a partir daqui o
+GCLID pode ser guardado já na **primeira** visita, que é a que vem do anúncio.
+
+### Cadeia de atribuição — ponta a ponta
+
+Simulado um clique de anúncio caindo na LP e um cadastro real:
+
+1. Entrada em `/me?gclid=…&utm_source=google&utm_medium=cpc&utm_campaign=NotaFácil - Pesquisa - ME&utm_term=…`
+2. Cookie `nf_attr` gravado — acento em `utm_campaign` preservado
+3. Navegação para `/cadastro/me` **sem parâmetros na URL** — a atribuição sobrevive (é o ponto do §2: o clique cai na LP, o cadastro é noutra rota)
+4. Cadastro concluído → `201`
+5. Linha em `empresas` com `gclid`, `utm_*` e `landing_page` preenchidos
+
+A consulta da §2 devolveu a linha corretamente. Dados de teste (empresa,
+`emissoes_mensais`, `api_keys`, `auth.user`) removidos — banco de volta a 19
+empresas, nenhuma com `gclid`.
+
+> ⚠️ **A medição só começa a valer de fato com o auto-tagging ligado** no Google
+> Ads. Sem ele o `gclid` não chega na URL e a coluna fica vazia — é o único item
+> restante que bloqueia a resposta do teste da campanha.
