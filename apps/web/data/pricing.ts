@@ -54,7 +54,7 @@ export const ANCHOR_PLAN_META: PricingPlanMeta[] = [
     highlight: true,
     fallback: {
       priceLabel: 'R$ 59,99/mês',
-      notes: '10 notas/mês · R$ 0,80 por nota excedente',
+      notes: '30 notas/mês · R$ 0,80 por nota excedente',
       description: 'Para Microempresa que precisa estar pronta para a NFS-e Nacional.',
     },
   },
@@ -92,8 +92,8 @@ export const ANCHOR_PLAN_META: PricingPlanMeta[] = [
     secondaryCta: { label: 'Ver todos os planos MEI →', href: '/mei#precos' },
     highlight: false,
     fallback: {
-      priceLabel: 'R$ 24,90/mês',
-      notes: '5 notas/mês · R$ 0,80 por nota excedente',
+      priceLabel: 'R$ 19,90/mês',
+      notes: '10 notas/mês · R$ 0,80 por nota excedente',
       description: 'Para MEI com clientes fixos todo mês.',
     },
   },

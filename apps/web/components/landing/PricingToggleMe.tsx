@@ -27,6 +27,10 @@ export type Plan = {
   badge?: string
 }
 
+// ⚠️ Fallback de emergência — só renderiza se o SSR não passar `plans` (banco
+// fora do ar). Mantenha em sincronia com a tabela `planos`: em 2026-07-22 este
+// array ainda dizia ME Pro R$149,90/50 notas enquanto o Stripe já cobrava
+// R$129,90/100 notas. Números canônicos vêm do banco — ver PricingToggleMeSSR.
 const PLANS: Plan[] = [
   {
     name: 'Trial ME',
@@ -46,7 +50,7 @@ const PLANS: Plan[] = [
     monthlyPrice: 59.99,
     priceLabel: 'R$ 59,99',
     period: '/mês',
-    limit: '10 notas/mês',
+    limit: '30 notas/mês',
     desc: 'Para Microempresa começando com NFS-e Nacional.',
     extra: 'R$ 0,80 por nota acima do limite',
     cta: 'Assinar Start',
@@ -55,12 +59,12 @@ const PLANS: Plan[] = [
   },
   {
     name: 'ME Pro',
-    monthlyPrice: 149.9,
-    priceLabel: 'R$ 149,90',
+    monthlyPrice: 129.9,
+    priceLabel: 'R$ 129,90',
     period: '/mês',
-    limit: '50 notas/mês',
+    limit: '100 notas/mês',
     desc: 'Para ME com fluxo regular e multi-cliente.',
-    extra: 'R$ 0,60 por nota acima do limite',
+    extra: 'R$ 0,50 por nota acima do limite',
     cta: 'Assinar Pro',
     ctaHref: '/cadastro/me?plano=pro',
     highlight: true,

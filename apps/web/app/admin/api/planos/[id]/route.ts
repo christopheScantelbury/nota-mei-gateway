@@ -10,6 +10,18 @@ import { syncPlanoChange } from '@/lib/stripe/sync'
 
 interface Ctx { params: { id: string } }
 
+/**
+ * Extrai o número de notas prometido numa descrição no formato "até N notas" /
+ * "até N NFS-e". Só reconhece a forma com "até" — faixas como "(250–700
+ * notas/mês)" dos planos Gateway são legítimas e não devem ser interpretadas
+ * como promessa de limite.
+ */
+function limiteNaDescricao(desc: string | null | undefined): number | null {
+  if (!desc) return null
+  const m = desc.match(/at[ée]\s+(\d+)\s*(?:NFS-e|notas?)/i)
+  return m ? Number(m[1]) : null
+}
+
 export async function PATCH(request: NextRequest, { params }: Ctx) {
   const sb = createClient()
   const { data: { user } } = await sb.auth.getUser()
@@ -43,6 +55,27 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
     }>()
 
   if (!before) return NextResponse.json({ error: 'NOT_FOUND' }, { status: 404 })
+
+  // GUARD (2026-07-22): descrição não pode prometer um número de notas diferente
+  // do `emissoes_limite`. Foi assim que /me passou a mostrar "até 10 NFS-e" com
+  // "30 notas/mês" no mesmo card — limite editado aqui, descrição esquecida.
+  const newLimite =
+    body.emissoes_limite !== undefined ? Number(body.emissoes_limite) : before.emissoes_limite
+  const newDesc =
+    body.descricao_curta !== undefined ? (body.descricao_curta as string | null) : before.descricao_curta
+  const limitePrometido = limiteNaDescricao(newDesc)
+  if (limitePrometido !== null && limitePrometido !== newLimite) {
+    return NextResponse.json(
+      {
+        error: 'VALIDATION_ERROR',
+        message:
+          `A descrição promete "até ${limitePrometido} notas" mas o limite do plano é ${newLimite}. ` +
+          'Ajuste um dos dois — ou, de preferência, tire o número da descrição: ' +
+          'ele já é exibido no card a partir do limite.',
+      },
+      { status: 422 },
+    )
+  }
 
   // Detecta mudança de preço
   const newPrecoMensal =
