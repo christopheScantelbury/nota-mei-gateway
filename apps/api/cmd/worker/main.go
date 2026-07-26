@@ -66,16 +66,25 @@ func main() {
 	}
 
 	// ── RabbitMQ publisher ─────────────────────────────────────────────────
-	publisher, err := webhook.NewPublisher(cfg.RabbitMQURL)
+	// Retry no boot em vez de crashar: quando o RabbitMQ redeploya no Railway,
+	// o worker sobe antes dele ficar pronto. Antes isto era log.Fatal → crash
+	// loop (incidente 2026-07-26, issue #256). Espera o ctx OU o RabbitMQ subir.
+	publisher, err := dialWithRetry(ctx, "webhook publisher", func() (*webhook.Publisher, error) {
+		return webhook.NewPublisher(cfg.RabbitMQURL)
+	})
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to init webhook publisher")
+		log.Info().Msg("worker encerrado durante espera do RabbitMQ (publisher)")
+		return
 	}
 	defer publisher.Close()
 
 	// ── Webhook consumer ───────────────────────────────────────────────────
-	consumer, err := webhook.NewConsumer(cfg.RabbitMQURL, notaRepo, apiBase)
+	consumer, err := dialWithRetry(ctx, "webhook consumer", func() (*webhook.Consumer, error) {
+		return webhook.NewConsumer(cfg.RabbitMQURL, notaRepo, apiBase)
+	})
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to init webhook consumer")
+		log.Info().Msg("worker encerrado durante espera do RabbitMQ (consumer)")
+		return
 	}
 	defer consumer.Close()
 
@@ -135,6 +144,31 @@ func main() {
 	}
 
 	log.Info().Msg("worker encerrado")
+}
+
+// dialWithRetry chama dial() até obter sucesso ou o ctx ser cancelado, com
+// backoff exponencial (1s → 30s). Usado no boot pra esperar o RabbitMQ ficar
+// pronto em vez de crashar o worker (issue #256).
+func dialWithRetry[T any](ctx context.Context, what string, dial func() (T, error)) (T, error) {
+	backoff := time.Second
+	const maxBackoff = 30 * time.Second
+	for {
+		v, err := dial()
+		if err == nil {
+			return v, nil
+		}
+		log.Warn().Err(err).Str("dep", what).Dur("retry_in", backoff).
+			Msg("dependência indisponível no boot — retry (sem crashar)")
+		select {
+		case <-ctx.Done():
+			var zero T
+			return zero, ctx.Err()
+		case <-time.After(backoff):
+		}
+		if backoff < maxBackoff {
+			backoff *= 2
+		}
+	}
 }
 
 // buildSweepFn creates the SweepFunc closure that maps nfse.Nota → webhook.DeliveryMessage.

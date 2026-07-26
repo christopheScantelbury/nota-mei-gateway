@@ -24,7 +24,13 @@ type NotaUpdater interface {
 }
 
 // Consumer listens to the webhook delivery queue and dispatches HTTP POST calls.
+//
+// Auto-recuperável: quando a conexão AMQP cai (ex: RabbitMQ redeploya no
+// Railway), Start reconecta com backoff em vez de retornar erro. Antes disto
+// uma queda derrubava o worker inteiro (main.go fazia log.Fatal). Ver issue
+// #256 e o incidente de 2026-07-26.
 type Consumer struct {
+	url     string
 	conn    *amqp.Connection
 	ch      *amqp.Channel
 	repo    NotaUpdater
@@ -34,46 +40,88 @@ type Consumer struct {
 
 // NewConsumer dials AMQP and returns a Consumer ready to Start.
 func NewConsumer(amqpURL string, repo NotaUpdater, apiBase string) (*Consumer, error) {
-	conn, err := amqp.Dial(amqpURL)
+	c := &Consumer{
+		url:     amqpURL,
+		repo:    repo,
+		client:  &http.Client{Timeout: 15 * time.Second},
+		apiBase: apiBase,
+	}
+	if err := c.connect(); err != nil {
+		return nil, err
+	}
+	return c, nil
+}
+
+// connect (re)dials, declares queues and sets QoS.
+func (c *Consumer) connect() error {
+	conn, err := amqp.Dial(c.url)
 	if err != nil {
-		return nil, fmt.Errorf("amqp dial: %w", err)
+		return fmt.Errorf("amqp dial: %w", err)
 	}
 	ch, err := conn.Channel()
 	if err != nil {
 		_ = conn.Close()
-		return nil, fmt.Errorf("amqp channel: %w", err)
+		return fmt.Errorf("amqp channel: %w", err)
 	}
 
 	if _, err = ch.QueueDeclare(QueueWebhook, true, false, false, false, nil); err != nil {
 		_ = ch.Close()
 		_ = conn.Close()
-		return nil, fmt.Errorf("queue declare: %w", err)
+		return fmt.Errorf("queue declare: %w", err)
 	}
 
 	if err = declareRetryQueues(ch); err != nil {
 		_ = ch.Close()
 		_ = conn.Close()
-		return nil, err
+		return err
 	}
 
 	// Prefetch one message at a time for reliable processing.
 	if err = ch.Qos(1, 0, false); err != nil {
 		_ = ch.Close()
 		_ = conn.Close()
-		return nil, fmt.Errorf("qos: %w", err)
+		return fmt.Errorf("qos: %w", err)
 	}
 
-	return &Consumer{
-		conn:    conn,
-		ch:      ch,
-		repo:    repo,
-		client:  &http.Client{Timeout: 15 * time.Second},
-		apiBase: apiBase,
-	}, nil
+	c.conn, c.ch = conn, ch
+	return nil
 }
 
-// Start begins consuming messages from the queue. It blocks until ctx is cancelled.
+// Start consome mensagens até o ctx ser cancelado. Reconecta sozinho se a
+// conexão AMQP cair — só retorna quando o ctx encerra (shutdown limpo).
 func (c *Consumer) Start(ctx context.Context) error {
+	backoff := time.Second
+	const maxBackoff = 30 * time.Second
+
+	for {
+		err := c.consumeLoop(ctx)
+		if ctx.Err() != nil {
+			return ctx.Err() // shutdown limpo
+		}
+		// Conexão caiu (não foi ctx): loga, espera e reconecta.
+		log.Ctx(ctx).Warn().Err(err).Dur("retry_in", backoff).
+			Msg("webhook consumer: conexão AMQP caiu — reconectando")
+
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(backoff):
+		}
+		if backoff < maxBackoff {
+			backoff *= 2
+		}
+
+		if rerrc := c.connect(); rerrc != nil {
+			log.Ctx(ctx).Warn().Err(rerrc).Msg("webhook consumer: reconexão falhou, nova tentativa")
+			continue
+		}
+		backoff = time.Second // reconectou: reseta o backoff
+	}
+}
+
+// consumeLoop faz o Consume e processa mensagens até o canal fechar ou o ctx
+// cancelar. Retorna erro quando o canal fecha (pra Start reconectar).
+func (c *Consumer) consumeLoop(ctx context.Context) error {
 	msgs, err := c.ch.Consume(
 		QueueWebhook,
 		"webhook-consumer",
@@ -104,8 +152,12 @@ func (c *Consumer) Start(ctx context.Context) error {
 
 // Close releases AMQP resources.
 func (c *Consumer) Close() {
-	_ = c.ch.Close()
-	_ = c.conn.Close()
+	if c.ch != nil {
+		_ = c.ch.Close()
+	}
+	if c.conn != nil {
+		_ = c.conn.Close()
+	}
 }
 
 // handle processes one delivery.

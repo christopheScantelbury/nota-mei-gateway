@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -54,21 +55,38 @@ type DeliveryMessage struct {
 }
 
 // Publisher holds an AMQP connection and channel for publishing webhook events.
+//
+// É auto-recuperável: guarda a URL e reconecta sozinho quando a conexão cai
+// (ex: RabbitMQ redeploya no Railway). Antes disto, uma queda deixava o
+// publisher morto até o worker reiniciar — e o worker crashava junto. Ver
+// issue #256 e o incidente de 2026-07-26.
 type Publisher struct {
+	url  string
+	mu   sync.Mutex
 	conn *amqp.Connection
 	ch   *amqp.Channel
 }
 
 // NewPublisher dials the given AMQP URL, declares the durable queue and returns a ready Publisher.
 func NewPublisher(amqpURL string) (*Publisher, error) {
-	conn, err := amqp.Dial(amqpURL)
+	p := &Publisher{url: amqpURL}
+	if err := p.connect(); err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+// connect (re)dials e redeclara as filas. Assume o lock já tomado quando
+// chamado de ensure(); NewPublisher chama antes de expor o ponteiro.
+func (p *Publisher) connect() error {
+	conn, err := amqp.Dial(p.url)
 	if err != nil {
-		return nil, fmt.Errorf("amqp dial: %w", err)
+		return fmt.Errorf("amqp dial: %w", err)
 	}
 	ch, err := conn.Channel()
 	if err != nil {
 		_ = conn.Close()
-		return nil, fmt.Errorf("amqp channel: %w", err)
+		return fmt.Errorf("amqp channel: %w", err)
 	}
 
 	// Declare the main queue and retry queues idempotently.
@@ -82,16 +100,28 @@ func NewPublisher(amqpURL string) (*Publisher, error) {
 	); err != nil {
 		_ = ch.Close()
 		_ = conn.Close()
-		return nil, fmt.Errorf("queue declare: %w", err)
+		return fmt.Errorf("queue declare: %w", err)
 	}
 
 	if err = declareRetryQueues(ch); err != nil {
 		_ = ch.Close()
 		_ = conn.Close()
-		return nil, err
+		return err
 	}
 
-	return &Publisher{conn: conn, ch: ch}, nil
+	p.conn, p.ch = conn, ch
+	return nil
+}
+
+// ensure garante uma conexão viva, reconectando se a atual caiu. Idempotente
+// e thread-safe (poller e requeuer publicam de goroutines diferentes).
+func (p *Publisher) ensure() error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.conn != nil && !p.conn.IsClosed() {
+		return nil
+	}
+	return p.connect()
 }
 
 // declareRetryQueues declares the 3 TTL-based retry queues.
@@ -130,7 +160,18 @@ func (p *Publisher) Publish(ctx context.Context, msg DeliveryMessage) error {
 		return fmt.Errorf("marshal webhook message: %w", err)
 	}
 
-	return p.ch.PublishWithContext(ctx,
+	// Reconecta se a conexão caiu desde a última publicação. Se o RabbitMQ
+	// ainda estiver fora, retorna erro — o requeuer varre o banco depois e
+	// re-publica, então nenhuma nota é perdida.
+	if err := p.ensure(); err != nil {
+		return fmt.Errorf("webhook publisher reconnect: %w", err)
+	}
+
+	p.mu.Lock()
+	ch := p.ch
+	p.mu.Unlock()
+
+	return ch.PublishWithContext(ctx,
 		"",           // default exchange
 		QueueWebhook, // routing key = queue name
 		false,        // mandatory
@@ -143,10 +184,15 @@ func (p *Publisher) Publish(ctx context.Context, msg DeliveryMessage) error {
 	)
 }
 
-// Ping returns nil if the RabbitMQ connection is healthy.
+// Ping returns nil if a RabbitMQ connection can be established. Tenta
+// reconectar — assim o health check reflete "recuperável", não uma conexão
+// velha morta que já teria se recuperado na próxima publicação.
 func (p *Publisher) Ping() error {
-	if p == nil || p.conn == nil || p.conn.IsClosed() {
-		return fmt.Errorf("rabbitmq connection closed or unavailable")
+	if p == nil {
+		return fmt.Errorf("rabbitmq publisher not initialised")
+	}
+	if err := p.ensure(); err != nil {
+		return fmt.Errorf("rabbitmq unreachable: %w", err)
 	}
 	return nil
 }
@@ -156,6 +202,12 @@ func (p *Publisher) Close() {
 	if p == nil {
 		return
 	}
-	_ = p.ch.Close()
-	_ = p.conn.Close()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.ch != nil {
+		_ = p.ch.Close()
+	}
+	if p.conn != nil {
+		_ = p.conn.Close()
+	}
 }
