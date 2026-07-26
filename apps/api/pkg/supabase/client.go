@@ -95,7 +95,47 @@ func New(ctx context.Context, databaseURL string, poolCfg ...PoolConfig) (*Clien
 	if err != nil {
 		return nil, err
 	}
+
+	// Verifica conectividade com retry antes de retornar. pgxpool conecta
+	// LAZY (nenhuma conexão viva ao criar), então quem dispara query logo no
+	// boot — o worker roda renewer + poller imediatamente — corria contra o
+	// pooler frio e falhava com "failed to connect" (incidente #256). Com o
+	// ping-com-retry, New só retorna quando o banco está de fato alcançável.
+	if err := pingWithRetry(ctx, pool); err != nil {
+		pool.Close()
+		return nil, err
+	}
 	return &Client{pool: pool}, nil
+}
+
+// pingWithRetry tenta Ping até ~15s (backoff 500ms→4s), tolerando o cold start
+// do pooler Supabase no boot. Respeita o ctx (cancelamento encerra na hora).
+func pingWithRetry(ctx context.Context, pool *pgxpool.Pool) error {
+	backoff := 500 * time.Millisecond
+	const maxBackoff = 4 * time.Second
+	deadline := time.Now().Add(15 * time.Second)
+
+	var lastErr error
+	for {
+		pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		err := pool.Ping(pingCtx)
+		cancel()
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+		if time.Now().After(deadline) {
+			return lastErr
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(backoff):
+		}
+		if backoff < maxBackoff {
+			backoff *= 2
+		}
+	}
 }
 
 // Pool returns the underlying pgx connection pool.
