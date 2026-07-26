@@ -142,6 +142,12 @@ func (r *Repository) GetOrCreateEmissaoMensalEmpresa(ctx context.Context, empres
 // surviving (empresa_id, competencia) unique constraint. empresa_id is populated
 // from meis.id since for MEIs the two UUIDs are identical.
 func (r *Repository) RenewMonth(ctx context.Context, competencia string) (int, error) {
+	// WHERE EXISTS (empresas): pula MEIs sem linha correspondente em `empresas`.
+	// O INSERT é atômico — um único MEI órfão (ex: seedado direto em `meis` sem
+	// a contraparte) violava emissoes_mensais_empresa_id_fkey e derrubava a
+	// renovação de TODOS os MEIs (issue #256). Um registro quebrado não pode
+	// mais bloquear a competência inteira: ele é simplesmente ignorado — e um
+	// MEI sem empresa nunca poderia ter emissoes_mensais mesmo (a própria FK).
 	tag, err := r.db.Pool().Exec(ctx, `
 		INSERT INTO emissoes_mensais (mei_id, empresa_id, plano_id, competencia, total_emitidas)
 		SELECT
@@ -157,6 +163,7 @@ func (r *Repository) RenewMonth(ctx context.Context, competencia string) (int, e
 			$1,
 			0
 		FROM meis m
+		WHERE EXISTS (SELECT 1 FROM empresas e WHERE e.id = m.id)
 		ON CONFLICT (empresa_id, competencia) DO NOTHING
 	`, competencia)
 	if err != nil {
