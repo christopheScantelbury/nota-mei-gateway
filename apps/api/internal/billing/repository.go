@@ -135,35 +135,40 @@ func (r *Repository) GetOrCreateEmissaoMensalEmpresa(ctx context.Context, empres
 	return &em, nil
 }
 
-// RenewMonth creates emissoes_mensais rows for all MEIs for the given competencia,
-// carrying each MEI's most recent plan forward. Returns the number of new rows inserted.
+// RenewMonth creates the emissoes_mensais row for the given competencia for
+// every owner (MEI and ME/EPP) that has a previous row, carrying forward the
+// plan AND the Stripe subscription fields from its most recent competência.
+// Returns the number of new rows inserted.
 //
-// Same constraint note as GetOrCreateEmissaoMensal: ON CONFLICT must target the
-// surviving (empresa_id, competencia) unique constraint. empresa_id is populated
-// from meis.id since for MEIs the two UUIDs are identical.
+// Antes só percorria `meis`: empresas ME/EPP nunca eram renovadas e, na virada
+// do mês, a primeira emissão criava a linha sem plano → Trial (limite 5) até
+// o aniversário da assinatura no Stripe. E sem stripe_subscription_id na linha
+// nova, invoice.paid/payment_failed (que filtram por ele na competência atual)
+// não atualizavam nada e o metered billing perdia o subscription_item.
+//
+// Fonte = última linha por empresa_id (MEI tem empresa_id == mei_id, ARCH-03).
+// WHERE EXISTS (empresas) mantém a proteção do #256: um dono órfão é ignorado
+// em vez de violar a FK e derrubar a renovação de todo mundo.
 func (r *Repository) RenewMonth(ctx context.Context, competencia string) (int, error) {
-	// WHERE EXISTS (empresas): pula MEIs sem linha correspondente em `empresas`.
-	// O INSERT é atômico — um único MEI órfão (ex: seedado direto em `meis` sem
-	// a contraparte) violava emissoes_mensais_empresa_id_fkey e derrubava a
-	// renovação de TODOS os MEIs (issue #256). Um registro quebrado não pode
-	// mais bloquear a competência inteira: ele é simplesmente ignorado — e um
-	// MEI sem empresa nunca poderia ter emissoes_mensais mesmo (a própria FK).
 	tag, err := r.db.Pool().Exec(ctx, `
-		INSERT INTO emissoes_mensais (mei_id, empresa_id, plano_id, competencia, total_emitidas)
+		INSERT INTO emissoes_mensais (
+			mei_id, empresa_id, plano_id, competencia, total_emitidas,
+			stripe_subscription_id, stripe_subscription_status, stripe_subscription_item_id
+		)
 		SELECT
-			m.id,
-			m.id,
-			(
-				SELECT plano_id
-				FROM emissoes_mensais
-				WHERE mei_id = m.id
-				ORDER BY competencia DESC
-				LIMIT 1
-			),
-			$1,
-			0
-		FROM meis m
-		WHERE EXISTS (SELECT 1 FROM empresas e WHERE e.id = m.id)
+			last.mei_id, last.empresa_id, last.plano_id, $1, 0,
+			last.stripe_subscription_id, last.stripe_subscription_status, last.stripe_subscription_item_id
+		FROM (
+			SELECT DISTINCT ON (em.empresa_id)
+			       em.mei_id, em.empresa_id, em.plano_id,
+			       em.stripe_subscription_id, em.stripe_subscription_status, em.stripe_subscription_item_id
+			FROM emissoes_mensais em
+			WHERE em.empresa_id IS NOT NULL
+			  AND em.competencia < $1
+			ORDER BY em.empresa_id, em.competencia DESC
+		) last
+		WHERE EXISTS (SELECT 1 FROM empresas e WHERE e.id = last.empresa_id)
+		  AND (last.mei_id IS NULL OR EXISTS (SELECT 1 FROM meis m WHERE m.id = last.mei_id))
 		ON CONFLICT (empresa_id, competencia) DO NOTHING
 	`, competencia)
 	if err != nil {
