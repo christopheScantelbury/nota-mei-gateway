@@ -81,13 +81,18 @@ body.set(`subscription_data[metadata][${k}]`, v)       // subscription
 
 ## Webhook handler — eventos obrigatórios
 
-No Stripe Dashboard, garantir que o endpoint `notameigateway` tem:
-- `checkout.session.completed`
-- `customer.subscription.created`
-- `customer.subscription.updated`
-- `customer.subscription.deleted`
-- `invoice.paid`
-- `invoice.payment_failed`
+Endpoint LIVE de produção: `we_1TUEZ6QkYQoRUOWmdRzkSGT0` →
+`https://api.emitirnotafacil.com.br/v1/webhooks/stripe`
+(`api.notameigateway.com.br` está MORTO — endpoint `we_1TUEVUQ…` que aponta pra ele deve ficar desativado).
+
+Ele precisa ter TODOS os eventos que o handler trata:
+- `checkout.session.completed` (grava stripe_customer_id — sem ele, customer duplicado)
+- `customer.subscription.created` / `.updated` / `.deleted`
+- `invoice.paid`, `invoice.payment_failed`
+- `price.updated`, `price.deleted`, `product.updated` (sync de catálogo)
+
+Auditar (read-only): `curl -s https://api.stripe.com/v1/webhook_endpoints/we_1TUEZ6QkYQoRUOWmdRzkSGT0 -u "$SK:"`.
+Em 2026-09-30 o endpoint de prod tinha só 4 desses 9 eventos.
 
 ### handleSubscription DEVE atualizar plano_id
 

@@ -354,6 +354,10 @@ RABBITMQ_URL=amqps://user:pass@broker.cloudamqp.com/vhost
 # Webhook
 WEBHOOK_HMAC_SECRET=<random-hex-64>   # openssl rand -hex 32
 
+# URLs públicas / e-mail
+API_BASE_URL=https://api.emitirnotafacil.com.br          # usado nos links pdf_url/xml_url dos webhooks
+EMAIL_FROM=NotaFácil <noreply@emitirnotafacil.com.br>    # domínio autenticado no Brevo (SPF+DKIM+DMARC)
+
 # AWS (para cert provider — Secrets Manager + KMS)
 AWS_REGION=sa-east-1
 AWS_KMS_KEY_ARN=arn:aws:kms:sa-east-1:...

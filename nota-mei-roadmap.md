@@ -202,7 +202,7 @@ Nacional, sem depender de prefeituras.
 **Adicionar code snippet visível no hero** (lado direito ou abaixo do texto):
 
 ```bash
-curl -X POST https://api.notameigateway.com.br/v1/nfse \
+curl -X POST https://api.emitirnotafacil.com.br/v1/nfse \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{

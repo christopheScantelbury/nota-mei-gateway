@@ -3,7 +3,7 @@
  *
  * Usage:
  *   k6 run docs/load-test.js \
- *     -e API_URL=https://api.notameigateway.com.br \
+ *     -e API_URL=https://api.emitirnotafacil.com.br \
  *     -e API_KEY=sk_test_<your-key>
  *
  * Scenarios:
