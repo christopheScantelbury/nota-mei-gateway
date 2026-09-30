@@ -292,21 +292,28 @@ Authorization: Bearer sk_live_<hex64>
     "documento": "12345678000190",
     "razao_social": "Empresa Cliente LTDA",
     "email": "financeiro@empresa.com",
-    "municipio_ibge": "3550308"
+    "endereco": {                       // opcional — se vier, completo (XSD TCEndereco)
+      "logradouro": "Av. Paulista", "numero": "1000", "complemento": "Conj 42",
+      "bairro": "Bela Vista", "cep": "01310100", "municipio_ibge": "3550308"
+    }
   },
   "competencia": "2026-04",
   "webhook_url": "https://erp.empresa.com/webhooks/nfse"
 }
 ```
+`tomador.municipio_ibge`/`cep` soltos só vão pra DPS junto com `endereco` (fallback).
+Header `Idempotency-Key` (ou `idempotency_key` no corpo) — única por empresa; reenvio devolve a nota existente.
 
-### Response de emissão (202 Accepted)
-```json
-{
-  "nota_id": "uuid",
-  "status": "PROCESSANDO",
-  "mensagem": "Nota enviada para processamento"
-}
-```
+### Response de emissão (síncrona na maioria dos casos)
+| HTTP | `status` | Quando |
+|---|---|---|
+| 201 | AUTORIZADA | Receita autorizou na hora (`chave_acesso` no corpo) |
+| 202 | PROCESSANDO | Receita não respondeu — resultado via webhook/poller |
+| 422 | REJEITADA | `error: RECEITA_REJECTION` + `nota_id`, `erro_codigo`, `erro_descricao` |
+| 200 | qualquer | Replay de `Idempotency-Key` já usada (`Idempotent-Replayed: true`) |
+| 409 | — | `IDEMPOTENCY_KEY_CONFLICT` |
+
+Chaves `sk_test_` do `/cadastro/dev` (sem empresa) são atendidas pelo **sandbox** (notas simuladas, isoladas por chave, 300 req/h); fora de `/v1/nfse` recebem 403.
 
 ### Payload do webhook entregue
 ```json
@@ -559,6 +566,18 @@ status-cancelada.png    → #6473A0 (cinza)
                                 RECEITA_API_URL=https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional
                               · document.SetTpAmb(2) ativado quando APP_ENV != production
                               · E2E tests contra homologação ainda dependem de cert A1 hom separado
+✅ INTEGRADOR (2026-09-30)     Pacote de correções pra quem integra a API — validado em prod
+                              · REJEITADA → 422 RECEITA_REJECTION (era 202) — c212076
+                              · Idempotency-Key com replay real + índice (empresa_id, key)
+                                migration 20260930000001 aplicada em prod — c212076/97acc67
+                              · tomador.endereco → <end><endNac> na DPS — c212076
+                              · Chave sk_test_ do /cadastro/dev → sandbox (dava 401 sempre),
+                                notas do sandbox isoladas por chave — 3429b44
+                              · /cadastro/dev: createUser sem senha (política Supabase) — 3e4f083
+                              · Navbar dropdown Gateway API, /opengraph-image (Satori),
+                                dashboard/link público tratam rejeição, SDKs node/python/sheets
+                              · Build Vercel: overrides eslint-config-next = lockfile — b67e3cd
+                              · Testes Go: rodar em Docker (Smart App Control bloqueia go test)
 ```
 
 ---
@@ -731,7 +750,7 @@ Se precisar forçar build (ex: env var nova no Vercel + redeploy):
 ---
 
 ## 13. ESTADO ATUAL
-> Última atualização: 2026-05-21 · branch `main` · commit `17072be` · CI ✅ Deploy ✅ Migrations: 22/22
+> Última atualização: 2026-09-30 · branch `main` · commit `3429b44` · Deploy ✅ · última migration `20260930000001`
 >
 > **🏆 Marcos:** primeira NFS-e Nacional emitida e cancelada em produção com cert ICP-Brasil real.
 > Todas as funcionalidades core operacionais (emissão · cancelamento via evento e101101 ·
