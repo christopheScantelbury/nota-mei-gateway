@@ -36,8 +36,8 @@
   },
   "overrides": {
     "eslint": "8.57.1",
-    "eslint-config-next": "14.2.5",
-    "@next/eslint-plugin-next": "14.2.5"
+    "eslint-config-next": "14.2.35",
+    "@next/eslint-plugin-next": "14.2.35"
   },
   "dependencies": {
     "@aws-sdk/client-sts": "^3.1041.0",
