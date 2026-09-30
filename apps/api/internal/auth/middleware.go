@@ -56,6 +56,18 @@ func Middleware(repo *Repository) fiber.Handler {
 
 		c.Locals(localsAPIKey, apiKey)
 
+		// Produção: sk_test_ é só sandbox. Os endpoints de NFS-e simulados são
+		// roteados antes deste middleware; qualquer outro endpoint com sk_test_
+		// (billing, substituir, pdf…) não pode tocar dados/fluxo real.
+		if repo.TestKeysSandboxOnly() && apiKey.KeyPrefix == PrefixTest {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "FORBIDDEN",
+				"message": "chave sk_test_ funciona apenas no sandbox (POST/GET/DELETE /v1/nfse, notas simuladas). " +
+					"Para emitir notas reais use uma chave sk_live_.",
+				"request_id": c.Locals("request_id"),
+			})
+		}
+
 		// Chave de dev (/cadastro/dev): sem MEI nem empresa. Só vale no
 		// sandbox (POST/GET/DELETE /v1/nfse, roteados antes deste middleware);
 		// fora dele, mensagem acionável em vez de "Empresa account not found".

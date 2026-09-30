@@ -388,8 +388,17 @@ func main() {
 	// ── Sandbox (public demo, no real Receita Federal calls) ───────────────
 	// Aceita a DemoKey pública e as chaves sk_test_ de /cadastro/dev (sem
 	// empresa) — estas antes caíam na auth real e recebiam 401 em tudo.
+	// Produção: QUALQUER sk_test_ ativa é sandbox (a UI promete "sem emissões
+	// reais"; antes uma sk_test_ de empresa emitia NFS-e de verdade). Fora de
+	// prod só as de dev — a chave semeada sk_test_ testa o fluxo real na homologação.
+	testKeysSandboxOnly := cfg.AppEnv == "production"
+	authRepo.WithTestKeysSandboxOnly(testKeysSandboxOnly)
 	sbx := sandbox.New().WithDevKeyResolver(func(ctx context.Context, rawKey string) bool {
-		ok, err := authRepo.IsDevSandboxKey(ctx, auth.HashKey(rawKey))
+		lookup := authRepo.IsDevSandboxKey
+		if testKeysSandboxOnly {
+			lookup = authRepo.IsActiveTestKey
+		}
+		ok, err := lookup(ctx, auth.HashKey(rawKey))
 		if err != nil {
 			log.Warn().Err(err).Msg("sandbox: dev key lookup failed")
 			return false

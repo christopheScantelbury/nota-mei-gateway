@@ -59,7 +59,20 @@ type MEI struct {
 type Repository struct {
 	db        *supabase.Client
 	authAdmin *supabase.AuthAdminClient // optional — required for RegisterMEI after migration 20260620
+	// testKeysSandboxOnly: em produção toda chave sk_test_ é só sandbox (a UI
+	// promete "sem emissões reais"). Fora de prod a chave semeada sk_test_
+	// exercita o fluxo real contra a homologação.
+	testKeysSandboxOnly bool
 }
+
+// WithTestKeysSandboxOnly liga a regra "sk_test_ = sempre sandbox".
+func (r *Repository) WithTestKeysSandboxOnly(on bool) *Repository {
+	r.testKeysSandboxOnly = on
+	return r
+}
+
+// TestKeysSandboxOnly reports whether sk_test_ keys are restricted to the sandbox.
+func (r *Repository) TestKeysSandboxOnly() bool { return r.testKeysSandboxOnly }
 
 // NewRepository creates a Repository using the shared Supabase pool.
 func NewRepository(db *supabase.Client) *Repository {
@@ -113,6 +126,19 @@ func (r *Repository) IsDevSandboxKey(ctx context.Context, hash string) (bool, er
 			  AND mei_id IS NULL
 			  AND empresa_id IS NULL
 			  AND user_id IS NOT NULL
+		)
+	`, hash).Scan(&exists)
+	return exists, err
+}
+
+// IsActiveTestKey reports whether hash belongs to any active sk_test_ key
+// (dev or empresa). Used in production, where sk_test_ is sandbox-only.
+func (r *Repository) IsActiveTestKey(ctx context.Context, hash string) (bool, error) {
+	var exists bool
+	err := r.db.Pool().QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM api_keys
+			WHERE key_hash = $1 AND revoked_at IS NULL AND key_prefix = 'sk_test_'
 		)
 	`, hash).Scan(&exists)
 	return exists, err
