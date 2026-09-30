@@ -151,10 +151,28 @@ function atualizarStatusPlanilha(sheet, apiKey, fetchFn) {
 
     if (detail.status === STATUS.AUTORIZADA) {
       sheet.getRange(rowIndex, COL.NUMERO_NFSE).setValue(detail.numero_nfse || '');
-      var pdfUrl = 'https://api.emitirnotafacil.com.br/v1/nfse/' + notaId + '/pdf';
-      sheet.getRange(rowIndex, COL.PDF_URL).setFormula('=HYPERLINK("' + pdfUrl + '","PDF")');
+      // Link público (sem API key): consulta pública da NFS-e Nacional pela
+      // chave de acesso (50 dígitos). Antes: =HYPERLINK("…","PDF") → #ERROR!
+      // em planilha pt-BR (separador ";") e o /v1/nfse/:id/pdf exige Bearer,
+      // então abrir no navegador dava 401. Nota de sandbox não tem chave real.
+      var chave = String(detail.numero_nfse || '');
+      var pdfCell = sheet.getRange(rowIndex, COL.PDF_URL);
+      if (/^\d{50}$/.test(chave)) {
+        setLink_(pdfCell, 'Ver nota', 'https://www.nfse.gov.br/consultapublica?chaveAcesso=' + chave);
+      } else {
+        pdfCell.setValue('(sandbox — sem PDF)');
+      }
     }
   });
+}
+
+/** Hyperlink sem fórmula (independe do locale da planilha). Node/Jest: grava a URL. */
+function setLink_(range, text, url) {
+  if (typeof SpreadsheetApp !== 'undefined') {
+    range.setRichTextValue(SpreadsheetApp.newRichTextValue().setText(text).setLinkUrl(url).build());
+  } else {
+    range.setValue(url);
+  }
 }
 
 // Allow require() in Node.js tests.

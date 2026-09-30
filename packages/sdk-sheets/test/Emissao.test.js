@@ -278,6 +278,25 @@ describe('atualizarStatusPlanilha', () => {
     expect(url).toContain('/v1/nfse/nota-1');
   });
 
+  test('nota real (chave 50 dígitos) → link da consulta pública; sandbox → texto', () => {
+    const chave = '1'.repeat(50);
+    const cases = [
+      { numero: chave, want: 'https://www.nfse.gov.br/consultapublica?chaveAcesso=' + chave },
+      { numero: '717045', want: '(sandbox — sem PDF)' },
+    ];
+    for (const c of cases) {
+      const rows = [makeRow({ [COL.STATUS]: 'PROCESSANDO', [COL.NOTA_ID]: 'nota-1' })];
+      const sheet = makeSheetWithData(rows);
+      const fetch = jest.fn().mockReturnValue({
+        getResponseCode: () => 200,
+        getContentText: () => JSON.stringify({ status: 'AUTORIZADA', numero_nfse: c.numero }),
+      });
+      atualizarStatusPlanilha(sheet, API_KEY, fetch);
+      expect(sheet._cells[`2,${COL.PDF_URL}`]).toBe(c.want);
+      expect(sheet._cells[`2,${COL.PDF_URL}_formula`]).toBeUndefined();
+    }
+  });
+
   test('skips rows not in PROCESSANDO status', () => {
     const rows = [makeRow({ [COL.STATUS]: 'AUTORIZADA', [COL.NOTA_ID]: 'nota-1' })];
     const sheet = makeSheetWithData(rows);
