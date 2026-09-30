@@ -65,10 +65,12 @@ export async function POST(req: NextRequest) {
   const sb = service()
 
   // ── 1. Cria auth.user com email_confirm=true (sem senha — só OTP) ────────
-  const tempPwd = randomBytes(32).toString('hex')
+  // Não mandar `password`: a senha temporária em hex (só minúsculas+dígitos)
+  // era rejeitada pela política de senha do Supabase Auth ("Password should
+  // contain at least one character of each...") e bloqueava todo cadastro dev.
+  // O acesso é só por magic link; o user pode definir senha depois no painel.
   const { data: created, error: createErr } = await sb.auth.admin.createUser({
     email,
-    password: tempPwd,
     email_confirm: true,
     user_metadata: {
       nome,
