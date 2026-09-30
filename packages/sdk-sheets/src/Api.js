@@ -15,7 +15,9 @@ var NOTAMEI_BASE_URL = 'https://api.emitirnotafacil.com.br';
  * @returns {{ status: number, data: Object }}
  */
 function notameiRequest(method, path, apiKey, body, extra, fetchFn) {
-  var fetch = fetchFn || UrlFetchApp.fetch;
+  // Não extrair UrlFetchApp.fetch pra variável: método desacoplado do objeto
+  // pode falhar no Apps Script.
+  var fetch = fetchFn || function (url, opts) { return UrlFetchApp.fetch(url, opts); };
 
   var options = {
     method: method,

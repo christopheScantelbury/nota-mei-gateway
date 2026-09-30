@@ -115,7 +115,7 @@ function inserirTemplate() {
 }
 
 function abrirConfiguracoes() {
-  var html = HtmlService.createHtmlOutputFromFile('src/Sidebar')
+  var html = HtmlService.createHtmlOutputFromFile('Sidebar')
     .setTitle('Nota MEI — Configurações')
     .setWidth(320);
   SpreadsheetApp.getUi().showSidebar(html);
