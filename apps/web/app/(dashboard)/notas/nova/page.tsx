@@ -275,7 +275,9 @@ export default function NovaNota() {
 
       const data = await res.json()
 
-      if (res.ok || res.status === 202) {
+      // REJEITADA nunca é sucesso — a API devolve 422 RECEITA_REJECTION
+      // (antes vinha 202 e caía no toast verde de "enviada").
+      if (res.ok && data.status !== 'REJEITADA') {
         setNotaId(data.nota_id ?? '')
         if (data.regime_tributario) {
           setUserRegime(data.regime_tributario as RegimeTributario)
@@ -285,13 +287,21 @@ export default function NovaNota() {
       } else {
         // Padrão obrigatório: toast flutuante + scroll-to-top automático
         // (lib/notify.ts) — banner inline morria abaixo da dobra em mobile.
-        const msg = data.message ?? 'Erro ao emitir a nota. Tente novamente.'
+        const msg = data.message ?? data.erro_descricao ?? 'Erro ao emitir a nota. Tente novamente.'
 
         // Mapeia error code do backend pra (título + CTA acionável). Cada
         // erro recoverable ganha link direto pra tela de fix.
         let title = 'Não foi possível emitir a nota'
         let action: { label: string; onClick: () => void } | undefined
-        switch (data.error) {
+        switch (data.status === 'REJEITADA' ? 'RECEITA_REJECTION' : data.error) {
+          case 'RECEITA_REJECTION':
+            title = data.erro_codigo
+              ? `Nota rejeitada pela Receita (${data.erro_codigo})`
+              : 'Nota rejeitada pela Receita'
+            if (data.nota_id) {
+              action = { label: 'Ver nota', onClick: () => (window.location.href = `/notas/${data.nota_id}`) }
+            }
+            break
           case 'PLAN_LIMIT_REACHED':
             title = 'Limite do plano atingido'
             action = { label: 'Ver planos', onClick: () => (window.location.href = '/billing') }

@@ -76,8 +76,17 @@ paths:
       operationId: emitirNota
       summary: Emitir nota fiscal
       description: |
-        Envia uma NFS-e para a Receita Federal Nacional. O processamento é assíncrono:
-        a API responde com `202 Accepted` e o status final é entregue via webhook.
+        Envia a DPS para a Receita Federal (NFS-e Nacional). Na maioria dos casos a
+        Receita responde na hora e a API já devolve o resultado final:
+
+        | HTTP | `status` | Significado |
+        |---|---|---|
+        | `201` | `AUTORIZADA` | Nota emitida — `chave_acesso` no corpo |
+        | `202` | `PROCESSANDO` | Receita não respondeu a tempo — resultado chega via webhook / `GET /v1/nfse/{id}` |
+        | `422` | `REJEITADA` | `error: RECEITA_REJECTION` — Receita recusou; ver `erro_codigo` / `erro_descricao` |
+        | `200` | qualquer | Replay idempotente — `Idempotency-Key` já usada, devolve a nota existente |
+
+        Decida pelo HTTP status **e** pelo campo `status`. Rejeições nunca retornam 2xx.
       tags: [NFS-e]
       security:
         - bearerAuth: []
@@ -121,8 +130,33 @@ paths:
                     email: "joao@email.com"
                   competencia: "2026-04"
       responses:
+        "200":
+          description: "Replay idempotente — a `Idempotency-Key` já foi usada por esta conta; devolve o estado atual da nota (header `Idempotent-Replayed: true`)"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmissaoResponse'
+              example:
+                nota_id: "550e8400-e29b-41d4-a716-446655440000"
+                status: AUTORIZADA
+                chave_acesso: "13026032234488964000142000000000000126056414682885"
+                idempotent_replay: true
+        "201":
+          description: Nota autorizada pela Receita na hora
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmissaoResponse'
+              example:
+                nota_id: "550e8400-e29b-41d4-a716-446655440000"
+                status: AUTORIZADA
+                chave_acesso: "13026032234488964000142000000000000126056414682885"
+                regime_tributario: SIMPLES_NACIONAL
+                iss_retido: false
+                valor_iss: 70.00
+                valor_liquido: 3500.00
         "202":
-          description: Nota aceita para processamento
+          description: Nota enviada, resultado ainda pendente na Receita — status final via webhook
           content:
             application/json:
               schema:
@@ -135,8 +169,45 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         "402":
           $ref: '#/components/responses/PlanLimitReached'
+        "409":
+          description: A `Idempotency-Key` está em uso por outra requisição/conta — gere uma chave única (ex. UUID)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: IDEMPOTENCY_KEY_CONFLICT
+                message: "esta Idempotency-Key já está em uso — gere uma chave única (ex.: UUID)"
+                request_id: "req-uuid"
         "422":
-          $ref: '#/components/responses/ValidationError'
+          description: |
+            `VALIDATION_ERROR` — dados inválidos (lista em `fields`), nada foi enviado à Receita.
+            `RECEITA_REJECTION` — a Receita rejeitou a nota. A nota fica registrada como `REJEITADA`
+            (`nota_id` no corpo). Corrija os dados e reenvie com **nova** `Idempotency-Key`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                validacao:
+                  summary: Dados inválidos
+                  value:
+                    error: VALIDATION_ERROR
+                    message: "campos inválidos"
+                    fields:
+                      - field: "tomador.endereco.bairro"
+                        message: "obrigatório quando endereco é informado"
+                    request_id: "req-uuid"
+                rejeicao:
+                  summary: Rejeitada pela Receita
+                  value:
+                    error: RECEITA_REJECTION
+                    message: "CNPJ do tomador inválido"
+                    nota_id: "550e8400-e29b-41d4-a716-446655440000"
+                    status: REJEITADA
+                    erro_codigo: "E0310"
+                    erro_descricao: "CNPJ do tomador inválido"
+                    request_id: "req-uuid"
         "500":
           $ref: '#/components/responses/InternalError'
 
@@ -722,10 +793,12 @@ components:
         type: string
         maxLength: 255
       description: |
-        Chave de idempotência para evitar emissão duplicada.
-        Recomendado em retentativas. O mesmo valor retorna o resultado original
-        sem re-processar.
-      example: "pedido-12345-tentativa-1"
+        Chave de idempotência para evitar emissão duplicada — use o ID do pedido/venda
+        no seu sistema. Reenviar com a mesma chave devolve a nota já criada (HTTP 200,
+        header `Idempotent-Replayed: true`) sem emitir de novo nem consumir cota.
+        Única por conta. Também aceita no corpo como `idempotency_key` (o header tem precedência).
+        Após uma rejeição, corrija os dados e use uma **nova** chave.
+      example: "pedido-12345"
 
   schemas:
 
@@ -750,7 +823,7 @@ components:
 
     ServicoRequest:
       type: object
-      required: [codigo_nbs, discriminacao, valor, aliquota_iss]
+      required: [codigo_nbs, discriminacao, valor]
       properties:
         codigo_nbs:
           type: string
@@ -774,12 +847,24 @@ components:
           format: double
           minimum: 0
           maximum: 10
-          description: "Alíquota ISS em percentual (ex.: 2.0 = 2%)"
+          description: |
+            Alíquota ISS em percentual (ex.: 2.0 = 2%). Se o município/NBS já estiver mapeado
+            na nossa tabela, o valor mapeado prevalece. Caso contrário é obrigatório: 0 (isenção) ou 2–5.
           example: 2.0
+        codigo_tributacao_nacional:
+          type: string
+          pattern: '^\d{6}$'
+          description: |
+            Código de tributação nacional (LC 116/2003, 6 dígitos). Recomendado — se omitido,
+            é derivado dos 6 primeiros dígitos do NBS, o que pode gerar rejeição.
+          example: "010101"
+        iss_retido:
+          type: boolean
+          description: Alias de `iss_retido` na raiz do request.
 
     TomadorRequest:
       type: object
-      required: [tipo, documento, razao_social]
+      required: [documento, razao_social]
       properties:
         tipo:
           $ref: '#/components/schemas/TomadorTipo'
@@ -800,7 +885,53 @@ components:
         municipio_ibge:
           type: string
           pattern: '^\d{7}$'
-          description: Código IBGE do município do tomador (obrigatório para PJ de outro município)
+          description: Código IBGE do município do tomador. Só é enviado à Receita junto com `endereco` (fallback de `endereco.municipio_ibge`).
+          example: "3550308"
+        cep:
+          type: string
+          pattern: '^\d{8}$'
+          description: CEP do tomador. Só é enviado à Receita junto com `endereco` (fallback de `endereco.cep`).
+          example: "01310100"
+        endereco:
+          $ref: '#/components/schemas/EnderecoRequest'
+        tipo_orgao:
+          type: string
+          enum: [PRIVADO, ORGAO_PUBLICO]
+          default: PRIVADO
+          description: "`ORGAO_PUBLICO` força retenção de ISS (Lucro Presumido/Real)."
+
+    EnderecoRequest:
+      type: object
+      description: |
+        Endereço nacional do tomador (opcional). O schema da Receita exige endereço completo:
+        se informado, todos os campos exceto `complemento` são obrigatórios.
+        `cep` e `municipio_ibge` podem vir aqui ou nos campos equivalentes de `tomador`.
+      required: [logradouro, numero, bairro]
+      properties:
+        logradouro:
+          type: string
+          maxLength: 255
+          example: "Av. Paulista"
+        numero:
+          type: string
+          maxLength: 60
+          description: Use "S/N" quando não houver número
+          example: "1000"
+        complemento:
+          type: string
+          maxLength: 156
+          example: "Conj. 42"
+        bairro:
+          type: string
+          maxLength: 60
+          example: "Bela Vista"
+        cep:
+          type: string
+          pattern: '^\d{8}$'
+          example: "01310100"
+        municipio_ibge:
+          type: string
+          pattern: '^\d{7}$'
           example: "3550308"
 
     EmissaoRequest:
@@ -822,12 +953,19 @@ components:
           maxLength: 500
           description: URL para receber o resultado assíncrono da emissão
           example: "https://erp.empresa.com/webhooks/nfse"
+        iss_retido:
+          type: boolean
+          description: Obrigatório para Lucro Presumido/Real. Ignorado para MEI e Simples Nacional.
+        idempotency_key:
+          type: string
+          maxLength: 255
+          description: Alternativa ao header `Idempotency-Key` (o header tem precedência).
 
     # ── Response schemas ───────────────────────────────────────────────────
 
     EmissaoResponse:
       type: object
-      required: [nota_id, status, mensagem]
+      required: [nota_id, status]
       properties:
         nota_id:
           type: string
@@ -835,9 +973,27 @@ components:
           description: Identificador único da nota
         status:
           $ref: '#/components/schemas/NotaStatus'
+        chave_acesso:
+          type: string
+          description: Chave de acesso da NFS-e (50 dígitos) — presente quando AUTORIZADA
         mensagem:
           type: string
           example: "Nota enviada para processamento"
+        regime_tributario:
+          type: string
+        iss_retido:
+          type: boolean
+        valor_iss:
+          type: number
+        valor_liquido:
+          type: number
+        avisos:
+          type: array
+          items:
+            type: string
+        idempotent_replay:
+          type: boolean
+          description: true quando a resposta é replay de uma `Idempotency-Key` já usada
 
     NotaResumo:
       type: object
@@ -1040,6 +1196,7 @@ components:
             - ALREADY_CANCELLED
             - VALIDATION_ERROR
             - RECEITA_REJECTION
+            - IDEMPOTENCY_KEY_CONFLICT
             - INTERNAL_ERROR
         message:
           type: string
@@ -1060,6 +1217,19 @@ components:
           type: string
           format: uuid
           description: ID da requisição para rastreabilidade
+        nota_id:
+          type: string
+          format: uuid
+          description: Apenas em RECEITA_REJECTION — a nota fica registrada como REJEITADA
+        status:
+          $ref: '#/components/schemas/NotaStatus'
+        erro_codigo:
+          type: string
+          description: Apenas em RECEITA_REJECTION — código de rejeição da Receita (ex. E0310)
+          example: "E0310"
+        erro_descricao:
+          type: string
+          description: Apenas em RECEITA_REJECTION — descrição da rejeição
 
   responses:
     Unauthorized:

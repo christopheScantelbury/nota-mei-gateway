@@ -39,8 +39,38 @@ export default function ErrosPage() {
     {
       code: 'RECEITA_REJECTION',
       http: 422,
-      desc: 'A Receita Federal rejeitou a NFS-e. Contém o código e descrição do erro da Receita.',
-      fix: 'Veja a tabela de erros da Receita em docs/receita-erros.md. Corrija os dados e reenvie.',
+      desc: 'A Receita Federal rejeitou a NFS-e. O corpo traz nota_id, status "REJEITADA", erro_codigo e erro_descricao.',
+      fix: 'Corrija os dados conforme erro_descricao e reenvie com uma NOVA Idempotency-Key (a antiga devolve a nota rejeitada).',
+    },
+    {
+      code: 'INVALID_NBS',
+      http: 422,
+      desc: 'Código NBS inválido ou não encontrado.',
+      fix: 'Confira o código em servico.codigo_nbs na tabela NBS da Receita.',
+    },
+    {
+      code: 'CERTIFICADO_AUSENTE',
+      http: 422,
+      desc: 'A empresa emissora ainda não enviou o certificado A1.',
+      fix: 'Faça o upload do certificado (.pfx) no painel em Configurações → Certificado A1.',
+    },
+    {
+      code: 'INSCRICAO_MUNICIPAL_OBRIGATORIA',
+      http: 422,
+      desc: 'ME/EPP sem Inscrição Municipal cadastrada — a Receita rejeitaria a nota.',
+      fix: 'Cadastre a Inscrição Municipal no painel em Configurações → Dados.',
+    },
+    {
+      code: 'MUNICIPIO_NAO_HABILITADO',
+      http: 422,
+      desc: 'O município da empresa emissora ainda não aderiu à NFS-e Nacional.',
+      fix: 'Consulte a lista de municípios ativos em gov.br/nfse.',
+    },
+    {
+      code: 'IDEMPOTENCY_KEY_CONFLICT',
+      http: 409,
+      desc: 'A Idempotency-Key enviada já está em uso por outra requisição.',
+      fix: 'Use uma chave única por nota (ex.: o ID do pedido no seu sistema ou um UUID).',
     },
     {
       code: 'INTERNAL_ERROR',

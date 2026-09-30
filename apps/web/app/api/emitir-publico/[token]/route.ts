@@ -150,10 +150,15 @@ export async function POST(_req: NextRequest, { params }: { params: { token: str
 
   const goBody = await goRes.json().catch(() => ({}))
 
-  if (!goRes.ok) {
+  // REJEITADA não é sucesso (a API devolve 422 RECEITA_REJECTION; o check de
+  // status cobre respostas antigas em 202) — não conta uso do link.
+  if (!goRes.ok || goBody.status === 'REJEITADA') {
     return NextResponse.json(
-      { error: goBody.error ?? 'EMISSION_FAILED', message: goBody.message ?? 'Erro ao emitir a nota' },
-      { status: goRes.status },
+      {
+        error:   goBody.error ?? (goBody.status === 'REJEITADA' ? 'RECEITA_REJECTION' : 'EMISSION_FAILED'),
+        message: goBody.message ?? goBody.erro_descricao ?? 'Erro ao emitir a nota',
+      },
+      { status: goRes.ok ? 422 : goRes.status },
     )
   }
 
