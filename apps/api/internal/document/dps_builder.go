@@ -301,6 +301,17 @@ func buildDPSTomador(t TomadorRequest) *InfoPessoa {
 		XNome: strings.TrimSpace(t.RazaoSocial),
 		Email: strings.TrimSpace(t.Email),
 	}
+	// <end> só com endereço completo — o handler já validou os obrigatórios
+	// (validateEmissaoRequest); cMun/CEP soltos sem logradouro violam o XSD.
+	if e := t.ResolvedEndereco(); e != nil {
+		p.End = &DPSEndereco{
+			EndNac:  &EnderNac{CMun: e.MunicipioIBGE, CEP: e.CEP},
+			XLgr:    e.Logradouro,
+			Nro:     e.Numero,
+			XCpl:    e.Complemento,
+			XBairro: e.Bairro,
+		}
+	}
 	switch t.Tipo {
 	case "PJ":
 		p.CNPJ = doc

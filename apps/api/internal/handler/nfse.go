@@ -310,6 +310,34 @@ func (h *NFSeHandler) emitirNotaMEI(c *fiber.Ctx, req document.EmissaoRequest, m
 func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, empresa *auth.Empresa) error {
 	ctx := c.Context()
 
+	// ── Idempotência ──────────────────────────────────────────────────────
+	// Header tem precedência; o corpo (idempotency_key) é o que o dashboard
+	// manda. Chave já usada pela empresa → devolve a nota existente sem
+	// consumir cota nem número de DPS. Antes a chave só era gravada: o retry
+	// batia na UNIQUE e voltava 500.
+	idemKey := strings.TrimSpace(c.Get("Idempotency-Key"))
+	if idemKey == "" {
+		idemKey = strings.TrimSpace(req.IdempotencyKey)
+	}
+	if len(idemKey) > 255 {
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error":      "VALIDATION_ERROR",
+			"message":    "campos inválidos",
+			"fields":     []fiber.Map{{"field": "Idempotency-Key", "message": "máximo de 255 caracteres"}},
+			"request_id": c.Locals("request_id"),
+		})
+	}
+	if idemKey != "" {
+		existing, err := h.notaRepo.FindByIdempotencyKey(ctx, empresa.ID, idemKey)
+		if err == nil {
+			return replayNota(c, *existing)
+		}
+		if !isNotFound(err) {
+			log.Ctx(ctx).Error().Err(err).Str("empresa_id", empresa.ID.String()).Msg("idempotency lookup failed")
+			return internalError(c, "erro ao verificar Idempotency-Key")
+		}
+	}
+
 	// ── Pre-flight: certificado A1 obrigatório ───────────────────────────
 	// Sem CertSecretARN não dá pra assinar a DPS. O erro acontecia depois
 	// na etapa de assinatura (passo 5), mas a mensagem ficava genérica
@@ -491,11 +519,25 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 		TomadorNome:      req.Tomador.RazaoSocial,
 		ValorServico:     req.Servico.Valor,
 		Competencia:      req.Competencia,
-		IdempotencyKey:   c.Get("Idempotency-Key"),
+		IdempotencyKey:   idemKey,
 		RegimeTributario: empresa.RegimeTributario,
 		ISSRetido:        issRetidoPtr(empresa.RegimeTributario, dpsResult.ISSRetido),
 	})
 	if err != nil {
+		var conflict nfse.ErrIdempotencyConflict
+		if errors.As(err, &conflict) {
+			// Retry concorrente com a mesma chave: o outro request gravou primeiro.
+			if existing, findErr := h.notaRepo.FindByIdempotencyKey(ctx, empresa.ID, idemKey); findErr == nil {
+				return replayNota(c, *existing)
+			}
+			// Chave usada por outra empresa (índice ainda global).
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+				"error":      "IDEMPOTENCY_KEY_CONFLICT",
+				"message":    "esta Idempotency-Key já está em uso — gere uma chave única (ex.: UUID)",
+				"request_id": c.Locals("request_id"),
+			})
+		}
+		log.Ctx(ctx).Error().Err(err).Str("empresa_id", empresa.ID.String()).Msg("falha ao salvar nota")
 		return internalError(c, "erro ao salvar nota")
 	}
 
@@ -586,12 +628,18 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 			Bool("trial_counted", isTrial).
 			Msg("nota rejeitada pela SEFIN Nacional")
 		h.publishEvent(ctx, nota, webhook.EventRejeitada, "", "", codigo, descricao)
-		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+		// 422 RECEITA_REJECTION (contrato documentado): antes voltava 202, e
+		// integradores que olham só o HTTP status tratavam rejeição como sucesso.
+		// nota_id segue no corpo — a nota existe (REJEITADA) e pode ser consultada.
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error":             "RECEITA_REJECTION",
+			"message":           descricao,
 			"nota_id":           nota.ID,
 			"status":            "REJEITADA",
 			"regime_tributario": empresa.RegimeTributario,
 			"erro_codigo":       codigo,
 			"erro_descricao":    descricao,
+			"request_id":        c.Locals("request_id"),
 		})
 	}
 
@@ -1199,6 +1247,9 @@ func (h *NFSeHandler) SubstituirNota(c *fiber.Ctx) error {
 		_, _ = h.notaRepo.Rejeitar(ctx, nova.ID, codigo, descricao)
 		h.publishEvent(ctx, nova, webhook.EventRejeitada, "", "", codigo, descricao)
 		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error":              "RECEITA_REJECTION",
+			"message":            descricao,
+			"request_id":         c.Locals("request_id"),
 			"nota_original_id":   original.ID,
 			"nota_substituta_id": nova.ID,
 			"status":             "REJEITADA",
@@ -1834,6 +1885,25 @@ func validateEmissaoRequest(r document.EmissaoRequest) []fiber.Map {
 		r.Tomador.TipoOrgao != "ORGAO_PUBLICO" {
 		errs = append(errs, fiber.Map{"field": "tomador.tipo_orgao", "message": "deve ser PRIVADO ou ORGAO_PUBLICO"})
 	}
+	// Endereço do tomador: opcional, mas se vier tem que estar completo — o
+	// XSD (TCEndereco) exige logradouro, número e bairro junto de cMun+CEP.
+	if e := r.Tomador.ResolvedEndereco(); e != nil {
+		if e.Logradouro == "" {
+			errs = append(errs, fiber.Map{"field": "tomador.endereco.logradouro", "message": "obrigatório quando endereco é informado"})
+		}
+		if e.Numero == "" {
+			errs = append(errs, fiber.Map{"field": "tomador.endereco.numero", "message": "obrigatório quando endereco é informado (use \"S/N\" se não houver)"})
+		}
+		if e.Bairro == "" {
+			errs = append(errs, fiber.Map{"field": "tomador.endereco.bairro", "message": "obrigatório quando endereco é informado"})
+		}
+		if len(e.CEP) != 8 {
+			errs = append(errs, fiber.Map{"field": "tomador.endereco.cep", "message": "obrigatório — 8 dígitos"})
+		}
+		if len(e.MunicipioIBGE) != 7 {
+			errs = append(errs, fiber.Map{"field": "tomador.endereco.municipio_ibge", "message": "obrigatório — código IBGE de 7 dígitos"})
+		}
+	}
 	return errs
 }
 
@@ -1868,6 +1938,28 @@ func notaToMap(n nfse.Nota) fiber.Map {
 		m["emitida_em"] = n.EmitidaEm
 	}
 	return m
+}
+
+// replayNota answers a request whose Idempotency-Key was already used by the
+// empresa: returns the existing nota's current state instead of emitting again.
+// REJEITADA keeps the 422 RECEITA_REJECTION contract so a naive retry of a bad
+// payload doesn't look like success.
+func replayNota(c *fiber.Ctx, n nfse.Nota) error {
+	c.Set("Idempotent-Replayed", "true")
+	body := notaToMap(n)
+	body["nota_id"] = n.ID
+	body["idempotent_replay"] = true
+	if n.Status == "AUTORIZADA" && n.NumeroNFSe != nil {
+		body["chave_acesso"] = *n.NumeroNFSe
+	}
+	if n.Status == "REJEITADA" {
+		body["error"] = "RECEITA_REJECTION"
+		body["message"] = derefStr(n.ErroDescricao) +
+			" (resposta repetida: esta Idempotency-Key já foi usada — gere uma nova chave para reenviar com os dados corrigidos)"
+		body["request_id"] = c.Locals("request_id")
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(body)
+	}
+	return c.Status(fiber.StatusOK).JSON(body)
 }
 
 func derefStr(s *string) string {

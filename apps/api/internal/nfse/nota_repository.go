@@ -3,11 +3,13 @@ package nfse
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/supabase"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // Nota represents a row in the notas_fiscais table.
@@ -63,6 +65,13 @@ type Nota struct {
 type ErrNotaNotFound struct{}
 
 func (ErrNotaNotFound) Error() string { return "nota fiscal not found" }
+
+// ErrIdempotencyConflict is returned by Create when the Idempotency-Key was
+// already used (concurrent retry, or — until the per-empresa index migration —
+// a key collision with another empresa).
+type ErrIdempotencyConflict struct{}
+
+func (ErrIdempotencyConflict) Error() string { return "idempotency key already used" }
 
 // NotaRepository handles all DB operations for the notas_fiscais table.
 type NotaRepository struct {
@@ -168,6 +177,11 @@ func (r *NotaRepository) Create(ctx context.Context, in CreateNotaInput) (*Nota,
 		regimeParam, in.ISSRetido,
 	).Scan(&id)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" &&
+			strings.Contains(pgErr.ConstraintName, "idempotency") {
+			return nil, ErrIdempotencyConflict{}
+		}
 		return nil, err
 	}
 
@@ -194,6 +208,26 @@ func (r *NotaRepository) FindByID(ctx context.Context, notaID, meiID uuid.UUID) 
 		FROM notas_fiscais
 		WHERE id = $1 AND mei_id = $2
 	`, notaID, meiID)
+	return scanNota(row)
+}
+
+// FindByIdempotencyKey loads the nota a given empresa already created with this
+// Idempotency-Key. Returns ErrNotaNotFound when the key is unused by the empresa.
+func (r *NotaRepository) FindByIdempotencyKey(ctx context.Context, empresaID uuid.UUID, key string) (*Nota, error) {
+	row := r.db.Pool().QueryRow(ctx, `
+		SELECT id, mei_id, numero_rps, status,
+		       protocolo_receita, numero_nfse, codigo_verificacao,
+		       xml_enviado, xml_retorno, pdf_path, xml_s3_key, pdf_s3_key,
+		       webhook_url, webhook_entregue, webhook_tentativas,
+		       idempotency_key, tomador_doc, tomador_nome,
+		       valor_servico, competencia,
+		       erro_codigo, erro_descricao,
+		       cancelada_em, emitida_em,
+		       created_at, updated_at, substituida_por, regime_tributario, iss_retido,
+		       tomador_tipo, motivo_cancelamento
+		FROM notas_fiscais
+		WHERE empresa_id = $1 AND idempotency_key = $2
+	`, empresaID, key)
 	return scanNota(row)
 }
 

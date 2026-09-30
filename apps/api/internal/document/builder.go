@@ -22,6 +22,9 @@ type EmissaoRequest struct {
 	// When Tomador.TipoOrgao == "ORGAO_PUBLICO", this is forced to true regardless.
 	IssRetido  *bool  `json:"iss_retido,omitempty"`
 	WebhookURL string `json:"webhook_url,omitempty"`
+	// IdempotencyKey (opcional) — alternativa ao header Idempotency-Key, que
+	// tem precedência. O dashboard manda no corpo.
+	IdempotencyKey string `json:"idempotency_key,omitempty"`
 	// Subst is populated by the substituição flow — declares this DPS replaces
 	// a previously authorised NFS-e. NOT meant to be set via the public POST
 	// /v1/nfse body; the SubstituirNota handler injects it server-side.
@@ -66,11 +69,49 @@ type TomadorRequest struct {
 	Documento     string `json:"documento"` // CPF or CNPJ digits only
 	RazaoSocial   string `json:"razao_social"`
 	Email         string `json:"email,omitempty"`
+	// MunicipioIBGE / CEP só entram na DPS junto com Endereco (o XSD exige
+	// logradouro+número+bairro quando <end> é informado). Servem de fallback
+	// pros campos equivalentes de Endereco.
 	MunicipioIBGE string `json:"municipio_ibge,omitempty"`
 	CEP           string `json:"cep,omitempty"`
+	// Endereco (opcional) — endereço nacional do tomador (TCEndereco/endNac).
+	// Se informado, logradouro, numero, bairro, cep e municipio_ibge são obrigatórios.
+	Endereco *EnderecoRequest `json:"endereco,omitempty"`
 	// TipoOrgao identifies the tomador's nature (ME/EPP DPS only).
 	// "PRIVADO" (default) or "ORGAO_PUBLICO" (forces ISS retention, Art. 6 LC 116/2003).
 	TipoOrgao string `json:"tipo_orgao,omitempty"` // PRIVADO | ORGAO_PUBLICO
+}
+
+// EnderecoRequest is the tomador's Brazilian address.
+type EnderecoRequest struct {
+	Logradouro    string `json:"logradouro"`
+	Numero        string `json:"numero"`
+	Complemento   string `json:"complemento,omitempty"`
+	Bairro        string `json:"bairro"`
+	CEP           string `json:"cep"`            // 8 dígitos; fallback: tomador.cep
+	MunicipioIBGE string `json:"municipio_ibge"` // 7 dígitos; fallback: tomador.municipio_ibge
+}
+
+// ResolvedEndereco returns the address with CEP/município falling back to the flat
+// tomador fields and digits-only normalisation applied. Nil when no endereco.
+func (t TomadorRequest) ResolvedEndereco() *EnderecoRequest {
+	if t.Endereco == nil {
+		return nil
+	}
+	e := *t.Endereco
+	e.Logradouro = strings.TrimSpace(e.Logradouro)
+	e.Numero = strings.TrimSpace(e.Numero)
+	e.Complemento = strings.TrimSpace(e.Complemento)
+	e.Bairro = strings.TrimSpace(e.Bairro)
+	if strings.TrimSpace(e.CEP) == "" {
+		e.CEP = t.CEP
+	}
+	if strings.TrimSpace(e.MunicipioIBGE) == "" {
+		e.MunicipioIBGE = t.MunicipioIBGE
+	}
+	e.CEP = stripNonDigits(e.CEP)
+	e.MunicipioIBGE = stripNonDigits(e.MunicipioIBGE)
+	return &e
 }
 
 // EmitRequest carries optional overrides for the emitente block in a DPS.
