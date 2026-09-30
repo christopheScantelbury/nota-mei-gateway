@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       Nota MEI Gateway
- * Plugin URI:        https://notameigateway.com.br
+ * Plugin URI:        https://emitirnotafacil.com.br
  * Description:       Emissão automática de NFS-e para MEI via Nota MEI Gateway. Configure em WooCommerce → Nota MEI.
  * Version:           1.0.0
  * Author:            ScantelburyDevs
@@ -20,7 +20,7 @@ defined( 'ABSPATH' ) || exit;
 define( 'NOTAMEI_VERSION', '1.0.0' );
 define( 'NOTAMEI_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'NOTAMEI_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
-define( 'NOTAMEI_API_DEFAULT_URL', 'https://api.notameigateway.com.br' );
+define( 'NOTAMEI_API_DEFAULT_URL', 'https://api.emitirnotafacil.com.br' );
 
 add_action( 'plugins_loaded', 'notamei_gateway_init' );
 

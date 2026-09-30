@@ -151,7 +151,7 @@ function atualizarStatusPlanilha(sheet, apiKey, fetchFn) {
 
     if (detail.status === STATUS.AUTORIZADA) {
       sheet.getRange(rowIndex, COL.NUMERO_NFSE).setValue(detail.numero_nfse || '');
-      var pdfUrl = 'https://api.notameigateway.com.br/v1/nfse/' + notaId + '/pdf';
+      var pdfUrl = 'https://api.emitirnotafacil.com.br/v1/nfse/' + notaId + '/pdf';
       sheet.getRange(rowIndex, COL.PDF_URL).setFormula('=HYPERLINK("' + pdfUrl + '","PDF")');
     }
   });

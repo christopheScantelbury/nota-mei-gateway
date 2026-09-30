@@ -4,7 +4,7 @@ import responses as resp_mock
 from notamei.client import NotaMEI
 from notamei._errors import NotaMEIError
 
-BASE = "https://api.notameigateway.com.br"
+BASE = "https://api.emitirnotafacil.com.br"
 
 SERVICO = {"codigo_nbs": "01.01.01.10", "discriminacao": "Dev de software", "valor": 3500.0, "aliquota_iss": 2.0}
 TOMADOR_PJ = {"cnpj": "12345678000190", "razao_social": "Empresa LTDA"}

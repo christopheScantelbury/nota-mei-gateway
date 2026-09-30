@@ -1,6 +1,6 @@
 'use strict';
 
-const BASE_URL = 'https://api.notameigateway.com.br';
+const BASE_URL = 'https://api.emitirnotafacil.com.br';
 
 const testAuth = async (z, bundle) => {
   const response = await z.request({
@@ -25,7 +25,7 @@ module.exports = {
       type: 'password',
       helpText:
         'Sua chave sk_live_... (produção) ou sk_test_... (sandbox). ' +
-        'Disponível em notameigateway.com.br → API Keys.',
+        'Disponível em emitirnotafacil.com.br → API Keys.',
     },
   ],
   test: testAuth,

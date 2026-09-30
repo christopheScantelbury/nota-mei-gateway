@@ -40,7 +40,7 @@ test('envia body correto para tomador PJ', async () => {
 
   const call = mockZ.request.mock.calls[0][0];
   expect(call.method).toBe('POST');
-  expect(call.url).toBe('https://api.notameigateway.com.br/v1/nfse');
+  expect(call.url).toBe('https://api.emitirnotafacil.com.br/v1/nfse');
   expect(call.body.tomador.tipo).toBe('PJ');
   expect(call.body.tomador.documento).toBe('12345678000190');
   expect(call.body.tomador.razao_social).toBe('Empresa LTDA');

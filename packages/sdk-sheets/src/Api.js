@@ -1,6 +1,6 @@
 'use strict';
 
-var NOTAMEI_BASE_URL = 'https://api.notameigateway.com.br';
+var NOTAMEI_BASE_URL = 'https://api.emitirnotafacil.com.br';
 
 /**
  * Low-level HTTP request against the Nota MEI API.

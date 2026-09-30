@@ -3,7 +3,7 @@
 const { notameiRequest, notameiEmitir, notameiConsultar } = require('../src/Api');
 
 const API_KEY = 'sk_test_abc123';
-const BASE_URL = 'https://api.notameigateway.com.br';
+const BASE_URL = 'https://api.emitirnotafacil.com.br';
 
 function makeFetch(status, body) {
   return jest.fn().mockReturnValue({

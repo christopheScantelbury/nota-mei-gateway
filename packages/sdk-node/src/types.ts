@@ -163,7 +163,7 @@ export interface ClientOptions {
   /**
    * Base URL da API.
    * Padrão: "https://api.emitirnotafacil.com.br"
-   * Sandbox público: "https://sandbox.emitirnotafacil.com.br"
+   * Sandbox: mesma URL — use a chave sk_test_ do /cadastro/dev ou a pública sk_test_sandbox_demo
    */
   baseUrl?: string
   /** Timeout em ms por requisição (padrão: 30_000) */

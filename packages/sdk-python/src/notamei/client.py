@@ -20,7 +20,7 @@ from ._models import (
 )
 from ._webhook import parse_webhook, verify_signature
 
-DEFAULT_BASE_URL = "https://api.notameigateway.com.br"
+DEFAULT_BASE_URL = "https://api.emitirnotafacil.com.br"
 
 
 def _current_competencia() -> str:

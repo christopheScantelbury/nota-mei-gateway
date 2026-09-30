@@ -1,6 +1,6 @@
 'use strict';
 
-const BASE_URL = 'https://api.notameigateway.com.br';
+const BASE_URL = 'https://api.emitirnotafacil.com.br';
 
 const perform = async (z, bundle) => {
   const response = await z.request({

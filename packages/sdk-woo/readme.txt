@@ -26,7 +26,7 @@ após cada pedido pago ou concluído.
 
 **Pré-requisitos:**
 
-* Uma conta ativa no Nota MEI Gateway (https://notameigateway.com.br)
+* Uma conta ativa no Nota MEI Gateway (https://emitirnotafacil.com.br)
 * Campos de checkout com CPF (_billing_cpf) e/ou CNPJ (_billing_cnpj) nos metadados do pedido
   (compatível com plugins como WooCommerce Extra Checkout Fields for Brazil)
 
