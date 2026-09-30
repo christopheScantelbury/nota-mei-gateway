@@ -28,8 +28,10 @@ export default async function OGImage() {
           style={{
             position: 'absolute',
             inset: 0,
+            // Direção explícita: o parser do Satori (next/og) quebra com
+            // "Missing comma before color stops" em gradiente sem ângulo.
             backgroundImage:
-              'linear-gradient(rgba(30,48,80,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(30,48,80,0.4) 1px, transparent 1px)',
+              'linear-gradient(to bottom, rgba(30,48,80,0.4) 1px, transparent 1px), linear-gradient(to right, rgba(30,48,80,0.4) 1px, transparent 1px)',
             backgroundSize: '40px 40px',
           }}
         />
@@ -80,9 +82,13 @@ export default async function OGImage() {
         </div>
 
         {/* Main heading */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, position: 'relative', zIndex: 1 }}>
+        {/* Satori: todo nó com mais de um filho precisa de display:flex, e
+            zIndex não é suportado (a ordem no DOM já põe o texto por cima). */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, position: 'relative' }}>
           <div
             style={{
+              display: 'flex',
+              gap: 16,
               fontSize: 64,
               fontWeight: 800,
               lineHeight: 1.1,
@@ -91,19 +97,19 @@ export default async function OGImage() {
               maxWidth: 800,
             }}
           >
-            Nota MEI{' '}
+            <span>Nota MEI</span>
             <span
               style={{
-                background: 'linear-gradient(135deg, #00E8FF 0%, #7C6FFF 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
+                backgroundImage: 'linear-gradient(135deg, #00E8FF 0%, #7C6FFF 100%)',
+                backgroundClip: 'text',
+                color: 'transparent',
               }}
             >
               Gateway
             </span>
           </div>
 
-          <div style={{ fontSize: 24, color: '#8AA0B8', maxWidth: 680, lineHeight: 1.5 }}>
+          <div style={{ display: 'flex', fontSize: 24, color: '#8AA0B8', maxWidth: 680, lineHeight: 1.5 }}>
             API REST para emissão automatizada de NFS-e para MEI via Receita Federal Nacional.
           </div>
 
