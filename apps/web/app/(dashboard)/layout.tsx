@@ -170,10 +170,10 @@ export default async function DashboardLayout({
           <Sidebar
             razaoSocial={nome}
             isAdmin={isAdmin}
-            // Reaproveita o tier 'EPP' do filtro de NAV pra liberar
-            // API Keys + Webhooks. Quando o dev cadastrar uma empresa,
-            // o tipo real toma o lugar deste fallback.
-            empresaTipo="EPP"
+            // Menu/logo de desenvolvedor (antes: empresaTipo="EPP", que
+            // mostrava Notas/Clientes/Faturamento de empresa). Quando o dev
+            // cadastrar uma empresa, o tipo real toma o lugar deste fallback.
+            isDevAccount
             tipoUsuario="gateway"
             notificationBell={<NotificationBell />}
           />

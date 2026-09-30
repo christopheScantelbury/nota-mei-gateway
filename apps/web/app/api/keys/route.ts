@@ -27,15 +27,33 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     .limit(1)
     .maybeSingle()
 
+  let body: { label?: string; env?: 'live' | 'test' }
+  try { body = await request.json() } catch { body = {} }
+
+  // Conta de desenvolvedor (/cadastro/dev): sem empresa. Só pode ter chaves
+  // sk_test_ (sandbox), vinculadas ao user_id — RLS api_keys_insert_own_dev.
+  // Antes caía no 404 "Empresa não encontrada" e o dev não conseguia criar chave.
+  if (!empresa && !empresaErr && session.user.user_metadata?.is_dev_account === true) {
+    const rawKey = `sk_test_${randomHex(32)}`
+    const { error } = await supabase.from('api_keys').insert({
+      user_id:    session.user.id,
+      empresa_id: null,
+      key_hash:   await sha256Hex(rawKey),
+      key_prefix: 'sk_test_',
+      label:      body.label?.trim() || null,
+    })
+    if (error) {
+      return NextResponse.json({ error: 'INTERNAL_ERROR', message: error.message }, { status: 500 })
+    }
+    return NextResponse.json({ key: rawKey, prefix: 'sk_test_' }, { status: 201 })
+  }
+
   if (empresaErr || !empresa) {
     return NextResponse.json(
       { error: 'NOT_FOUND', message: 'Empresa não encontrada para este usuário.' },
       { status: 404 },
     )
   }
-
-  let body: { label?: string; env?: 'live' | 'test' }
-  try { body = await request.json() } catch { body = {} }
 
   const env    = body.env === 'test' ? 'test' : 'live'
   const rawHex = randomHex(32)
@@ -68,7 +86,7 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
   const id = request.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'VALIDATION_ERROR', message: 'id obrigatório' }, { status: 422 })
 
-  // RLS policy (empresa_own_api_keys) guarantees the user can only touch their own keys
+  // RLS (empresa_own_api_keys / api_keys_update_own_dev) garante que o user só revoga as próprias chaves
   const { error } = await supabase
     .from('api_keys')
     .update({ revoked_at: new Date().toISOString() })

@@ -32,6 +32,11 @@ export default async function APIKeysPage() {
   ])
   if (meiRow || empresaRow?.tipo === 'MEI') redirect('/home')
 
+  // Conta de desenvolvedor (sem empresa): chaves sandbox são gratuitas — sem
+  // PlanGate. Antes caía em "Trial" (sem emissoes_mensais) e o dev via um
+  // paywall no lugar da própria chave sk_test_.
+  const isDevAccount = !empresaRow && user.user_metadata?.is_dev_account === true
+
   // RLS enforces isolation for both MEI and ME/EPP — no explicit user filter needed
   const { data: keys } = await supabase
     .from('api_keys')
@@ -49,6 +54,21 @@ export default async function APIKeysPage() {
 
   const planName = usage?.planos?.nome ?? 'Trial'
   const maxKeys  = planName === 'Trial' ? 2 : planName === 'Starter' ? 5 : 10
+
+  if (isDevAccount) {
+    return (
+      <div className="p-4 sm:p-8 max-w-4xl">
+        <div className="mb-8">
+          <h1 className="font-display text-3xl font-extrabold text-text-1">API Keys</h1>
+          <p className="text-text-2 mt-1 text-sm">
+            Chaves de sandbox para integrar e testar a API — as notas são simuladas, nada vai para a Receita.
+            Veja o <a href="/docs/quickstart" className="text-brand-cyan hover:underline">Quickstart</a>.
+          </p>
+        </div>
+        <APIKeysManager initialKeys={keys ?? []} planName="Sandbox (desenvolvedor)" maxKeys={5} devMode />
+      </div>
+    )
+  }
 
   return (
     <PlanGate

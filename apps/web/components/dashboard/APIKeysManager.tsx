@@ -10,6 +10,8 @@ interface Props {
   initialKeys: APIKey[]
   planName: string
   maxKeys: number
+  /** Conta de desenvolvedor (/cadastro/dev, sem empresa): só chaves sk_test_ (sandbox). */
+  devMode?: boolean
 }
 
 function formatDate(iso: string) {
@@ -67,13 +69,15 @@ function CreateModal({
   onConfirm,
   onCancel,
   loading,
+  devMode = false,
 }: {
   onConfirm: (label: string, env: Env) => void
   onCancel: () => void
   loading: boolean
+  devMode?: boolean
 }) {
   const [label, setLabel] = useState('')
-  const [env, setEnv]     = useState<Env>('live')
+  const [env, setEnv]     = useState<Env>(devMode ? 'test' : 'live')
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -84,7 +88,7 @@ function CreateModal({
           <div>
             <label className="text-sm font-medium text-text-1 block mb-1">Ambiente</label>
             <div className="flex gap-2">
-              {(['live', 'test'] as Env[]).map(e => (
+              {((devMode ? ['test'] : ['live', 'test']) as Env[]).map(e => (
                 <button
                   key={e}
                   onClick={() => setEnv(e)}
@@ -106,6 +110,12 @@ function CreateModal({
                 ? 'Chave sk_live_ — emite NFS-e reais na Receita Federal.'
                 : 'Chave sk_test_ — somente ambiente de sandbox, sem emissões reais.'}
             </p>
+            {devMode && (
+              <p className="text-xs text-text-2 mt-1">
+                Chaves de produção (sk_live_) ficam disponíveis depois que você{' '}
+                <a href="/cadastro/me" className="text-brand-cyan hover:underline">cadastrar uma empresa emissora</a>.
+              </p>
+            )}
           </div>
 
           <div>
@@ -239,7 +249,7 @@ function KeySection({
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export default function APIKeysManager({ initialKeys, planName, maxKeys }: Props) {
+export default function APIKeysManager({ initialKeys, planName, maxKeys, devMode = false }: Props) {
   const [keys, setKeys]           = useState(initialKeys)
   const [showCreate, setShowCreate] = useState(false)
   const [creating, setCreating]   = useState(false)
@@ -378,7 +388,7 @@ export default function APIKeysManager({ initialKeys, planName, maxKeys }: Props
       )}
 
       {/* Sections */}
-      <KeySection env="live" keys={liveKeys} onRevoke={setRevoking} />
+      {!devMode && <KeySection env="live" keys={liveKeys} onRevoke={setRevoking} />}
       <KeySection env="test" keys={testKeys} onRevoke={setRevoking} />
 
       {/* Create button */}
@@ -392,8 +402,14 @@ export default function APIKeysManager({ initialKeys, planName, maxKeys }: Props
         </Button>
         {activeCount >= maxKeys && (
           <p className="text-xs text-text-2 mt-2">
-            Limite do plano atingido.{' '}
-            <a href="/billing" className="text-brand-cyan hover:underline">Fazer upgrade →</a>
+            {devMode ? (
+              <>Limite de chaves sandbox atingido — revogue uma chave antiga para criar outra.</>
+            ) : (
+              <>
+                Limite do plano atingido.{' '}
+                <a href="/billing" className="text-brand-cyan hover:underline">Fazer upgrade →</a>
+              </>
+            )}
           </p>
         )}
       </div>
@@ -404,6 +420,7 @@ export default function APIKeysManager({ initialKeys, planName, maxKeys }: Props
           onConfirm={handleCreate}
           onCancel={() => setShowCreate(false)}
           loading={creating}
+          devMode={devMode}
         />
       )}
       {revoking && (

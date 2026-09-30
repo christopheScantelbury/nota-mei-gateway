@@ -114,6 +114,10 @@ export default async function DashboardHome() {
     profileData = meiProfile.data ?? null
   }
 
+  // Conta de desenvolvedor (/cadastro/dev): sem empresa nem MEI. O fallback
+  // abaixo (tipo ?? 'MEI') mostrava o painel de MEI pra ela.
+  if (!profileData && user.user_metadata?.is_dev_account === true) redirect('/api-keys')
+
   // Users in the `meis` table (legacy) or with tipo='MEI' are end-users, not API consumers
   const empresaTipo: 'MEI' | 'ME' | 'EPP' =
     (empresaProfile.data?.tipo as 'MEI' | 'ME' | 'EPP') ?? 'MEI'

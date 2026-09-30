@@ -38,6 +38,16 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/configuracoes', label: 'Minha empresa',         icon: '⚙️', badge: null,       tipos: 'all' },
 ]
 
+// Conta de desenvolvedor (/cadastro/dev, sem empresa): menu próprio. Antes
+// ela recebia empresaTipo="EPP" e via Notas/Clientes/Faturamento de empresa.
+const DEV_NAV_ITEMS: NavItem[] = [
+  { href: '/api-keys',          label: 'Chaves de API (sandbox)', icon: '🔑', badge: null, tipos: 'all' },
+  { href: '/sandbox',           label: 'Sandbox interativo',      icon: '⚡', badge: null, tipos: 'all' },
+  { href: '/docs/quickstart',   label: 'Quickstart',              icon: '🚀', badge: null, tipos: 'all' },
+  { href: '/docs',              label: 'Documentação da API',     icon: '📚', badge: null, tipos: 'all' },
+  { href: '/cadastro/me',       label: 'Cadastrar empresa (produção)', icon: '🏢', badge: null, tipos: 'all' },
+]
+
 function getVisibleItems(empresaTipo: EmpresaTipo): NavItem[] {
   // Decisão de UX 2026-06-05: trial vê TODOS os itens (não esconde
   // features premium). Itens que o tier do user não acessa ficam
@@ -66,21 +76,23 @@ const ADMIN_ITEM = { href: '/admin', label: 'Painel Admin', icon: '🛡️' }
 function SidebarLogo({
   tipoUsuario,
   empresaTipo,
+  isDevAccount = false,
   onClick,
 }: {
   tipoUsuario?: 'mei' | 'gateway'
   empresaTipo?: EmpresaTipo
+  isDevAccount?: boolean
   onClick?: () => void
 }) {
-  const isMei = empresaTipo === 'MEI' || tipoUsuario === 'mei'
-  const lightSrc = isMei ? '/brand/notafacil-mei.svg' : '/brand/notafacil-empresa.svg'
-  const darkSrc  = isMei ? '/brand/notafacil-mei.svg' : '/brand/notafacil-empresa.svg'
-  const alt      = isMei ? 'NotaFácil MEI' : 'NotaFácil Empresa'
-  const width    = isMei ? 170 : 200
+  const isMei = !isDevAccount && (empresaTipo === 'MEI' || tipoUsuario === 'mei')
+  const lightSrc = isDevAccount ? '/brand/notafacil-api.svg' : isMei ? '/brand/notafacil-mei.svg' : '/brand/notafacil-empresa.svg'
+  const darkSrc  = isDevAccount ? '/brand/notafacil-api-dark.svg' : isMei ? '/brand/notafacil-mei.svg' : '/brand/notafacil-empresa.svg'
+  const alt      = isDevAccount ? 'NotaFácil API' : isMei ? 'NotaFácil MEI' : 'NotaFácil Empresa'
+  const width    = isDevAccount ? 195 : isMei ? 170 : 200
 
   return (
     <div className="px-5 py-5 border-b border-navy-600">
-      <Link href="/home" className="block" onClick={onClick}>
+      <Link href={isDevAccount ? '/api-keys' : '/home'} className="block" onClick={onClick}>
         <Image
           src={lightSrc}
           alt={alt}
@@ -116,6 +128,7 @@ function NavContent({
   todasEmpresas,
   onNavClick,
   notificationBell,
+  isDevAccount = false,
 }: {
   razaoSocial: string
   isAdmin: boolean
@@ -126,6 +139,7 @@ function NavContent({
   todasEmpresas?: SwitcherEmpresa[]
   onNavClick?: () => void
   notificationBell?: React.ReactNode
+  isDevAccount?: boolean
 }) {
   const pathname = usePathname()
 
@@ -133,12 +147,12 @@ function NavContent({
   const effectiveTipo: EmpresaTipo = empresaTipo
     ?? (tipoUsuario === 'mei' ? 'MEI' : 'ME')
 
-  const visibleItems = getVisibleItems(effectiveTipo)
+  const visibleItems = isDevAccount ? DEV_NAV_ITEMS : getVisibleItems(effectiveTipo)
 
   return (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <SidebarLogo tipoUsuario={tipoUsuario} empresaTipo={empresaTipo} onClick={onNavClick} />
+      <SidebarLogo tipoUsuario={tipoUsuario} empresaTipo={empresaTipo} isDevAccount={isDevAccount} onClick={onNavClick} />
 
       {/* Empresa: switcher se múltiplas, texto estático se única */}
       <div className="px-5 pt-3 pb-1">
@@ -153,7 +167,7 @@ function NavContent({
       <nav className="flex-1 py-3 px-3 space-y-1" aria-label="Menu principal">
         {visibleItems.map((item) => {
           const { href, label, icon, badge } = item
-          const accessible = itemAccessible(item, planTier)
+          const accessible = isDevAccount || itemAccessible(item, planTier)
           // Bloqueado: aponta pro billing com o feature alvo no query — ajuda
           // a página de upgrade a contextualizar o CTA.
           const finalHref = accessible ? href : `/billing?upgrade=${encodeURIComponent(label)}`
@@ -248,6 +262,7 @@ export default function Sidebar({
   empresaAtiva,
   todasEmpresas,
   notificationBell,
+  isDevAccount = false,
 }: {
   razaoSocial: string
   isAdmin?: boolean
@@ -258,6 +273,8 @@ export default function Sidebar({
   empresaAtiva?: SwitcherEmpresa
   todasEmpresas?: SwitcherEmpresa[]
   notificationBell?: React.ReactNode
+  /** Conta /cadastro/dev (sem empresa) — menu e logo de desenvolvedor. */
+  isDevAccount?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const pathname = usePathname()
@@ -269,7 +286,7 @@ export default function Sidebar({
     return () => { document.body.style.overflow = '' }
   }, [open])
 
-  const navProps = { razaoSocial, isAdmin, tipoUsuario, empresaTipo, planTier, empresaAtiva, todasEmpresas, notificationBell }
+  const navProps = { razaoSocial, isAdmin, tipoUsuario, empresaTipo, planTier, empresaAtiva, todasEmpresas, notificationBell, isDevAccount }
 
   return (
     <>
@@ -280,12 +297,12 @@ export default function Sidebar({
 
       {/* ── Mobile top bar ── */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between h-14 px-4 bg-navy-700 border-b border-navy-600">
-        <Link href="/home" className="flex items-center">
+        <Link href={isDevAccount ? '/api-keys' : '/home'} className="flex items-center">
           {(() => {
-            const isMei = empresaTipo === 'MEI' || tipoUsuario === 'mei'
-            const src   = isMei ? '/brand/notafacil-mei.svg' : '/brand/notafacil-empresa.svg'
-            const alt   = isMei ? 'NotaFácil MEI' : 'NotaFácil Empresa'
-            const width = isMei ? 145 : 175
+            const isMei = !isDevAccount && (empresaTipo === 'MEI' || tipoUsuario === 'mei')
+            const src   = isDevAccount ? '/brand/notafacil-api.svg' : isMei ? '/brand/notafacil-mei.svg' : '/brand/notafacil-empresa.svg'
+            const alt   = isDevAccount ? 'NotaFácil API' : isMei ? 'NotaFácil MEI' : 'NotaFácil Empresa'
+            const width = isDevAccount ? 165 : isMei ? 145 : 175
             return (
               <Image src={src} alt={alt} width={width} height={28} className="h-7 w-auto" priority />
             )
