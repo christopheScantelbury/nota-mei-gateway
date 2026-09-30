@@ -386,34 +386,38 @@ func main() {
 	app.Post("/v1/webhooks/stripe", stripeWH.Handle)
 
 	// ── Sandbox (public demo, no real Receita Federal calls) ───────────────
-	sbx := sandbox.New()
-	sbxGroup := app.Group("/v1", func(c *fiber.Ctx) error {
-		if !sandbox.IsSandboxKey(c.Get("Authorization")) {
-			return c.Next() // not a sandbox request — fall through to real auth
+	// Aceita a DemoKey pública e as chaves sk_test_ de /cadastro/dev (sem
+	// empresa) — estas antes caíam na auth real e recebiam 401 em tudo.
+	sbx := sandbox.New().WithDevKeyResolver(func(ctx context.Context, rawKey string) bool {
+		ok, err := authRepo.IsDevSandboxKey(ctx, auth.HashKey(rawKey))
+		if err != nil {
+			log.Warn().Err(err).Msg("sandbox: dev key lookup failed")
+			return false
 		}
-		return c.Next()
-	}, sbx.RateLimitMiddleware)
+		return ok
+	})
+	sbxGroup := app.Group("/v1", sbx.RateLimitMiddleware)
 
 	sbxGroup.Post("/nfse", func(c *fiber.Ctx) error {
-		if !sandbox.IsSandboxKey(c.Get("Authorization")) {
+		if !sbx.Matches(c) {
 			return c.Next()
 		}
 		return sbx.EmitirNota(c)
 	})
 	sbxGroup.Get("/nfse", func(c *fiber.Ctx) error {
-		if !sandbox.IsSandboxKey(c.Get("Authorization")) {
+		if !sbx.Matches(c) {
 			return c.Next()
 		}
 		return sbx.ListarNotas(c)
 	})
 	sbxGroup.Get("/nfse/:id", func(c *fiber.Ctx) error {
-		if !sandbox.IsSandboxKey(c.Get("Authorization")) {
+		if !sbx.Matches(c) {
 			return c.Next()
 		}
 		return sbx.ConsultarNota(c)
 	})
 	sbxGroup.Delete("/nfse/:id", func(c *fiber.Ctx) error {
-		if !sandbox.IsSandboxKey(c.Get("Authorization")) {
+		if !sbx.Matches(c) {
 			return c.Next()
 		}
 		return sbx.CancelarNota(c)

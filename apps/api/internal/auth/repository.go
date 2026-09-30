@@ -99,6 +99,25 @@ func (r *Repository) FindByHash(ctx context.Context, hash string) (*APIKey, erro
 	return &k, nil
 }
 
+// IsDevSandboxKey reports whether hash belongs to an active developer sandbox
+// key: sk_test_ created by /cadastro/dev, tied to a user and to no MEI/empresa.
+// Those keys are served by the sandbox (simulated notas), never the real flow.
+func (r *Repository) IsDevSandboxKey(ctx context.Context, hash string) (bool, error) {
+	var exists bool
+	err := r.db.Pool().QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM api_keys
+			WHERE key_hash = $1
+			  AND revoked_at IS NULL
+			  AND key_prefix = 'sk_test_'
+			  AND mei_id IS NULL
+			  AND empresa_id IS NULL
+			  AND user_id IS NOT NULL
+		)
+	`, hash).Scan(&exists)
+	return exists, err
+}
+
 // FindMEI loads a MEI and their active subscription info for the current month.
 func (r *Repository) FindMEI(ctx context.Context, meiID uuid.UUID) (*MEI, error) {
 	row := r.db.Pool().QueryRow(ctx, `

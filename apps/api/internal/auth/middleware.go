@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 )
 
@@ -54,6 +55,18 @@ func Middleware(repo *Repository) fiber.Handler {
 		}
 
 		c.Locals(localsAPIKey, apiKey)
+
+		// Chave de dev (/cadastro/dev): sem MEI nem empresa. Só vale no
+		// sandbox (POST/GET/DELETE /v1/nfse, roteados antes deste middleware);
+		// fora dele, mensagem acionável em vez de "Empresa account not found".
+		if apiKey.MeiID == uuid.Nil && apiKey.EmpresaID == uuid.Nil {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "FORBIDDEN",
+				"message": "chave de sandbox de desenvolvedor: funciona apenas nos endpoints de NFS-e em modo simulado. " +
+					"Para emitir notas reais, cadastre uma empresa emissora no painel e gere uma chave sk_live_.",
+				"request_id": c.Locals("request_id"),
+			})
+		}
 
 		if apiKey.IsME() {
 			// ME/EPP path — resolve via empresas table.

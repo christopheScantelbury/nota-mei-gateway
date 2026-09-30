@@ -3,10 +3,13 @@ package sandbox
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/rand/v2"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,6 +32,7 @@ type fakeNota struct {
 	TomadorDoc        string  `json:"tomador_doc"`
 	Competencia       string  `json:"competencia"`
 	WebhookURL        string  `json:"webhook_url,omitempty"`
+	owner             string  // "demo" ou "dev:<hash>" — isola notas por chave
 	WebhookEntregue   bool    `json:"webhook_entregue"`
 	EmitidaEm         string  `json:"emitida_em"`
 	CreatedAt         string  `json:"created_at"`
@@ -43,18 +47,30 @@ type webhookRecord struct {
 
 // Handler is the sandbox HTTP handler. All NFS-e operations return simulated data.
 type Handler struct {
-	rl    *IPRateLimiter
-	mu    sync.RWMutex
-	notas map[string]*fakeNota // keyed by nota ID
-	hooks []webhookRecord      // last 20 received webhooks
+	rl    *IPRateLimiter // chave demo pública: por IP
+	devRL *IPRateLimiter // chaves de dev (/cadastro/dev): por chave
+	// devKey diz se a chave sk_test_ bruta é de sandbox de desenvolvedor.
+	// nil → só a DemoKey é aceita.
+	devKey func(ctx context.Context, rawKey string) bool
+	mu     sync.RWMutex
+	notas  map[string]*fakeNota // keyed by nota ID
+	hooks  []webhookRecord      // last 20 received webhooks
 }
 
 // New creates a Handler with a rate limit of 20 requests per hour per IP.
 func New() *Handler {
 	return &Handler{
 		rl:    NewIPRateLimiter(20, time.Hour),
+		devRL: NewIPRateLimiter(300, time.Hour),
 		notas: make(map[string]*fakeNota),
 	}
+}
+
+// WithDevKeyResolver habilita as chaves sk_test_ geradas em /cadastro/dev.
+// Antes só a DemoKey caía aqui e as chaves de dev recebiam 401 em tudo.
+func (h *Handler) WithDevKeyResolver(fn func(ctx context.Context, rawKey string) bool) *Handler {
+	h.devKey = fn
+	return h
 }
 
 // IsSandboxKey returns true if the Bearer token is the demo key.
@@ -62,18 +78,55 @@ func IsSandboxKey(token string) bool {
 	return token == "Bearer "+DemoKey
 }
 
-// RateLimitMiddleware rejects IPs that exceed 20 req/hour — sandbox keys only.
+const localsOwner = "sandbox_owner"
+
+// owner resolves which sandbox tenant the request belongs to: "demo" for the
+// public DemoKey, "dev:<sha256 prefix>" for a developer key, "" otherwise.
+// Cached in Locals — the DB lookup runs once per request.
+func (h *Handler) owner(c *fiber.Ctx) string {
+	if v, ok := c.Locals(localsOwner).(string); ok {
+		return v
+	}
+	auth := c.Get("Authorization")
+	owner := ""
+	switch {
+	case auth == "Bearer "+DemoKey:
+		owner = "demo"
+	case h.devKey != nil && strings.HasPrefix(auth, "Bearer sk_test_"):
+		raw := strings.TrimPrefix(auth, "Bearer ")
+		if h.devKey(c.Context(), raw) {
+			sum := sha256.Sum256([]byte(raw))
+			owner = "dev:" + hex.EncodeToString(sum[:8])
+		}
+	}
+	c.Locals(localsOwner, owner)
+	return owner
+}
+
+// Matches reports whether the request must be served by the sandbox.
+func (h *Handler) Matches(c *fiber.Ctx) bool { return h.owner(c) != "" }
+
+// RateLimitMiddleware: DemoKey 20 req/h por IP; chave de dev 300 req/h por chave.
 // Non-sandbox requests pass through without consuming quota.
 func (h *Handler) RateLimitMiddleware(c *fiber.Ctx) error {
-	if !IsSandboxKey(c.Get("Authorization")) {
+	owner := h.owner(c)
+	switch {
+	case owner == "":
 		return c.Next()
-	}
-	ip := c.IP()
-	if !h.rl.Allow(ip) {
-		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
-			"error":   "RATE_LIMIT_EXCEEDED",
-			"message": "Sandbox: limite de 20 requisições/hora por IP atingido.",
-		})
+	case owner == "demo":
+		if !h.rl.Allow(c.IP()) {
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+				"error":   "RATE_LIMIT_EXCEEDED",
+				"message": "Sandbox: limite de 20 requisições/hora por IP atingido.",
+			})
+		}
+	default:
+		if !h.devRL.Allow(owner) {
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+				"error":   "RATE_LIMIT_EXCEEDED",
+				"message": "Sandbox: limite de 300 requisições/hora por chave atingido.",
+			})
+		}
 	}
 	return c.Next()
 }
@@ -139,6 +192,7 @@ func (h *Handler) EmitirNota(c *fiber.Ctx) error {
 		EmitidaEm:         now.Format(time.RFC3339),
 		CreatedAt:         now.Format(time.RFC3339),
 		UpdatedAt:         now.Format(time.RFC3339),
+		owner:             h.owner(c),
 	}
 
 	h.mu.Lock()
@@ -165,7 +219,7 @@ func (h *Handler) ConsultarNota(c *fiber.Ctx) error {
 	nota, ok := h.notas[id]
 	h.mu.RUnlock()
 
-	if !ok {
+	if !ok || nota.owner != h.owner(c) {
 		// Return a plausible fake if not found (e.g. from a previous session).
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error":   "NOT_FOUND",
@@ -177,10 +231,13 @@ func (h *Handler) ConsultarNota(c *fiber.Ctx) error {
 
 // ListarNotas returns the in-memory sandbox notas.
 func (h *Handler) ListarNotas(c *fiber.Ctx) error {
+	owner := h.owner(c)
 	h.mu.RLock()
 	list := make([]*fakeNota, 0, len(h.notas))
 	for _, n := range h.notas {
-		list = append(list, n)
+		if n.owner == owner {
+			list = append(list, n)
+		}
 	}
 	h.mu.RUnlock()
 
@@ -200,7 +257,7 @@ func (h *Handler) CancelarNota(c *fiber.Ctx) error {
 	defer h.mu.Unlock()
 
 	nota, ok := h.notas[id]
-	if !ok {
+	if !ok || nota.owner != h.owner(c) {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error":   "NOT_FOUND",
 			"message": "[SANDBOX] Nota não encontrada",
