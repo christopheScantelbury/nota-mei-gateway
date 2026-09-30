@@ -50,8 +50,23 @@ function parseRow(row, settings) {
     servico: servico,
     tomador: tomador,
     competencia: competencia,
-    idempotencyKey: 'sheets-row-' + documento + '-' + competencia,
+    // Hash do conteúdo: estável em retry da mesma linha, mas duas notas
+    // diferentes pro mesmo tomador/mês (ou uma linha corrigida após
+    // rejeição) geram chaves distintas. Antes era só documento+competência
+    // e a 2ª nota do mês colidia com a 1ª.
+    idempotencyKey: 'sheets-' + documento + '-' + competencia + '-' +
+      fnv1a([documento, competencia, valor.toFixed(2), nbs, discriminacao, tomadorName].join('|')),
   };
+}
+
+/** FNV-1a 32-bit → hex (Apps Script e Jest, sem dependências). */
+function fnv1a(str) {
+  var h = 0x811c9dc5;
+  for (var i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return ('0000000' + h.toString(16)).slice(-8);
 }
 
 /**
@@ -88,14 +103,21 @@ function emitirLinha(sheet, rowIndex, apiKey, settings, fetchFn) {
     fetchFn
   );
 
-  if (result.status === 202) {
-    sheet.getRange(rowIndex, COL.STATUS).setValue(STATUS.PROCESSANDO);
-    sheet.getRange(rowIndex, COL.NOTA_ID).setValue(result.data.nota_id || '');
-    return STATUS.PROCESSANDO;
+  // 201 = autorizada na hora, 202 = processando, 200 = replay idempotente.
+  // Antes só 202 era sucesso: 201 virava "ERRO 201" e o nota_id se perdia.
+  var data = result.data || {};
+  if (result.status >= 200 && result.status < 300 && data.status !== STATUS.REJEITADA) {
+    var status = data.status || STATUS.PROCESSANDO;
+    sheet.getRange(rowIndex, COL.STATUS).setValue(status);
+    sheet.getRange(rowIndex, COL.NOTA_ID).setValue(data.nota_id || '');
+    return status;
   }
 
+  // 422 RECEITA_REJECTION ainda traz nota_id — guarda pra consulta.
+  if (data.nota_id) sheet.getRange(rowIndex, COL.NOTA_ID).setValue(data.nota_id);
   var errMsg = 'ERRO ' + result.status;
-  if (result.data && result.data.message) errMsg += ': ' + result.data.message;
+  var detalhe = data.message || data.erro_descricao;
+  if (detalhe) errMsg += ': ' + detalhe;
   sheet.getRange(rowIndex, COL.STATUS).setValue(errMsg);
   return 'ERRO';
 }

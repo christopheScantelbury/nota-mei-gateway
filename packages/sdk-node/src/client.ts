@@ -28,6 +28,15 @@ interface ApiTomador {
   razao_social: string
   email?: string
   municipio_ibge?: string
+  cep?: string
+  endereco?: {
+    logradouro: string
+    numero: string
+    complemento?: string
+    bairro: string
+    cep?: string
+    municipio_ibge?: string
+  }
 }
 
 interface ApiEmissaoRequest {
@@ -119,6 +128,17 @@ function toApiEmissao(input: EmissaoInput): ApiEmissaoRequest {
       razao_social: input.tomador.razaoSocial,
       ...(input.tomador.email !== undefined && { email: input.tomador.email }),
       ...(input.tomador.municipioIBGE !== undefined && { municipio_ibge: input.tomador.municipioIBGE }),
+      ...(input.tomador.cep !== undefined && { cep: input.tomador.cep }),
+      ...(input.tomador.endereco !== undefined && {
+        endereco: {
+          logradouro: input.tomador.endereco.logradouro,
+          numero: input.tomador.endereco.numero,
+          bairro: input.tomador.endereco.bairro,
+          ...(input.tomador.endereco.complemento !== undefined && { complemento: input.tomador.endereco.complemento }),
+          ...(input.tomador.endereco.cep !== undefined && { cep: input.tomador.endereco.cep }),
+          ...(input.tomador.endereco.municipioIBGE !== undefined && { municipio_ibge: input.tomador.endereco.municipioIBGE }),
+        },
+      }),
     },
     competencia: input.competencia ?? currentCompetencia(),
     ...(input.webhookUrl !== undefined && { webhook_url: input.webhookUrl }),

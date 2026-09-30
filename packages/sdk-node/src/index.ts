@@ -11,6 +11,7 @@ export type {
   WebhookPayload,
   ServicoInput,
   TomadorInput,
+  EnderecoInput,
   EmissaoInput,
   ListarOptions,
   NotaResposta,

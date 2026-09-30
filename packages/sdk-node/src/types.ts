@@ -41,7 +41,23 @@ export interface TomadorInput {
   razaoSocial: string
   /** E-mail para envio da nota (opcional) */
   email?: string
-  /** Código IBGE do município — 7 dígitos (opcional para PJ do mesmo município) */
+  /** Código IBGE do município — 7 dígitos. Só vai pra nota junto com `endereco`. */
+  municipioIBGE?: string
+  /** CEP — 8 dígitos. Só vai pra nota junto com `endereco`. */
+  cep?: string
+  /** Endereço do tomador (opcional). Se informado, todos os campos exceto complemento são obrigatórios. */
+  endereco?: EnderecoInput
+}
+
+export interface EnderecoInput {
+  logradouro: string
+  /** Use "S/N" quando não houver número */
+  numero: string
+  complemento?: string
+  bairro: string
+  /** 8 dígitos — se omitido usa `tomador.cep` */
+  cep?: string
+  /** IBGE 7 dígitos — se omitido usa `tomador.municipioIBGE` */
   municipioIBGE?: string
 }
 

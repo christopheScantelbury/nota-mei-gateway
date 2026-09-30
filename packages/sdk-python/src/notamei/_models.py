@@ -21,12 +21,27 @@ class _TomadorRequired(TypedDict):
     razao_social: str
 
 
+class _EnderecoRequired(TypedDict):
+    logradouro: str
+    numero: str  # "S/N" quando não houver
+    bairro: str
+
+
+class Endereco(_EnderecoRequired, total=False):
+    complemento: str
+    cep: str  # 8 dígitos — se omitido usa tomador["cep"]
+    municipio_ibge: str  # IBGE 7 dígitos — se omitido usa tomador["municipio_ibge"]
+
+
 class Tomador(_TomadorRequired, total=False):
     cnpj: str
     cpf: str
     tipo: TomadorTipo
     email: str
+    # municipio_ibge / cep só vão pra nota junto com `endereco`.
     municipio_ibge: str
+    cep: str
+    endereco: Endereco
 
 
 # ── Response dataclasses ──────────────────────────────────────────────────────

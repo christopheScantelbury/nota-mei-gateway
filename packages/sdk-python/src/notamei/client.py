@@ -51,6 +51,8 @@ def _build_emissao_body(
             **({
                 "municipio_ibge": tomador["municipio_ibge"]
             } if "municipio_ibge" in tomador else {}),
+            **({"cep": tomador["cep"]} if "cep" in tomador else {}),
+            **({"endereco": dict(tomador["endereco"])} if "endereco" in tomador else {}),
         },
         "competencia": competencia or _current_competencia(),
     }

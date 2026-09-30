@@ -9,6 +9,7 @@ from notamei._models import (
     NotaResumo,
     Servico,
     Tomador,
+    Endereco,
     UsageData,
     WebhookPayload,
 )
@@ -23,6 +24,7 @@ __all__ = [
     "parse_webhook",
     "Servico",
     "Tomador",
+    "Endereco",
     "NotaResposta",
     "NotaResumo",
     "NotaDetalhe",

@@ -40,7 +40,15 @@ describe('parseRow', () => {
     expect(result.servico.codigo_nbs).toBe('01.01.01.10');
     expect(result.servico.aliquota_iss).toBe(2.0);
     expect(result.competencia).toBe('2026-04');
-    expect(result.idempotencyKey).toBe('sheets-row-12345678000190-2026-04');
+    expect(result.idempotencyKey).toMatch(/^sheets-12345678000190-2026-04-[0-9a-f]{8}$/);
+  });
+
+  test('idempotency key: estável pra mesma linha, distinta pra outra nota do mesmo tomador/mês', () => {
+    const a1 = parseRow(makeRow(), defaultSettings).idempotencyKey;
+    const a2 = parseRow(makeRow(), defaultSettings).idempotencyKey;
+    const b  = parseRow(makeRow({ [COL.VALOR]: '999' }), defaultSettings).idempotencyKey;
+    expect(a1).toBe(a2);
+    expect(b).not.toBe(a1);
   });
 
   test('parses a valid PF row (CPF = 11 digits)', () => {
@@ -148,6 +156,37 @@ describe('emitirLinha', () => {
     expect(fetch).toHaveBeenCalledTimes(1);
     const statusCall = sheet.getRange.mock.calls.find(c => c[0] === 2 && c[1] === COL.STATUS);
     expect(statusCall).toBeDefined();
+  });
+
+  test('201 (autorizada na hora) grava AUTORIZADA + nota_id — não é erro', () => {
+    const sheet = makeSheet(makeRow());
+    const fetch = jest.fn().mockReturnValue({
+      getResponseCode: () => 201,
+      getContentText: () => JSON.stringify({ nota_id: 'nota-201', status: 'AUTORIZADA' }),
+    });
+
+    const result = emitirLinha(sheet, 2, API_KEY, defaultSettings, fetch);
+
+    expect(result).toBe(STATUS.AUTORIZADA);
+    expect(sheet._cells[`2,${COL.STATUS}`]).toBe('AUTORIZADA');
+    expect(sheet._cells[`2,${COL.NOTA_ID}`]).toBe('nota-201');
+  });
+
+  test('422 RECEITA_REJECTION grava ERRO com descrição e guarda nota_id', () => {
+    const sheet = makeSheet(makeRow());
+    const fetch = jest.fn().mockReturnValue({
+      getResponseCode: () => 422,
+      getContentText: () => JSON.stringify({
+        error: 'RECEITA_REJECTION', message: 'CNPJ do tomador inválido',
+        nota_id: 'nota-422', status: 'REJEITADA',
+      }),
+    });
+
+    const result = emitirLinha(sheet, 2, API_KEY, defaultSettings, fetch);
+
+    expect(result).toBe('ERRO');
+    expect(sheet._cells[`2,${COL.STATUS}`]).toBe('ERRO 422: CNPJ do tomador inválido');
+    expect(sheet._cells[`2,${COL.NOTA_ID}`]).toBe('nota-422');
   });
 
   test('skips row already AUTORIZADA', () => {

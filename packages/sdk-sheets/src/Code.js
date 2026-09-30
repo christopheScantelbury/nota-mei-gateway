@@ -49,7 +49,7 @@ function emitirNotasSelecionadas() {
 
   for (var r = startRow; r <= endRow; r++) {
     var result = emitirLinha(sheet, r, apiKey, settings);
-    if (result === STATUS.PROCESSANDO) emitidas++;
+    if (result === STATUS.PROCESSANDO || result === STATUS.AUTORIZADA) emitidas++;
     else if (String(result).startsWith('ERRO')) erros++;
   }
 
