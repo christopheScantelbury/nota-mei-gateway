@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu } from 'lucide-react'
@@ -93,36 +93,86 @@ function getMobileLinks(pathname: string) {
 
 // Dropdown "Gateway API" com submenu (Overview, Docs, Sandbox, SDKs, Status).
 // Spec: HIST-3.2 + D-08 (mantém hierarquia, sandbox dentro do produto Gateway).
+//
+// Hover: o painel fica colado no botão (pt-2 transparente em vez de mt-2) e o
+// fechamento tem um atraso curto — antes o vão de 8px disparava mouseleave e
+// o menu sumia antes do cursor chegar em "Documentação". Hover só vale pra
+// mouse; em toque (tablet lg+) o clique alterna, senão mouseenter+click se
+// anulavam e o menu nunca abria.
 function GatewayMenu() {
   const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastPointer = useRef<string | null>(null)
+  const pathname = usePathname()
+
+  const cancelClose = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current)
+    closeTimer.current = null
+  }
+  const scheduleClose = () => {
+    cancelClose()
+    closeTimer.current = setTimeout(() => setOpen(false), 150)
+  }
+
+  useEffect(() => { setOpen(false) }, [pathname])
+  useEffect(() => cancelClose, [])
+
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const itemClass = 'block px-4 py-2 text-sm text-text-1 hover:bg-slate-50 dark:hover:bg-navy-700 transition-colors'
+
   return (
     <div
+      ref={rootRef}
       className="relative"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
+      onPointerEnter={e => { if (e.pointerType === 'mouse') { cancelClose(); setOpen(true) } }}
+      onPointerLeave={e => { if (e.pointerType === 'mouse') scheduleClose() }}
     >
       <button
         type="button"
         aria-expanded={open}
         aria-haspopup="true"
-        onClick={() => setOpen(v => !v)}
+        onPointerDown={e => { lastPointer.current = e.pointerType }}
+        onClick={() => {
+          // Clique de mouse: o hover já abriu — clicar não deve fechar.
+          // Toque e teclado (Enter/Espaço, sem pointerdown) alternam.
+          const viaMouse = lastPointer.current === 'mouse'
+          lastPointer.current = null
+          if (viaMouse) setOpen(true)
+          else setOpen(v => !v)
+        }}
         className="text-sm text-text-2 hover:text-text-1 transition-colors inline-flex items-center gap-1"
       >
         Gateway API
         <span aria-hidden className="text-xs opacity-70">▾</span>
       </button>
       {open && (
-        <div
-          role="menu"
-          className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-56 rounded-xl border border-slate-200 dark:border-navy-600 bg-white dark:bg-[#1e2a47] shadow-xl py-2 z-30"
-        >
-          <Link role="menuitem" href="/gateway"  className="block px-4 py-2 text-sm text-text-1 hover:bg-slate-50 dark:hover:bg-navy-700 transition-colors">Visão geral</Link>
-          <Link role="menuitem" href="/sandbox"  className="block px-4 py-2 text-sm text-text-1 hover:bg-slate-50 dark:hover:bg-navy-700 transition-colors">
-            ⚡ Sandbox <span className="text-[10px] text-brand-cyan ml-1">sem cadastro</span>
-          </Link>
-          <Link role="menuitem" href="/docs"     className="block px-4 py-2 text-sm text-text-1 hover:bg-slate-50 dark:hover:bg-navy-700 transition-colors">Documentação</Link>
-          <Link role="menuitem" href="/docs/sdks" className="block px-4 py-2 text-sm text-text-1 hover:bg-slate-50 dark:hover:bg-navy-700 transition-colors">SDKs</Link>
-          <Link role="menuitem" href="/status"   className="block px-4 py-2 text-sm text-text-1 hover:bg-slate-50 dark:hover:bg-navy-700 transition-colors">Status</Link>
+        <div className="absolute top-full left-1/2 -translate-x-1/2 pt-2 w-56 z-30">
+          <div
+            role="menu"
+            className="rounded-xl border border-slate-200 dark:border-navy-600 bg-white dark:bg-[#1e2a47] shadow-xl py-2"
+          >
+            <Link role="menuitem" href="/gateway"   onClick={() => setOpen(false)} className={itemClass}>Visão geral</Link>
+            <Link role="menuitem" href="/sandbox"   onClick={() => setOpen(false)} className={itemClass}>
+              ⚡ Sandbox <span className="text-[10px] text-brand-cyan ml-1">sem cadastro</span>
+            </Link>
+            <Link role="menuitem" href="/docs"      onClick={() => setOpen(false)} className={itemClass}>Documentação</Link>
+            <Link role="menuitem" href="/docs/sdks" onClick={() => setOpen(false)} className={itemClass}>SDKs</Link>
+            <Link role="menuitem" href="/status"    onClick={() => setOpen(false)} className={itemClass}>Status</Link>
+          </div>
         </div>
       )}
     </div>
