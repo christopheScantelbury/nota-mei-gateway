@@ -7,6 +7,7 @@ import NotificationBell from '@/components/dashboard/NotificationBell'
 import FeedbackButton from '@/components/dashboard/FeedbackButton'
 import { getAdminContext } from '@/lib/admin/permissions'
 import type { MEI } from '@/lib/types'
+import { linkUnlinkedEmpresa } from '@/lib/auth/link-empresa'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -74,11 +75,19 @@ export default async function DashboardLayout({
   const isAdmin = adminCtx.isAdmin
 
   // ── Try new multi-empresa path (requires 20260620000001_multi_produto migration) ──
-  const { data: empresas } = await supabase
+  const fetchEmpresas = () => supabase
     .from('empresas')
     .select('id, tipo, razao_social, cnpj, regime_tributario, trial_me')
     .eq('user_id', user.id)
     .order('created_at', { ascending: true })
+  let { data: empresas } = await fetchEmpresas()
+
+  // Empresa ME/EPP criada antes da conta (user_id NULL) só era vinculada em
+  // /auth/callback — quem entrava digitando o código ou por senha ficava sem
+  // empresa e caía no redirect('/cadastro') lá embaixo. Vincula aqui também.
+  if ((!empresas || empresas.length === 0) && await linkUnlinkedEmpresa(user.id, user.email, 'dashboard-layout')) {
+    ;({ data: empresas } = await fetchEmpresas())
+  }
 
   if (empresas && empresas.length > 0) {
     // Multi-empresa: resolve active company

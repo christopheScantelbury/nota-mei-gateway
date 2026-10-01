@@ -1,7 +1,8 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { createClient, type EmailOtpType } from '@supabase/supabase-js'
+import { type EmailOtpType } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 import { enqueueBrevoEvent } from '@/lib/brevo/events'
+import { linkUnlinkedEmpresa } from '@/lib/auth/link-empresa'
 
 /**
  * Auth callback handler — aceita DOIS flows:
@@ -77,63 +78,9 @@ export async function GET(request: NextRequest) {
     const error = authResult.error
 
     if (!error && sessionData?.user) {
-      // ── ME/EPP first-login linkage ────────────────────────────────────────
-      // When a ME/EPP empresa is registered via POST /v1/auth/register/me, the
-      // Supabase auth account doesn't exist yet, so user_id is stored as NULL.
-      // On the user's first login (Magic Link), we link user_id = auth.uid().
-      // Uses service role to bypass RLS (the row has user_id=NULL so the user's
-      // own RLS policy can't reach it yet).
-      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-      const userEmail = sessionData.user.email
-      if (serviceRoleKey && userEmail) {
-        try {
-          const adminClient = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            serviceRoleKey,
-            { auth: { persistSession: false } },
-          )
-          // Case-insensitive (Supabase Auth normaliza emails pra lowercase, mas
-          // empresas pode ter sido inserida com case diferente vindo do form).
-          const emailNormalized = userEmail.toLowerCase()
-
-          const { data: unlinked, error: selectErr } = await adminClient
-            .from('empresas')
-            .select('id, email')
-            .ilike('email', emailNormalized)
-            .is('user_id', null)
-            .limit(1)
-            .maybeSingle()
-
-          if (selectErr) {
-            console.error('[callback] select unlinked empresa failed', selectErr)
-          } else if (unlinked) {
-            const { error: updateErr } = await adminClient
-              .from('empresas')
-              .update({ user_id: sessionData.user.id })
-              .eq('id', unlinked.id)
-            if (updateErr) {
-              console.error('[callback] link user_id failed', {
-                empresa_id: unlinked.id,
-                user_id: sessionData.user.id,
-                err: updateErr,
-              })
-            } else {
-              console.info('[callback] linked empresa', {
-                empresa_id: unlinked.id,
-                user_id: sessionData.user.id,
-              })
-            }
-          } else {
-            // user logou mas nenhuma empresa com esse email aguarda link.
-            // OK pra dev accounts (não têm empresa) ou retorno de user existente.
-            console.info('[callback] no unlinked empresa for', emailNormalized)
-          }
-        } catch (e) {
-          console.error('[callback] empresa linkage exception', e)
-        }
-      } else if (!serviceRoleKey) {
-        console.warn('[callback] SUPABASE_SERVICE_ROLE_KEY missing — linkage skipped')
-      }
+      // ── ME/EPP first-login linkage (ver lib/auth/link-empresa.ts) ──────────
+      // Também roda no layout do dashboard — cobre login por código/senha.
+      await linkUnlinkedEmpresa(sessionData.user.id, sessionData.user.email, 'callback')
 
       // HIST-6.1 — enfileira evento de signup (fire-and-forget, falha não bloqueia login)
       try {
