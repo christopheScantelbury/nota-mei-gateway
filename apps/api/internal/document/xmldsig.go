@@ -224,8 +224,48 @@ func c14nElement(xmlDoc []byte, elemName, idValue string) ([]byte, error) {
 		)
 	}
 
-	return []byte(elem), nil
+	return []byte(normalizeC14NEscapes(elem)), nil
 }
+
+// normalizeC14NEscapes reescreve as referências de caractere que o encoding/xml
+// gera para a forma que o C14N 1.0 (§2.3) exige. O XML enviado continua o mesmo
+// (escapado); só o digest precisa ser calculado sobre a forma canônica — que é o
+// que o verificador da Receita recalcula.
+//
+// Sem isso, uma discriminação com quebra de linha (&#xA;) ou aspas (&#34;/&#39;)
+// gerava digest diferente do C14N real → rejeição E0714 "erro na assinatura"
+// (1ª nota do 1º cliente pagante, 2026-11-03).
+//
+//	texto:    &#34;→"  &#39;→'  &#x9;→TAB  &#xA;→LF   (mantém &amp; &lt; &gt; &#xD;)
+//	atributo: &#34;→&quot;  &#39;→'  &gt;→>          (mantém &amp; &lt; &#x9; &#xA; &#xD;)
+func normalizeC14NEscapes(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for len(s) > 0 {
+		lt := strings.IndexByte(s, '<')
+		if lt < 0 {
+			b.WriteString(textC14N.Replace(s))
+			break
+		}
+		b.WriteString(textC14N.Replace(s[:lt]))
+		s = s[lt:]
+		// Dentro da tag o encoding/xml sempre escapa '>' como &gt;, então o
+		// primeiro '>' literal fecha a tag.
+		gt := strings.IndexByte(s, '>')
+		if gt < 0 {
+			b.WriteString(s)
+			break
+		}
+		b.WriteString(attrC14N.Replace(s[:gt+1]))
+		s = s[gt+1:]
+	}
+	return b.String()
+}
+
+var (
+	textC14N = strings.NewReplacer(`&#34;`, `"`, `&#39;`, `'`, `&#x9;`, "\t", `&#xA;`, "\n")
+	attrC14N = strings.NewReplacer(`&#34;`, `&quot;`, `&#39;`, `'`, `&gt;`, `>`)
+)
 
 // extractIDValue returns the Id attribute value of the first occurrence of
 // elemName in xmlDoc.  If the element has no Id attribute, it falls back to
