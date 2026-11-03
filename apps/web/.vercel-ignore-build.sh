@@ -23,8 +23,22 @@ RELEVANT_PATHS=(
   "tsconfig.base.json"
 )
 
-# Diff do commit atual contra o anterior. Se falhar, builda (safe default).
-if ! CHANGED=$(git diff --name-only HEAD^ HEAD 2>/dev/null); then
+# Diff contra o ÚLTIMO DEPLOY BEM-SUCEDIDO (VERCEL_GIT_PREVIOUS_SHA), não só
+# HEAD^: num push com vários commits o Vercel builda apenas o último — se ele
+# fosse só docs, as mudanças de web dos anteriores eram ignoradas (2026-11-03).
+BASE="HEAD^"
+if [ -n "$VERCEL_GIT_PREVIOUS_SHA" ]; then
+  if git cat-file -e "$VERCEL_GIT_PREVIOUS_SHA^{commit}" 2>/dev/null; then
+    BASE="$VERCEL_GIT_PREVIOUS_SHA"
+  else
+    echo "📦 Último deploy ($VERCEL_GIT_PREVIOUS_SHA) fora do histórico clonado — buildando por segurança"
+    exit 1
+  fi
+fi
+echo "Comparando $BASE..HEAD"
+
+# Se o diff falhar, builda (safe default).
+if ! CHANGED=$(git diff --name-only "$BASE" HEAD 2>/dev/null); then
   echo "📦 Diff indisponível (primeiro commit do branch?) — buildando por segurança"
   exit 1
 fi
