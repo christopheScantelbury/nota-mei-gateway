@@ -77,3 +77,47 @@ export async function sendTransactionalEmail(input: SendTemplateInput): Promise<
   const text = await res.text().catch(() => '')
   return { ok: false, status: res.status, message: text.slice(0, 500) }
 }
+
+export interface SendHtmlInput {
+  to: Array<{ email: string; name?: string }>
+  subject: string
+  htmlContent: string
+  replyTo?: { email: string; name?: string }
+  tags?: string[]
+}
+
+/**
+ * Envia e-mail com HTML próprio (sem template). Remetente padrão:
+ * noreply@emitirnotafacil.com.br (domínio autenticado no Brevo).
+ */
+export async function sendHtmlEmail(input: SendHtmlInput): Promise<{ ok: boolean; status: number; messageId?: string; message?: string }> {
+  const key = getKey()
+  if (!key) return { ok: false, status: 0, message: 'BREVO_API_KEY ausente' }
+
+  const res = await fetch(`${BASE}/smtp/email`, {
+    method: 'POST',
+    headers: {
+      'api-key': key,
+      'content-type': 'application/json',
+      accept: 'application/json',
+    },
+    body: JSON.stringify({
+      sender: {
+        email: process.env.BREVO_SENDER_EMAIL ?? 'noreply@emitirnotafacil.com.br',
+        name: process.env.BREVO_SENDER_NAME ?? 'NotaFácil',
+      },
+      to: input.to,
+      subject: input.subject,
+      htmlContent: input.htmlContent,
+      replyTo: input.replyTo,
+      tags: input.tags,
+    }),
+  })
+
+  if (res.ok) {
+    const json = await res.json().catch(() => ({})) as { messageId?: string }
+    return { ok: true, status: res.status, messageId: json.messageId }
+  }
+  const text = await res.text().catch(() => '')
+  return { ok: false, status: res.status, message: text.slice(0, 500) }
+}

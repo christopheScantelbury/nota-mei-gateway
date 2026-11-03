@@ -1,7 +1,8 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { getAdminContext } from '@/lib/admin/permissions'
+import { canRead, getAdminContext } from '@/lib/admin/permissions'
+import { createAdminClient } from '@/lib/supabase/admin'
 import AdminSidebar from '@/components/admin/AdminSidebar'
 
 export const metadata: Metadata = {
@@ -31,9 +32,19 @@ export default async function AdminLayout({
         .filter(([, p]) => p.canRead)
         .map(([path]) => path)
 
+  // Badge de chamados esperando atendente humano.
+  const badges: Record<string, number> = {}
+  if (canRead(ctx, '/admin/suporte')) {
+    const { count } = await createAdminClient()
+      .from('support_tickets')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'aguardando_humano')
+    if (count) badges['/admin/suporte'] = count
+  }
+
   return (
     <div className="min-h-screen bg-navy-900 text-text-1 font-body lg:flex">
-      <AdminSidebar isSuperAdmin={ctx.isSuperAdmin} allowedPaths={allowedPaths} />
+      <AdminSidebar isSuperAdmin={ctx.isSuperAdmin} allowedPaths={allowedPaths} badges={badges} />
       <main className="flex-1 overflow-auto">
         {children}
       </main>

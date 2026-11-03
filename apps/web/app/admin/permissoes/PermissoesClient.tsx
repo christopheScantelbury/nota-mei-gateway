@@ -9,6 +9,9 @@ const ALL_PAGES = [
   { path: '/admin/notas',      label: 'Notas Fiscais' },
   { path: '/admin/planos',     label: 'Planos' },
   { path: '/admin/landing',    label: 'Landing' },
+  { path: '/admin/suporte',    label: 'Suporte (chamados + base da IA)' },
+  { path: '/admin/feedback',   label: 'Feedback' },
+  { path: '/admin/errors',     label: 'Errors' },
   // /admin/permissoes intencionalmente NÃO listado — só super_admin acessa
 ]
 

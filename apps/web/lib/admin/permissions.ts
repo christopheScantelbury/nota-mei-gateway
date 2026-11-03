@@ -177,6 +177,10 @@ function checkGrant(
   pathname: string,
   kind: 'canRead' | 'canWrite',
 ): boolean {
+  // As APIs de cada tela ficam em /admin/api/<tela>/… — o grant é da tela
+  // (/admin/<tela>). Sem normalizar, admin não-super era barrado no middleware
+  // ao salvar qualquer coisa (ex.: PATCH /admin/api/feedback/:id).
+  pathname = pathname.replace(/^\/admin\/api\//, '/admin/')
   let result = false
   grants.forEach((perms, path) => {
     if ((pathname === path || pathname.startsWith(path + '/')) && perms[kind]) {

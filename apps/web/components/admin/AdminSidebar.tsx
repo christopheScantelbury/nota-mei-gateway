@@ -12,6 +12,7 @@ interface NavItem {
 
 const adminNav: NavItem[] = [
   { href: '/admin',            label: 'Visão Geral',     icon: '📊', exact: true  },
+  { href: '/admin/suporte',    label: 'Suporte',         icon: '🎧', exact: false },
   { href: '/admin/usuarios',   label: 'Usuários',        icon: '👥', exact: false },
   { href: '/admin/notas',      label: 'Notas Fiscais',   icon: '🧾', exact: false },
   { href: '/admin/planos',     label: 'Planos',          icon: '💳', exact: false },
@@ -26,6 +27,8 @@ interface Props {
   isSuperAdmin: boolean
   /** Paths que o user tem READ. null = todos (super_admin). */
   allowedPaths: string[] | null
+  /** Contadores de pendência por href (ex.: chamados aguardando atendente). */
+  badges?: Record<string, number>
 }
 
 function isItemVisible(item: NavItem, isSuperAdmin: boolean, allowedPaths: string[] | null): boolean {
@@ -35,7 +38,7 @@ function isItemVisible(item: NavItem, isSuperAdmin: boolean, allowedPaths: strin
   return allowedPaths.some((p) => item.href === p || item.href.startsWith(p + '/'))
 }
 
-export default function AdminSidebar({ isSuperAdmin, allowedPaths }: Props) {
+export default function AdminSidebar({ isSuperAdmin, allowedPaths, badges = {} }: Props) {
   const pathname = usePathname()
   const visibleItems = adminNav.filter((item) => isItemVisible(item, isSuperAdmin, allowedPaths))
 
@@ -72,6 +75,11 @@ export default function AdminSidebar({ isSuperAdmin, allowedPaths }: Props) {
             >
               <span className="shrink-0" aria-hidden="true">{icon}</span>
               <span>{label}</span>
+              {(badges[href] ?? 0) > 0 && (
+                <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-nota-processando text-navy-900 text-xs font-bold flex items-center justify-center" aria-label={`${badges[href]} pendentes`}>
+                  {badges[href]}
+                </span>
+              )}
             </Link>
           )
         })}

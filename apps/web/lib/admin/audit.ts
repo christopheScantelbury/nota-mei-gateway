@@ -39,6 +39,9 @@ export type AdminAction =
   | 'landing_publish'
   | 'landing_rollback'
   | 'landing_asset_upload'
+  | 'support_reply'
+  | 'support_update'
+  | 'support_knowledge_edit'
 
 export type AdminActionTarget =
   | 'plano'
@@ -47,6 +50,8 @@ export type AdminActionTarget =
   | 'landing_section'
   | 'landing_asset'
   | 'page'
+  | 'support_ticket'
+  | 'support_knowledge'
 
 export interface LogAdminActionInput {
   action: AdminAction
