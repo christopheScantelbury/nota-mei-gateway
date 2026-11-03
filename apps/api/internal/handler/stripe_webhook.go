@@ -52,7 +52,15 @@ func (h *StripeWebhookHandler) Handle(c *fiber.Ctx) error {
 	payload := c.Body()
 	sig := c.Get("Stripe-Signature")
 
-	event, err := webhook.ConstructEvent(payload, sig, h.secret)
+	// A conta Stripe envia eventos na versão padrão dela (2026-03-25.dahlia) e o
+	// stripe-go v81 espera o train "acacia". Com ConstructEvent puro TODO evento
+	// era recusado como "invalid signature" (400) — nenhum webhook foi processado
+	// em produção até 2026-11-03. A assinatura continua sendo validada; os campos
+	// lidos pelos handlers abaixo existem nas duas versões (ver
+	// invoiceSubscriptionID para a única mudança de formato que nos afeta).
+	event, err := webhook.ConstructEventWithOptions(payload, sig, h.secret, webhook.ConstructEventOptions{
+		IgnoreAPIVersionMismatch: true,
+	})
 	if err != nil {
 		log.Ctx(c.Context()).Warn().Err(err).Msg("stripe webhook signature invalid")
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -339,56 +347,104 @@ func (h *StripeWebhookHandler) handleCheckoutCompleted(ctx context.Context, even
 // handleInvoicePaid ensures the subscription status is active when an
 // invoice is paid (covers initial payment and renewals).
 func (h *StripeWebhookHandler) handleInvoicePaid(ctx context.Context, event stripelib.Event) error {
-	var inv stripelib.Invoice
-	if err := json.Unmarshal(event.Data.Raw, &inv); err != nil {
-		return err
-	}
-	if inv.Subscription == nil {
-		return nil
-	}
-	_, err := h.db.Pool().Exec(ctx, `
-		UPDATE emissoes_mensais
-		SET stripe_subscription_status = 'active',
-		    updated_at                  = NOW()
-		WHERE stripe_subscription_id = $1
-		  AND competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
-	`, inv.Subscription.ID)
+	inv, err := parseInvoiceEvent(event.Data.Raw)
 	if err != nil {
 		return err
 	}
-	h.invalidateCacheBySubscriptionID(ctx, inv.Subscription.ID)
+	if inv.SubscriptionID == "" {
+		return nil
+	}
+	// emissoes_mensais não tem coluna updated_at.
+	_, err = h.db.Pool().Exec(ctx, `
+		UPDATE emissoes_mensais
+		SET stripe_subscription_status = 'active'
+		WHERE stripe_subscription_id = $1
+		  AND competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
+	`, inv.SubscriptionID)
+	if err != nil {
+		return err
+	}
+	h.invalidateCacheBySubscriptionID(ctx, inv.SubscriptionID)
 	return nil
+}
+
+// invoiceEvent é o recorte da invoice que os handlers usam.
+type invoiceEvent struct {
+	SubscriptionID string
+	AmountDue      int64
+}
+
+// parseInvoiceEvent lê a assinatura da invoice nos dois formatos da API:
+//   - até 2025-02-24.acacia: campo "subscription" (string ou objeto expandido)
+//   - a partir de 2025-03-31.basil (inclui dahlia, versão da conta):
+//     "parent.subscription_details.subscription"
+//
+// stripelib.Invoice (v81) só conhece o formato antigo — no dahlia
+// inv.Subscription vinha sempre nil e invoice.paid/payment_failed viravam no-op.
+func parseInvoiceEvent(raw []byte) (invoiceEvent, error) {
+	var v struct {
+		Subscription json.RawMessage `json:"subscription"`
+		AmountDue    int64           `json:"amount_due"`
+		Parent       *struct {
+			SubscriptionDetails *struct {
+				Subscription json.RawMessage `json:"subscription"`
+			} `json:"subscription_details"`
+		} `json:"parent"`
+	}
+	if err := json.Unmarshal(raw, &v); err != nil {
+		return invoiceEvent{}, err
+	}
+	out := invoiceEvent{AmountDue: v.AmountDue, SubscriptionID: expandableID(v.Subscription)}
+	if out.SubscriptionID == "" && v.Parent != nil && v.Parent.SubscriptionDetails != nil {
+		out.SubscriptionID = expandableID(v.Parent.SubscriptionDetails.Subscription)
+	}
+	return out, nil
+}
+
+// expandableID aceita um campo expansível do Stripe: "sub_123", {"id":"sub_123"} ou null.
+func expandableID(raw json.RawMessage) string {
+	if len(raw) == 0 || string(raw) == "null" {
+		return ""
+	}
+	var s string
+	if err := json.Unmarshal(raw, &s); err == nil {
+		return s
+	}
+	var o struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(raw, &o); err == nil {
+		return o.ID
+	}
+	return ""
 }
 
 // handleInvoicePaymentFailed marks the subscription as past_due so the
 // BillingGuard can block new emissions until payment is resolved.
 func (h *StripeWebhookHandler) handleInvoicePaymentFailed(ctx context.Context, event stripelib.Event) error {
-	var inv stripelib.Invoice
-	if err := json.Unmarshal(event.Data.Raw, &inv); err != nil {
-		return err
-	}
-	if inv.Subscription == nil {
-		return nil
-	}
-	_, err := h.db.Pool().Exec(ctx, `
-		UPDATE emissoes_mensais
-		SET stripe_subscription_status = 'past_due',
-		    updated_at                  = NOW()
-		WHERE stripe_subscription_id = $1
-		  AND competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
-	`, inv.Subscription.ID)
+	inv, err := parseInvoiceEvent(event.Data.Raw)
 	if err != nil {
 		return err
 	}
-	h.invalidateCacheBySubscriptionID(ctx, inv.Subscription.ID)
+	if inv.SubscriptionID == "" {
+		return nil
+	}
+	// emissoes_mensais não tem coluna updated_at.
+	_, err = h.db.Pool().Exec(ctx, `
+		UPDATE emissoes_mensais
+		SET stripe_subscription_status = 'past_due'
+		WHERE stripe_subscription_id = $1
+		  AND competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
+	`, inv.SubscriptionID)
+	if err != nil {
+		return err
+	}
+	h.invalidateCacheBySubscriptionID(ctx, inv.SubscriptionID)
 
 	// Send payment-failed email asynchronously — fetch MEI details from DB.
 	if h.emailSvc != nil {
-		subID := inv.Subscription.ID
-		var amountDue int64
-		if inv.AmountDue != 0 {
-			amountDue = inv.AmountDue
-		}
+		subID := inv.SubscriptionID
+		amountDue := inv.AmountDue
 		emailSvc := h.emailSvc
 		db := h.db
 		go func(baseCtx context.Context) { //nolint:contextcheck
