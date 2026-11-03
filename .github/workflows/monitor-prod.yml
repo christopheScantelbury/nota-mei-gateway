@@ -1,0 +1,46 @@
+name: Monitor de produção
+
+# De hora em hora: junta erros de produção (Railway, navegador, rejeições da
+# Receita, notas travadas, falhas da IA de suporte) e abre/atualiza issues
+# `bug` + `prod-monitor`. Os dados chegam sanitizados de /api/cron/monitor-prod.
+
+on:
+  schedule:
+    - cron: '7 * * * *'
+  workflow_dispatch:
+    inputs:
+      horas:
+        description: 'Janela em horas (ex.: 24 para varrer o último dia)'
+        default: '1'
+      dry_run:
+        description: 'Só listar, sem criar issues'
+        type: boolean
+        default: false
+
+permissions:
+  issues: write
+  contents: read
+
+concurrency:
+  group: monitor-prod
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/monitor-prod-issues.mjs
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Coletar erros e atualizar issues
+        env:
+          MONITOR_SECRET: ${{ secrets.MONITOR_SECRET }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HORAS: ${{ inputs.horas || '1' }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+        run: node scripts/monitor-prod-issues.mjs
