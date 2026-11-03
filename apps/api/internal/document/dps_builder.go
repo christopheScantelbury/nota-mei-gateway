@@ -5,9 +5,10 @@
 // outdated draft and was rejected by Receita Federal with E1235.
 //
 // Endpoint:
-//   POST https://sefin.nfse.gov.br/SefinNacional/nfse
-//   Production-restricted (homologação):
-//     https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional/nfse
+//
+//	POST https://sefin.nfse.gov.br/SefinNacional/nfse
+//	Production-restricted (homologação):
+//	  https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional/nfse
 //
 // Authentication: mTLS with ICP-Brasil A1 cert (mandatory).
 package document
@@ -74,7 +75,9 @@ func NewDPSBuilder() *DPSBuilder { return &DPSBuilder{} }
 //
 // empresa.Tipo must be "MEI" | "ME" | "EPP".
 // empresa.RegimeTributario must be "SIMPLES_MEI" | "SIMPLES_NACIONAL" |
-//   "LUCRO_PRESUMIDO" | "LUCRO_REAL".
+//
+//	"LUCRO_PRESUMIDO" | "LUCRO_REAL".
+//
 // numeroDPS is the atomic counter allocated upstream — reused as <nDPS>.
 func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS int64) (*DPSBuildResult, error) {
 	if empresa == nil {
@@ -170,8 +173,9 @@ func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS 
 			// emite a DPS) — Receita rejeita com E0121 porque o dado já está
 			// no cadastro associado ao CNPJ + cert.
 			RegTrib: RegimeTrib{
-				OpSimpNac:  opSimpNac,
-				RegEspTrib: regEspTrib,
+				OpSimpNac:   opSimpNac,
+				RegApTribSN: regApTribSNFor(opSimpNac),
+				RegEspTrib:  regEspTrib,
 			},
 		},
 
@@ -243,6 +247,18 @@ func resolveRegime(regime, tipo string) (opSimpNac, regEspTrib int) {
 		// Conservative default: ME/EPP optante SN.
 		return OpSimpNacMEEPP, RegEspTribNenhum
 	}
+}
+
+// regApTribSNFor devolve o regime de apuração do SN exigido para ME/EPP
+// optante (opSimpNac=3). Sem ele a SEFIN rejeita com E0166. Default: tributos
+// federais e municipal apurados pelo SN — o caso de quem não estourou
+// sublimite. MEI e não optante não informam o campo (nil → omitido).
+func regApTribSNFor(opSimpNac int) *int {
+	if opSimpNac != OpSimpNacMEEPP {
+		return nil
+	}
+	v := RegApTribSNTudoPeloSN
+	return &v
 }
 
 // resolveISSRetido determines whether ISS is withheld at source.

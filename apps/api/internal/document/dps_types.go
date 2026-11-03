@@ -44,14 +44,14 @@ const DPSVersao = "1.01"
 type InfDPS struct {
 	ID string `xml:"Id,attr"` // TSIdDPS, "DPS" + 8 digits — used as XMLDSig reference
 
-	TpAmb     int    `xml:"tpAmb"`     // 1=produção 2=homologação
-	DhEmi     string `xml:"dhEmi"`     // AAAA-MM-DDThh:mm:ss±HH:MM (TSDateTimeUTC)
-	VerAplic  string `xml:"verAplic"`  // TSVerAplic
-	Serie     string `xml:"serie"`     // TSSerieDPS
-	NDPS      string `xml:"nDPS"`      // TSNumDPS
-	DCompet   string `xml:"dCompet"`   // AAAA-MM-DD (TSData)
-	TpEmit    int    `xml:"tpEmit"`    // 1=Prestador 2=Tomador 3=Intermediário
-	CLocEmi   string `xml:"cLocEmi"`   // IBGE 7 dígitos do município de emissão
+	TpAmb    int    `xml:"tpAmb"`    // 1=produção 2=homologação
+	DhEmi    string `xml:"dhEmi"`    // AAAA-MM-DDThh:mm:ss±HH:MM (TSDateTimeUTC)
+	VerAplic string `xml:"verAplic"` // TSVerAplic
+	Serie    string `xml:"serie"`    // TSSerieDPS
+	NDPS     string `xml:"nDPS"`     // TSNumDPS
+	DCompet  string `xml:"dCompet"`  // AAAA-MM-DD (TSData)
+	TpEmit   int    `xml:"tpEmit"`   // 1=Prestador 2=Tomador 3=Intermediário
+	CLocEmi  string `xml:"cLocEmi"`  // IBGE 7 dígitos do município de emissão
 
 	// Subst is populated when this DPS replaces a previously emitted NFS-e.
 	// Schema position: after cLocEmi, before prest (TCInfDPS sequence).
@@ -89,19 +89,20 @@ const (
 // InfoPrestador — TCInfoPrestador. Choice: CNPJ XOR CPF XOR NIF XOR cNaoNIF
 // (we always send CNPJ since MEI/ME/EPP/LP/LR are all PJ).
 type InfoPrestador struct {
-	CNPJ    string     `xml:"CNPJ"`
-	IM      string     `xml:"IM,omitempty"`
-	XNome   string     `xml:"xNome,omitempty"`
-	End     *DPSEndereco  `xml:"end,omitempty"`
-	Email   string     `xml:"email,omitempty"`
-	RegTrib RegimeTrib `xml:"regTrib"` // mandatory
+	CNPJ    string       `xml:"CNPJ"`
+	IM      string       `xml:"IM,omitempty"`
+	XNome   string       `xml:"xNome,omitempty"`
+	End     *DPSEndereco `xml:"end,omitempty"`
+	Email   string       `xml:"email,omitempty"`
+	RegTrib RegimeTrib   `xml:"regTrib"` // mandatory
 }
 
 // RegimeTrib — TCRegTrib. opSimpNac and regEspTrib are required.
-//   opSimpNac:  1=NÃO Optante | 2=Optante MEI | 3=Optante ME/EPP
-//   regEspTrib: 0=Nenhum | 1=Ato Cooperado | 2=Estimativa | 3=ME Municipal
-//               | 4=Notário | 5=Profissional Autônomo | 6=Sociedade Prof
-//               | 9=Outros
+//
+//	opSimpNac:  1=NÃO Optante | 2=Optante MEI | 3=Optante ME/EPP
+//	regEspTrib: 0=Nenhum | 1=Ato Cooperado | 2=Estimativa | 3=ME Municipal
+//	            | 4=Notário | 5=Profissional Autônomo | 6=Sociedade Prof
+//	            | 9=Outros
 type RegimeTrib struct {
 	OpSimpNac   int  `xml:"opSimpNac"`
 	RegApTribSN *int `xml:"regApTribSN,omitempty"` // só para opSimpNac=3
@@ -112,14 +113,14 @@ type RegimeTrib struct {
 
 // InfoPessoa — TCInfoPessoa. Choice: CNPJ XOR CPF XOR NIF XOR cNaoNIF.
 type InfoPessoa struct {
-	CNPJ    string    `xml:"CNPJ,omitempty"`
-	CPF     string    `xml:"CPF,omitempty"`
-	NIF     string    `xml:"NIF,omitempty"`
-	CNaoNIF *int      `xml:"cNaoNIF,omitempty"`
-	IM      string    `xml:"IM,omitempty"`
-	XNome   string    `xml:"xNome"` // required
+	CNPJ    string       `xml:"CNPJ,omitempty"`
+	CPF     string       `xml:"CPF,omitempty"`
+	NIF     string       `xml:"NIF,omitempty"`
+	CNaoNIF *int         `xml:"cNaoNIF,omitempty"`
+	IM      string       `xml:"IM,omitempty"`
+	XNome   string       `xml:"xNome"` // required
 	End     *DPSEndereco `xml:"end,omitempty"`
-	Email   string    `xml:"email,omitempty"`
+	Email   string       `xml:"email,omitempty"`
 }
 
 // ── Endereço (TCEndereco) ─────────────────────────────────────────────────────
@@ -192,8 +193,9 @@ type InfoTributacao struct {
 }
 
 // TribMunicipal — TCTribMunicipal.
-//   tribISSQN: 1=Tributável | 2=Imunidade | 3=Exportação | 4=Não Incidência
-//   tpRetISSQN: 1=Não Retido | 2=Retido pelo Tomador | 3=Retido pelo Intermediário
+//
+//	tribISSQN: 1=Tributável | 2=Imunidade | 3=Exportação | 4=Não Incidência
+//	tpRetISSQN: 1=Não Retido | 2=Retido pelo Tomador | 3=Retido pelo Intermediário
 type TribMunicipal struct {
 	TribISSQN  int     `xml:"tribISSQN"`
 	TpRetISSQN int     `xml:"tpRetISSQN"`
@@ -201,10 +203,11 @@ type TribMunicipal struct {
 }
 
 // TribTotal — TCTribTotal. Choice (one of):
-//   vTotTrib   (monet, fed+est+mun)
-//   pTotTrib   (percent, fed+est+mun)
-//   indTotTrib (=0, não informa)
-//   pTotTribSN (% aproximado do SN)
+//
+//	vTotTrib   (monet, fed+est+mun)
+//	pTotTrib   (percent, fed+est+mun)
+//	indTotTrib (=0, não informa)
+//	pTotTribSN (% aproximado do SN)
 //
 // Para MEI/SN simples, usar pTotTribSN.
 type TribTotal struct {
@@ -236,15 +239,22 @@ const (
 	OpSimpNacMEI        = 2
 	OpSimpNacMEEPP      = 3
 
+	// regApTribSN (só opSimpNac=3) — regime de apuração dos tributos do SN.
+	// A SEFIN rejeita com E0166 se ausente para ME/EPP optante, apesar do
+	// minOccurs=0 no XSD.
+	RegApTribSNTudoPeloSN    = 1 // federais e municipal pelo SN
+	RegApTribSNISSQNForaDoSN = 2 // federais pelo SN, ISSQN fora do SN
+	RegApTribSNTudoForaDoSN  = 3 // federais e municipal fora do SN
+
 	// regEspTrib
-	RegEspTribNenhum            = 0
-	RegEspTribAtoCooperado      = 1
-	RegEspTribEstimativa        = 2
-	RegEspTribMEMunicipal       = 3
-	RegEspTribNotario           = 4
-	RegEspTribProfissAutonomo   = 5
-	RegEspTribSociedadeProfis   = 6
-	RegEspTribOutros            = 9
+	RegEspTribNenhum          = 0
+	RegEspTribAtoCooperado    = 1
+	RegEspTribEstimativa      = 2
+	RegEspTribMEMunicipal     = 3
+	RegEspTribNotario         = 4
+	RegEspTribProfissAutonomo = 5
+	RegEspTribSociedadeProfis = 6
+	RegEspTribOutros          = 9
 
 	// tpEmit
 	TpEmitPrestador     = 1

@@ -3,6 +3,7 @@ package document
 import (
 	"bytes"
 	"encoding/xml"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -163,6 +164,49 @@ func TestDPSBuilder_SN_IMOmitedWhenEmpty(t *testing.T) {
 	}
 	if strings.Contains(string(result.XML), "<IM>") {
 		t.Error("IM tag must be omitted when inscricao_municipal is nil")
+	}
+}
+
+// E0166: ME/EPP optante do SN precisa de <regApTribSN>, entre <opSimpNac> e
+// <regEspTrib> (ordem do XSD TCRegTrib). MEI e não optante não informam.
+func TestDPSBuilder_RegApTribSN(t *testing.T) {
+	mei := empresaSN()
+	mei.Tipo = "MEI"
+	mei.RegimeTributario = "SIMPLES_MEI"
+
+	cases := []struct {
+		name    string
+		empresa *auth.Empresa
+		want    string // "" = tag ausente
+	}{
+		{"ME/EPP Simples Nacional", empresaSN(), `<opSimpNac>3</opSimpNac>\s*<regApTribSN>1</regApTribSN>\s*<regEspTrib>0</regEspTrib>`},
+		{"MEI", mei, ""},
+		{"Lucro Presumido", empresaLP(), ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := baseRequest()
+			naoRetido := false
+			req.IssRetido = &naoRetido // obrigatório para LP/LR
+			result, err := NewDPSBuilder().Build(req, c.empresa, 1)
+			if err != nil {
+				t.Fatalf("Build: %v", err)
+			}
+			s := string(result.XML)
+			if c.want == "" {
+				if strings.Contains(s, "<regApTribSN>") {
+					t.Errorf("%s não deve informar <regApTribSN>", c.name)
+				}
+				return
+			}
+			if !regexp.MustCompile(c.want).MatchString(s) {
+				regTrib := s
+				if i := strings.Index(s, "<regTrib>"); i >= 0 {
+					regTrib = s[i:min(len(s), i+200)]
+				}
+				t.Errorf("regTrib esperado %s, obtido:\n%s", c.want, regTrib)
+			}
+		})
 	}
 }
 
