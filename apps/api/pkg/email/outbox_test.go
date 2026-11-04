@@ -228,3 +228,29 @@ func TestClient_CompatSMTPPassComChaveDeAPI(t *testing.T) {
 		t.Fatal("SMTP_PASS xkeysib- deve virar chave da API (compat) e não ser usada no SMTP")
 	}
 }
+
+func TestClient_APIFalhaCaiNoRelay(t *testing.T) {
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer api.Close()
+	var auth, corpo string
+	relay := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth = r.Header.Get("Authorization")
+		b := new(bytes.Buffer)
+		_, _ = b.ReadFrom(r.Body)
+		corpo = b.String()
+		_, _ = w.Write([]byte(`{"ok":true,"message_id":"<r1>"}`))
+	}))
+	defer relay.Close()
+
+	c := New("", "", "", "", "x <x@y.com>").WithAPIKey("xkeysib-y").WithRelay(relay.URL, "segredo")
+	c.apiURL = api.URL
+	r, err := c.Entregar(context.Background(), SendRequest{To: []string{"Fulano <a@b.com>"}, Subject: "s", HTML: "<p>h</p>"})
+	if err != nil || r.Provedor != "relay_smtp" || r.MessageID != "<r1>" {
+		t.Fatalf("esperava entrega pelo relay, veio %+v %v", r, err)
+	}
+	if auth != "Bearer segredo" || !strings.Contains(corpo, `"to":"a@b.com"`) {
+		t.Fatalf("relay chamado errado: auth=%q corpo=%s", auth, corpo)
+	}
+}

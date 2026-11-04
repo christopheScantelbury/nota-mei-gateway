@@ -5,9 +5,11 @@
 //  1. Brevo API HTTP (api.brevo.com/v3/smtp/email, porta 443) — chave xkeysib-.
 //     Pode falhar quando a conta Brevo tem bloqueio de IP para chaves de API
 //     (o Railway não tem IP fixo) ou a chave é revogada.
-//  2. Brevo SMTP relay (smtp-relay.brevo.com) — chave xsmtpsib- e login SMTP.
-//     Tenta a porta configurada e depois a 2525, porque alguns hosts (Railway
-//     Hobby) bloqueiam a 587 de saída.
+//  2. Relay HTTPS no Vercel (EMAIL_RELAY_URL + EMAIL_RELAY_SECRET), que envia
+//     pelo SMTP do Brevo. Existe porque o Railway bloqueia SMTP de saída
+//     (587 e 2525 dão timeout — verificado em 2026-11-04).
+//  3. Brevo SMTP direto (smtp-relay.brevo.com) — chave xsmtpsib- e login SMTP.
+//     Porta configurada e depois 2525. Útil fora do Railway (dev, outro host).
 //
 // Variáveis de ambiente:
 //
@@ -17,6 +19,8 @@
 //	SMTP_USER      login SMTP (ex.: aa973b001@smtp-brevo.com)
 //	SMTP_PASS      chave SMTP (xsmtpsib-…). Compat: se for uma xkeysib- e
 //	               BREVO_API_KEY estiver vazia, é usada como chave da API.
+//	EMAIL_RELAY_URL     ex.: https://www.emitirnotafacil.com.br/api/interno/email
+//	EMAIL_RELAY_SECRET  segredo compartilhado com o Vercel
 //	EMAIL_FROM     remetente, ex.: "NotaFácil <noreply@emitirnotafacil.com.br>"
 //
 // Sem nenhum provedor configurado o cliente fica em dev-noop: só registra no log.
@@ -51,6 +55,8 @@ type Client struct {
 	smtpUser string
 	smtpPass string
 	from     string
+	relayURL string
+	relayKey string
 	hc       *http.Client
 	apiURL   string // sobrescrito em testes
 	dial     func(ctx context.Context, addr string) (net.Conn, error)
@@ -72,7 +78,7 @@ func New(host, port, user, pass, from string) *Client {
 		apiURL:   brevoAPIURL,
 	}
 	c.dial = func(ctx context.Context, addr string) (net.Conn, error) {
-		d := net.Dialer{Timeout: 10 * time.Second}
+		d := net.Dialer{Timeout: 5 * time.Second}
 		return d.DialContext(ctx, "tcp", addr)
 	}
 	// Compat: antes SMTP_PASS guardava a chave da API HTTP.
@@ -96,11 +102,18 @@ func (c *Client) WithAPIKey(key string) *Client {
 	return c
 }
 
-func (c *Client) apiEnabled() bool  { return c.apiKey != "" }
-func (c *Client) smtpEnabled() bool { return c.smtpHost != "" && c.smtpUser != "" && c.smtpPass != "" }
+// WithRelay configura o relay HTTPS (EMAIL_RELAY_URL / EMAIL_RELAY_SECRET).
+func (c *Client) WithRelay(url, secret string) *Client {
+	c.relayURL, c.relayKey = strings.TrimSpace(url), strings.TrimSpace(secret)
+	return c
+}
+
+func (c *Client) relayEnabled() bool { return c.relayURL != "" && c.relayKey != "" }
+func (c *Client) apiEnabled() bool   { return c.apiKey != "" }
+func (c *Client) smtpEnabled() bool  { return c.smtpHost != "" && c.smtpUser != "" && c.smtpPass != "" }
 
 // Enabled informa se algum provedor está configurado.
-func (c *Client) Enabled() bool { return c.apiEnabled() || c.smtpEnabled() }
+func (c *Client) Enabled() bool { return c.apiEnabled() || c.relayEnabled() || c.smtpEnabled() }
 
 // SendRequest holds the data for one outbound email.
 type SendRequest struct {
@@ -140,6 +153,16 @@ func (c *Client) Entregar(ctx context.Context, req SendRequest) (Resultado, erro
 			return Resultado{Provedor: "brevo_api", MessageID: id}, nil
 		}
 		falhas = append(falhas, fmt.Errorf("brevo_api: %w", err))
+	}
+	if c.relayEnabled() {
+		id, err := c.sendRelay(ctx, req)
+		if err == nil {
+			if len(falhas) > 0 {
+				log.Ctx(ctx).Warn().Err(errors.Join(falhas...)).Msg("email: API do Brevo falhou, entregue pelo relay (fallback)")
+			}
+			return Resultado{Provedor: "relay_smtp", MessageID: id}, nil
+		}
+		falhas = append(falhas, fmt.Errorf("relay_smtp: %w", err))
 	}
 	if c.smtpEnabled() {
 		id, err := c.sendSMTP(ctx, req)
@@ -215,7 +238,47 @@ func (c *Client) sendAPI(ctx context.Context, req SendRequest) (string, error) {
 	return r.MessageID, nil
 }
 
-// ── Brevo SMTP relay ─────────────────────────────────────────────────────────
+// ── Relay HTTPS (Vercel → SMTP do Brevo) ─────────────────────────────────────
+
+func (c *Client) sendRelay(ctx context.Context, req SendRequest) (string, error) {
+	if len(req.To) != 1 {
+		return "", errors.New("relay aceita um destinatário por vez")
+	}
+	_, to := parseFromAddr(req.To[0])
+	body, err := json.Marshal(map[string]string{"to": to, "subject": req.Subject, "html": req.HTML})
+	if err != nil {
+		return "", err
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, c.relayURL, bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Authorization", "Bearer "+c.relayKey)
+	resp, err := c.hc.Do(httpReq)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+	if resp.StatusCode != http.StatusOK {
+		msg := string(respBody)
+		if len(msg) > 300 {
+			msg = msg[:300]
+		}
+		return "", fmt.Errorf("HTTP %d: %s", resp.StatusCode, msg)
+	}
+	var r struct {
+		MessageID string `json:"message_id"`
+	}
+	_ = json.Unmarshal(respBody, &r)
+	if r.MessageID == "" {
+		r.MessageID = "ok"
+	}
+	return r.MessageID, nil
+}
+
+// ── Brevo SMTP direto ────────────────────────────────────────────────────────
 
 func (c *Client) sendSMTP(ctx context.Context, req SendRequest) (string, error) {
 	portas := []string{c.smtpPort}

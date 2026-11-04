@@ -229,9 +229,10 @@ func main() {
 	}
 
 	// ── Email service ──────────────────────────────────────────────────────
-	// Provedores em ordem: Brevo API HTTP (BREVO_API_KEY) → Brevo SMTP (SMTP_*).
+	// Provedores em ordem: Brevo API HTTP → relay HTTPS no Vercel (SMTP) → SMTP direto.
 	emailClient := email.NewFromEnv(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.EmailFrom).
-		WithAPIKey(os.Getenv("BREVO_API_KEY"))
+		WithAPIKey(os.Getenv("BREVO_API_KEY")).
+		WithRelay(os.Getenv("EMAIL_RELAY_URL"), os.Getenv("EMAIL_RELAY_SECRET"))
 	emailSvc := email.NewService(emailClient, log.Logger)
 	// Fila com reenvio (email_outbox): nenhum e-mail se perde se o provedor cair.
 	if cfg.CertMasterKey != "" && emailClient.Enabled() {
