@@ -98,6 +98,16 @@ func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS 
 
 	// 3. Resolve alíquota + cálculo ISS
 	aliquota := req.Servico.AliquotaISS
+	// ME/EPP do Simples com ISS fora do DAS (retido pelo tomador ou
+	// regApTribSN 2/3): a alíquota vai na DPS e tem que ser a do município —
+	// não dá para chutar o padrão (#279).
+	if aliquota <= 0 && empresa.RegimeTributario == "SIMPLES_NACIONAL" &&
+		(issRetido || regApTribSNEmpresa(empresa) != RegApTribSNTudoPeloSN) {
+		return nil, &ErrValidation{
+			Field:   "servico.aliquota_iss",
+			Message: "obrigatória quando o ISS é retido pelo tomador ou apurado fora do Simples — informe a alíquota do município (ex.: 2.0)",
+		}
+	}
 	if aliquota <= 0 {
 		aliquota = DefaultAliquotaISS
 	}
@@ -174,7 +184,7 @@ func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS 
 			// no cadastro associado ao CNPJ + cert.
 			RegTrib: RegimeTrib{
 				OpSimpNac:   opSimpNac,
-				RegApTribSN: regApTribSNFor(opSimpNac),
+				RegApTribSN: regApTribSNFor(opSimpNac, regApTribSNEmpresa(empresa)),
 				RegEspTrib:  regEspTrib,
 			},
 		},
@@ -206,7 +216,7 @@ func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS 
 					TpRetISSQN: tpRetISSQN,
 					// MEI (E0600) e ME/EPP com ISS pelo SN sem retenção (E0625)
 					// não informam pAliq — zero faz o omitempty omitir a tag.
-					PAliq: pAliqFor(opSimpNac, tpRetISSQN, aliquota),
+					PAliq: pAliqFor(opSimpNac, regApTribSNEmpresa(empresa), tpRetISSQN, aliquota),
 				},
 				TotTrib: buildTotTrib(opSimpNac),
 			},
@@ -249,26 +259,45 @@ func resolveRegime(regime, tipo string) (opSimpNac, regEspTrib int) {
 	}
 }
 
+// regApTribSNEmpresa devolve o regime de apuração do SN configurado na empresa
+// (#279): 1, 2 ou 3; qualquer outro valor (inclusive não configurado) vira 1.
+func regApTribSNEmpresa(empresa *auth.Empresa) int {
+	if empresa != nil {
+		switch empresa.RegApTribSN {
+		case RegApTribSNTudoPeloSN, RegApTribSNISSQNForaDoSN, RegApTribSNTudoForaDoSN:
+			return empresa.RegApTribSN
+		}
+	}
+	return RegApTribSNTudoPeloSN
+}
+
 // regApTribSNFor devolve o regime de apuração do SN exigido para ME/EPP
-// optante (opSimpNac=3). Sem ele a SEFIN rejeita com E0166. Default: tributos
-// federais e municipal apurados pelo SN — o caso de quem não estourou
+// optante (opSimpNac=3). Sem ele a SEFIN rejeita com E0166. Vem da empresa
+// (#279): 1 = tudo pelo SN (quem não estourou sublimite), 2/3 = acima do
 // sublimite. MEI e não optante não informam o campo (nil → omitido).
-func regApTribSNFor(opSimpNac int) *int {
+func regApTribSNFor(opSimpNac, regApTribSN int) *int {
 	if opSimpNac != OpSimpNacMEEPP {
 		return nil
 	}
-	v := RegApTribSNTudoPeloSN
+	v := regApTribSN
+	if v < RegApTribSNTudoPeloSN || v > RegApTribSNTudoForaDoSN {
+		v = RegApTribSNTudoPeloSN
+	}
 	return &v
 }
 
 // resolveISSRetido determines whether ISS is withheld at source.
-//   - Simples Nacional / MEI: ISS never withheld at source (DAS already recolhe).
+//   - MEI: nunca retido (ISS fixo no DAS).
+//   - ME/EPP do Simples: retido só quando o pedido diz (iss_retido=true) —
+//     tomador PJ/órgão público pode reter (#279). Padrão: não retido.
 //   - Lucro Presumido / Real: req.IssRetido must be informed.
 //   - Tomador órgão público em LP/LR: força retenção (Art. 6 LC 116/2003).
 func resolveISSRetido(req EmissaoRequest, empresa *auth.Empresa) (bool, error) {
 	switch empresa.RegimeTributario {
-	case "SIMPLES_MEI", "SIMPLES_NACIONAL":
+	case "SIMPLES_MEI":
 		return false, nil
+	case "SIMPLES_NACIONAL":
+		return req.IssRetido != nil && *req.IssRetido, nil
 	case "LUCRO_PRESUMIDO", "LUCRO_REAL":
 		if req.Tomador.TipoOrgao == "ORGAO_PUBLICO" {
 			return true, nil
@@ -403,12 +432,12 @@ func padLeft(s string, n int) string {
 //   - MEI (opSimpNac=2): alíquota fixa via DAS — E0600.
 //   - ME/EPP do SN (opSimpNac=3) com ISS apurado pelo SN (regApTribSN=1) e
 //     sem retenção (tpRetISSQN=1) — E0625. Com retenção a alíquota é exigida.
-func pAliqFor(opSimpNac, tpRetISSQN int, aliquota float64) float64 {
+func pAliqFor(opSimpNac, regApTribSN, tpRetISSQN int, aliquota float64) float64 {
 	switch opSimpNac {
 	case OpSimpNacMEI:
 		return 0
 	case OpSimpNacMEEPP:
-		if r := regApTribSNFor(opSimpNac); r != nil && *r == RegApTribSNTudoPeloSN && tpRetISSQN == TpRetISSQNNaoRetido {
+		if r := regApTribSNFor(opSimpNac, regApTribSN); r != nil && *r == RegApTribSNTudoPeloSN && tpRetISSQN == TpRetISSQNNaoRetido {
 			return 0
 		}
 	}

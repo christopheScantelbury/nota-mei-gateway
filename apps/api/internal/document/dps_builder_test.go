@@ -3,6 +3,7 @@ package document
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
 	"regexp"
 	"strings"
 	"testing"
@@ -258,7 +259,7 @@ func TestPAliqFor(t *testing.T) {
 		{"não optante não retido", OpSimpNacNaoOptante, TpRetISSQNNaoRetido, 2},
 	}
 	for _, c := range cases {
-		if got := pAliqFor(c.opSimpNac, c.tpRetISSQN, 2); got != c.want {
+		if got := pAliqFor(c.opSimpNac, RegApTribSNTudoPeloSN, c.tpRetISSQN, 2); got != c.want {
 			t.Errorf("%s: pAliqFor = %v, want %v", c.name, got, c.want)
 		}
 	}
@@ -562,5 +563,62 @@ func TestIDDPS_IgualAoIdDoXML(t *testing.T) {
 	want := `Id="` + IDDPS(emp.MunicipioIBGE, emp.CNPJ, 8) + `"`
 	if !strings.Contains(string(result.XML), want) {
 		t.Errorf("XML não contém %s", want)
+	}
+}
+
+// #279 — ME/EPP do Simples: regime de apuração vem da empresa e o ISS pode ser
+// retido pelo tomador (com <pAliq>); fora do padrão a alíquota é obrigatória.
+func TestDPSBuilder_SimplesRegimeApuracaoEISSRetido(t *testing.T) {
+	retido, naoRetido := true, false
+	cases := []struct {
+		name         string
+		regAp        int
+		issRetido    *bool
+		aliquota     float64
+		wantRegAp    string
+		wantTpRet    string
+		wantPAliq    bool
+		wantErrCampo string
+	}{
+		{"padrão, não retido", 0, nil, 0, "1", "1", false, ""},
+		{"padrão, retido pelo tomador", 1, &retido, 3, "1", "2", true, ""},
+		{"acima do sublimite (2), não retido", 2, &naoRetido, 5, "2", "1", true, ""},
+		{"tudo fora do SN (3)", 3, nil, 2, "3", "1", true, ""},
+		{"retido sem alíquota → erro", 1, &retido, 0, "", "", false, "servico.aliquota_iss"},
+		{"apuração 2 sem alíquota → erro", 2, nil, 0, "", "", false, "servico.aliquota_iss"},
+		{"valor inválido vira padrão", 9, nil, 0, "1", "1", false, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			emp := empresaSN()
+			emp.RegApTribSN = c.regAp
+			req := baseRequest()
+			req.IssRetido = c.issRetido
+			req.Servico.AliquotaISS = c.aliquota
+			result, err := NewDPSBuilder().Build(req, emp, 1)
+			if c.wantErrCampo != "" {
+				var ve *ErrValidation
+				if !errors.As(err, &ve) || ve.Field != c.wantErrCampo {
+					t.Fatalf("esperado ErrValidation em %s, veio %v", c.wantErrCampo, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Build: %v", err)
+			}
+			s := string(result.XML)
+			if !strings.Contains(s, "<regApTribSN>"+c.wantRegAp+"</regApTribSN>") {
+				t.Errorf("regApTribSN esperado %s", c.wantRegAp)
+			}
+			if !strings.Contains(s, "<tpRetISSQN>"+c.wantTpRet+"</tpRetISSQN>") {
+				t.Errorf("tpRetISSQN esperado %s", c.wantTpRet)
+			}
+			if got := strings.Contains(s, "<pAliq>"); got != c.wantPAliq {
+				t.Errorf("<pAliq> presente=%v, esperado %v", got, c.wantPAliq)
+			}
+			if c.issRetido != nil && *c.issRetido && !result.ISSRetido {
+				t.Error("resultado deveria marcar ISS retido")
+			}
+		})
 	}
 }

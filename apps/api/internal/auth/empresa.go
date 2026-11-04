@@ -24,10 +24,13 @@ type Empresa struct {
 	// CEP is the empresa's postal code (8 digits), required for the DPS enderNac block.
 	CEP                string
 	InscricaoMunicipal *string
-	CertSecretARN      *string
-	CertValidUntil     *time.Time
-	StripeCustomerID   *string
-	TrialMe            bool
+	// RegApTribSN: regime de apuração do Simples (1/2/3) para ME/EPP optante
+	// (#279). 1 quando não configurado.
+	RegApTribSN      int
+	CertSecretARN    *string
+	CertValidUntil   *time.Time
+	StripeCustomerID *string
+	TrialMe          bool
 	// Billing info (from emissoes_mensais + planos)
 	StripeSubID        *string
 	StripeSubStatus    *string
@@ -45,9 +48,9 @@ type RegisterEmpresaParams struct {
 	RazaoSocial        string
 	Email              string
 	MunicipioIBGE      string
-	CNAE               string // 7-digit CNAE activity code — required for DPS
-	CEP                string // 8-digit postal code — required for DPS enderNac
-	InscricaoMunicipal string // optional
+	CNAE               string      // 7-digit CNAE activity code — required for DPS
+	CEP                string      // 8-digit postal code — required for DPS enderNac
+	InscricaoMunicipal string      // optional
 	Atribuicao         *Atribuicao // optional — origem do cadastro (gclid/utm_*)
 }
 
@@ -68,7 +71,7 @@ type Atribuicao struct {
 	Referrer    string
 }
 
-// nilIfEmpty converte string vazia em NULL — evita gravar '' e depois ter que
+// nilIfEmpty converte string vazia em NULL — evita gravar ” e depois ter que
 // tratar dois "vazios" diferentes nas consultas de atribuição.
 func nilIfEmpty(s string) *string {
 	if s == "" {
@@ -119,6 +122,7 @@ func (r *Repository) FindEmpresa(ctx context.Context, empresaID uuid.UUID) (*Emp
 			COALESCE(e.cnae, '')              AS cnae,
 			COALESCE(e.cep, '')               AS cep,
 			e.inscricao_municipal,
+			COALESCE(e.regime_apuracao_sn, 1) AS regime_apuracao_sn,
 			e.cert_secret_arn,
 			e.cert_valid_until,
 			e.stripe_customer_id,
@@ -143,6 +147,7 @@ func (r *Repository) FindEmpresa(ctx context.Context, empresaID uuid.UUID) (*Emp
 		&e.CNPJ, &e.RazaoSocial, &e.Email, &e.MunicipioIBGE,
 		&e.CNAE, &e.CEP,
 		&e.InscricaoMunicipal,
+		&e.RegApTribSN,
 		&e.CertSecretARN, &e.CertValidUntil,
 		&e.StripeCustomerID,
 		&e.TrialMe,

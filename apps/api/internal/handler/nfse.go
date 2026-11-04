@@ -2140,8 +2140,11 @@ func isNotFound(err error) bool {
 // those regimes collect ISS via DAS) and a pointer to v for LP/LR companies
 // where ISS withholding by the tomador is meaningful.
 func issRetidoPtr(regime string, v bool) *bool {
-	if regime == "" || regime == "SIMPLES_MEI" || regime == "SIMPLES_NACIONAL" {
+	if regime == "" || regime == "SIMPLES_MEI" {
 		return nil
+	}
+	if regime == "SIMPLES_NACIONAL" && !v {
+		return nil // padrão do Simples (ISS no DAS) — só registra quando retido (#279)
 	}
 	b := v
 	return &b
