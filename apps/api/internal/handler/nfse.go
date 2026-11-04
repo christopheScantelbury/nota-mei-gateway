@@ -603,7 +603,7 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 			"iss_retido":        dpsResult.ISSRetido,
 			"valor_iss":         dpsResult.ValorISS,
 			"valor_liquido":     dpsResult.ValorLiquido,
-			"mensagem":          "Nota enviada para processamento (retry automático)",
+			"mensagem":          "Nota enviada para a Receita — a confirmação chega em alguns minutos. Não emita novamente enquanto estiver em processamento.",
 		}
 		if len(warnings) > 0 {
 			resp["avisos"] = warnings
@@ -720,7 +720,7 @@ func (h *NFSeHandler) enviarEProcessar(
 		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
 			"nota_id":  nota.ID,
 			"status":   "PROCESSANDO",
-			"mensagem": "Nota enviada para processamento (retry automático)",
+			"mensagem": "Nota enviada para a Receita — a confirmação chega em alguns minutos. Não emita novamente enquanto estiver em processamento.",
 		})
 	}
 
@@ -1239,7 +1239,7 @@ func (h *NFSeHandler) SubstituirNota(c *fiber.Ctx) error {
 			"nota_original_id":   original.ID,
 			"nota_substituta_id": nova.ID,
 			"status":             "PROCESSANDO",
-			"mensagem":           "Substituição enviada para processamento (retry automático)",
+			"mensagem":           "Substituição enviada para a Receita — a confirmação chega em alguns minutos.",
 		})
 	}
 	if failure != nil && len(failure.Errors()) > 0 {

@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -284,4 +285,64 @@ func (a *Adapter) doJSON(ctx context.Context, method, url string, body []byte, c
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	return client.Do(req)
+}
+
+// ErrDPSNaoEncontrada indica que a SEFIN Nacional respondeu 404 para o id da
+// DPS: a Receita não tem NFS-e gerada a partir daquela DPS (nunca chegou ou
+// foi rejeitada) — é seguro emitir de novo.
+var ErrDPSNaoEncontrada = errors.New("dps não encontrada na SEFIN Nacional")
+
+// ConsultarDPSPorID recupera a chave de acesso da NFS-e gerada a partir de uma
+// DPS (GET /SefinNacional/dps/{idDps}). Usado para reconciliar notas cujo
+// POST /nfse caiu em timeout/5xx: a Receita pode ter autorizado mesmo sem
+// a resposta chegar até nós.
+//
+// Retorna ErrDPSNaoEncontrada no 404. 5xx e erros de rede são retentados.
+func (a *Adapter) ConsultarDPSPorID(ctx context.Context, idDPS string, cert *tls.Certificate) (*NFSeNacionalSuccess, error) {
+	url := a.baseURL + "/dps/" + idDPS
+	var out *NFSeNacionalSuccess
+	err := withRetry(ctx, backoffDelays, func() error {
+		resp, err := a.doJSON(ctx, http.MethodGet, url, nil, cert)
+		if err != nil {
+			return err
+		}
+		defer func() { _ = resp.Body.Close() }()
+		body, err := io.ReadAll(io.LimitReader(resp.Body, 1024*1024))
+		if err != nil {
+			return err
+		}
+		out, err = parseConsultaDPSResponse(resp.StatusCode, body)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// parseConsultaDPSResponse mapeia a resposta de GET /dps/{id}. Separado do
+// transporte para ser testável sem mTLS.
+func parseConsultaDPSResponse(status int, body []byte) (*NFSeNacionalSuccess, error) {
+	switch {
+	case status >= 500:
+		return nil, transientErr{code: status, body: body}
+	case status == http.StatusNotFound:
+		// 404 de página HTML vem de proxy/rota, não da API: não dá pra afirmar
+		// que a DPS não existe (reemitir poderia duplicar a NFS-e).
+		if bytes.Contains(bytes.ToLower(body), []byte("<html")) {
+			return nil, fmt.Errorf("consulta dps: 404 não-JSON: %.200s", body)
+		}
+		return nil, ErrDPSNaoEncontrada
+	case status == http.StatusOK:
+		s := &NFSeNacionalSuccess{}
+		if err := json.Unmarshal(body, s); err != nil {
+			return nil, fmt.Errorf("parse consulta dps: %w (body=%.200s)", err, body)
+		}
+		if s.ChaveAcesso == "" {
+			return nil, fmt.Errorf("consulta dps sem chaveAcesso (body=%.200s)", body)
+		}
+		return s, nil
+	default:
+		return nil, fmt.Errorf("consulta dps: status %d: %.300s", status, body)
+	}
 }

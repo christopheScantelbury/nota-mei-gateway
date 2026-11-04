@@ -469,6 +469,9 @@ func (r *NotaRepository) SetProtocolo(ctx context.Context, notaID uuid.UUID, pro
 // instances cannot double-count or double-publish the same nota (SCALE-01).
 // Returns (true, nil) when the row was updated; (false, nil) when another
 // instance already finalised it first.
+// ERRO_TEMPORARIO também é aceito: a Receita pode ter autorizado uma DPS cujo
+// POST caiu em timeout (a nota foi marcada antes da resposta chegar, ou é a
+// reconciliação via GET /dps/{id} que descobriu a autorização — issue #273).
 func (r *NotaRepository) Autorizar(ctx context.Context, notaID uuid.UUID, numeroNFSe, codVerificacao, xmlRetorno string) (bool, error) {
 	tag, err := r.db.Pool().Exec(ctx, `
 		UPDATE notas_fiscais
@@ -476,10 +479,12 @@ func (r *NotaRepository) Autorizar(ctx context.Context, notaID uuid.UUID, numero
 		    numero_nfse = $1,
 		    codigo_verificacao = $2,
 		    xml_retorno = $3,
+		    erro_codigo = NULL,
+		    erro_descricao = NULL,
 		    emitida_em = NOW(),
 		    updated_at = NOW()
 		WHERE id = $4
-		  AND status = 'PROCESSANDO'
+		  AND status IN ('PROCESSANDO', 'ERRO_TEMPORARIO')
 	`, numeroNFSe, codVerificacao, xmlRetorno, notaID)
 	if err != nil {
 		return false, err
@@ -762,4 +767,72 @@ func nullStr(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// NotaParaReconciliar é uma nota do caminho DPS (NFS-e Nacional) sem chave de
+// acesso cujo envio não teve resposta conclusiva (timeout/5xx).
+type NotaParaReconciliar struct {
+	ID            uuid.UUID
+	EmpresaID     uuid.UUID
+	Status        string
+	ErroCodigo    *string
+	XMLEnviado    *string
+	WebhookURL    *string
+	CertSecretARN *string
+	CreatedAt     time.Time
+}
+
+// FindParaReconciliar devolve notas DPS em PROCESSANDO, ou em ERRO_TEMPORARIO
+// ainda não reconciliado, criadas há mais de olderThan (e há menos de 7 dias),
+// sem chave de acesso. A mais antiga primeiro.
+func (r *NotaRepository) FindParaReconciliar(ctx context.Context, olderThan time.Duration, limit int) ([]NotaParaReconciliar, error) {
+	threshold := time.Now().UTC().Add(-olderThan)
+	rows, err := r.db.Pool().Query(ctx, `
+		SELECT n.id, n.empresa_id, n.status, n.erro_codigo, n.xml_enviado, n.webhook_url,
+		       e.cert_secret_arn, n.created_at
+		FROM notas_fiscais n
+		JOIN empresas e ON e.id = n.empresa_id
+		WHERE (n.status = 'PROCESSANDO'
+		       OR (n.status = 'ERRO_TEMPORARIO' AND COALESCE(n.erro_codigo, '') IN ('', $3, 'STUCK')))
+		  AND n.protocolo_receita IS NULL
+		  AND n.numero_nfse IS NULL
+		  AND n.created_at < $1
+		  AND n.created_at > NOW() - INTERVAL '7 days'
+		ORDER BY n.created_at ASC
+		LIMIT $2
+	`, threshold, limit, ErroCodigoAguardandoReceita)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []NotaParaReconciliar
+	for rows.Next() {
+		var n NotaParaReconciliar
+		if err := rows.Scan(&n.ID, &n.EmpresaID, &n.Status, &n.ErroCodigo, &n.XMLEnviado,
+			&n.WebhookURL, &n.CertSecretARN, &n.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, n)
+	}
+	return out, rows.Err()
+}
+
+// MarcarErroTemporarioReconciliacao grava o resultado da reconciliação numa
+// nota ainda não finalizada (PROCESSANDO ou ERRO_TEMPORARIO). Devolve false
+// se a nota já foi finalizada por outro caminho.
+func (r *NotaRepository) MarcarErroTemporarioReconciliacao(ctx context.Context, notaID uuid.UUID, erroCodigo, erroDescricao string) (bool, error) {
+	tag, err := r.db.Pool().Exec(ctx, `
+		UPDATE notas_fiscais
+		SET status         = 'ERRO_TEMPORARIO',
+		    erro_codigo    = $1,
+		    erro_descricao = $2,
+		    updated_at     = NOW()
+		WHERE id = $3
+		  AND status IN ('PROCESSANDO', 'ERRO_TEMPORARIO')
+	`, erroCodigo, erroDescricao, notaID)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
 }

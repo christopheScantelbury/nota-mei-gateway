@@ -107,13 +107,15 @@ func main() {
 		WithBillingCounter(billingRepo).
 		WithLocker(redisLocker)
 
-	// ── Stuck nota poller ─────────────────────────────────────────────────────
-	// Marks PROCESSANDO notas that never received a protocol as ERRO_TEMPORARIO
-	// after 2 minutes, cycling every 30 seconds.
-	// Interval matches the lock TTL (2 min) to avoid burning Redis SETNX calls
-	// on ticks that will always see the lock already held. Previously the interval
-	// was 30s with a 2-min TTL, wasting 75% of Redis round-trips.
-	stuckPoller := nfse.NewStuckPoller(notaRepo, redisLocker, 2*time.Minute, nfse.DefaultStuckInterval, 50)
+	// ── Reconciliação de DPS sem resposta (issue #273) ────────────────────
+	// Substitui o StuckPoller: notas do caminho DPS cujo POST caiu em
+	// timeout/5xx são consultadas na SEFIN (GET /dps/{id}) depois de 5 min —
+	// autoriza se a Receita gerou a NFS-e, libera reemissão se não gerou.
+	reconciler := nfse.NewDPSReconciler(notaRepo, adapter, certProv,
+		nfse.DefaultReconcileAge, nfse.DefaultReconcileInterval, 50).
+		WithCounter(billingRepo).
+		WithPublisher(publisher).
+		WithLocker(redisLocker)
 
 	// ── Webhook requeuer ───────────────────────────────────────────────────
 	// Sweeps the DB every 5 minutes for undelivered webhooks and re-publishes them.
@@ -133,7 +135,7 @@ func main() {
 		done <- nil
 	}()
 	go func() {
-		stuckPoller.Run(ctx)
+		reconciler.Run(ctx)
 		done <- nil
 	}()
 	go func() {
