@@ -19,7 +19,8 @@ import { enqueueBrevoEvent } from '@/lib/brevo/events'
 // emitir o evento; conflito (23505) = já nudgeado, pula.
 //
 // Coorte:
-//   - cert_uploaded_at IS NULL   (nunca subiu cert)
+//   - cert_secret_arn e cert_valid_until NULL (nunca subiu cert — cert_uploaded_at
+//     não é preenchido pelo upload, não serve de critério)
 //   - user_id IS NOT NULL        (conta real linkada — exclui seeds de QA)
 //   - created_at entre 1 e 60 dias atrás (dá 1 dia antes de cutucar; não cutuca lead fóssil)
 //   - unsubscribed_urgency != true (respeita opt-out de e-mail de ciclo de vida)
@@ -72,7 +73,8 @@ export async function GET(req: NextRequest) {
   const { data: rows, error } = await sb
     .from('empresas')
     .select('id, user_id, email, razao_social, tipo, created_at')
-    .is('cert_uploaded_at', null)
+    .is('cert_secret_arn', null)
+    .is('cert_valid_until', null)
     .not('user_id', 'is', null)
     .lte('created_at', maxCreated)
     .gte('created_at', minCreated)
