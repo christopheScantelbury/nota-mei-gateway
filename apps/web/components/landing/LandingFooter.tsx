@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import LogoAdaptive from '@/components/ui/LogoAdaptive'
 import CookiePreferencesLink from '@/components/consent/CookiePreferencesLink'
+import { linkWhatsAppSuporte } from '@/lib/suporte/abrir'
 
 // ── Persona-aware logo (igual ao Navbar) ────────────────────────────────────
 // A landing é theme-aware (CSS variables): light → fundo claro com logo light
@@ -96,8 +97,13 @@ export default function LandingFooter() {
               <li><Link href="/termos"      className="hover:text-text-1 transition">Termos de uso</Link></li>
               <li><CookiePreferencesLink /></li>
               <li>
+                <a href={linkWhatsAppSuporte()} target="_blank" rel="noopener noreferrer" className="hover:text-text-1 transition">
+                  Suporte via WhatsApp ↗
+                </a>
+              </li>
+              <li>
                 <a href="mailto:suporte@emitirnotafacil.com.br" className="hover:text-text-1 transition">
-                  Suporte
+                  suporte@emitirnotafacil.com.br
                 </a>
               </li>
             </ul>

@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/Button'
+import FalarComSuporte from '@/components/dashboard/FalarComSuporte'
 
 type Rejeicao = {
   codigo: string
@@ -72,6 +73,16 @@ export function ErroRejeicao({ rejeicoes, notaId, onEmitirNova, emitirNovaHref =
           Ver lista de notas
         </a>
       </div>
+
+      <p className="mt-4 text-center text-xs text-text-2">
+        Não sabe o que corrigir?{' '}
+        <FalarComSuporte
+          mensagem={`Minha nota foi rejeitada${rejeicoes[0]?.codigoReceita ? ` (${rejeicoes[0].codigoReceita})` : ''}. O que eu preciso corrigir?`}
+          className="text-brand-cyan hover:underline font-medium"
+        >
+          Fale com o suporte
+        </FalarComSuporte>
+      </p>
     </div>
   )
 }

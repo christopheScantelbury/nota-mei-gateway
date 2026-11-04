@@ -55,6 +55,12 @@ export default async function NotaDetailPage({
   if (!nota) notFound()
 
   const empresaTipo = empresa?.tipo ?? 'MEI'
+  // E-mail do tomador para o botão "Enviar por e-mail" (pedido original ou envio automático).
+  const extras = nota as unknown as {
+    auto_email_destino?: string | null
+    dados_emissao?: { tomador?: { email?: string } } | null
+  }
+  const emailTomador = extras.auto_email_destino ?? extras.dados_emissao?.tomador?.email ?? ''
 
   // For ME/EPP, cancellation is handled by AcoesDaNota modal
   const canCancel = nota.status === 'AUTORIZADA' && empresaTipo === 'MEI'
@@ -112,7 +118,7 @@ export default async function NotaDetailPage({
               mensagem: nota.erro_descricao ?? 'Nota rejeitada pela Receita Federal.',
               acao: 'Verifique os dados, corrija e emita uma nova nota.',
             }] : []}
-            emitirNovaHref="/notas/nova"
+            emitirNovaHref={`/notas/nova?de=${nota.id}`}
           />
         </div>
       )}
@@ -226,8 +232,16 @@ export default async function NotaDetailPage({
         {hasPDF && (
           <EnviarNotaEmail
             notaId={nota.id}
-            defaultEmail={nota.tomador_doc ? '' : ''}
+            defaultEmail={emailTomador}
           />
+        )}
+        {(nota.status === 'AUTORIZADA' || nota.status === 'CANCELADA') && (
+          <Link
+            href={`/notas/nova?de=${nota.id}`}
+            className="text-sm px-4 py-2 rounded-lg border border-navy-600 text-text-1 hover:border-brand-cyan hover:text-brand-cyan transition"
+          >
+            📋 Emitir outra igual
+          </Link>
         )}
         {canCancel && (
           <CancelarNotaButton

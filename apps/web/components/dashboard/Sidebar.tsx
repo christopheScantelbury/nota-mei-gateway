@@ -8,6 +8,7 @@ import ThemeToggle from '@/components/ui/ThemeToggle'
 import { EmpresaSwitcher } from '@/components/dashboard/EmpresaSwitcher'
 import { Button } from '@/components/ui/Button'
 import { features, type PlanTier } from '@/lib/plan-tier'
+import { abrirSuporte } from '@/lib/suporte/abrir'
 
 // ── Nav item definitions ────────────────────────────────────────────────────
 
@@ -209,6 +210,16 @@ function NavContent({
             </Link>
           )
         })}
+
+        {/* Suporte — sempre visível (#258: cliente achava que "não existe suporte") */}
+        <button
+          type="button"
+          onClick={() => { onNavClick?.(); abrirSuporte() }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 min-h-[44px] rounded-lg text-sm font-medium transition-colors text-text-2 hover:text-text-1 hover:bg-navy-600"
+        >
+          <span className="shrink-0" aria-hidden="true">🛟</span>
+          <span className="flex-1 text-left">Falar com o suporte</span>
+        </button>
 
         {/* Link admin — visível apenas para admins */}
         {isAdmin && (

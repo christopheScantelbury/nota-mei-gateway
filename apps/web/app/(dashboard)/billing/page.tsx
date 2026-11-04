@@ -1,6 +1,7 @@
 ﻿export const metadata = { title: 'Plano & Faturamento' }
 
 import { redirect } from 'next/navigation'
+import FalarComSuporte from '@/components/dashboard/FalarComSuporte'
 import { createClient } from '@/lib/supabase/server'
 import type { EmissaoMensal } from '@/lib/types'
 import UsageChart from '@/components/dashboard/UsageChart'
@@ -300,6 +301,16 @@ export default async function BillingPage() {
           )
         })}
       </div>
+
+      <p className="mt-8 text-sm text-text-2">
+        Dúvidas sobre plano, cobrança ou nota fiscal da assinatura?{' '}
+        <FalarComSuporte
+          mensagem="Tenho uma dúvida sobre meu plano/cobrança."
+          className="text-brand-cyan hover:underline font-medium"
+        >
+          Fale com o suporte
+        </FalarComSuporte>
+      </p>
     </div>
   )
 }

@@ -17,6 +17,7 @@ import { hasFeature } from '@/lib/plans'
 import type { NotaTemplate } from '@/app/api/templates/route'
 import type { Cliente, ClienteAutocomplete } from '@/lib/types-cliente'
 import type { RegimeTributario } from '@/lib/types'
+import type { RascunhoNota } from '@/app/api/nfse/[id]/rascunho/route'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function currentMonth() {
@@ -80,6 +81,10 @@ export default function NovaNota() {
   const [razaoSocial, setRazaoSocial] = useState('')
   const [emailTomador, setEmailTomador] = useState('')
   const [municipioIbge, setMunicipioIbge] = useState('')
+  // #274: envia a nota autorizada para o e-mail do tomador (como no portal da prefeitura)
+  const [enviarEmail, setEnviarEmail] = useState(true)
+  // #272: dados copiados de outra nota (?de=<id>)
+  const [copiadaDe, setCopiadaDe] = useState<{ id: string; completo: boolean } | null>(null)
 
   // Opcionais
   const [webhookUrl, setWebhookUrl] = useState('')
@@ -151,6 +156,33 @@ export default function NovaNota() {
         })
       })
       .catch(() => {/* silent */})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // #272 — "Corrigir e emitir novamente" / "Emitir outra igual": ?de=<nota_id>
+  useEffect(() => {
+    const deId = searchParams.get('de')
+    if (!deId) return
+    fetch(`/api/nfse/${deId}/rascunho`)
+      .then(r => r.ok ? r.json() : null)
+      .then((r: RascunhoNota | null) => {
+        if (!r) return
+        if (r.servico.codigo_nbs) setCodigoNbs(r.servico.codigo_nbs)
+        if (r.servico.discriminacao) setDiscriminacao(r.servico.discriminacao)
+        if (r.servico.valor != null) setValorServico(String(r.servico.valor))
+        if (r.servico.aliquota_iss != null && r.servico.aliquota_iss > 0) setAliquotaIss(String(r.servico.aliquota_iss))
+        if (r.competencia) setCompetencia(r.competencia)
+        setTipoPessoa(r.tomador.tipo)
+        if (r.tomador.documento) {
+          setDocumento(r.tomador.tipo === 'PJ' ? maskCNPJ(r.tomador.documento) : maskCPF(r.tomador.documento))
+        }
+        if (r.tomador.razao_social) setRazaoSocial(r.tomador.razao_social)
+        if (r.tomador.email) setEmailTomador(r.tomador.email)
+        if (r.tomador.municipio_ibge) setMunicipioIbge(r.tomador.municipio_ibge)
+        if (r.iss_retido !== null) setIssRetido(r.iss_retido)
+        setCopiadaDe({ id: deId, completo: r.completo })
+      })
+      .catch(() => {/* silent — formulário segue em branco */})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -262,6 +294,7 @@ export default function NovaNota() {
           municipio_ibge: municipioIbge,
         },
         competencia,
+        enviar_email_tomador: enviarEmail,
         ...(webhookUrl.trim() ? { webhook_url: webhookUrl.trim() } : {}),
         ...(issRetido !== null ? { iss_retido: issRetido } : {}),
         idempotency_key: idempotencyKey,
@@ -355,7 +388,10 @@ export default function NovaNota() {
             Nota enviada para processamento
           </h2>
           <p className="text-text-2 text-sm mb-6">
-            A Receita Federal irá processar sua NFS-e em instantes. Você receberá o resultado via webhook.
+            A Receita Federal irá processar sua NFS-e em instantes.
+            {enviarEmail && emailTomador
+              ? <> Assim que for autorizada, enviamos a nota para <strong className="text-text-1">{emailTomador}</strong>.</>
+              : ' Acompanhe o status na lista de notas.'}
           </p>
           {/* ME-42: ISS recolhimento card no sucesso */}
           {userRegime && (
@@ -436,6 +472,18 @@ export default function NovaNota() {
               >
                 ✕
               </button>
+            )}
+          </div>
+        )}
+
+        {copiadaDe && (
+          <div className="rounded-xl border border-brand-cyan/30 bg-brand-cyan/5 px-4 py-3 text-sm text-text-2">
+            📋 Dados copiados da nota anterior — confira e corrija o que for preciso antes de emitir.
+            {!copiadaDe.completo && (
+              <span className="block mt-1 text-xs">
+                Essa nota é antiga: escolha de novo o <strong className="text-text-1">serviço prestado</strong> e
+                confira o município do tomador.
+              </span>
             )}
           </div>
         )}
@@ -599,6 +647,21 @@ export default function NovaNota() {
               onChange={e => setEmailTomador(e.target.value)}
             />
           </Field>
+
+          <label className="flex items-start gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 accent-brand-cyan"
+              checked={enviarEmail}
+              onChange={e => setEnviarEmail(e.target.checked)}
+            />
+            <span className="text-sm text-text-1">
+              Enviar a nota para este e-mail assim que for autorizada
+              <span className="block text-xs text-text-2">
+                O cliente recebe o número da nota e o link oficial para baixar o PDF e o XML.
+              </span>
+            </span>
+          </label>
 
           <Field label="Município do tomador" error={errors.municipioIbge}>
             <CepMunicipioInput

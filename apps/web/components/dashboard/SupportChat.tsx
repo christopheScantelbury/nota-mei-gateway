@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import notify from '@/lib/notify'
+import { EVENTO_ABRIR_SUPORTE, linkWhatsAppSuporte } from '@/lib/suporte/abrir'
 
 type Autor = 'cliente' | 'ia' | 'atendente' | 'sistema'
 type Status = 'ia' | 'aguardando_humano' | 'aguardando_cliente' | 'resolvido'
@@ -47,7 +48,20 @@ export default function SupportChat() {
   const [mensagens, setMensagens] = useState<Msg[]>([])
   const [carregado, setCarregado] = useState(false)
   const [naoLida, setNaoLida] = useState(false)
+  const [textoInicial, setTextoInicial] = useState('')
   const pathname = usePathname()
+
+  // Outros pontos do painel (menu, nota rejeitada, plano) abrem o chat via
+  // abrirSuporte() — #258: canal de suporte visível onde o cliente precisa.
+  useEffect(() => {
+    function onAbrir(e: Event) {
+      const msg = (e as CustomEvent<{ mensagem?: string }>).detail?.mensagem
+      setTextoInicial(msg ?? '')
+      setOpen(true)
+    }
+    window.addEventListener(EVENTO_ABRIR_SUPORTE, onAbrir)
+    return () => window.removeEventListener(EVENTO_ABRIR_SUPORTE, onAbrir)
+  }, [])
 
   const carregar = useCallback(async () => {
     try {
@@ -102,7 +116,8 @@ export default function SupportChat() {
           mensagens={mensagens}
           carregado={carregado}
           pathname={pathname}
-          onClose={() => setOpen(false)}
+          textoInicial={textoInicial}
+          onClose={() => { setOpen(false); setTextoInicial('') }}
           onAtualizado={(t, m) => { setTicket(t); setMensagens(m) }}
           onOtimista={(m) => setMensagens((prev) => [...prev, m])}
           onDesfazer={(id) => setMensagens((prev) => prev.filter((m) => m.id !== id))}
@@ -113,18 +128,19 @@ export default function SupportChat() {
 }
 
 function ChatPanel({
-  ticket, mensagens, carregado, pathname, onClose, onAtualizado, onOtimista, onDesfazer,
+  ticket, mensagens, carregado, pathname, textoInicial, onClose, onAtualizado, onOtimista, onDesfazer,
 }: {
   ticket: Ticket | null
   mensagens: Msg[]
   carregado: boolean
   pathname: string
+  textoInicial: string
   onClose: () => void
   onAtualizado: (t: Ticket | null, m: Msg[]) => void
   onOtimista: (m: Msg) => void
   onDesfazer: (id: string) => void
 }) {
-  const [texto, setTexto] = useState('')
+  const [texto, setTexto] = useState(textoInicial)
   const [anexo, setAnexo] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
   const fimRef = useRef<HTMLDivElement>(null)
@@ -201,6 +217,14 @@ function ChatPanel({
         <div className="min-w-0">
           <p className="font-display font-extrabold text-text-1">Ajuda NotaFácil</p>
           <p className="text-xs text-text-2 truncate">{subtitulo}</p>
+          <a
+            href={linkWhatsAppSuporte()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-brand-cyan hover:underline"
+          >
+            Prefere WhatsApp? Fale com a equipe →
+          </a>
         </div>
         <button onClick={onClose} className="text-text-2 hover:text-text-1 text-2xl leading-none min-w-[44px] min-h-[44px] -mr-2 -mt-2" aria-label="Fechar ajuda">
           ×
