@@ -43,7 +43,7 @@ export default function ObrigadoCadastroPage() {
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link
-            href="/configuracoes/certificado"
+            href="/configuracoes?aba=certificado"
             className="bg-brand-cyan text-navy-900 font-bold px-5 py-3 rounded-lg hover:opacity-90 transition text-sm"
           >
             Configurar certificado A1 →

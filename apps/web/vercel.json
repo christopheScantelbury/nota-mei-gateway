@@ -4,6 +4,7 @@
   "ignoreCommand": "bash .vercel-ignore-build.sh",
   "framework": "nextjs",
   "crons": [
-    { "path": "/api/cron/brevo-queue", "schedule": "0 9 * * *" }
+    { "path": "/api/cron/brevo-queue", "schedule": "0 9 * * *" },
+    { "path": "/api/cron/reativacao-cert", "schedule": "0 12 * * *" }
   ]
 }

@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 export type BrevoEventName =
   | 'user_signup'
   | 'cert_uploaded'
+  | 'cert_pending'          // cadastro concluído mas sem certificado A1 há dias — nudge de reativação
   | 'first_nfse_created'
   | 'first_nfse_authorized'
   | 'plan_upgraded'

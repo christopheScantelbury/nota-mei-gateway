@@ -236,6 +236,38 @@ function CertificadoTab({ cert_valid_until }: { cert_valid_until: string | null 
         )}
       </div>
 
+      {/* Ajuda pra quem ainda não tem o A1 em mãos — este é o passo onde mais
+          gente empaca no onboarding (não tem o certificado, está com o
+          contador, ou tem A3 em token que não dá pra subir). Só aparece
+          enquanto não há certificado configurado. */}
+      {days === null && (
+        <div className="rounded-xl border border-navy-600 bg-navy-700/50 p-4">
+          <p className="text-sm font-semibold text-text-1 mb-1">
+            Ainda não tem o certificado A1?
+          </p>
+          <p className="text-xs text-text-2">
+            O A1 é um arquivo <strong className="text-text-1">.pfx</strong> com senha,
+            emitido por uma certificadora (Serasa, Certisign, Valid e outras). É ele
+            que assina suas notas na Receita.
+          </p>
+          <ul className="text-xs text-text-2 mt-2 space-y-1 list-disc list-inside">
+            <li>Já pediu ao seu contador? Muitas vezes o certificado está com ele.</li>
+            <li>
+              Tem um <strong className="text-text-1">A3</strong> (token ou cartão)? Ele
+              não serve aqui — para emitir pela plataforma é preciso o A1 em arquivo.
+            </li>
+          </ul>
+          <a
+            href="/certificado-a1"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-brand-cyan hover:underline mt-3"
+          >
+            Ver como conseguir o certificado A1 →
+          </a>
+        </div>
+      )}
+
       {toast && <Toast {...toast} />}
 
       {/* Upload form */}
