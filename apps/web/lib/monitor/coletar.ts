@@ -45,7 +45,7 @@ const SERVICOS: Record<string, Fonte> = {
 // Ruído conhecido — não vira issue.
 const RUIDO_WEB = /ChunkLoadError|Loading chunk \S+ failed|^Script error\.?$|Failed to fetch|Load failed|NetworkError|ResizeObserver loop/i
 const RUIDO_API: RegExp[] = [
-  /UpdateCert failed[\s\S]*password incorrect/i, // cliente digitou a senha do PFX errada
+  /(Store|Update)Cert failed[\s\S]*password incorrect/i, // cliente digitou a senha do PFX errada (1º envio ou renovação)
   /no Stripe-Signature header/i,                  // bot/scanner fazendo POST no webhook sem assinatura
   /proxy network namespace pool is closed/i,      // infra do Railway durante redeploy
 ]
