@@ -14,6 +14,10 @@ import (
 // ErrNotFound is returned when a recorrencia does not exist or does not belong to the MEI.
 var ErrNotFound = errors.New("recorrencia not found")
 
+// ErrSemCertificado: a empresa não tem certificado A1 que carregue (nunca
+// enviou ou perdeu na saída da AWS). A recorrência fica pendente até o reenvio.
+var ErrSemCertificado = errors.New("empresa sem certificado A1 válido")
+
 // Recorrencia represents a row in the nota_recorrencias table.
 type Recorrencia struct {
 	ID             string          `json:"id"`
@@ -289,4 +293,51 @@ func nullableString(s string) interface{} {
 		return nil
 	}
 	return s
+}
+
+// ─── pendente de certificado (#268/#270) ────────────────────────────────────
+
+// MarcarPendenteCertificado marca a recorrência como pendente de certificado.
+// Retorna true só na primeira vez (para avisar o dono uma única vez).
+func (r *Repository) MarcarPendenteCertificado(ctx context.Context, id string) (bool, error) {
+	tag, err := r.pool.Exec(ctx, `
+		UPDATE nota_recorrencias
+		SET pendente_certificado_desde = NOW(), updated_at = NOW()
+		WHERE id = $1 AND pendente_certificado_desde IS NULL
+	`, id)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() > 0, nil
+}
+
+// LimparPendenteCertificado tira a marca depois de uma emissão bem-sucedida.
+func (r *Repository) LimparPendenteCertificado(ctx context.Context, id string) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE nota_recorrencias SET pendente_certificado_desde = NULL
+		WHERE id = $1 AND pendente_certificado_desde IS NOT NULL
+	`, id)
+	return err
+}
+
+// ContatoDono devolve e-mail e razão social do dono da recorrência.
+func (r *Repository) ContatoDono(ctx context.Context, id string) (email, razaoSocial string, err error) {
+	var e, rs *string
+	err = r.pool.QueryRow(ctx, `
+		SELECT COALESCE(e.email, m.email), COALESCE(e.razao_social, m.razao_social)
+		FROM nota_recorrencias r
+		LEFT JOIN empresas e ON e.id = COALESCE(r.empresa_id, r.mei_id)
+		LEFT JOIN meis m     ON m.id = r.mei_id
+		WHERE r.id = $1
+	`, id).Scan(&e, &rs)
+	if err != nil {
+		return "", "", err
+	}
+	if e != nil {
+		email = *e
+	}
+	if rs != nil {
+		razaoSocial = *rs
+	}
+	return email, razaoSocial, nil
 }

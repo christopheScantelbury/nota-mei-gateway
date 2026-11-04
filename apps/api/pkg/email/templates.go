@@ -333,3 +333,17 @@ func BoasVindasMEHTML(p BoasVindasMEParams) string {
 `, p.RazaoSocial, p.APIKey, issBlock) +
 		htmlClose()
 }
+
+// RecorrenciaSemCertificadoHTML avisa que uma automação parou por falta do A1.
+func RecorrenciaSemCertificadoHTML(razaoSocial, nomeRecorrencia, configURL string) string {
+	return htmlOpen() + fmt.Sprintf(`
+<div class="body">
+  <h2>Sua nota automática está aguardando o certificado</h2>
+  <p>Olá, <strong>%s</strong>. A automação <strong>%s</strong> chegou na data de emissão, mas não encontramos um certificado digital A1 válido na sua conta — sem ele a Receita não aceita a nota.</p>
+  <p>Assim que você enviar o certificado, a nota é emitida automaticamente em até 1 hora. Nada precisa ser refeito.</p>
+  <p><a class="btn" href="%s">Enviar certificado A1</a></p>
+  <p class="hint" style="margin-top:16px;">Este aviso é enviado uma única vez por automação.</p>
+</div>
+`, html.EscapeString(razaoSocial), html.EscapeString(nomeRecorrencia), configURL) +
+		htmlClose()
+}

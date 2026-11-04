@@ -559,7 +559,7 @@ func main() {
 		log.Warn().Msg("recorrencia: NoopEmissor ativo — certProv não disponível (sem AWS)")
 		recEmissor = &recorrencia.NoopEmissor{}
 	}
-	sched := recorrencia.NewScheduler(recRepo, recEmissor, time.Hour)
+	sched := recorrencia.NewScheduler(recRepo, recEmissor, time.Hour).WithAvisoSemCertificado(emailSvc)
 	if sharedRedis != nil {
 		sched = sched.WithLocker(billing.NewRedisLockerWithClient(sharedRedis))
 		log.Info().Msg("recorrencia scheduler: distributed lock configurado")

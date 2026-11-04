@@ -131,3 +131,15 @@ func (s *Service) SendBoasVindasME(
 	})
 	return s.enviar(ctx, Mensagem{Tipo: "boas_vindas_me", Para: toEmail, Assunto: "Bem-vindo ao Nota MEI Gateway — sua empresa ME foi cadastrada", HTML: html})
 }
+
+// SendRecorrenciaSemCertificado avisa o dono que a automação está parada até
+// ele enviar o certificado A1 (#268/#270).
+func (s *Service) SendRecorrenciaSemCertificado(ctx context.Context, toEmail, razaoSocial, nomeRecorrencia string) error {
+	html := RecorrenciaSemCertificadoHTML(razaoSocial, nomeRecorrencia, "https://www.emitirnotafacil.com.br/configuracoes")
+	return s.enviar(ctx, Mensagem{
+		Tipo:    "recorrencia_sem_certificado",
+		Para:    toEmail,
+		Assunto: "Sua nota automática está aguardando o certificado digital",
+		HTML:    html,
+	})
+}

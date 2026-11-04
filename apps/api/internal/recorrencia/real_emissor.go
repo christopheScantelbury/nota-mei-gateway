@@ -103,6 +103,16 @@ func (e *RealEmissor) EmitirNota(ctx context.Context, meiID string, reqMap map[s
 		return "", fmt.Errorf("emissao request decode: %w", err)
 	}
 
+	// Certificado antes de alocar o número da DPS: sem ele não há emissão e o
+	// scheduler tenta de novo a cada hora (#268/#270) — não queimar números.
+	if empresa.CertSecretARN == nil || *empresa.CertSecretARN == "" {
+		return "", fmt.Errorf("%w: nenhum certificado configurado", ErrSemCertificado)
+	}
+	cert, err := e.certLoader.GetCert(ctx, *empresa.CertSecretARN)
+	if err != nil {
+		return "", fmt.Errorf("%w: %v", ErrSemCertificado, err)
+	}
+
 	// 3. Allocate DPS sequence number (atomic).
 	numeroDPS, err := e.notaRepo.NextNumeroDPS(ctx, empresa.ID)
 	if err != nil {
@@ -113,15 +123,6 @@ func (e *RealEmissor) EmitirNota(ctx context.Context, meiID string, reqMap map[s
 	dpsResult, err := e.dpsBuilder.Build(req, empresa, numeroDPS)
 	if err != nil {
 		return "", fmt.Errorf("build dps: %w", err)
-	}
-
-	// 5. Load cert.
-	if empresa.CertSecretARN == nil || *empresa.CertSecretARN == "" {
-		return "", fmt.Errorf("empresa sem certificado A1 configurado")
-	}
-	cert, err := e.certLoader.GetCert(ctx, *empresa.CertSecretARN)
-	if err != nil {
-		return "", fmt.Errorf("load cert: %w", err)
 	}
 
 	// 6. Sign.

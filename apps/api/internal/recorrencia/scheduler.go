@@ -3,6 +3,7 @@ package recorrencia
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -46,6 +47,26 @@ type Scheduler struct {
 	interval time.Duration
 	locker   SchedulerLocker // optional; nil disables distributed locking (not recommended in prod)
 	emailCfg emailConfigReader
+	pendente pendenciaCertificado // nil sem repo (testes)
+	aviso    AvisoSemCertificado  // opcional
+}
+
+// pendenciaCertificado guarda a marca "pendente de certificado" (#268/#270).
+type pendenciaCertificado interface {
+	MarcarPendenteCertificado(ctx context.Context, id string) (bool, error)
+	LimparPendenteCertificado(ctx context.Context, id string) error
+	ContatoDono(ctx context.Context, id string) (email, razaoSocial string, err error)
+}
+
+// AvisoSemCertificado avisa o dono que a automação parou por falta do A1.
+type AvisoSemCertificado interface {
+	SendRecorrenciaSemCertificado(ctx context.Context, toEmail, razaoSocial, nomeRecorrencia string) error
+}
+
+// WithAvisoSemCertificado liga o e-mail ao dono quando faltar o certificado.
+func (s *Scheduler) WithAvisoSemCertificado(a AvisoSemCertificado) *Scheduler {
+	s.aviso = a
+	return s
 }
 
 // emailConfigReader lê a opção de e-mail ao tomador de uma recorrência.
@@ -69,6 +90,7 @@ func NewScheduler(repo *Repository, emissor NotaEmissor, interval time.Duration)
 	}
 	if repo != nil {
 		s.emailCfg = repo
+		s.pendente = repo
 	}
 	return s
 }
@@ -176,6 +198,10 @@ func (s *Scheduler) process(ctx context.Context, rec Recorrencia) {
 	}
 
 	notaID, err := s.emissor.EmitirNota(ctx, rec.MeiID, req)
+	if errors.Is(err, ErrSemCertificado) {
+		s.pendenteCertificado(ctx, rec, err)
+		return
+	}
 	if err != nil {
 		logger.Error().
 			Err(err).
@@ -183,6 +209,12 @@ func (s *Scheduler) process(ctx context.Context, rec Recorrencia) {
 			Str("competencia", competencia).
 			Msg("falha ao emitir nota recorrente")
 		return
+	}
+
+	if s.pendente != nil {
+		if clrErr := s.pendente.LimparPendenteCertificado(ctx, rec.ID); clrErr != nil {
+			logger.Warn().Err(clrErr).Msg("não foi possível limpar a marca de pendente de certificado")
+		}
 	}
 
 	// Advance the schedule.
@@ -197,4 +229,32 @@ func (s *Scheduler) process(ctx context.Context, rec Recorrencia) {
 		Str("nota_id", notaID).
 		Str("competencia", competencia).
 		Msg("nota recorrente emitida com sucesso")
+}
+
+// pendenteCertificado: sem certificado não há o que emitir. Não é erro do
+// sistema (Warn, não Error — o monitor de produção abre issue para todo Error):
+// a recorrência fica pendente, o dono é avisado UMA vez por e-mail e a nota sai
+// sozinha no primeiro tick depois que ele reenviar o A1 (#268/#270).
+func (s *Scheduler) pendenteCertificado(ctx context.Context, rec Recorrencia, causa error) {
+	logger := s.log.With().Str("recorrencia_id", rec.ID).Logger()
+	logger.Warn().Err(causa).Msg("recorrência pendente de certificado A1 — emissão adiada")
+	if s.pendente == nil {
+		return
+	}
+	primeira, err := s.pendente.MarcarPendenteCertificado(ctx, rec.ID)
+	if err != nil {
+		logger.Warn().Err(err).Msg("não foi possível marcar a recorrência como pendente de certificado")
+		return
+	}
+	if !primeira || s.aviso == nil {
+		return
+	}
+	email, razao, err := s.pendente.ContatoDono(ctx, rec.ID)
+	if err != nil || email == "" {
+		logger.Warn().Err(err).Msg("recorrência pendente de certificado: dono sem e-mail — aviso não enviado")
+		return
+	}
+	if err := s.aviso.SendRecorrenciaSemCertificado(ctx, email, razao, rec.Nome); err != nil {
+		logger.Warn().Err(err).Msg("recorrência pendente de certificado: falha ao enfileirar aviso")
+	}
 }
