@@ -143,7 +143,12 @@ async function coletarRailway(desde: Date, ate: Date): Promise<Achado[]> {
     ...avisos.filter((l) => {
       const path = attr(l.attributes?.find((a) => a.key === 'path')?.value)
       if (/stripe webhook signature invalid/i.test(l.message)) return true
-      if (path === '/v1/webhooks/stripe' && attr(l.attributes?.find((a) => a.key === 'status')?.value) === '400') return false
+      const status = attr(l.attributes?.find((a) => a.key === 'status')?.value)
+      if (path === '/v1/webhooks/stripe' && status === '400') return false
+      // 404 = rota que não existe (a única é POST /v1/webhooks/stripe): robô ou
+      // URL digitada errada, não integração quebrada (#266). Evento do Stripe
+      // perdido aparece no monitor do Stripe (eventos sem stripe_events).
+      if (status === '404') return false
       return path.startsWith('/v1/webhooks')
     }),
   ]
