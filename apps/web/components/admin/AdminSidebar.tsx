@@ -19,6 +19,7 @@ const adminNav: NavItem[] = [
   { href: '/admin/landing',    label: 'Landing',         icon: '🌐', exact: false },
   { href: '/admin/feedback',   label: 'Feedback',        icon: '💬', exact: false },
   { href: '/admin/errors',     label: 'Errors',          icon: '🐛', exact: false },
+  { href: '/admin/emails',     label: 'E-mails',         icon: '✉️', exact: false },
   { href: '/admin/permissoes', label: 'Permissões',      icon: '🔐', exact: false },
 ]
 

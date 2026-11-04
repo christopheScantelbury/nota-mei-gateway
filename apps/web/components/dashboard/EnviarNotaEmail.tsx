@@ -27,7 +27,12 @@ export default function EnviarNotaEmail({ notaId, defaultEmail = '' }: Props) {
         const body = await res.json().catch(() => ({}))
         throw new Error(body?.message ?? `Erro ${res.status}`)
       }
-      toast.success(`NFS-e enviada por e-mail para ${email.trim()}`)
+      const data = await res.json().catch(() => ({}))
+      if (data?.enfileirado) {
+        toast.info(data.message ?? 'O e-mail ficou na fila e será enviado automaticamente em instantes.')
+      } else {
+        toast.success(`NFS-e enviada por e-mail para ${email.trim()}`)
+      }
       setOpen(false)
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Falha ao enviar e-mail.')

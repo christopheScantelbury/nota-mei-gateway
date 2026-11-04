@@ -51,5 +51,10 @@ export async function POST(
     )
   }
 
-  return NextResponse.json({ ok: true })
+  // 202 = não saiu agora, mas ficou na fila de e-mails e sai sozinho.
+  const apiBody = await apiRes.json().catch(() => ({}))
+  return NextResponse.json(
+    { ok: true, enfileirado: apiBody?.enfileirado === true, message: apiBody?.message },
+    { status: apiRes.status },
+  )
 }
