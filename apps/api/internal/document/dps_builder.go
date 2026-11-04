@@ -204,9 +204,9 @@ func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS 
 				TribMun: TribMunicipal{
 					TribISSQN:  TribISSQNTributavel,
 					TpRetISSQN: tpRetISSQN,
-					// MEI cannot inform pAliq (E0600 — alíquota é fixa via DAS).
-					// We zero it for MEI so the omitempty xml tag drops the element.
-					PAliq: pAliqFor(opSimpNac, aliquota),
+					// MEI (E0600) e ME/EPP com ISS pelo SN sem retenção (E0625)
+					// não informam pAliq — zero faz o omitempty omitir a tag.
+					PAliq: pAliqFor(opSimpNac, tpRetISSQN, aliquota),
 				},
 				TotTrib: buildTotTrib(opSimpNac),
 			},
@@ -390,11 +390,19 @@ func padLeft(s string, n int) string {
 	return strings.Repeat("0", n-len(s)) + s
 }
 
-// pAliqFor returns the ISS aliquot for non-MEI regimes; for MEI it returns 0
-// so the omitempty struct tag drops the element entirely (E0600).
-func pAliqFor(opSimpNac int, aliquota float64) float64 {
-	if opSimpNac == OpSimpNacMEI {
+// pAliqFor devolve a alíquota do ISS a informar na DPS, ou 0 quando a SEFIN
+// proíbe o campo (o omitempty então omite <pAliq>):
+//   - MEI (opSimpNac=2): alíquota fixa via DAS — E0600.
+//   - ME/EPP do SN (opSimpNac=3) com ISS apurado pelo SN (regApTribSN=1) e
+//     sem retenção (tpRetISSQN=1) — E0625. Com retenção a alíquota é exigida.
+func pAliqFor(opSimpNac, tpRetISSQN int, aliquota float64) float64 {
+	switch opSimpNac {
+	case OpSimpNacMEI:
 		return 0
+	case OpSimpNacMEEPP:
+		if r := regApTribSNFor(opSimpNac); r != nil && *r == RegApTribSNTudoPeloSN && tpRetISSQN == TpRetISSQNNaoRetido {
+			return 0
+		}
 	}
 	return aliquota
 }

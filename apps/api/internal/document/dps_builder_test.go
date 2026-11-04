@@ -210,6 +210,60 @@ func TestDPSBuilder_RegApTribSN(t *testing.T) {
 	}
 }
 
+// E0625 (e E0600 para MEI): sem retenção de ISS, ME/EPP do SN com ISS apurado
+// pelo SN e MEI não podem informar <pAliq>. Não optante continua informando.
+func TestDPSBuilder_PAliq(t *testing.T) {
+	mei := empresaSN()
+	mei.Tipo = "MEI"
+	mei.RegimeTributario = "SIMPLES_MEI"
+
+	cases := []struct {
+		name     string
+		empresa  *auth.Empresa
+		temPAliq bool
+	}{
+		{"ME/EPP Simples Nacional", empresaSN(), false},
+		{"MEI", mei, false},
+		{"Lucro Presumido", empresaLP(), true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			req := baseRequest()
+			naoRetido := false
+			req.IssRetido = &naoRetido
+			result, err := NewDPSBuilder().Build(req, c.empresa, 1)
+			if err != nil {
+				t.Fatalf("Build: %v", err)
+			}
+			s := string(result.XML)
+			if !strings.Contains(s, "<tpRetISSQN>1</tpRetISSQN>") {
+				t.Fatalf("esperado tpRetISSQN=1 (não retido)")
+			}
+			if got := strings.Contains(s, "<pAliq>"); got != c.temPAliq {
+				t.Errorf("%s: <pAliq> presente=%v, esperado %v", c.name, got, c.temPAliq)
+			}
+		})
+	}
+}
+
+func TestPAliqFor(t *testing.T) {
+	cases := []struct {
+		name                  string
+		opSimpNac, tpRetISSQN int
+		want                  float64
+	}{
+		{"MEI", OpSimpNacMEI, TpRetISSQNNaoRetido, 0},
+		{"ME/EPP não retido", OpSimpNacMEEPP, TpRetISSQNNaoRetido, 0},
+		{"ME/EPP retido pelo tomador", OpSimpNacMEEPP, TpRetISSQNRetidoTomador, 2},
+		{"não optante não retido", OpSimpNacNaoOptante, TpRetISSQNNaoRetido, 2},
+	}
+	for _, c := range cases {
+		if got := pAliqFor(c.opSimpNac, c.tpRetISSQN, 2); got != c.want {
+			t.Errorf("%s: pAliqFor = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
 // ── TC-02/03: Lucro Presumido ─────────────────────────────────────────────────
 
 func TestDPSBuilder_LP_NaoRetido(t *testing.T) {
