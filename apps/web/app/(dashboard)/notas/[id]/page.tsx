@@ -216,7 +216,7 @@ export default async function NotaDetailPage({
             rel="noopener noreferrer"
             className="text-sm px-4 py-2 rounded-lg border border-navy-600 text-text-1 hover:border-brand-cyan hover:text-brand-cyan transition"
           >
-            ⬇ Download XML
+            ⬇ XML da NFS-e (oficial)
           </a>
         )}
         {hasPDF && (

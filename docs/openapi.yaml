@@ -387,24 +387,39 @@ paths:
     get:
       operationId: downloadXml
       summary: Download do XML da nota
-      description: Retorna o XML canônico da NFS-e com assinatura digital.
+      description: |
+        Retorna o XML oficial da NFS-e (raiz `<NFSe>`), gerado e assinado pela
+        Receita — o mesmo documento do Emissor Nacional. Disponível para notas
+        AUTORIZADA e CANCELADA. Com `?tipo=dps`, retorna o XML da DPS que foi
+        enviada à Receita (não é documento fiscal).
       tags: [NFS-e]
       security:
         - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/NotaId'
+        - name: tipo
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [nfse, dps]
+            default: nfse
       responses:
         "200":
-          description: XML da nota fiscal
+          description: XML da NFS-e (arquivo `NFSe-<chave_acesso>.xml`)
           content:
             application/xml:
               schema:
                 type: string
-                description: XML NFS-e Nacional v1.2 assinado digitalmente
+                description: XML da NFS-e Nacional assinado pela Receita
         "401":
           $ref: '#/components/responses/Unauthorized'
         "404":
           $ref: '#/components/responses/NotFound'
+        "422":
+          description: CERTIFICADO_AUSENTE — o XML precisa ser buscado na Receita e a empresa não tem certificado A1 válido
+        "503":
+          description: RECEITA_INDISPONIVEL — a Receita não respondeu; tente de novo em alguns minutos
 
   # ─── Billing ──────────────────────────────────────────────────────────────
 

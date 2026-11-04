@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.emitirnotafacil.com.br'
 
-// Proxies GET /v1/nfse/:id/xml forwarding the user's Supabase JWT. Follows any
+// Proxies GET /v1/nfse/:id/xml forwarding the user's Supabase JWT. Entrega o
+// XML OFICIAL da NFS-e (raiz <NFSe>, gerado pela Receita) — #275. Follows any
 // presigned-URL redirect server-side and re-serves the XML with an attachment
 // disposition, so the browser DOWNLOADS the file instead of opening it as text.
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
@@ -30,7 +31,9 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     status: 200,
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
-      'Content-Disposition': `attachment; filename="nfse-${params.id}.xml"`,
+      // Backend nomeia o arquivo pela chave de acesso (NFSe-<chave>.xml, #275).
+      'Content-Disposition':
+        backendRes.headers.get('content-disposition') ?? `attachment; filename="nfse-${params.id}.xml"`,
     },
   })
 }
