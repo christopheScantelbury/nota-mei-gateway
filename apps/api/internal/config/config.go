@@ -54,6 +54,15 @@ type Config struct {
 	// When empty the API falls back to NoopStore (in-memory, dev/test only).
 	S3BucketNotas string
 
+	// CertMasterKey (CERT_MASTER_KEY, 32 bytes base64) cifra os certificados A1
+	// guardados na tabela cert_secrets. Quando presente, substitui o AWS Secrets
+	// Manager (conta AWS encerrada em 2026-11-03).
+	CertMasterKey string
+
+	// StorageBucketNotas é o bucket privado do Supabase Storage para XML/PDF
+	// (substitui o S3). Default "notas-fiscais".
+	StorageBucketNotas string
+
 	// APIBaseURL is the public base URL of the API, used in webhook payloads and
 	// presigned URL responses.  Override via API_BASE_URL env var; defaults to
 	// https://api.emitirnotafacil.com.br in production.
@@ -156,6 +165,9 @@ func Load() *Config {
 		SefinAPIURL:   sefinURL(),
 
 		S3BucketNotas: os.Getenv("S3_BUCKET_NOTAS"),
+
+		CertMasterKey:      os.Getenv("CERT_MASTER_KEY"),
+		StorageBucketNotas: getEnv("STORAGE_BUCKET_NOTAS", "notas-fiscais"),
 
 		APIBaseURL: getEnv("API_BASE_URL", "https://api.emitirnotafacil.com.br"),
 

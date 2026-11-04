@@ -63,13 +63,23 @@ func main() {
 	}
 	defer db.Close()
 
-	// cert.New only loads AWS SDK config; actual credentials are verified on first call.
-	// CachingProvider wraps it with a 4 h in-memory TTL cache (ARCH-01) so SM is
-	// called at most once per cert ARN per instance every 4 hours, protecting against
-	// throttling at ME/EPP scale (SM limit: ~5 000 req/s, sa-east-1).
-	rawCertProv, err := cert.New(ctx, cfg.AWSRegion, cfg.AWSKMSKeyARN)
-	if err != nil {
+	// Certificados A1: tabela cert_secrets cifrada com AES-256-GCM (CERT_MASTER_KEY).
+	// A conta AWS (Secrets Manager/S3) foi encerrada em 2026-11-03; o caminho AWS
+	// fica só como fallback quando CERT_MASTER_KEY não está definida.
+	// CachingProvider mantém o cert decifrado em memória por 4 h (ARCH-01).
+	var rawCertProv cert.CertProvider
+	if cfg.CertMasterKey != "" {
+		dbProv, err := cert.NewDBProvider(db.Pool(), cfg.CertMasterKey)
+		if err != nil {
+			log.Fatal().Err(err).Msg("CERT_MASTER_KEY inválida")
+		}
+		rawCertProv = dbProv
+		log.Info().Msg("certificados A1: banco cifrado (cert_secrets)")
+	} else if awsProv, err := cert.New(ctx, cfg.AWSRegion, cfg.AWSKMSKeyARN); err != nil {
 		log.Warn().Err(err).Msg("cert provider unavailable — certificate features disabled")
+	} else {
+		rawCertProv = awsProv
+		log.Warn().Msg("certificados A1: AWS Secrets Manager (defina CERT_MASTER_KEY para usar o banco)")
 	}
 
 	var certProv cert.CertProvider
@@ -79,10 +89,17 @@ func main() {
 	}
 
 	// ── Object storage (STOR-01) ───────────────────────────────────────────
-	// S3Store is used in staging/production; NoopStore is used in development
-	// or when S3_BUCKET_NOTAS is not configured.
+	// Supabase Storage (bucket privado) quando SUPABASE_URL + service key estão
+	// definidos; S3 só como legado; NoopStore em dev (XML fica no banco).
 	var objectStore storage.ObjectStore
-	if cfg.S3BucketNotas != "" {
+	if cfg.SupabaseURL != "" && cfg.SupabaseServiceKey != "" {
+		sbStore, err := storage.NewSupabaseStore(cfg.SupabaseURL, cfg.SupabaseServiceKey, cfg.StorageBucketNotas)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Supabase Storage mal configurado")
+		}
+		objectStore = sbStore
+		log.Info().Str("bucket", cfg.StorageBucketNotas).Msg("Supabase Storage configurado para XML/PDF")
+	} else if cfg.S3BucketNotas != "" {
 		s3Store, err := storage.NewS3Store(ctx, cfg.AWSRegion, cfg.S3BucketNotas)
 		if err != nil {
 			log.Warn().Err(err).Str("bucket", cfg.S3BucketNotas).
@@ -93,7 +110,7 @@ func main() {
 			log.Info().Str("bucket", cfg.S3BucketNotas).Msg("S3 object storage configurado")
 		}
 	} else {
-		log.Warn().Msg("S3_BUCKET_NOTAS não configurado — XMLs/PDFs armazenados em memória (NoopStore)")
+		log.Warn().Msg("sem object storage — XMLs/PDFs armazenados em memória (NoopStore)")
 		objectStore = storage.NewNoopStore()
 	}
 

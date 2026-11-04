@@ -40,9 +40,20 @@ func main() {
 	defer db.Close()
 
 	// ── Certificate provider ───────────────────────────────────────────────
-	certProv, err := cert.New(ctx, cfg.AWSRegion)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to init cert provider")
+	// Banco cifrado (CERT_MASTER_KEY) — a conta AWS foi encerrada em 2026-11-03.
+	var certProv cert.CertProvider
+	if cfg.CertMasterKey != "" {
+		dbProv, err := cert.NewDBProvider(db.Pool(), cfg.CertMasterKey)
+		if err != nil {
+			log.Fatal().Err(err).Msg("CERT_MASTER_KEY inválida")
+		}
+		certProv = cert.NewCachingProvider(dbProv, cert.NewCache(0))
+	} else {
+		awsProv, err := cert.New(ctx, cfg.AWSRegion)
+		if err != nil {
+			log.Fatal().Err(err).Msg("failed to init cert provider")
+		}
+		certProv = awsProv
 	}
 
 	// ── Billing renewer ────────────────────────────────────────────────────

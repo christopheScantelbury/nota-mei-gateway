@@ -1352,15 +1352,16 @@ func (h *NFSeHandler) DownloadXML(c *fiber.Ctx) error {
 	}
 
 	// ── S3 path (STOR-01): redirect to a 15-minute presigned URL ─────────
+	// Se o objeto não existe mais (arquivos que estavam no S3 da AWS encerrada),
+	// cai para o caminho seguinte em vez de responder 500.
 	if nota.XMLS3Key != nil && h.store != nil {
 		url, presignErr := h.store.PresignedURL(c.Context(), *nota.XMLS3Key, 15*time.Minute)
-		if presignErr != nil {
-			log.Ctx(c.Context()).Error().Err(presignErr).
-				Str("nota_id", notaID.String()).
-				Msg("falha ao gerar presigned URL para XML")
-			return internalError(c, "erro ao gerar URL de download")
+		if presignErr == nil {
+			return c.Redirect(url, fiber.StatusTemporaryRedirect)
 		}
-		return c.Redirect(url, fiber.StatusTemporaryRedirect)
+		log.Ctx(c.Context()).Warn().Err(presignErr).
+			Str("nota_id", notaID.String()).
+			Msg("XML indisponível no object storage — usando fallback")
 	}
 
 	// ── Legacy path: serve XML text stored in the DB ──────────────────────
@@ -1404,15 +1405,16 @@ func (h *NFSeHandler) DownloadPDF(c *fiber.Ctx) error {
 	}
 
 	// ── S3 path (STOR-01): redirect to a 15-minute presigned URL ─────────
+	// Se o objeto não existe mais (arquivos que estavam no S3 da AWS encerrada),
+	// cai para o caminho seguinte em vez de responder 500.
 	if nota.PDFS3Key != nil && h.store != nil {
 		url, presignErr := h.store.PresignedURL(c.Context(), *nota.PDFS3Key, 15*time.Minute)
-		if presignErr != nil {
-			log.Ctx(c.Context()).Error().Err(presignErr).
-				Str("nota_id", notaID.String()).
-				Msg("falha ao gerar presigned URL para PDF")
-			return internalError(c, "erro ao gerar URL de download")
+		if presignErr == nil {
+			return c.Redirect(url, fiber.StatusTemporaryRedirect)
 		}
-		return c.Redirect(url, fiber.StatusTemporaryRedirect)
+		log.Ctx(c.Context()).Warn().Err(presignErr).
+			Str("nota_id", notaID.String()).
+			Msg("PDF indisponível no object storage — usando fallback")
 	}
 
 	// ── ADN DANFSE PDF: the dedicated PDF endpoint at adn.nfse.gov.br/danfse
