@@ -25,7 +25,7 @@ const MAX_NOVAS_POR_EXECUCAO = 5
 const LABEL = 'prod-monitor'
 const LABELS_FONTE = {
   api: ['go', 'railway'], 'api-staging': ['go', 'railway'], worker: ['go', 'railway'],
-  web: ['next-js'], receita: ['épico: nfse'], nfse: ['épico: nfse'], suporte: ['next-js'],
+  web: ['next-js'], receita: ['épico: nfse'], nfse: ['épico: nfse'], suporte: ['next-js'], stripe: ['stripe', 'billing'],
 }
 const LABEL_PRIORIDADE = { alta: '🟡 alta', normal: '🟢 normal' }
 
