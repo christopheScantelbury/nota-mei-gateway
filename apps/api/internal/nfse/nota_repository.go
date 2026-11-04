@@ -855,3 +855,83 @@ func (r *NotaRepository) MarcarErroTemporarioReconciliacao(ctx context.Context, 
 	}
 	return tag.RowsAffected() > 0, nil
 }
+
+// ─── XML oficial da NFS-e (#275) ────────────────────────────────────────────
+
+// SetNFSeXMLKey registra onde está o XML da NFS-e no object storage.
+func (r *NotaRepository) SetNFSeXMLKey(ctx context.Context, notaID uuid.UUID, key string) error {
+	_, err := r.db.Pool().Exec(ctx, `
+		UPDATE notas_fiscais
+		SET nfse_xml_key = $1, xml_retorno = NULL, updated_at = NOW()
+		WHERE id = $2
+	`, key, notaID)
+	return err
+}
+
+// SetNFSeXMLRetorno guarda o XML da NFS-e no banco (sem object storage).
+func (r *NotaRepository) SetNFSeXMLRetorno(ctx context.Context, notaID uuid.UUID, doc string) error {
+	_, err := r.db.Pool().Exec(ctx, `
+		UPDATE notas_fiscais SET xml_retorno = $1, updated_at = NOW() WHERE id = $2
+	`, doc, notaID)
+	return err
+}
+
+// NFSeXMLKey devolve a chave do XML da NFS-e no object storage ("" se não houver).
+func (r *NotaRepository) NFSeXMLKey(ctx context.Context, notaID uuid.UUID) (string, error) {
+	var key *string
+	err := r.db.Pool().QueryRow(ctx, `SELECT nfse_xml_key FROM notas_fiscais WHERE id = $1`, notaID).Scan(&key)
+	if err != nil || key == nil {
+		return "", err
+	}
+	return *key, nil
+}
+
+// FindSemXMLNFSe lista notas autorizadas/canceladas com chave de acesso e sem
+// XML oficial guardado, que não foram tentadas há menos de retryAfter.
+func (r *NotaRepository) FindSemXMLNFSe(ctx context.Context, retryAfter time.Duration, limit int) ([]NotaSemXMLNFSe, error) {
+	rows, err := r.db.Pool().Query(ctx, `
+		SELECT n.id,
+		       COALESCE(n.empresa_id, n.mei_id) AS owner_id,
+		       n.numero_nfse,
+		       e.cert_secret_arn, m.cert_secret_arn
+		FROM notas_fiscais n
+		LEFT JOIN empresas e ON e.id = COALESCE(n.empresa_id, n.mei_id)
+		LEFT JOIN meis m     ON m.id = n.mei_id
+		WHERE n.status IN ('AUTORIZADA', 'CANCELADA')
+		  AND n.nfse_xml_key IS NULL
+		  AND (n.xml_retorno IS NULL OR n.xml_retorno NOT LIKE '<%')
+		  AND length(n.numero_nfse) = 50
+		  AND COALESCE(n.empresa_id, n.mei_id) IS NOT NULL
+		  AND (n.nfse_xml_tentativa_em IS NULL
+		       OR n.nfse_xml_tentativa_em < NOW() - make_interval(secs => $1))
+		ORDER BY n.nfse_xml_tentativa_em NULLS FIRST, n.emitida_em DESC NULLS LAST
+		LIMIT $2
+	`, retryAfter.Seconds(), limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []NotaSemXMLNFSe
+	for rows.Next() {
+		var n NotaSemXMLNFSe
+		var certEmpresa, certMEI *string
+		if err := rows.Scan(&n.ID, &n.OwnerID, &n.ChaveAcesso, &certEmpresa, &certMEI); err != nil {
+			return nil, err
+		}
+		for _, c := range []*string{certEmpresa, certMEI} {
+			if c != nil && *c != "" && (len(n.CertRefs) == 0 || n.CertRefs[0] != *c) {
+				n.CertRefs = append(n.CertRefs, *c)
+			}
+		}
+		out = append(out, n)
+	}
+	return out, rows.Err()
+}
+
+// MarcarTentativaXMLNFSe registra uma tentativa sem sucesso de obter o XML.
+func (r *NotaRepository) MarcarTentativaXMLNFSe(ctx context.Context, notaID uuid.UUID) error {
+	_, err := r.db.Pool().Exec(ctx, `
+		UPDATE notas_fiscais SET nfse_xml_tentativa_em = NOW() WHERE id = $1
+	`, notaID)
+	return err
+}

@@ -10,6 +10,7 @@ import (
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/auth"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/document"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/nfse"
+	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/storage"
 	"github.com/google/uuid"
 )
 
@@ -50,6 +51,13 @@ type RealEmissor struct {
 	signer     XMLSigner
 	certLoader CertLoader
 	adapter    NFSeAdapter
+	archiver   *nfse.XMLArchiver // opcional (WithStore)
+}
+
+// WithStore guarda o XML oficial da NFS-e no object storage ao autorizar (#275).
+func (e *RealEmissor) WithStore(store storage.ObjectStore) *RealEmissor {
+	e.archiver = nfse.NewXMLArchiver(store, e.notaRepo)
+	return e
 }
 
 // NewRealEmissor wires all the deps needed to run the unified DPS path.
@@ -157,7 +165,9 @@ func (e *RealEmissor) EmitirNota(ctx context.Context, meiID string, reqMap map[s
 		return nota.ID.String(), fmt.Errorf("rejeitada: %s %s", codigo, descricao)
 	}
 	if success != nil && success.ChaveAcesso != "" {
-		_, _ = e.notaRepo.Autorizar(ctx, nota.ID, success.ChaveAcesso, "", success.IDDps)
+		_, _ = e.notaRepo.Autorizar(ctx, nota.ID, success.ChaveAcesso, "", "")
+		// XML oficial da NFS-e (#275). Sem archiver, o backfill busca na Receita.
+		e.archiver.GuardarResposta(ctx, empresa.ID, nota.ID, success)
 	}
 	// Best-effort fire-and-forget — webhook delivery is the handler's job, not the scheduler's.
 

@@ -187,7 +187,9 @@ func (r *DPSReconciler) reconciliar(ctx context.Context, n NotaParaReconciliar) 
 	case err != nil:
 		aguardar("consulta GET /dps falhou", err)
 	default:
-		updated, aErr := r.repo.Autorizar(ctx, n.ID, res.ChaveAcesso, "", res.IDDps)
+		// GET /dps/{id} não traz o XML da NFS-e: o XMLBackfill (API) busca em
+		// GET /nfse/{chave} e o download também, sob demanda (#275).
+		updated, aErr := r.repo.Autorizar(ctx, n.ID, res.ChaveAcesso, "", "")
 		if aErr != nil {
 			l.Error().Err(aErr).Msg("dps reconciler: falha ao autorizar nota")
 			return

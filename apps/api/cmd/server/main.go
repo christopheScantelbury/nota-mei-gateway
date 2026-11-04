@@ -553,7 +553,8 @@ func main() {
 	recRepo := recorrencia.NewRepository(db.Pool())
 	var recEmissor recorrencia.NotaEmissor
 	if certProv != nil {
-		recEmissor = recorrencia.NewRealEmissor(authRepo, notaRepo, dpsBuilder, signer, certProv, adapter)
+		recEmissor = recorrencia.NewRealEmissor(authRepo, notaRepo, dpsBuilder, signer, certProv, adapter).
+			WithStore(objectStore)
 	} else {
 		log.Warn().Msg("recorrencia: NoopEmissor ativo — certProv não disponível (sem AWS)")
 		recEmissor = &recorrencia.NoopEmissor{}
@@ -566,6 +567,16 @@ func main() {
 		log.Warn().Msg("recorrencia scheduler: distributed lock unavailable — double-emission risk with multiple replicas")
 	}
 	go sched.Run(ctx)
+
+	// #275: guarda o XML oficial das notas autorizadas que ainda não o têm
+	// (emitidas antes da correção ou autorizadas pela reconciliação do worker).
+	if certProv != nil {
+		xmlBackfill := nfse.NewXMLBackfill(notaRepo, adapter, certProv, objectStore, 10*time.Minute)
+		if sharedRedis != nil {
+			xmlBackfill = xmlBackfill.WithLocker(billing.NewRedisLockerWithClient(sharedRedis))
+		}
+		go xmlBackfill.Run(ctx)
+	}
 
 	// #274: envia a nota autorizada ao e-mail do tomador quando pedido.
 	go notaemail.New(db.Pool(), emailSvc, log.Logger).Run(ctx)

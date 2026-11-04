@@ -651,7 +651,9 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 		// Store chaveAcesso (50-char NFS-e Nacional access key) in numero_nfse
 		// column for compatibility — the old "numero_nfse" semantic is replaced
 		// by chaveAcesso under the unified DPS model.
-		_, _ = h.notaRepo.Autorizar(ctx, nota.ID, success.ChaveAcesso, "", success.IDDps)
+		_, _ = h.notaRepo.Autorizar(ctx, nota.ID, success.ChaveAcesso, "", "")
+		// XML oficial da NFS-e (#275) — é ele que o "Download XML" entrega.
+		h.xmlArchiver().GuardarResposta(ctx, empresa.ID, nota.ID, success)
 		total, _ := h.billingRepo.IncrementEmitidasEmpresa(ctx, empresa.ID)
 		log.Ctx(ctx).Info().
 			Str("nota_id", nota.ID.String()).
@@ -1267,7 +1269,8 @@ func (h *NFSeHandler) SubstituirNota(c *fiber.Ctx) error {
 	}
 
 	// Persist the new chave on the substitute and authorize it.
-	_, _ = h.notaRepo.Autorizar(ctx, nova.ID, success.ChaveAcesso, "", success.IDDps)
+	_, _ = h.notaRepo.Autorizar(ctx, nova.ID, success.ChaveAcesso, "", "")
+	h.xmlArchiver().GuardarResposta(ctx, empresa.ID, nova.ID, success)
 
 	// ── Step 3: Emit evento e105102 against the ORIGINAL chave ──────────────
 	eventoXML, err := document.BuildSubstituicaoEvent(document.SubstituicaoParams{
@@ -1335,7 +1338,20 @@ func (h *NFSeHandler) SubstituirNota(c *fiber.Ctx) error {
 
 // ─── GET /v1/nfse/:id/xml ──────────────────────────────────────────────────
 
+// xmlArchiver grava o XML oficial da NFS-e (storage ou banco).
+func (h *NFSeHandler) xmlArchiver() *nfse.XMLArchiver {
+	return nfse.NewXMLArchiver(h.store, h.notaRepo)
+}
+
 // DownloadXML handles GET /v1/nfse/:id/xml.
+//
+// Entrega o XML OFICIAL da NFS-e (raiz <NFSe>, gerado e assinado pela Receita)
+// — o mesmo documento do Emissor Nacional (#275). Antes entregava a DPS que nós
+// enviamos, que o tomador não aceita como nota. A DPS continua disponível em
+// ?tipo=dps.
+//
+// Ordem: XML guardado no storage → XML guardado no banco → busca na Receita
+// (GET /SefinNacional/nfse/{chave}, mTLS) e guarda para os próximos downloads.
 func (h *NFSeHandler) DownloadXML(c *fiber.Ctx) error {
 	mei := auth.GetMEI(c)
 	empresa := auth.GetEmpresa(c)
@@ -1348,7 +1364,8 @@ func (h *NFSeHandler) DownloadXML(c *fiber.Ctx) error {
 		return notFound(c)
 	}
 
-	nota, err := h.loadNotaForOwner(c.Context(), notaID, mei, empresa)
+	ctx := c.Context()
+	nota, err := h.loadNotaForOwner(ctx, notaID, mei, empresa)
 	if err != nil {
 		if isNotFound(err) {
 			return notFound(c)
@@ -1356,32 +1373,104 @@ func (h *NFSeHandler) DownloadXML(c *fiber.Ctx) error {
 		return internalError(c, "erro ao consultar nota")
 	}
 
-	// ── S3 path (STOR-01): redirect to a 15-minute presigned URL ─────────
-	// Se o objeto não existe mais (arquivos que estavam no S3 da AWS encerrada),
-	// cai para o caminho seguinte em vez de responder 500.
-	if nota.XMLS3Key != nil && h.store != nil {
-		url, presignErr := h.store.PresignedURL(c.Context(), *nota.XMLS3Key, 15*time.Minute)
-		if presignErr == nil {
-			return c.Redirect(url, fiber.StatusTemporaryRedirect)
+	if strings.EqualFold(c.Query("tipo"), "dps") {
+		return h.downloadDPS(c, nota)
+	}
+
+	chave := ""
+	if nota.NumeroNFSe != nil {
+		chave = *nota.NumeroNFSe
+	}
+	if (nota.Status != "AUTORIZADA" && nota.Status != "CANCELADA") || len(chave) != 50 {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error":      "NOT_FOUND",
+			"message":    "o XML da NFS-e só existe depois que a Receita autoriza a nota — o XML da DPS enviada está em ?tipo=dps",
+			"request_id": c.Locals("request_id"),
+		})
+	}
+
+	ownerID := nota.MeiID
+	if empresa != nil {
+		ownerID = empresa.ID
+	} else if mei != nil {
+		ownerID = mei.ID
+	}
+	l := log.Ctx(ctx).With().Str("nota_id", notaID.String()).Logger()
+
+	enviar := func(doc []byte) error {
+		c.Set("Content-Type", "application/xml; charset=utf-8")
+		c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="NFSe-%s.xml"`, chave))
+		return c.Send(doc)
+	}
+
+	// 1. Storage.
+	if h.store != nil {
+		if key, kErr := h.notaRepo.NFSeXMLKey(ctx, nota.ID); kErr == nil && key != "" {
+			doc, gErr := h.store.Get(ctx, key)
+			if gErr == nil && nfse.ValidarXMLNFSe(doc) == nil {
+				return enviar(doc)
+			}
+			l.Warn().Err(gErr).Msg("xml da nfse indisponível no storage — buscando na Receita")
 		}
-		log.Ctx(c.Context()).Warn().Err(presignErr).
-			Str("nota_id", notaID.String()).
-			Msg("XML indisponível no object storage — usando fallback")
 	}
-
-	// ── Legacy path: serve XML text stored in the DB ──────────────────────
-	var xmlData string
-	if nota.XMLRetorno != nil && *nota.XMLRetorno != "" {
-		xmlData = *nota.XMLRetorno
-	} else if nota.XMLEnviado != nil {
-		xmlData = *nota.XMLEnviado
+	// 2. Banco (sem storage ou upload que falhou).
+	if nota.XMLRetorno != nil && nfse.EhXMLNFSe(*nota.XMLRetorno) {
+		return enviar([]byte(*nota.XMLRetorno))
+	}
+	// 3. Receita — notas emitidas antes do #275 ou autorizadas pela reconciliação.
+	var cert *tls.Certificate
+	var certErr error
+	if empresa != nil {
+		cert, certErr = h.loadCertEmpresa(ctx, empresa)
 	} else {
-		return notFound(c)
+		cert, certErr = h.loadCert(ctx, mei)
 	}
+	if certErr != nil || cert == nil {
+		l.Warn().Err(certErr).Msg("xml da nfse: sem certificado para buscar na Receita")
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error":      "CERTIFICADO_AUSENTE",
+			"message":    "para baixar o XML oficial desta nota, envie novamente o certificado A1 em Minha empresa → Certificado digital",
+			"request_id": c.Locals("request_id"),
+		})
+	}
+	doc, cErr := h.adapter.ConsultarNFSe(ctx, chave, cert)
+	if cErr == nil {
+		cErr = nfse.ValidarXMLNFSe(doc)
+	}
+	if cErr != nil {
+		l.Warn().Err(cErr).Msg("xml da nfse: consulta na Receita falhou")
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error":      "RECEITA_INDISPONIVEL",
+			"message":    "não conseguimos obter o XML oficial na Receita agora — tente novamente em alguns minutos",
+			"request_id": c.Locals("request_id"),
+		})
+	}
+	if gErr := h.xmlArchiver().Guardar(ctx, ownerID, nota.ID, doc); gErr != nil {
+		l.Warn().Err(gErr).Msg("xml da nfse: obtido na Receita mas não guardado (non-fatal)")
+	}
+	return enviar(doc)
+}
 
-	c.Set("Content-Type", "application/xml; charset=utf-8")
-	c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="nfse-%s.xml"`, notaID))
-	return c.SendString(xmlData)
+// downloadDPS entrega o XML da DPS que enviamos à Receita (?tipo=dps).
+func (h *NFSeHandler) downloadDPS(c *fiber.Ctx, nota *nfse.Nota) error {
+	ctx := c.Context()
+	enviar := func(doc []byte) error {
+		c.Set("Content-Type", "application/xml; charset=utf-8")
+		c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="dps-%s.xml"`, nota.ID))
+		return c.Send(doc)
+	}
+	if nota.XMLS3Key != nil && h.store != nil {
+		doc, err := h.store.Get(ctx, *nota.XMLS3Key)
+		if err == nil {
+			return enviar(doc)
+		}
+		log.Ctx(ctx).Warn().Err(err).Str("nota_id", nota.ID.String()).
+			Msg("XML da DPS indisponível no object storage — usando fallback")
+	}
+	if nota.XMLEnviado != nil && *nota.XMLEnviado != "" {
+		return enviar([]byte(*nota.XMLEnviado))
+	}
+	return notFound(c)
 }
 
 // ─── GET /v1/nfse/:id/pdf ──────────────────────────────────────────────────
