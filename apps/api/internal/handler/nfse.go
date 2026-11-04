@@ -266,6 +266,8 @@ func (h *NFSeHandler) emitirNotaMEI(c *fiber.Ctx, req document.EmissaoRequest, m
 		Competencia:      req.Competencia,
 		IdempotencyKey:   c.Get("Idempotency-Key"),
 		RegimeTributario: "SIMPLES_MEI", // MEI is always Simples MEI
+		DadosEmissao:     req.DadosEmissaoJSON(),
+		AutoEmailDestino: req.AutoEmailDestino(),
 	})
 	if err != nil {
 		return internalError(c, "erro ao salvar nota")
@@ -522,6 +524,8 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 		IdempotencyKey:   idemKey,
 		RegimeTributario: empresa.RegimeTributario,
 		ISSRetido:        issRetidoPtr(empresa.RegimeTributario, dpsResult.ISSRetido),
+		DadosEmissao:     req.DadosEmissaoJSON(),
+		AutoEmailDestino: req.AutoEmailDestino(),
 	})
 	if err != nil {
 		var conflict nfse.ErrIdempotencyConflict
@@ -1191,6 +1195,7 @@ func (h *NFSeHandler) SubstituirNota(c *fiber.Ctx) error {
 		Competencia:      req.Competencia,
 		RegimeTributario: empresa.RegimeTributario,
 		ISSRetido:        issRetidoPtr(empresa.RegimeTributario, dpsResult.ISSRetido),
+		DadosEmissao:     req.DadosEmissaoJSON(),
 	})
 	if err != nil {
 		return internalError(c, "erro ao salvar nota de substituição")
@@ -1481,13 +1486,13 @@ generateComprovante:
 		}
 
 		params := document.ComprovanteParams{
-			PrestadorNome:  prestadorNome,
-			PrestadorCNPJ:  prestadorCNPJ,
-			NumeroRPS:      nota.NumeroRPS,
-			ValorServico:   valorServico,
-			Status:         nota.Status,
-			EmitidaEm:      nota.EmitidaEm,
-			CanceladaEm:    nota.CanceladaEm,
+			PrestadorNome: prestadorNome,
+			PrestadorCNPJ: prestadorCNPJ,
+			NumeroRPS:     nota.NumeroRPS,
+			ValorServico:  valorServico,
+			Status:        nota.Status,
+			EmitidaEm:     nota.EmitidaEm,
+			CanceladaEm:   nota.CanceladaEm,
 		}
 		if nota.TomadorNome != nil {
 			params.TomadorNome = *nota.TomadorNome
@@ -1686,9 +1691,22 @@ func (h *NFSeHandler) EnviarEmail(c *fiber.Ctx) error {
 		publicURL = "https://www.nfse.gov.br/consultapublica?chaveAcesso=" + numeroNFSe
 	}
 
-	if err := h.emailSvc.SendNotaAutorizada(
-		c.Context(), body.Email, razaoSocial, numeroNFSe, codVerif, valor, publicURL, publicURL,
-	); err != nil {
+	_, _ = codVerif, valor // NFS-e Nacional identifica a nota pela chave de acesso
+	valorBRL := ""
+	if nota.ValorServico != nil {
+		valorBRL = email.FormatBRL(*nota.ValorServico)
+	}
+	tomadorNome := ""
+	if nota.TomadorNome != nil {
+		tomadorNome = *nota.TomadorNome
+	}
+	if err := h.emailSvc.SendNotaParaTomador(c.Context(), body.Email, email.NotaTomadorParams{
+		TomadorNome:   tomadorNome,
+		PrestadorNome: razaoSocial,
+		ChaveAcesso:   numeroNFSe,
+		ValorServico:  valorBRL,
+		ConsultaURL:   publicURL,
+	}); err != nil {
 		log.Ctx(c.UserContext()).Error().Err(err).
 			Str("nota_id", notaID.String()).
 			Msg("falha ao enviar nota por e-mail")

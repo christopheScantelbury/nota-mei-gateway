@@ -1,6 +1,7 @@
 package document
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"strings"
@@ -13,10 +14,10 @@ type Builder struct{}
 // EmissaoRequest is the API-level request to emit an NFS-e.
 // Fields added for ME/EPP (IssRetido, Emit) are ignored for MEI requests.
 type EmissaoRequest struct {
-	Servico     ServicoRequest    `json:"servico"`
-	Tomador     TomadorRequest    `json:"tomador"`
-	Emit        EmitRequest       `json:"emit,omitempty"` // ME/EPP only: overrides for emitente
-	Competencia string            `json:"competencia"`    // YYYY-MM
+	Servico     ServicoRequest `json:"servico"`
+	Tomador     TomadorRequest `json:"tomador"`
+	Emit        EmitRequest    `json:"emit,omitempty"` // ME/EPP only: overrides for emitente
+	Competencia string         `json:"competencia"`    // YYYY-MM
 	// IssRetido is required for Lucro Presumido / Lucro Real — must be set explicitly.
 	// Ignored for Simples Nacional (SN always recolhe via DAS).
 	// When Tomador.TipoOrgao == "ORGAO_PUBLICO", this is forced to true regardless.
@@ -25,6 +26,13 @@ type EmissaoRequest struct {
 	// IdempotencyKey (opcional) — alternativa ao header Idempotency-Key, que
 	// tem precedência. O dashboard manda no corpo.
 	IdempotencyKey string `json:"idempotency_key,omitempty"`
+	// EnviarEmailTomador (opcional, padrão false na API) — envia a nota ao
+	// e-mail do tomador assim que for AUTORIZADA (#274). O dashboard manda true
+	// por padrão; as recorrências usam a opção "enviar e-mail" da automação.
+	EnviarEmailTomador *bool `json:"enviar_email_tomador,omitempty"`
+	// EmailDestino (opcional) — destino do envio automático quando diferente
+	// de tomador.email.
+	EmailDestino string `json:"email_destino,omitempty"`
 	// Subst is populated by the substituição flow — declares this DPS replaces
 	// a previously authorised NFS-e. NOT meant to be set via the public POST
 	// /v1/nfse body; the SubstituirNota handler injects it server-side.
@@ -37,6 +45,34 @@ func (r *EmissaoRequest) Normalize() {
 	if r.IssRetido == nil && r.Servico.IssRetido != nil {
 		r.IssRetido = r.Servico.IssRetido
 	}
+}
+
+// AutoEmailDestino devolve o e-mail para o envio automático da nota
+// autorizada, ou "" quando o envio não foi pedido.
+func (r EmissaoRequest) AutoEmailDestino() string {
+	if r.EnviarEmailTomador == nil || !*r.EnviarEmailTomador {
+		return ""
+	}
+	if d := strings.TrimSpace(r.EmailDestino); d != "" {
+		return d
+	}
+	return strings.TrimSpace(r.Tomador.Email)
+}
+
+// DadosEmissaoJSON é o pedido original (serviço, tomador, competência) gravado
+// em notas_fiscais.dados_emissao para o dashboard reaproveitar ("Corrigir e
+// emitir novamente", #272). Sem emitente, substituição nem chaves internas.
+func (r EmissaoRequest) DadosEmissaoJSON() []byte {
+	b, err := json.Marshal(struct {
+		Servico     ServicoRequest `json:"servico"`
+		Tomador     TomadorRequest `json:"tomador"`
+		Competencia string         `json:"competencia"`
+		IssRetido   *bool          `json:"iss_retido,omitempty"`
+	}{r.Servico, r.Tomador, r.Competencia, r.IssRetido})
+	if err != nil {
+		return nil
+	}
+	return b
 }
 
 // SubstParams carries the data needed to emit a DPS-as-substitute.
@@ -65,10 +101,10 @@ type ServicoRequest struct {
 
 // TomadorRequest holds the service recipient details.
 type TomadorRequest struct {
-	Tipo          string `json:"tipo"`      // PF | PJ
-	Documento     string `json:"documento"` // CPF or CNPJ digits only
-	RazaoSocial   string `json:"razao_social"`
-	Email         string `json:"email,omitempty"`
+	Tipo        string `json:"tipo"`      // PF | PJ
+	Documento   string `json:"documento"` // CPF or CNPJ digits only
+	RazaoSocial string `json:"razao_social"`
+	Email       string `json:"email,omitempty"`
 	// MunicipioIBGE / CEP só entram na DPS junto com Endereco (o XSD exige
 	// logradouro+número+bairro quando <end> é informado). Servem de fallback
 	// pros campos equivalentes de Endereco.

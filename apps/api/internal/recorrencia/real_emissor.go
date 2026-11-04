@@ -44,12 +44,12 @@ type XMLSigner interface {
 // kept short by skipping HTTP-specific concerns (response building,
 // validation that the JSON layer already covered, idempotency).
 type RealEmissor struct {
-	authRepo    *auth.Repository
-	notaRepo    *nfse.NotaRepository
-	dpsBuilder  *document.DPSBuilder
-	signer      XMLSigner
-	certLoader  CertLoader
-	adapter     NFSeAdapter
+	authRepo   *auth.Repository
+	notaRepo   *nfse.NotaRepository
+	dpsBuilder *document.DPSBuilder
+	signer     XMLSigner
+	certLoader CertLoader
+	adapter    NFSeAdapter
 }
 
 // NewRealEmissor wires all the deps needed to run the unified DPS path.
@@ -138,6 +138,8 @@ func (e *RealEmissor) EmitirNota(ctx context.Context, meiID string, reqMap map[s
 		ValorServico:     req.Servico.Valor,
 		Competencia:      req.Competencia,
 		RegimeTributario: empresa.RegimeTributario,
+		DadosEmissao:     req.DadosEmissaoJSON(),
+		AutoEmailDestino: req.AutoEmailDestino(),
 	})
 	if err != nil {
 		return "", fmt.Errorf("persist nota: %w", err)

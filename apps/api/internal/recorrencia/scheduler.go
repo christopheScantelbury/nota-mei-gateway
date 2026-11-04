@@ -45,6 +45,12 @@ type Scheduler struct {
 	log      zerolog.Logger
 	interval time.Duration
 	locker   SchedulerLocker // optional; nil disables distributed locking (not recommended in prod)
+	emailCfg emailConfigReader
+}
+
+// emailConfigReader lê a opção de e-mail ao tomador de uma recorrência.
+type emailConfigReader interface {
+	EmailConfig(ctx context.Context, id string) (bool, string, error)
 }
 
 // NewScheduler creates a Scheduler.
@@ -55,12 +61,16 @@ type Scheduler struct {
 // without it both instances will query ListDue simultaneously and attempt to emit
 // the same recorrencias twice.
 func NewScheduler(repo *Repository, emissor NotaEmissor, interval time.Duration) *Scheduler {
-	return &Scheduler{
+	s := &Scheduler{
 		repo:     repo,
 		emissor:  emissor,
 		log:      zerolog.Ctx(context.Background()).With().Str("component", "recorrencia_scheduler").Logger(),
 		interval: interval,
 	}
+	if repo != nil {
+		s.emailCfg = repo
+	}
+	return s
 }
 
 // WithLocker attaches a distributed lock so that only one API replica runs
@@ -152,6 +162,17 @@ func (s *Scheduler) process(ctx context.Context, rec Recorrencia) {
 	}
 	if rec.WebhookURL != "" {
 		req["webhook_url"] = rec.WebhookURL
+	}
+	// #274: opção "enviar e-mail ao tomador" da automação (padrão ligado).
+	if s.emailCfg != nil {
+		if enviar, destino, cfgErr := s.emailCfg.EmailConfig(ctx, rec.ID); cfgErr != nil {
+			logger.Warn().Err(cfgErr).Msg("não foi possível ler a opção de e-mail da recorrência")
+		} else if enviar {
+			req["enviar_email_tomador"] = true
+			if destino != "" {
+				req["email_destino"] = destino
+			}
+		}
 	}
 
 	notaID, err := s.emissor.EmitirNota(ctx, rec.MeiID, req)

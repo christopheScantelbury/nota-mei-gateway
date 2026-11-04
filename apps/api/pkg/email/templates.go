@@ -1,6 +1,11 @@
 package email
 
-import "fmt"
+import (
+	"fmt"
+	"html"
+	"os"
+	"regexp"
+)
 
 // --- shared layout helpers (NotaFácil brand-kit v1.0 — light identity) ---
 //
@@ -47,9 +52,102 @@ func htmlOpen() string {
 </div>`
 }
 
+// supportWhatsApp devolve o WhatsApp do suporte (só dígitos, com DDI).
+// SUPPORT_WHATSAPP no ambiente sobrescreve o padrão.
+func supportWhatsApp() string {
+	n := regexp.MustCompile(`\D`).ReplaceAllString(os.Getenv("SUPPORT_WHATSAPP"), "")
+	if n == "" {
+		n = "5547997352380"
+	}
+	return n
+}
+
+// htmlClose fecha os e-mails enviados aos NOSSOS clientes, com o canal de
+// suporte visível (#258 — cliente achou que "não existe suporte").
 func htmlClose() string {
-	return `<div class="footer">NotaFácil MEI · ScantelburyDevs · Seu código. Nossa precisão.</div>
+	return fmt.Sprintf(`<div class="footer">
+  <p style="margin:0 0 6px;color:#64748B;">Precisa de ajuda? Clique em <strong>Ajuda</strong> no painel ou fale com a gente pelo <a href="https://wa.me/%s" style="color:#3B82F6;">WhatsApp</a>.</p>
+  NotaFácil · ScantelburyDevs · Seu código. Nossa precisão.
+</div>
+</div></body></html>`, supportWhatsApp())
+}
+
+// htmlCloseTomador fecha e-mails enviados ao tomador (cliente do nosso
+// cliente) — sem o canal de suporte do NotaFácil, que não é para ele.
+func htmlCloseTomador() string {
+	return `<div class="footer">Nota fiscal emitida com NotaFácil · emitirnotafacil.com.br</div>
 </div></body></html>`
+}
+
+// FormatBRL formata um valor em reais no padrão brasileiro: 3500 → "3.500,00".
+func FormatBRL(v float64) string {
+	neg := v < 0
+	if neg {
+		v = -v
+	}
+	cents := int64(v*100 + 0.5)
+	inteiro, frac := cents/100, cents%100
+	digits := fmt.Sprintf("%d", inteiro)
+	var out []byte
+	for i, d := range []byte(digits) {
+		if i > 0 && (len(digits)-i)%3 == 0 {
+			out = append(out, '.')
+		}
+		out = append(out, d)
+	}
+	r := fmt.Sprintf("%s,%02d", out, frac)
+	if neg {
+		r = "-" + r
+	}
+	return r
+}
+
+// NotaTomadorParams holds the data for the e-mail that delivers the NFS-e to
+// the tomador (#274 envio automático e botão "Enviar por e-mail").
+type NotaTomadorParams struct {
+	TomadorNome   string
+	PrestadorNome string
+	ChaveAcesso   string
+	ValorServico  string
+	ConsultaURL   string
+}
+
+// NotaTomadorHTML returns the HTML body sent to the tomador.
+func NotaTomadorHTML(p NotaTomadorParams) string {
+	saudacao := "Olá!"
+	if p.TomadorNome != "" {
+		saudacao = fmt.Sprintf("Olá, <strong>%s</strong>!", html.EscapeString(p.TomadorNome))
+	}
+	numeroLabel := "Número da NFS-e"
+	if len(p.ChaveAcesso) == 50 {
+		numeroLabel = "Chave de Acesso"
+	}
+	var detalhes string
+	if p.ChaveAcesso != "" {
+		detalhes += fmt.Sprintf(`
+  <div class="label">%s</div>
+  <div class="code">%s</div>`, numeroLabel, html.EscapeString(p.ChaveAcesso))
+	}
+	if p.ValorServico != "" {
+		detalhes += fmt.Sprintf(`
+  <div class="label" style="margin-top:20px;">Valor do Serviço</div>
+  <div class="value">R$ %s</div>`, html.EscapeString(p.ValorServico))
+	}
+	var botao string
+	if p.ConsultaURL != "" {
+		botao = fmt.Sprintf(`
+  <hr class="divider"/>
+  <p><a class="btn" href="%s">Ver e baixar a nota fiscal</a></p>
+  <p class="hint">O link abre a consulta pública oficial da NFS-e Nacional (gov.br), onde você vê e baixa o PDF (DANFSE) e o XML, sem login.</p>`, html.EscapeString(p.ConsultaURL))
+	}
+	return htmlOpen() + fmt.Sprintf(`
+<div class="body">
+  <h2>Você recebeu uma nota fiscal</h2>
+  <p>%s <strong>%s</strong> emitiu uma nota fiscal de serviço (NFS-e) para você.</p>
+  <hr class="divider"/>%s%s
+</div>
+`, saudacao, html.EscapeString(p.PrestadorNome), detalhes, botao) +
+		htmlCloseTomador()
 }
 
 // NotaAutorizadaParams holds the data for the nota-autorizada email.

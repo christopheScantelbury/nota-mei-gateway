@@ -16,6 +16,7 @@ import (
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/handler"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/middleware"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/nfse"
+	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/notaemail"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/recorrencia"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/sandbox"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/template"
@@ -551,6 +552,10 @@ func main() {
 		log.Warn().Msg("recorrencia scheduler: distributed lock unavailable — double-emission risk with multiple replicas")
 	}
 	go sched.Run(ctx)
+
+	// #274: envia a nota autorizada ao e-mail do tomador quando pedido.
+	go notaemail.New(db.Pool(), emailSvc, log.Logger).Run(ctx)
+
 	recH := handler.NewRecorrenciaHandler(recRepo)
 	v1.Get("/recorrencias", recH.ListRecorrencias)
 	v1.Post("/recorrencias", recH.CreateRecorrencia)

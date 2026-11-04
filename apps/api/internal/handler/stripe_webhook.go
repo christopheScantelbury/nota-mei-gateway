@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/supabase"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog/log"
 	stripelib "github.com/stripe/stripe-go/v81"
 	"github.com/stripe/stripe-go/v81/webhook"
@@ -198,8 +200,12 @@ func (h *StripeWebhookHandler) handleSubscription(ctx context.Context, event str
 		if err != nil {
 			return fmt.Errorf("invalid empresa_id: %w", err)
 		}
+		vinhaDoTrial := h.estaEmTrial(ctx, ownerKindEmpresa, empresaID)
 		if err := h.updateSubscriptionByOwner(ctx, ownerKindEmpresa, empresaID, sub.ID, string(sub.Status), planoID); err != nil {
 			return err
+		}
+		if vinhaDoTrial {
+			h.recalcularCotaAposUpgrade(ctx, ownerKindEmpresa, empresaID, string(sub.Status), planoID)
 		}
 		// ME/EPP that paid → no more trial_me bypass.
 		if _, err := h.db.Pool().Exec(ctx, `
@@ -219,8 +225,12 @@ func (h *StripeWebhookHandler) handleSubscription(ctx context.Context, event str
 	if err != nil {
 		return fmt.Errorf("invalid mei_id: %w", err)
 	}
+	vinhaDoTrial := h.estaEmTrial(ctx, ownerKindMEI, meiID)
 	if err := h.updateSubscriptionByOwner(ctx, ownerKindMEI, meiID, sub.ID, string(sub.Status), planoID); err != nil {
 		return err
+	}
+	if vinhaDoTrial {
+		h.recalcularCotaAposUpgrade(ctx, ownerKindMEI, meiID, string(sub.Status), planoID)
 	}
 	if h.billingGrd != nil {
 		if cerr := h.billingGrd.InvalidateSubscriptionCache(ctx, meiID); cerr != nil {
@@ -229,6 +239,84 @@ func (h *StripeWebhookHandler) handleSubscription(ctx context.Context, event str
 		}
 	}
 	return nil
+}
+
+// estaEmTrial informa se o dono está hoje num plano Trial (antes de o
+// webhook trocar o plano). ME/EPP também contam pelo bypass trial_me.
+func (h *StripeWebhookHandler) estaEmTrial(ctx context.Context, kind ownerKind, ownerID uuid.UUID) bool {
+	ownerCol := "mei_id"
+	if kind == ownerKindEmpresa {
+		ownerCol = "empresa_id"
+	}
+	var trial bool
+	err := h.db.Pool().QueryRow(ctx, fmt.Sprintf(`
+		SELECT COALESCE((
+			SELECT p.nome ILIKE 'Trial%%'
+			FROM emissoes_mensais em JOIN planos p ON p.id = em.plano_id
+			WHERE em.%s = $1
+			  AND em.competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
+			LIMIT 1
+		), true)
+		OR COALESCE((SELECT trial_me FROM empresas WHERE id = $1), false)
+	`, ownerCol), ownerID).Scan(&trial)
+	if err != nil {
+		log.Ctx(ctx).Warn().Err(err).Str("owner_id", ownerID.String()).Msg("subscription: não foi possível ler o plano atual")
+		return false
+	}
+	return trial
+}
+
+// recalcularCotaAposUpgrade (#257): no trial toda tentativa consome cota
+// (rejeitada, erro, processando); no plano pago só nota autorizada conta.
+// Ao sair do trial para um plano pago, o contador do mês passa a refletir só
+// as notas autorizadas — as tentativas do trial não podem comer a cota paga.
+// Só diminui o contador, nunca aumenta.
+func (h *StripeWebhookHandler) recalcularCotaAposUpgrade(
+	ctx context.Context, kind ownerKind, ownerID uuid.UUID, subStatus string, planoID uuid.UUID,
+) {
+	if subStatus != "active" && subStatus != "trialing" {
+		return
+	}
+	if planoID != uuid.Nil {
+		var nome string
+		if err := h.db.Pool().QueryRow(ctx, `SELECT nome FROM planos WHERE id = $1`, planoID).Scan(&nome); err != nil ||
+			billing.IsTrialPlanName(nome) {
+			return
+		}
+	}
+	ownerCol := "mei_id"
+	if kind == ownerKindEmpresa {
+		ownerCol = "empresa_id"
+	}
+	var antes, depois int
+	err := h.db.Pool().QueryRow(ctx, fmt.Sprintf(`
+		WITH autorizadas AS (
+			SELECT count(*)::int AS n FROM notas_fiscais
+			WHERE (empresa_id = $1 OR mei_id = $1)
+			  AND status IN ('AUTORIZADA', 'CANCELADA')
+			  AND to_char(COALESCE(emitida_em, created_at) AT TIME ZONE 'UTC', 'YYYY-MM')
+			      = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
+		), antes AS (
+			SELECT id, total_emitidas FROM emissoes_mensais
+			WHERE %s = $1 AND competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
+			FOR UPDATE
+		)
+		UPDATE emissoes_mensais em
+		   SET total_emitidas = LEAST(antes.total_emitidas, (SELECT n FROM autorizadas))
+		  FROM antes
+		 WHERE em.id = antes.id
+		RETURNING antes.total_emitidas, em.total_emitidas
+	`, ownerCol), ownerID).Scan(&antes, &depois)
+	if err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			log.Ctx(ctx).Warn().Err(err).Str("owner_id", ownerID.String()).Msg("subscription: falha ao recalcular cota após upgrade")
+		}
+		return
+	}
+	if antes != depois {
+		log.Ctx(ctx).Info().Str("owner_id", ownerID.String()).Int("antes", antes).Int("depois", depois).
+			Msg("cota do mês recalculada após sair do trial (tentativas do trial não contam no plano pago)")
+	}
 }
 
 type ownerKind int

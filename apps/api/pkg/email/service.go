@@ -51,6 +51,26 @@ func (s *Service) SendNotaAutorizada(
 	return nil
 }
 
+// SendNotaParaTomador entrega a NFS-e autorizada ao tomador (#274).
+func (s *Service) SendNotaParaTomador(ctx context.Context, toEmail string, p NotaTomadorParams) error {
+	assunto := "Nota fiscal de " + p.PrestadorNome
+	if p.ValorServico != "" {
+		assunto += " — R$ " + p.ValorServico
+	}
+	id, err := s.client.Send(ctx, SendRequest{
+		To:      []string{toEmail},
+		Subject: assunto,
+		HTML:    NotaTomadorHTML(p),
+	})
+	l := s.log.With().Str("type", "nota_tomador").Logger()
+	if err != nil {
+		l.Error().Err(err).Msg("email: envio da nota ao tomador falhou")
+		return err
+	}
+	l.Info().Str("email_id", id).Msg("email: nota enviada ao tomador")
+	return nil
+}
+
 // SendNotaRejeitada sends the nota-rejeitada notification to the MEI.
 func (s *Service) SendNotaRejeitada(
 	ctx context.Context,

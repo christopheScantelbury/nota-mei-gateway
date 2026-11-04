@@ -139,6 +139,11 @@ type CreateNotaInput struct {
 	RegimeTributario string
 	// ME-42: nil for MEI/SN; true/false for LP/LR companies.
 	ISSRetido *bool
+	// DadosEmissao é o pedido original em JSON (#272 — pré-preenchimento).
+	DadosEmissao []byte
+	// AutoEmailDestino, quando preenchido, liga o envio automático da nota
+	// autorizada para este e-mail (#274; ver internal/notaemail).
+	AutoEmailDestino string
 }
 
 // Create inserts a new nota with status PROCESSANDO and returns it.
@@ -166,8 +171,9 @@ func (r *NotaRepository) Create(ctx context.Context, in CreateNotaInput) (*Nota,
 			mei_id, empresa_id, numero_rps, status, xml_enviado,
 			webhook_url, idempotency_key,
 			tomador_doc, tomador_nome, valor_servico, competencia,
-			regime_tributario, iss_retido
-		) VALUES ($1,$2,$3,'PROCESSANDO',$4,$5,$6,$7,$8,$9,$10,$11,$12)
+			regime_tributario, iss_retido,
+			dados_emissao, auto_email_tomador, auto_email_destino
+		) VALUES ($1,$2,$3,'PROCESSANDO',$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15)
 		RETURNING id
 	`,
 		meiIDParam, empresaID, in.NumeroRPS, nullStr(in.XMLEnviado),
@@ -175,6 +181,7 @@ func (r *NotaRepository) Create(ctx context.Context, in CreateNotaInput) (*Nota,
 		nullStr(in.TomadorDoc), nullStr(in.TomadorNome),
 		in.ValorServico, nullStr(in.Competencia),
 		regimeParam, in.ISSRetido,
+		nullJSON(in.DadosEmissao), in.AutoEmailDestino != "", nullStr(in.AutoEmailDestino),
 	).Scan(&id)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -766,6 +773,15 @@ func nullStr(s string) *string {
 	if s == "" {
 		return nil
 	}
+	return &s
+}
+
+// nullJSON devolve nil (NULL) para JSON vazio; senão o texto, para cast ::jsonb.
+func nullJSON(b []byte) *string {
+	if len(b) == 0 {
+		return nil
+	}
+	s := string(b)
 	return &s
 }
 

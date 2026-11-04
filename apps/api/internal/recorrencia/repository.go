@@ -208,6 +208,19 @@ func (r *Repository) ListDue(ctx context.Context, asOf time.Time) ([]Recorrencia
 	return out, rows.Err()
 }
 
+// EmailConfig devolve a opção "enviar a nota por e-mail ao tomador" da
+// automação e o destino configurado ("" = usar tomador.email).
+func (r *Repository) EmailConfig(ctx context.Context, id string) (enviar bool, destino string, err error) {
+	var d *string
+	err = r.pool.QueryRow(ctx, `
+		SELECT enviar_email_tomador, email_tomador FROM nota_recorrencias WHERE id = $1
+	`, id).Scan(&enviar, &d)
+	if d != nil {
+		destino = *d
+	}
+	return enviar, destino, err
+}
+
 // MarkEmitted sets ultima_emissao = emittedDate and advances proxima_emissao by 1 month
 // (preserving the dia_vencimento, capped at 28). Also updates updated_at.
 func (r *Repository) MarkEmitted(ctx context.Context, id string, emittedDate time.Time) error {
