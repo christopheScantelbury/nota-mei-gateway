@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { coletarStripe } from './stripe'
 
 /**
  * Monitor de produção — junta os erros de uma janela de tempo e devolve
@@ -14,9 +15,10 @@ import type { SupabaseClient } from '@supabase/supabase-js'
  *  - notas REJEITADA / ERRO_TEMPORARIO (agrupadas por código da Receita)
  *  - notas presas em PROCESSANDO há mais de 2h
  *  - falhas da IA de suporte
+ *  - Stripe: eventos não processados + assinatura ativa sem plano (lib/monitor/stripe.ts, #259)
  */
 
-export type Fonte = 'api' | 'api-staging' | 'worker' | 'web' | 'receita' | 'nfse' | 'suporte'
+export type Fonte = 'api' | 'api-staging' | 'worker' | 'web' | 'receita' | 'nfse' | 'suporte' | 'stripe'
 
 export interface Achado {
   fp: string
@@ -329,6 +331,7 @@ export async function coletarAchados(sb: SupabaseClient, desde: Date, ate: Date)
     ['receita', coletarReceita(sb, desde, ate)],
     ['nfse', coletarTravadas(sb, ate)],
     ['suporte', coletarSuporte(sb, desde, ate)],
+    ['stripe', coletarStripe(sb, desde, ate)],
   ]
   const achados: Achado[] = []
   const falhas: string[] = []
