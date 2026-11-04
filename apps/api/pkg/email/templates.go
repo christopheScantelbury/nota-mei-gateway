@@ -5,6 +5,8 @@ import (
 	"html"
 	"os"
 	"regexp"
+
+	"github.com/google/uuid"
 )
 
 // --- shared layout helpers (NotaFácil brand-kit v1.0 — light identity) ---
@@ -110,6 +112,9 @@ type NotaTomadorParams struct {
 	ChaveAcesso   string
 	ValorServico  string
 	ConsultaURL   string
+	// Referências gravadas na fila (não aparecem no e-mail).
+	NotaID    *uuid.UUID
+	EmpresaID *uuid.UUID
 }
 
 // NotaTomadorHTML returns the HTML body sent to the tomador.

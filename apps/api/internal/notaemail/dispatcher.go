@@ -15,6 +15,7 @@ package notaemail
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/christopheScantelbury/nota-mei-gateway/api/pkg/email"
@@ -145,7 +146,13 @@ func (d *Dispatcher) Tick(ctx context.Context) int {
 		if len(p.chave) == 50 {
 			params.ConsultaURL = "https://www.nfse.gov.br/consultapublica?chaveAcesso=" + p.chave
 		}
-		if err := d.sender.SendNotaParaTomador(ctx, p.destino, params); err != nil {
+		params.NotaID = &p.id
+		err := d.sender.SendNotaParaTomador(ctx, p.destino, params)
+		if errors.Is(err, email.ErrEnfileirado) {
+			// Está na fila de e-mails (email_outbox), que garante o reenvio.
+			err = nil
+		}
+		if err != nil {
 			// Desfaz a reserva desta e das restantes do lote: voltam para a
 			// fila e saem quando o provedor normalizar.
 			ids := make([]uuid.UUID, 0, len(lote)-i)

@@ -2,6 +2,7 @@ package email
 
 import (
 	"context"
+	"errors"
 
 	"github.com/rs/zerolog"
 )
@@ -9,7 +10,35 @@ import (
 // Service wraps Client with domain-specific send methods.
 type Service struct {
 	client *Client
+	outbox *Outbox
 	log    zerolog.Logger
+}
+
+// WithOutbox liga a fila de entrega garantida (email_outbox).
+func (s *Service) WithOutbox(o *Outbox) *Service {
+	s.outbox = o
+	return s
+}
+
+// enviar entrega pela fila (quando configurada) ou direto pelo client.
+// Com fila, ErrEnfileirado significa "não saiu agora, mas vai sair".
+func (s *Service) enviar(ctx context.Context, m Mensagem) error {
+	l := s.log.With().Str("type", m.Tipo).Logger()
+	var err error
+	if s.outbox != nil && s.client.Enabled() {
+		err = s.outbox.Enviar(ctx, m)
+	} else {
+		_, err = s.client.Send(ctx, SendRequest{To: []string{m.Para}, Subject: m.Assunto, HTML: m.HTML})
+	}
+	switch {
+	case err == nil:
+		l.Info().Msg("email: sent")
+	case errors.Is(err, ErrEnfileirado):
+		l.Warn().Msg("email: não saiu agora — na fila para reenvio")
+	default:
+		l.Error().Err(err).Msg("email: send failed")
+	}
+	return err
 }
 
 // NewService creates a Service backed by the given Client and logger.
@@ -37,18 +66,7 @@ func (s *Service) SendNotaAutorizada(
 		PdfURL:        pdfURL,
 		XMLURL:        xmlURL,
 	})
-	id, err := s.client.Send(ctx, SendRequest{
-		To:      []string{toEmail},
-		Subject: "Nota Fiscal Autorizada — NFS-e " + numeroNFSe,
-		HTML:    html,
-	})
-	l := s.log.With().Str("to_email", toEmail).Str("type", "nota_autorizada").Logger()
-	if err != nil {
-		l.Error().Err(err).Msgf("email: send failed: %v", err)
-		return err
-	}
-	l.Info().Str("email_id", id).Msg("email: sent")
-	return nil
+	return s.enviar(ctx, Mensagem{Tipo: "nota_autorizada", Para: toEmail, Assunto: "Nota Fiscal Autorizada — NFS-e " + numeroNFSe, HTML: html})
 }
 
 // SendNotaParaTomador entrega a NFS-e autorizada ao tomador (#274).
@@ -57,18 +75,7 @@ func (s *Service) SendNotaParaTomador(ctx context.Context, toEmail string, p Not
 	if p.ValorServico != "" {
 		assunto += " — R$ " + p.ValorServico
 	}
-	id, err := s.client.Send(ctx, SendRequest{
-		To:      []string{toEmail},
-		Subject: assunto,
-		HTML:    NotaTomadorHTML(p),
-	})
-	l := s.log.With().Str("type", "nota_tomador").Logger()
-	if err != nil {
-		l.Error().Err(err).Msg("email: envio da nota ao tomador falhou")
-		return err
-	}
-	l.Info().Str("email_id", id).Msg("email: nota enviada ao tomador")
-	return nil
+	return s.enviar(ctx, Mensagem{Tipo: "nota_tomador", Para: toEmail, Assunto: assunto, HTML: NotaTomadorHTML(p), NotaID: p.NotaID, EmpresaID: p.EmpresaID})
 }
 
 // SendNotaRejeitada sends the nota-rejeitada notification to the MEI.
@@ -81,18 +88,7 @@ func (s *Service) SendNotaRejeitada(
 		ErroCodigo:    erroCodigo,
 		ErroDescricao: erroDescricao,
 	})
-	id, err := s.client.Send(ctx, SendRequest{
-		To:      []string{toEmail},
-		Subject: "Nota Fiscal Rejeitada — Código " + erroCodigo,
-		HTML:    html,
-	})
-	l := s.log.With().Str("to_email", toEmail).Str("type", "nota_rejeitada").Logger()
-	if err != nil {
-		l.Error().Err(err).Msgf("email: send failed: %v", err)
-		return err
-	}
-	l.Info().Str("email_id", id).Msg("email: sent")
-	return nil
+	return s.enviar(ctx, Mensagem{Tipo: "nota_rejeitada", Para: toEmail, Assunto: "Nota Fiscal Rejeitada — Código " + erroCodigo, HTML: html})
 }
 
 // SendBoasVindas sends the welcome email with the API key to a new MEI.
@@ -105,18 +101,7 @@ func (s *Service) SendBoasVindas(
 		CNPJ:        cnpj,
 		APIKey:      apiKey,
 	})
-	id, err := s.client.Send(ctx, SendRequest{
-		To:      []string{toEmail},
-		Subject: "Bem-vindo ao Nota MEI Gateway — sua API Key",
-		HTML:    html,
-	})
-	l := s.log.With().Str("to_email", toEmail).Str("type", "boas_vindas").Logger()
-	if err != nil {
-		l.Error().Err(err).Msgf("email: send failed: %v", err)
-		return err
-	}
-	l.Info().Str("email_id", id).Msg("email: sent")
-	return nil
+	return s.enviar(ctx, Mensagem{Tipo: "boas_vindas", Para: toEmail, Assunto: "Bem-vindo ao Nota MEI Gateway — sua API Key", HTML: html})
 }
 
 // SendPagamentoFalhou sends the payment-failed alert to the MEI.
@@ -130,18 +115,7 @@ func (s *Service) SendPagamentoFalhou(
 		ValorBRL:    valorBRL,
 		PortalURL:   portalURL,
 	})
-	id, err := s.client.Send(ctx, SendRequest{
-		To:      []string{toEmail},
-		Subject: "Ação necessária: falha no pagamento da assinatura",
-		HTML:    html,
-	})
-	l := s.log.With().Str("to_email", toEmail).Str("type", "pagamento_falhou").Logger()
-	if err != nil {
-		l.Error().Err(err).Msgf("email: send failed: %v", err)
-		return err
-	}
-	l.Info().Str("email_id", id).Msg("email: sent")
-	return nil
+	return s.enviar(ctx, Mensagem{Tipo: "pagamento_falhou", Para: toEmail, Assunto: "Ação necessária: falha no pagamento da assinatura", HTML: html})
 }
 
 // SendBoasVindasME sends the welcome email to a new ME/EPP empresa with
@@ -155,16 +129,5 @@ func (s *Service) SendBoasVindasME(
 		APIKey:           apiKey,
 		RegimeTributario: regimeTributario,
 	})
-	id, err := s.client.Send(ctx, SendRequest{
-		To:      []string{toEmail},
-		Subject: "Bem-vindo ao Nota MEI Gateway — sua empresa ME foi cadastrada",
-		HTML:    html,
-	})
-	l := s.log.With().Str("to_email", toEmail).Str("type", "boas_vindas_me").Logger()
-	if err != nil {
-		l.Error().Err(err).Msgf("email: send failed: %v", err)
-		return err
-	}
-	l.Info().Str("email_id", id).Msg("email: sent")
-	return nil
+	return s.enviar(ctx, Mensagem{Tipo: "boas_vindas_me", Para: toEmail, Assunto: "Bem-vindo ao Nota MEI Gateway — sua empresa ME foi cadastrada", HTML: html})
 }

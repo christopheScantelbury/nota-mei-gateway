@@ -229,8 +229,21 @@ func main() {
 	}
 
 	// ── Email service ──────────────────────────────────────────────────────
-	emailClient := email.NewFromEnv(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.EmailFrom)
+	// Provedores em ordem: Brevo API HTTP (BREVO_API_KEY) → Brevo SMTP (SMTP_*).
+	emailClient := email.NewFromEnv(cfg.SMTPHost, cfg.SMTPPort, cfg.SMTPUser, cfg.SMTPPass, cfg.EmailFrom).
+		WithAPIKey(os.Getenv("BREVO_API_KEY"))
 	emailSvc := email.NewService(emailClient, log.Logger)
+	// Fila com reenvio (email_outbox): nenhum e-mail se perde se o provedor cair.
+	if cfg.CertMasterKey != "" && emailClient.Enabled() {
+		if outbox, oerr := email.NewOutbox(db.Pool(), emailClient, cfg.CertMasterKey, log.Logger); oerr != nil {
+			log.Error().Err(oerr).Msg("fila de e-mails desligada — envio direto, sem reenvio")
+		} else {
+			emailSvc.WithOutbox(outbox)
+			go outbox.Run(ctx)
+		}
+	} else {
+		log.Warn().Msg("fila de e-mails desligada (sem CERT_MASTER_KEY ou sem provedor de e-mail)")
+	}
 
 	registerH := handler.NewRegisterHandler(authRepo).WithCNPJValidator(cnpjValidator).WithEmailService(emailSvc)
 	registerMEH := handler.NewRegisterMEHandler(authRepo).WithCNPJValidator(cnpjValidator).WithEmailService(emailSvc)

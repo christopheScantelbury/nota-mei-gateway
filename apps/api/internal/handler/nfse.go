@@ -1706,7 +1706,16 @@ func (h *NFSeHandler) EnviarEmail(c *fiber.Ctx) error {
 		ChaveAcesso:   numeroNFSe,
 		ValorServico:  valorBRL,
 		ConsultaURL:   publicURL,
+		NotaID:        &nota.ID,
 	}); err != nil {
+		if errors.Is(err, email.ErrEnfileirado) {
+			// Não saiu agora, mas está na fila: o cliente não precisa tentar de novo.
+			return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+				"ok":          true,
+				"enfileirado": true,
+				"message":     "Estamos com uma instabilidade momentânea no envio de e-mails. A nota ficou na fila e será enviada automaticamente em instantes.",
+			})
+		}
 		log.Ctx(c.UserContext()).Error().Err(err).
 			Str("nota_id", notaID.String()).
 			Msg("falha ao enviar nota por e-mail")
