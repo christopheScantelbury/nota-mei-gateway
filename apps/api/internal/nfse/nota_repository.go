@@ -935,3 +935,12 @@ func (r *NotaRepository) MarcarTentativaXMLNFSe(ctx context.Context, notaID uuid
 	`, notaID)
 	return err
 }
+
+// NomeMunicipio devolve "Nome - UF" do municipios_nfse ("" se não houver).
+func (r *NotaRepository) NomeMunicipio(ctx context.Context, ibge string) string {
+	var nome, uf string
+	if err := r.db.Pool().QueryRow(ctx, `SELECT nome, uf FROM municipios_nfse WHERE ibge = $1`, ibge).Scan(&nome, &uf); err != nil {
+		return ""
+	}
+	return nome + " - " + uf
+}

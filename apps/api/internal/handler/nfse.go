@@ -1389,33 +1389,52 @@ func (h *NFSeHandler) DownloadXML(c *fiber.Ctx) error {
 		})
 	}
 
+	doc, codigo, msg := h.xmlNFSeOficial(ctx, nota, mei, empresa)
+	switch codigo {
+	case "":
+		c.Set("Content-Type", "application/xml; charset=utf-8")
+		c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="NFSe-%s.xml"`, chave))
+		return c.Send(doc)
+	case "CERTIFICADO_AUSENTE":
+		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error": codigo, "message": msg, "request_id": c.Locals("request_id"),
+		})
+	default:
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": codigo, "message": msg, "request_id": c.Locals("request_id"),
+		})
+	}
+}
+
+// xmlNFSeOficial obtém o XML oficial da NFS-e (#275): storage → banco → Receita
+// (GET /SefinNacional/nfse/{chave}, mTLS), guardando o que vier da Receita.
+// codigo "" = ok; senão CERTIFICADO_AUSENTE ou RECEITA_INDISPONIVEL + mensagem.
+func (h *NFSeHandler) xmlNFSeOficial(ctx context.Context, nota *nfse.Nota, mei *auth.MEI, empresa *auth.Empresa) (doc []byte, codigo, msg string) {
+	chave := ""
+	if nota.NumeroNFSe != nil {
+		chave = *nota.NumeroNFSe
+	}
 	ownerID := nota.MeiID
 	if empresa != nil {
 		ownerID = empresa.ID
 	} else if mei != nil {
 		ownerID = mei.ID
 	}
-	l := log.Ctx(ctx).With().Str("nota_id", notaID.String()).Logger()
-
-	enviar := func(doc []byte) error {
-		c.Set("Content-Type", "application/xml; charset=utf-8")
-		c.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="NFSe-%s.xml"`, chave))
-		return c.Send(doc)
-	}
+	l := log.Ctx(ctx).With().Str("nota_id", nota.ID.String()).Logger()
 
 	// 1. Storage.
 	if h.store != nil {
 		if key, kErr := h.notaRepo.NFSeXMLKey(ctx, nota.ID); kErr == nil && key != "" {
-			doc, gErr := h.store.Get(ctx, key)
-			if gErr == nil && nfse.ValidarXMLNFSe(doc) == nil {
-				return enviar(doc)
+			d, gErr := h.store.Get(ctx, key)
+			if gErr == nil && nfse.ValidarXMLNFSe(d) == nil {
+				return d, "", ""
 			}
 			l.Warn().Err(gErr).Msg("xml da nfse indisponível no storage — buscando na Receita")
 		}
 	}
 	// 2. Banco (sem storage ou upload que falhou).
 	if nota.XMLRetorno != nil && nfse.EhXMLNFSe(*nota.XMLRetorno) {
-		return enviar([]byte(*nota.XMLRetorno))
+		return []byte(*nota.XMLRetorno), "", ""
 	}
 	// 3. Receita — notas emitidas antes do #275 ou autorizadas pela reconciliação.
 	var cert *tls.Certificate
@@ -1427,28 +1446,20 @@ func (h *NFSeHandler) DownloadXML(c *fiber.Ctx) error {
 	}
 	if certErr != nil || cert == nil {
 		l.Warn().Err(certErr).Msg("xml da nfse: sem certificado para buscar na Receita")
-		return c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
-			"error":      "CERTIFICADO_AUSENTE",
-			"message":    "para baixar o XML oficial desta nota, envie novamente o certificado A1 em Minha empresa → Certificado digital",
-			"request_id": c.Locals("request_id"),
-		})
+		return nil, "CERTIFICADO_AUSENTE", "para baixar o XML oficial desta nota, envie novamente o certificado A1 em Minha empresa → Certificado digital"
 	}
-	doc, cErr := h.adapter.ConsultarNFSe(ctx, chave, cert)
+	d, cErr := h.adapter.ConsultarNFSe(ctx, chave, cert)
 	if cErr == nil {
-		cErr = nfse.ValidarXMLNFSe(doc)
+		cErr = nfse.ValidarXMLNFSe(d)
 	}
 	if cErr != nil {
 		l.Warn().Err(cErr).Msg("xml da nfse: consulta na Receita falhou")
-		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
-			"error":      "RECEITA_INDISPONIVEL",
-			"message":    "não conseguimos obter o XML oficial na Receita agora — tente novamente em alguns minutos",
-			"request_id": c.Locals("request_id"),
-		})
+		return nil, "RECEITA_INDISPONIVEL", "não conseguimos obter o XML oficial na Receita agora — tente novamente em alguns minutos"
 	}
-	if gErr := h.xmlArchiver().Guardar(ctx, ownerID, nota.ID, doc); gErr != nil {
+	if gErr := h.xmlArchiver().Guardar(ctx, ownerID, nota.ID, d); gErr != nil {
 		l.Warn().Err(gErr).Msg("xml da nfse: obtido na Receita mas não guardado (non-fatal)")
 	}
-	return enviar(doc)
+	return d, "", ""
 }
 
 // downloadDPS entrega o XML da DPS que enviamos à Receita (?tipo=dps).
@@ -1498,56 +1509,65 @@ func (h *NFSeHandler) DownloadPDF(c *fiber.Ctx) error {
 		return internalError(c, "erro ao consultar nota")
 	}
 
-	// ── S3 path (STOR-01): redirect to a 15-minute presigned URL ─────────
-	// Se o objeto não existe mais (arquivos que estavam no S3 da AWS encerrada),
-	// cai para o caminho seguinte em vez de responder 500.
-	if nota.PDFS3Key != nil && h.store != nil {
-		url, presignErr := h.store.PresignedURL(c.Context(), *nota.PDFS3Key, 15*time.Minute)
-		if presignErr == nil {
-			return c.Redirect(url, fiber.StatusTemporaryRedirect)
-		}
-		log.Ctx(c.Context()).Warn().Err(presignErr).
-			Str("nota_id", notaID.String()).
-			Msg("PDF indisponível no object storage — usando fallback")
+	ctx := c.Context()
+	chave := ""
+	if nota.NumeroNFSe != nil {
+		chave = *nota.NumeroNFSe
+	}
+	fiscal := (nota.Status == "AUTORIZADA" || nota.Status == "CANCELADA") && len(chave) == 50
+	enviarPDF := func(pdf []byte) error {
+		c.Set("Content-Type", "application/pdf")
+		c.Set("Content-Disposition", fmt.Sprintf(`inline; filename="DANFSe-%s.pdf"`, chave))
+		return c.Send(pdf)
 	}
 
-	// ── ADN DANFSE PDF: the dedicated PDF endpoint at adn.nfse.gov.br/danfse
-	// returns 502 in production (service not yet live). When/if it comes
-	// online, FetchDANFSE() will start succeeding and the code below will
-	// return real bytes; until then we silently fall through to the public
-	// consultation redirect.
-	if nota.NumeroNFSe != nil && len(*nota.NumeroNFSe) == 50 && nota.Status != "PROCESSANDO" {
-		chave := *nota.NumeroNFSe
-		var cert *tls.Certificate
-		var certErr error
-		if empresa != nil {
-			cert, certErr = h.loadCertEmpresa(c.Context(), empresa)
-		} else if mei != nil {
-			cert, certErr = h.loadCert(c.Context(), mei)
+	// #276 — DANFSE no leiaute oficial:
+	//  1. PDF do ADN guardado (só AUTORIZADA: o guardado não traz o cancelamento);
+	//  2. DANFSE oficial do ADN (adn.nfse.gov.br/danfse, mTLS) — guardado;
+	//  3. DANFSE gerado do XML OFICIAL da NFS-e (#275), mesmo leiaute;
+	//  4. comprovante a partir da DPS (nota sem chave ou XML indisponível).
+	if fiscal && nota.Status == "AUTORIZADA" && nota.PDFS3Key != nil && h.store != nil {
+		if pdf, gErr := h.store.Get(ctx, *nota.PDFS3Key); gErr == nil && len(pdf) > 0 {
+			return enviarPDF(pdf)
 		}
-		if certErr == nil && cert != nil {
-			pdf, pdfErr := h.adapter.FetchDANFSE(c.Context(), chave, cert)
+	}
+	if fiscal {
+		var cert *tls.Certificate
+		if empresa != nil {
+			cert, _ = h.loadCertEmpresa(ctx, empresa)
+		} else if mei != nil {
+			cert, _ = h.loadCert(ctx, mei)
+		}
+		if cert != nil {
+			pdf, pdfErr := h.adapter.FetchDANFSE(ctx, chave, cert)
 			if pdfErr == nil && len(pdf) > 0 {
-				if h.store != nil {
-					s3Key := storage.S3KeyForPDF(empresaIDForNota(nota).String(), nota.ID.String())
-					if uploadErr := h.store.Put(c.Context(), s3Key, "application/pdf", pdf); uploadErr == nil {
-						_ = h.notaRepo.SetPDFS3Key(c.Context(), nota.ID, s3Key)
+				log.Ctx(ctx).Info().Str("nota_id", notaID.String()).Msg("danfse: PDF oficial do ADN")
+				if h.store != nil && nota.Status == "AUTORIZADA" {
+					owner := nota.MeiID
+					if empresa != nil {
+						owner = empresa.ID
+					}
+					key := storage.S3KeyForPDF(owner.String(), nota.ID.String())
+					if uploadErr := h.store.Put(ctx, key, "application/pdf", pdf); uploadErr == nil {
+						_ = h.notaRepo.SetPDFS3Key(ctx, nota.ID, key)
 					}
 				}
-				c.Set("Content-Type", "application/pdf")
-				c.Set("Content-Disposition", fmt.Sprintf(`inline; filename="danfse-%s.pdf"`, notaID))
-				return c.Send(pdf)
+				return enviarPDF(pdf)
 			}
-			// Don't spam Warn on every download — the service is known to be down.
-			log.Ctx(c.UserContext()).Debug().Err(pdfErr).Str("chave", chave).
-				Msg("ADN DANFSE fetch failed (expected — service indisponível) — fallback to public consulta")
+			log.Ctx(ctx).Debug().Err(pdfErr).Str("chave", chave).Msg("danfse: ADN indisponível — gerando no leiaute oficial")
 		}
-
-		// ── Fallback: generate a comprovante PDF from nota data ────────────
-		// The ADN DANFSE service is down (502). Instead of redirecting to the
-		// consulta pública website, we generate a professional comprovante PDF
-		// on-the-fly from the nota fields we already have.
-		goto generateComprovante
+		if doc, codigo, _ := h.xmlNFSeOficial(ctx, nota, mei, empresa); codigo == "" {
+			pdf, gErr := document.GerarDANFSE(doc, document.DANFSEOpcoes{
+				Cancelada: nota.Status == "CANCELADA",
+				NomeMunicipio: func(ibge string) string {
+					return h.notaRepo.NomeMunicipio(ctx, ibge)
+				},
+			})
+			if gErr == nil {
+				return enviarPDF(pdf)
+			}
+			log.Ctx(ctx).Warn().Err(gErr).Str("nota_id", notaID.String()).Msg("danfse: falha ao gerar a partir do XML oficial — usando comprovante")
+		}
 	}
 
 	// ── Legacy path: redirect to Supabase Storage URL ─────────────────────
@@ -1555,7 +1575,6 @@ func (h *NFSeHandler) DownloadPDF(c *fiber.Ctx) error {
 		return c.Redirect(*nota.PDFPath, fiber.StatusTemporaryRedirect)
 	}
 
-generateComprovante:
 	// Generate a comprovante PDF from nota fields (used as fallback when DANFSE
 	// is unavailable and no S3/Storage PDF exists).
 	{
@@ -1619,14 +1638,6 @@ generateComprovante:
 				Str("nota_id", notaID.String()).
 				Msg("falha ao gerar comprovante PDF")
 			return internalError(c, "erro ao gerar PDF")
-		}
-
-		// Cache the generated PDF to S3 for subsequent requests.
-		if h.store != nil {
-			s3Key := storage.S3KeyForPDF(nota.MeiID.String(), nota.ID.String())
-			if uploadErr := h.store.Put(c.Context(), s3Key, "application/pdf", pdfBytes); uploadErr == nil {
-				_ = h.notaRepo.SetPDFS3Key(c.Context(), nota.ID, s3Key)
-			}
 		}
 
 		c.Set("Content-Type", "application/pdf")
