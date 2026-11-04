@@ -1,6 +1,7 @@
 'use client'
 
 import type { Nota } from '@/lib/types'
+import { situacaoErroTemporario, TEXTO_ERRO_TEMPORARIO } from '@/lib/notas/erro-temporario'
 
 interface TimelineEvent {
   label: string
@@ -57,7 +58,7 @@ function buildTimeline(nota: Nota): TimelineEvent[] {
     })
   } else if (nota.status === 'ERRO_TEMPORARIO') {
     events.push({
-      label: 'Erro temporário — aguardando retry',
+      label: TEXTO_ERRO_TEMPORARIO[situacaoErroTemporario(nota.erro_codigo)].titulo,
       date: nota.updated_at ?? nota.created_at,
       done: true,
       error: true,

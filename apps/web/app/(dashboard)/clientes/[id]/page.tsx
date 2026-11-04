@@ -39,7 +39,7 @@ export default async function ClienteDetailPage({ params }: { params: { id: stri
 
   const { data: notas } = await supabase
     .from('notas_fiscais')
-    .select('id, numero_rps, numero_nfse, status, valor_servico, competencia, emitida_em, created_at')
+    .select('id, numero_rps, numero_nfse, status, erro_codigo, valor_servico, competencia, emitida_em, created_at')
     .eq('cliente_id', params.id)
     .order('created_at', { ascending: false })
     .limit(20)
@@ -166,7 +166,7 @@ export default async function ClienteDetailPage({ params }: { params: { id: stri
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-mono text-text-1">#{n.numero_rps}</span>
-                    <StatusBadge status={n.status as NotaStatus} />
+                    <StatusBadge status={n.status as NotaStatus} erroCodigo={(n as { erro_codigo?: string | null }).erro_codigo} />
                   </div>
                   {n.numero_nfse && (
                     <p className="text-[11px] font-mono text-text-2 mt-1 truncate" title={n.numero_nfse}>

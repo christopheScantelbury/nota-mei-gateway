@@ -181,7 +181,7 @@ export default async function NotasPage({
 
                 {/* Badges */}
                 <div className="flex flex-wrap items-center gap-1.5 mb-3">
-                  <StatusBadge status={n.status} />
+                  <StatusBadge status={n.status} erroCodigo={n.erro_codigo} />
                   <ISSBadge regime={n.regime_tributario} issRetido={n.iss_retido} compact />
                   <SubstituicaoDeadline
                     status={n.status}
@@ -257,7 +257,7 @@ export default async function NotasPage({
                     <td className="px-4 py-3 text-text-2">{n.competencia ?? '—'}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
-                        <StatusBadge status={n.status} />
+                        <StatusBadge status={n.status} erroCodigo={n.erro_codigo} />
                         {/* ME-42: ISS recolhimento badge (compact) */}
                         <ISSBadge regime={n.regime_tributario} issRetido={n.iss_retido} compact />
                         {/* ME-43: substitution deadline (compact) */}

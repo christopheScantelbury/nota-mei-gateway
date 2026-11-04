@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import StatusBadge from '@/components/ui/StatusBadge'
+import { situacaoErroTemporario, TEXTO_ERRO_TEMPORARIO } from '@/lib/notas/erro-temporario'
 import NotaStatusPoller from '@/components/dashboard/NotaStatusPoller'
 import NotaTimeline from '@/components/dashboard/NotaTimeline'
 import CancelarNotaButton from '@/components/dashboard/CancelarNotaButton'
@@ -94,7 +95,7 @@ export default async function NotaDetailPage({
           )}
         </div>
         <div className="flex flex-row flex-wrap sm:flex-col sm:items-end gap-2">
-          <StatusBadge status={nota.status} />
+          <StatusBadge status={nota.status} erroCodigo={nota.erro_codigo} />
           <NotaStatusPoller notaId={nota.id} status={nota.status} />
           {/* ME-42: ISS recolhimento badge */}
           <ISSBadge regime={nota.regime_tributario} issRetido={nota.iss_retido} />
@@ -123,15 +124,28 @@ export default async function NotaDetailPage({
         </div>
       )}
 
-      {/* Erro temporário — banner simples */}
-      {nota.status === 'ERRO_TEMPORARIO' && nota.erro_descricao && (
-        <div className="mb-6 rounded-lg border border-nota-processando/30 bg-nota-processando/5 p-4">
-          <p className="text-sm font-semibold text-nota-processando mb-1">
-            Erro temporário — nova tentativa em andamento
-          </p>
-          <p className="text-sm text-text-2">{nota.erro_descricao}</p>
-        </div>
-      )}
+      {/* Erro temporário (#277) — orientação depende do erro_codigo do DPSReconciler */}
+      {nota.status === 'ERRO_TEMPORARIO' && (() => {
+        const sit = situacaoErroTemporario(nota.erro_codigo)
+        const t = TEXTO_ERRO_TEMPORARIO[sit]
+        const cor = sit === 'nao_recebida' ? 'nota-rejeitada' : 'nota-processando'
+        return (
+          <div className={`mb-6 rounded-lg border p-4 ${cor === 'nota-rejeitada' ? 'border-nota-rejeitada/30 bg-nota-rejeitada/5' : 'border-nota-processando/30 bg-nota-processando/5'}`}>
+            <p className={`text-sm font-semibold mb-1 ${cor === 'nota-rejeitada' ? 'text-nota-rejeitada' : 'text-nota-processando'}`}>
+              {t.titulo}
+            </p>
+            <p className="text-sm text-text-2">{t.texto}</p>
+            {sit === 'nao_recebida' && (
+              <a
+                href={`/notas/nova?de=${nota.id}`}
+                className="mt-3 inline-block text-sm font-semibold px-4 py-2 rounded-lg bg-brand-cyan text-navy-900 hover:opacity-90 transition"
+              >
+                Emitir novamente
+              </a>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ME-42: ISS recolhimento card — aparece para notas autorizadas */}
       {nota.status === 'AUTORIZADA' && (
@@ -226,7 +240,7 @@ export default async function NotaDetailPage({
             rel="noopener noreferrer"
             className="text-sm px-4 py-2 rounded-lg border border-navy-600 text-text-1 hover:border-brand-cyan hover:text-brand-cyan transition"
           >
-            ⬇ Download PDF
+            ⬇ DANFSe (PDF)
           </a>
         )}
         {hasPDF && (

@@ -1,4 +1,5 @@
 import type { NotaStatus } from '@/lib/types'
+import { situacaoErroTemporario, TEXTO_ERRO_TEMPORARIO } from '@/lib/notas/erro-temporario'
 
 const config: Record<
   NotaStatus,
@@ -11,10 +12,22 @@ const config: Record<
   ERRO_TEMPORARIO:{ label: 'Erro Temporário',className: 'bg-nota-rejeitada/10 text-nota-rejeitada border-nota-rejeitada/30' },
 }
 
-export default function StatusBadge({ status }: { status: NotaStatus }) {
-  const { label, className } = config[status] ?? {
+/**
+ * erroCodigo (opcional) refina ERRO_TEMPORARIO (#277): "Aguardando Receita" em
+ * âmbar quando a nota pode já ter sido autorizada — o vermelho "Erro" levava o
+ * cliente a emitir de novo e duplicar a NFS-e.
+ */
+export default function StatusBadge({ status, erroCodigo }: { status: NotaStatus; erroCodigo?: string | null }) {
+  let { label, className } = config[status] ?? {
     label: status,
     className: 'bg-navy-600 text-text-2 border-navy-600',
+  }
+  if (status === 'ERRO_TEMPORARIO') {
+    const sit = situacaoErroTemporario(erroCodigo)
+    label = TEXTO_ERRO_TEMPORARIO[sit].badge
+    if (sit !== 'nao_recebida') {
+      className = 'bg-nota-processando/10 text-nota-processando border-nota-processando/30'
+    }
   }
 
   return (

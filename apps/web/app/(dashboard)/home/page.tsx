@@ -132,7 +132,7 @@ export default async function DashboardHome() {
 
     supabase
       .from('notas_fiscais')
-      .select('id, numero_rps, status, tomador_nome, valor_servico, competencia, emitida_em, created_at')
+      .select('id, numero_rps, status, erro_codigo, tomador_nome, valor_servico, competencia, emitida_em, created_at')
       .order('created_at', { ascending: false })
       .limit(5)
       .overrideTypes<Pick<Nota, 'id' | 'numero_rps' | 'status' | 'tomador_nome' | 'valor_servico' | 'competencia' | 'emitida_em' | 'created_at'>[]>(),
@@ -373,7 +373,7 @@ export default async function DashboardHome() {
                     i > 0 ? 'border-t border-navy-600' : ''
                   }`}
                 >
-                  <StatusBadge status={n.status as NotaStatus} />
+                  <StatusBadge status={n.status as NotaStatus} erroCodigo={(n as { erro_codigo?: string | null }).erro_codigo} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{n.tomador_nome ?? '—'}</p>
                     <p className="text-xs text-text-2">{n.competencia ?? '—'}</p>
