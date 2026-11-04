@@ -111,9 +111,9 @@ func Load() *Config {
 		"SUPABASE_URL",
 		"REDIS_URL",
 		"RABBITMQ_URL",
-		"AWS_REGION",
-		"AWS_KMS_KEY_ARN",
-		"S3_BUCKET_NOTAS",
+		// AWS_* / S3_BUCKET_NOTAS saíram: conta AWS encerrada (certs em
+		// cert_secrets, arquivos no Supabase Storage).
+		"CERT_MASTER_KEY",
 		"STRIPE_SECRET_KEY",
 		"STRIPE_WEBHOOK_SECRET",
 		"STRIPE_PRICE_STARTER",
