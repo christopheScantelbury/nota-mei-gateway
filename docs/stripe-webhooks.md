@@ -4,8 +4,9 @@
 > produtos da ScantelburyDevs (NotaFácil, EventGear e ContentAI). EventGear e
 > ContentAI foram apagados/pausados — em 2026-11-04 os endpoints deles foram
 > **apagados** do Stripe e os produtos/preços arquivados (2 produtos do
-> EventGear sem preço foram apagados). **Só o endpoint de produção do NotaFácil
-> está ativo**. Se um deles voltar
+> EventGear sem preço foram apagados). Os endpoints mortos do NotaFácil
+> (staging e `api.notameigateway.com.br`) também foram apagados. **A conta tem
+> um único endpoint: o de produção do NotaFácil**. Se um deles voltar
 > nesta conta, cada endpoint recebe os eventos de todos — o handler de cada
 > produto precisa ignorar o que não é dele.
 
@@ -14,8 +15,9 @@
 | ID | URL | Produto | Status |
 |---|---|---|---|
 | `we_1TUEZ6QkYQoRUOWmdRzkSGT0` | `https://api.emitirnotafacil.com.br/v1/webhooks/stripe` | **NotaFácil (produção)** | ✅ ativo |
-| `we_1TRxmdQkYQoRUOWmWX1oxh2b` | `https://api-staging-production-eda6.up.railway.app/v1/webhooks/stripe` | NotaFácil staging | ⛔ desativado 2026-11-04 — serviço `api-staging` apagado; recebia eventos LIVE |
-| `we_1TUEVUQkYQoRUOWmYVkw2dEc` | `https://api.notameigateway.com.br/v1/webhooks/stripe` | NotaFácil (domínio morto) | ⛔ desativado |
+
+Apagados em 2026-11-04: `we_1TRxmd…` (staging — serviço `api-staging` apagado,
+recebia eventos LIVE) e `we_1TUEVU…` (`api.notameigateway.com.br`, domínio morto).
 
 ## Eventos assinados pelo endpoint de produção
 
