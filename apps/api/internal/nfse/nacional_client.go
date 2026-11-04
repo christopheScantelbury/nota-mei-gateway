@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"time"
 )
 
@@ -69,6 +70,9 @@ type NFSeNacionalError struct {
 	IDDps                 string                  `json:"idDPS"`
 	Erros                 []MensagemProcessamento `json:"erros"`
 	Erro                  []MensagemProcessamento `json:"erro"`
+	// Tentativa do POST em que a rejeição veio (1 = primeira). Rejeição depois
+	// de um reenvio pode ser a própria DPS já processada (#278).
+	Tentativa int `json:"-"`
 }
 
 // Errors returns the combined list from `erros` + `erro`.
@@ -128,10 +132,12 @@ func (a *Adapter) EnviarNFSeNacional(
 	url := a.baseURL + "/nfse"
 
 	var (
-		success *NFSeNacionalSuccess
-		failure *NFSeNacionalError
+		success   *NFSeNacionalSuccess
+		failure   *NFSeNacionalError
+		tentativa int
 	)
 	err = withRetry(ctx, backoffDelays, func() error {
+		tentativa++
 		resp, doErr := a.doJSON(ctx, http.MethodPost, url, bodyJSON, cert)
 		if doErr != nil {
 			return doErr
@@ -159,6 +165,7 @@ func (a *Adapter) EnviarNFSeNacional(
 			if jsonErr := json.Unmarshal(body, f); jsonErr != nil || len(f.Errors()) == 0 {
 				return fmt.Errorf("sefin client error %d: %.500s", resp.StatusCode, body)
 			}
+			f.Tentativa = tentativa
 			failure = f
 			return nil // not retryable
 		default:
@@ -168,7 +175,83 @@ func (a *Adapter) EnviarNFSeNacional(
 	if err != nil {
 		return nil, failure, fmt.Errorf("envio nfse-nacional: %w", err)
 	}
+	if failure != nil && dpsPodeTerSidoProcessada(failure) {
+		// #278: a resposta de uma tentativa anterior se perdeu e a Receita já
+		// gerou a NFS-e desta DPS — não é rejeição.
+		return a.recuperarDPSProcessada(ctx, signedDPSXML, failure, cert)
+	}
 	return success, failure, nil
+}
+
+// CodigoDPSJaExiste: SEFIN — "conjunto de série, número, município e CNPJ/CPF
+// desta DPS já existe em uma NFS-e gerada a partir de uma DPS enviada anteriormente".
+const CodigoDPSJaExiste = "E0014"
+
+// dpsPodeTerSidoProcessada: E0014, ou qualquer rejeição que só veio depois de
+// um reenvio (a 1ª tentativa pode ter chegado à Receita).
+func dpsPodeTerSidoProcessada(f *NFSeNacionalError) bool {
+	if f.Tentativa > 1 {
+		return true
+	}
+	for _, m := range f.Errors() {
+		if m.Codigo == CodigoDPSJaExiste {
+			return true
+		}
+	}
+	return false
+}
+
+var dhEmiRe = regexp.MustCompile(`<(?:\w+:)?dhEmi>([^<]+)</(?:\w+:)?dhEmi>`)
+
+// dhEmiDe devolve o primeiro <dhEmi> do documento (no XML da NFS-e é o da DPS
+// embutida em <infNFSe>; o infNFSe em si usa dhProc).
+func dhEmiDe(doc []byte) string {
+	m := dhEmiRe.FindSubmatch(doc)
+	if m == nil {
+		return ""
+	}
+	return string(m[1])
+}
+
+// dpsRecovery é o que recuperarDPSProcessada precisa da SEFIN (fake nos testes).
+type dpsRecovery interface {
+	ConsultarDPSPorID(ctx context.Context, idDPS string, cert *tls.Certificate) (*NFSeNacionalSuccess, error)
+	ConsultarNFSe(ctx context.Context, chaveAcesso string, cert *tls.Certificate) ([]byte, error)
+}
+
+func (a *Adapter) recuperarDPSProcessada(ctx context.Context, signedDPSXML []byte, failure *NFSeNacionalError, cert *tls.Certificate) (*NFSeNacionalSuccess, *NFSeNacionalError, error) {
+	return recuperarDPSProcessada(ctx, a, signedDPSXML, failure, cert)
+}
+
+// recuperarDPSProcessada consulta GET /dps/{id}. Se a NFS-e existir E for desta
+// DPS (mesmo dhEmi — o número pode ter sido usado por outra emissão, e aí a
+// rejeição é verdadeira), devolve como sucesso, já com o XML oficial. Sem
+// resposta conclusiva, devolve erro transitório: a nota fica PROCESSANDO e o
+// DPSReconciler resolve depois — nunca REJEITADA por engano.
+func recuperarDPSProcessada(ctx context.Context, sefin dpsRecovery, signedDPSXML []byte, failure *NFSeNacionalError, cert *tls.Certificate) (*NFSeNacionalSuccess, *NFSeNacionalError, error) {
+	codigo, _ := failure.FirstError()
+	idDPS := extractIDDPS(string(signedDPSXML))
+	if idDPS == "" {
+		return nil, failure, nil
+	}
+	res, err := sefin.ConsultarDPSPorID(ctx, idDPS, cert)
+	if errors.Is(err, ErrDPSNaoEncontrada) {
+		return nil, failure, nil // rejeição verdadeira
+	}
+	if err != nil {
+		return nil, nil, fmt.Errorf("envio nfse-nacional: rejeição %s após reenvio e a consulta da DPS falhou: %w", codigo, err)
+	}
+	doc, err := sefin.ConsultarNFSe(ctx, res.ChaveAcesso, cert)
+	if err != nil {
+		return nil, nil, fmt.Errorf("envio nfse-nacional: rejeição %s, a NFS-e %s existe mas o XML não veio: %w", codigo, res.ChaveAcesso, err)
+	}
+	if nossa := dhEmiDe(signedDPSXML); nossa == "" || nossa != dhEmiDe(doc) {
+		return nil, failure, nil // outra DPS com o mesmo número gerou a NFS-e
+	}
+	if gz, gzErr := gzipBytes(doc); gzErr == nil {
+		res.NFSeXMLGZipB64 = base64.StdEncoding.EncodeToString(gz)
+	}
+	return res, nil, nil
 }
 
 // DecodeNFSeXML decompresses the nfseXmlGZipB64 returned by EnviarNFSeNacional
