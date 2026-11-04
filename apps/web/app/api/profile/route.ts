@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 // usuário tem row — auth.uid() bate via id (MEI legacy) ou user_id (ME/EPP).
 //
 // Body aceito (todos opcionais, pelo menos um obrigatório):
-//   { razao_social, inscricao_municipal }
+//   { razao_social, inscricao_municipal, regime_apuracao_sn }
 export async function PATCH(request: NextRequest): Promise<NextResponse> {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -16,7 +16,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
   }
 
-  let body: { razao_social?: string; inscricao_municipal?: string }
+  let body: { razao_social?: string; inscricao_municipal?: string; regime_apuracao_sn?: number }
   try {
     body = await request.json()
   } catch {
@@ -24,7 +24,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
   }
 
   // Monta o patch dinâmico — só inclui campos efetivamente enviados.
-  const patch: Record<string, string | null> = {}
+  const patch: Record<string, string | number | null> = {}
 
   if (body.razao_social !== undefined) {
     const v = body.razao_social.trim()
@@ -51,6 +51,17 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
       )
     }
     patch.inscricao_municipal = v || null
+  }
+
+  // #279 — regime de apuração do Simples (só ME/EPP optante; MEI ignora).
+  if (body.regime_apuracao_sn !== undefined) {
+    if (![1, 2, 3].includes(body.regime_apuracao_sn)) {
+      return NextResponse.json(
+        { error: 'VALIDATION_ERROR', message: 'Regime de apuração do Simples inválido (1, 2 ou 3).' },
+        { status: 422 },
+      )
+    }
+    patch.regime_apuracao_sn = body.regime_apuracao_sn
   }
 
   if (Object.keys(patch).length === 0) {
@@ -80,7 +91,7 @@ export async function PATCH(request: NextRequest): Promise<NextResponse> {
   //    Mesmo se #1 já atualizou (caso de MEI com mirror), atualizamos
   //    o `meis` pro dashboard MEI ler. razao_social vai pros 2; IM só
   //    faz sentido no empresas (meis não tem essa coluna no schema).
-  const meiPatch: Record<string, string | null> = {}
+  const meiPatch: Record<string, string | number | null> = {}
   if (patch.razao_social !== undefined) meiPatch.razao_social = patch.razao_social
   meiPatch.updated_at = nowISO
 

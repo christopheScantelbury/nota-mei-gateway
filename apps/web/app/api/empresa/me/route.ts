@@ -18,6 +18,8 @@ interface EmpresaInfo {
   regime_tributario: 'SIMPLES_MEI' | 'SIMPLES_NACIONAL' | 'LUCRO_PRESUMIDO' | 'LUCRO_REAL'
   isMei: boolean
   isSimplesNacional: boolean
+  /** ME/EPP do Simples: 1 = tudo pelo SN, 2 = ISS fora do SN, 3 = tudo fora (#279). */
+  regime_apuracao_sn: 1 | 2 | 3
   cnpj: string | null
   razao_social: string | null
   plano: string  // nome do plano atual (Trial, Starter, Basic, Pro, Business)
@@ -41,13 +43,14 @@ export async function GET(): Promise<NextResponse> {
   // empresas primeiro (modelo unificado)
   const { data: emp } = await supabase
     .from('empresas')
-    .select('cnpj, razao_social, tipo, regime_tributario')
+    .select('cnpj, razao_social, tipo, regime_tributario, regime_apuracao_sn')
     .eq('user_id', user.id)
     .maybeSingle<{
       cnpj: string
       razao_social: string
       tipo: 'MEI' | 'ME' | 'EPP'
       regime_tributario: EmpresaInfo['regime_tributario']
+      regime_apuracao_sn: number | null
     }>()
 
   if (emp) {
@@ -58,6 +61,7 @@ export async function GET(): Promise<NextResponse> {
       regime_tributario: emp.regime_tributario,
       isMei,
       isSimplesNacional: isMei || emp.regime_tributario === 'SIMPLES_NACIONAL',
+      regime_apuracao_sn: emp.regime_apuracao_sn === 2 || emp.regime_apuracao_sn === 3 ? emp.regime_apuracao_sn : 1,
       cnpj: emp.cnpj,
       razao_social: emp.razao_social,
       plano,
@@ -78,6 +82,7 @@ export async function GET(): Promise<NextResponse> {
       regime_tributario: 'SIMPLES_MEI',
       isMei: true,
       isSimplesNacional: true,
+      regime_apuracao_sn: 1,
       cnpj: mei.cnpj,
       razao_social: mei.razao_social,
       plano,

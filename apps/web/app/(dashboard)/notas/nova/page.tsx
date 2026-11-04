@@ -62,6 +62,7 @@ interface FormErrors {
   emailTomador?: string
   municipioIbge?: string
   competencia?: string
+  aliquotaIss?: string
 }
 
 export default function NovaNota() {
@@ -118,6 +119,12 @@ export default function NovaNota() {
   const empresaResolved = empresaTipo !== null
   const isMei = empresaTipo === 'MEI'
   const isSimplesNacional = isMei || empresaRegime === 'SIMPLES_NACIONAL'
+  // #279 — ME/EPP do Simples: ISS pode ser retido pelo tomador, e acima do
+  // sublimite (apuração 2/3) o ISS sai do DAS. Nos dois casos a alíquota do
+  // município vai na nota.
+  const [regApSN, setRegApSN] = useState<1 | 2 | 3>(1)
+  const isSimplesME = !isMei && empresaRegime === 'SIMPLES_NACIONAL'
+  const pedeAliquota = !isSimplesNacional || (isSimplesME && (issRetido === true || regApSN !== 1))
   const podeUsarClientes = hasFeature(planoNome, 'clientesRead')
 
   useEffect(() => {
@@ -125,12 +132,14 @@ export default function NovaNota() {
     // Carrega o regime da empresa pra ajustar a UI
     fetch('/api/empresa/me')
       .then(r => r.ok ? r.json() : null)
-      .then((d: { tipo?: 'MEI' | 'ME' | 'EPP'; regime_tributario?: RegimeTributario; plano?: string } | null) => {
+      .then((d: { tipo?: 'MEI' | 'ME' | 'EPP'; regime_tributario?: RegimeTributario; plano?: string; regime_apuracao_sn?: 1 | 2 | 3 } | null) => {
         if (d?.tipo) setEmpresaTipo(d.tipo)
         if (d?.regime_tributario) setEmpresaRegime(d.regime_tributario)
         if (d?.plano) setPlanoNome(d.plano)
-        // MEI/SN: alíquota não é usada — zera pra evitar confusão no payload
-        if (d?.tipo === 'MEI' || d?.regime_tributario === 'SIMPLES_NACIONAL') {
+        if (d?.regime_apuracao_sn) setRegApSN(d.regime_apuracao_sn)
+        // MEI/SN no padrão: alíquota não é usada — limpa pra evitar confusão.
+        // Acima do sublimite (apuração 2/3) a alíquota do município é exigida.
+        if (d?.tipo === 'MEI' || (d?.regime_tributario === 'SIMPLES_NACIONAL' && (d?.regime_apuracao_sn ?? 1) === 1)) {
           setAliquotaIss('0')
         }
       })
@@ -264,6 +273,10 @@ export default function NovaNota() {
     if (!razaoSocial.trim()) errs.razaoSocial = 'Nome / razão social obrigatório'
     if (!emailTomador.trim() || !emailTomador.includes('@')) errs.emailTomador = 'E-mail inválido'
     if (!municipioIbge) errs.municipioIbge = 'Município obrigatório'
+    if (isSimplesME && pedeAliquota) {
+      const a = parseFloat(aliquotaIss.replace(',', '.'))
+      if (isNaN(a) || a <= 0) errs.aliquotaIss = 'Informe a alíquota de ISS do município'
+    }
 
     setErrors(errs)
     return Object.keys(errs).length === 0
@@ -284,7 +297,7 @@ export default function NovaNota() {
           valor: parseFloat(valorServico.replace(',', '.')),
           // MEI/SN: alíquota não se aplica (recolhe ISS via DAS). Envia 0
           // para o backend manter o campo no DPS sem cobrar nada.
-          aliquota_iss: isSimplesNacional ? 0 : parseFloat(aliquotaIss.replace(',', '.')),
+          aliquota_iss: pedeAliquota ? parseFloat(aliquotaIss.replace(',', '.')) : 0,
         },
         tomador: {
           tipo: tipoPessoa,
@@ -529,7 +542,7 @@ export default function NovaNota() {
             </div>
           </Field>
 
-          <div className={`grid grid-cols-1 ${isSimplesNacional ? '' : 'sm:grid-cols-2'} gap-4`}>
+          <div className={`grid grid-cols-1 ${pedeAliquota ? 'sm:grid-cols-2' : ''} gap-4`}>
             <Field label="Valor do serviço (R$)" error={errors.valorServico}>
               <MoneyInput
                 className={inputCls}
@@ -539,8 +552,8 @@ export default function NovaNota() {
             </Field>
             {/* Alíquota ISS — só pra LP/LR. MEI e SN recolhem ISS via DAS, alíquota não se aplica.
                 Espera empresaResolved pra evitar flash do campo. */}
-            {empresaResolved && !isSimplesNacional && (
-              <Field label="Alíquota ISS (%)">
+            {empresaResolved && pedeAliquota && (
+              <Field label="Alíquota ISS (%)" error={errors.aliquotaIss}>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -554,7 +567,7 @@ export default function NovaNota() {
           </div>
 
           {/* MEI/SN: nota explicativa sobre o DAS — sem valor fixo (muda anualmente) */}
-          {empresaResolved && isSimplesNacional && (
+          {empresaResolved && isSimplesNacional && !pedeAliquota && (
             <div className="flex items-start gap-2 bg-brand-cyan/5 border border-brand-cyan/20 rounded-lg px-4 py-2.5">
               <span className="text-base shrink-0 mt-0.5">💡</span>
               <p className="text-xs text-text-2 leading-relaxed">
@@ -699,8 +712,9 @@ export default function NovaNota() {
                 />
               </Field>
 
-              {/* ME-41: ISS retido toggle — só faz sentido pra Lucro Presumido/Real. */}
-              {!isSimplesNacional && (
+              {/* ME-41: ISS retido — LP/LR e, desde o #279, ME/EPP do Simples
+                  (tomador PJ/órgão público pode reter). MEI nunca retém. */}
+              {!isMei && (
                 <div className="rounded-lg border border-navy-600 p-4">
                   <p className="text-sm font-semibold text-text-1 mb-1">Retenção de ISS</p>
                   <p className="text-xs text-text-2 mb-3">

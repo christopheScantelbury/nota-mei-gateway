@@ -970,7 +970,11 @@ components:
           example: "https://erp.empresa.com/webhooks/nfse"
         iss_retido:
           type: boolean
-          description: Obrigatório para Lucro Presumido/Real. Ignorado para MEI e Simples Nacional.
+          description: |
+            Obrigatório para Lucro Presumido/Real. ME/EPP do Simples Nacional: `true`
+            quando o tomador retém o ISS (padrão `false`); nesse caso — e para empresa
+            com apuração do ISS fora do Simples — `servico.aliquota_iss` é obrigatória.
+            Ignorado para MEI.
         idempotency_key:
           type: string
           maxLength: 255

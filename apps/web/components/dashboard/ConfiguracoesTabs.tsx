@@ -18,7 +18,16 @@ interface MEIData {
   /** Obrigatória pra ME/EPP. MEI dispensa (regime simplificado). */
   inscricao_municipal?: string | null
   tipo?: string | null
+  regime_tributario?: string | null
+  /** ME/EPP do Simples: 1 = tudo pelo SN, 2 = ISS fora do SN, 3 = tudo fora (#279). */
+  regime_apuracao_sn?: number | null
 }
+
+const REGIMES_APURACAO_SN = [
+  { value: 1, label: 'Tributos federais e ISS pelo Simples Nacional (padrão)' },
+  { value: 2, label: 'Federais pelo Simples e ISS fora do Simples (acima do sublimite)' },
+  { value: 3, label: 'Federais e ISS fora do Simples' },
+] as const
 
 interface APIKey {
   id: string
@@ -72,8 +81,12 @@ function PerfilTab({ mei }: { mei: MEIData }) {
 
   const isMei = !mei.tipo || mei.tipo === 'MEI'
   const initialIM = mei.inscricao_municipal ?? ''
+  const isSimplesME = !isMei && mei.regime_tributario === 'SIMPLES_NACIONAL'
+  const initialRegAp = mei.regime_apuracao_sn === 2 || mei.regime_apuracao_sn === 3 ? mei.regime_apuracao_sn : 1
+  const [regApSN, setRegApSN] = useState<number>(initialRegAp)
 
-  const dirty = razaoSocial !== mei.razao_social || inscricaoMunicipal !== initialIM
+  const dirty = razaoSocial !== mei.razao_social || inscricaoMunicipal !== initialIM ||
+    (isSimplesME && regApSN !== initialRegAp)
 
   async function save() {
     setSaving(true)
@@ -85,6 +98,7 @@ function PerfilTab({ mei }: { mei: MEIData }) {
         body: JSON.stringify({
           razao_social: razaoSocial,
           inscricao_municipal: inscricaoMunicipal.trim(),
+          ...(isSimplesME ? { regime_apuracao_sn: regApSN } : {}),
         }),
       })
       if (res.ok) {
@@ -144,6 +158,28 @@ function PerfilTab({ mei }: { mei: MEIData }) {
             Obrigatória pra ME/EPP. Sem ela a Receita rejeita a DPS com erro
             E0116. Você encontra esse número no comprovante de inscrição da
             prefeitura ou na consulta do CNPJ municipal.
+          </p>
+        </div>
+      )}
+
+      {/* #279 — regime de apuração do Simples (ME/EPP optante). Vai na DPS
+          como regApTribSN; errado aqui a Receita calcula o ISS errado. */}
+      {isSimplesME && (
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-text-1">Apuração dos tributos no Simples Nacional</label>
+          <select
+            className={inputCls}
+            value={regApSN}
+            onChange={e => setRegApSN(Number(e.target.value))}
+          >
+            {REGIMES_APURACAO_SN.map(r => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
+          <p className="text-xs text-text-2">
+            A maioria das empresas usa o padrão. Só mude se a sua empresa ultrapassou o
+            sublimite do Simples (confirme com o seu contador). Fora do padrão, informe a
+            alíquota de ISS do município em cada nota.
           </p>
         </div>
       )}
