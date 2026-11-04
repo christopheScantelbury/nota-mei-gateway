@@ -46,6 +46,8 @@ const SERVICOS: Record<string, Fonte> = {
 const RUIDO_WEB = /ChunkLoadError|Loading chunk \S+ failed|^Script error\.?$|Failed to fetch|Load failed|NetworkError|ResizeObserver loop/i
 const RUIDO_API: RegExp[] = [
   /UpdateCert failed[\s\S]*password incorrect/i, // cliente digitou a senha do PFX errada
+  /no Stripe-Signature header/i,                  // bot/scanner fazendo POST no webhook sem assinatura
+  /proxy network namespace pool is closed/i,      // infra do Railway durante redeploy
 ]
 
 // ─── Sanitização ─────────────────────────────────────────────────────────────
@@ -134,7 +136,14 @@ async function coletarRailway(desde: Date, ate: Date): Promise<Achado[]> {
   const relevantes = [
     ...erros,
     // 4xx em webhooks = integração quebrada (foi assim que o Stripe falhou 100%).
-    ...avisos.filter((l) => attr(l.attributes?.find((a) => a.key === 'path')?.value).startsWith('/v1/webhooks')),
+    // No Stripe usamos a linha "signature invalid" (traz o motivo) em vez do 400
+    // do access log — senão cada bot que faz POST sem assinatura vira issue.
+    ...avisos.filter((l) => {
+      const path = attr(l.attributes?.find((a) => a.key === 'path')?.value)
+      if (/stripe webhook signature invalid/i.test(l.message)) return true
+      if (path === '/v1/webhooks/stripe' && attr(l.attributes?.find((a) => a.key === 'status')?.value) === '400') return false
+      return path.startsWith('/v1/webhooks')
+    }),
   ]
 
   const grupos = new Map<string, Achado>()
