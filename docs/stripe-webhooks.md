@@ -1,9 +1,11 @@
 # Webhooks do Stripe (conta LIVE)
 
-> Revisado em 2026-11-04 (#260). A conta Stripe LIVE é **compartilhada** pelos
-> produtos da ScantelburyDevs (NotaFácil, EventGear e ContentAI). Cada endpoint
-> recebe os eventos de **todos** os produtos — o handler de cada um ignora o que
-> não é dele.
+> Revisado em 2026-11-04 (#260). A conta Stripe LIVE era compartilhada pelos
+> produtos da ScantelburyDevs (NotaFácil, EventGear e ContentAI). EventGear e
+> ContentAI foram apagados/pausados — os endpoints deles estão desativados e
+> **só o endpoint de produção do NotaFácil está ativo**. Se um deles voltar
+> nesta conta, cada endpoint recebe os eventos de todos — o handler de cada
+> produto precisa ignorar o que não é dele.
 
 ## Endpoints
 
@@ -12,8 +14,8 @@
 | `we_1TUEZ6QkYQoRUOWmdRzkSGT0` | `https://api.emitirnotafacil.com.br/v1/webhooks/stripe` | **NotaFácil (produção)** | ✅ ativo |
 | `we_1TRxmdQkYQoRUOWmWX1oxh2b` | `https://api-staging-production-eda6.up.railway.app/v1/webhooks/stripe` | NotaFácil staging | ⛔ desativado 2026-11-04 — serviço `api-staging` apagado; recebia eventos LIVE |
 | `we_1TUEVUQkYQoRUOWmYVkw2dEc` | `https://api.notameigateway.com.br/v1/webhooks/stripe` | NotaFácil (domínio morto) | ⛔ desativado |
-| `we_1TV9kEQkYQoRUOWm01rEbNiw` | `https://api-production-6757.up.railway.app/v1/billing/webhook` | EventGear | ativo — não é do NotaFácil |
-| `we_1TNDz9QkYQoRUOWmsx3jX9yu` / `we_1TLenuQkYQoRUOWmFU2JhzAu` | `contentai-backend…/api/webhooks/stripe` | ContentAI | ativos — não são do NotaFácil |
+| `we_1TV9kEQkYQoRUOWm01rEbNiw` | `https://api-production-6757.up.railway.app/v1/billing/webhook` | EventGear | ⛔ desativado 2026-11-04 — produto fora do ar (404) |
+| `we_1TNDz9QkYQoRUOWmsx3jX9yu` / `we_1TLenuQkYQoRUOWmFU2JhzAu` | `contentai-backend…/api/webhooks/stripe` | ContentAI | ⛔ desativados 2026-11-04 — produto fora do ar (404) |
 
 ## Eventos assinados pelo endpoint de produção
 
@@ -49,6 +51,6 @@ Webhooks → endpoint de produção → evento → **Resend**.
 
 ## Recomendações em aberto
 
-- Mover EventGear e ContentAI para contas Stripe próprias: hoje um erro de
-  configuração num produto afeta o painel de entregas dos outros.
+- Se EventGear ou ContentAI voltarem, usar contas Stripe próprias em vez de
+  reativar os endpoints nesta conta.
 - Staging do NotaFácil, se voltar a existir, deve usar o **modo test**, nunca a conta LIVE.
