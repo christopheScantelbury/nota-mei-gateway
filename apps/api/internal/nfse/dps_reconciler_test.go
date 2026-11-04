@@ -168,10 +168,10 @@ func TestDPSReconciler_SemRespostaConclusiva_Aguarda(t *testing.T) {
 		cons  *fakeConsultor
 		certs fakeCerts
 	}{
-		"consulta falhou":  {notaTravada("PROCESSANDO"), &fakeConsultor{err: errors.New("timeout")}, fakeCerts{}},
-		"sem certificado":  {func() NotaParaReconciliar { n := notaTravada("PROCESSANDO"); n.CertSecretARN = nil; return n }(), &fakeConsultor{}, fakeCerts{}},
-		"cert não carrega": {notaTravada("PROCESSANDO"), &fakeConsultor{}, fakeCerts{err: errors.New("kms")}},
-		"xml sem Id":       {func() NotaParaReconciliar { n := notaTravada("PROCESSANDO"); n.XMLEnviado = strp("<DPS/>"); return n }(), &fakeConsultor{}, fakeCerts{}},
+		"consulta falhou":                {notaTravada("PROCESSANDO"), &fakeConsultor{err: errors.New("timeout")}, fakeCerts{}},
+		"sem certificado":                {func() NotaParaReconciliar { n := notaTravada("PROCESSANDO"); n.CertSecretARN = nil; return n }(), &fakeConsultor{}, fakeCerts{}},
+		"cert não carrega":               {notaTravada("PROCESSANDO"), &fakeConsultor{}, fakeCerts{err: errors.New("kms")}},
+		"sem xml e sem dados da empresa": {func() NotaParaReconciliar { n := notaTravada("PROCESSANDO"); n.XMLEnviado = nil; return n }(), &fakeConsultor{}, fakeCerts{}},
 	}
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -203,5 +203,17 @@ func TestDefaultReconcileAge_MaiorQueEnvioMaximo(t *testing.T) {
 	envioMax := 4*30*time.Second + time.Duration(float64(21*time.Second)*1.1)
 	if DefaultReconcileAge <= envioMax {
 		t.Errorf("DefaultReconcileAge (%s) precisa ser > duração máxima do envio (%s)", DefaultReconcileAge, envioMax)
+	}
+}
+
+func TestIDDPSDaNota_SemXML_RecalculaComoBuilder(t *testing.T) {
+	n := NotaParaReconciliar{NumeroDPS: 8, CNPJ: "18.963.370/0001-90", MunicipioIBGE: "3550308"}
+	want := "DPS" + "3550308" + "2" + "18963370000190" + "00001" + "000000000000008"
+	if got := idDPSDaNota(n); got != want {
+		t.Errorf("idDPSDaNota = %q, want %q", got, want)
+	}
+	n.XMLEnviado = strp(`<infDPS Id="` + idDPSTeste + `">`)
+	if got := idDPSDaNota(n); got != idDPSTeste {
+		t.Errorf("com XML deve usar o Id do XML, got %q", got)
 	}
 }

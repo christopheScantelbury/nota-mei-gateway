@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/document"
 	"github.com/christopheScantelbury/nota-mei-gateway/api/internal/webhook"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
@@ -48,6 +49,25 @@ func extractIDDPS(xmlEnviado string) string {
 		return ""
 	}
 	return m[1]
+}
+
+// idDPSDaNota usa o Id gravado no XML enviado quando ele está no banco; senão
+// (XML só no storage, desde o STOR-01) recalcula como o DPSBuilder:
+// município + CNPJ + série + número da DPS.
+func idDPSDaNota(n NotaParaReconciliar) string {
+	if n.XMLEnviado != nil {
+		if id := extractIDDPS(*n.XMLEnviado); id != "" {
+			return id
+		}
+	}
+	if n.NumeroDPS <= 0 || n.CNPJ == "" || n.MunicipioIBGE == "" {
+		return ""
+	}
+	id := document.IDDPS(n.MunicipioIBGE, n.CNPJ, n.NumeroDPS)
+	if !idDPSRe.MatchString(`Id="` + id + `"`) {
+		return ""
+	}
+	return id
 }
 
 // ─── dependências (interfaces para teste) ───────────────────────────────────
@@ -141,13 +161,9 @@ func (r *DPSReconciler) reconciliar(ctx context.Context, n NotaParaReconciliar) 
 		}
 	}
 
-	if n.XMLEnviado == nil {
-		aguardar("sem xml_enviado", nil)
-		return
-	}
-	idDPS := extractIDDPS(*n.XMLEnviado)
+	idDPS := idDPSDaNota(n)
 	if idDPS == "" {
-		aguardar("id da DPS não encontrado no xml_enviado", nil)
+		aguardar("sem id da DPS (xml_enviado vazio e dados da empresa incompletos)", nil)
 		return
 	}
 	if n.CertSecretARN == nil || *n.CertSecretARN == "" {

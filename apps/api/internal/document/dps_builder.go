@@ -373,6 +373,14 @@ func roundHalfUp(v float64) float64 {
 //
 // Only CNPJ is supported here (tpInscFed=2) because the prestador is always
 // a juridical person in Nota Fácil — MEI/ME/EPP/LP/LR all have CNPJ.
+// IDDPS devolve o Id (TSIdDPS) da DPS emitida pelo NotaFácil para o município,
+// CNPJ e número informados — o mesmo valor que Build grava em infDPS/@Id.
+// Usado para consultar a DPS na SEFIN (GET /dps/{id}) quando o XML enviado
+// não está no banco.
+func IDDPS(cMun, cnpj string, nDPS int64) string {
+	return buildInfDPSId(cMun, cnpj, DPSSerie, nDPS)
+}
+
 func buildInfDPSId(cMun, cnpj, serie string, nDPS int64) string {
 	const tpInscFed = "2" // 2 = CNPJ
 	mun := padLeft(stripNonDigits(cMun), 7)

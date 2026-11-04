@@ -780,6 +780,9 @@ type NotaParaReconciliar struct {
 	WebhookURL    *string
 	CertSecretARN *string
 	CreatedAt     time.Time
+	NumeroDPS     int64
+	CNPJ          string
+	MunicipioIBGE string
 }
 
 // FindParaReconciliar devolve notas DPS em PROCESSANDO, ou em ERRO_TEMPORARIO
@@ -789,7 +792,7 @@ func (r *NotaRepository) FindParaReconciliar(ctx context.Context, olderThan time
 	threshold := time.Now().UTC().Add(-olderThan)
 	rows, err := r.db.Pool().Query(ctx, `
 		SELECT n.id, n.empresa_id, n.status, n.erro_codigo, n.xml_enviado, n.webhook_url,
-		       e.cert_secret_arn, n.created_at
+		       e.cert_secret_arn, n.created_at, n.numero_rps, e.cnpj, e.municipio_ibge
 		FROM notas_fiscais n
 		JOIN empresas e ON e.id = n.empresa_id
 		WHERE (n.status = 'PROCESSANDO'
@@ -810,7 +813,7 @@ func (r *NotaRepository) FindParaReconciliar(ctx context.Context, olderThan time
 	for rows.Next() {
 		var n NotaParaReconciliar
 		if err := rows.Scan(&n.ID, &n.EmpresaID, &n.Status, &n.ErroCodigo, &n.XMLEnviado,
-			&n.WebhookURL, &n.CertSecretARN, &n.CreatedAt); err != nil {
+			&n.WebhookURL, &n.CertSecretARN, &n.CreatedAt, &n.NumeroDPS, &n.CNPJ, &n.MunicipioIBGE); err != nil {
 			return nil, err
 		}
 		out = append(out, n)

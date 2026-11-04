@@ -550,3 +550,17 @@ func isValidationError(err error, target **ErrValidation) bool {
 	}
 	return false
 }
+
+// IDDPS precisa bater com o Id que Build grava — a reconciliação (GET /dps/{id},
+// issue #273) recalcula o Id quando o XML enviado não está no banco.
+func TestIDDPS_IgualAoIdDoXML(t *testing.T) {
+	emp := empresaSN()
+	result, err := NewDPSBuilder().Build(baseRequest(), emp, 8)
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	want := `Id="` + IDDPS(emp.MunicipioIBGE, emp.CNPJ, 8) + `"`
+	if !strings.Contains(string(result.XML), want) {
+		t.Errorf("XML não contém %s", want)
+	}
+}
