@@ -66,7 +66,11 @@ export default function ClienteForm({ initial }: Props) {
       setCepLoading(true)
       try {
         const res = await fetch(`/api/cep/${digits}`)
-        if (!res.ok) return // CEP inválido — silencioso
+        if (!res.ok) {
+          // 502 = consulta instável (#280): libera nova tentativa do mesmo CEP.
+          if (res.status !== 404) lastCepRef.current = ''
+          return
+        }
         const data = await res.json() as {
           localidade?: string; uf?: string; ibge?: string
           logradouro?: string; bairro?: string; complemento?: string

@@ -1,83 +1,40 @@
 import { NextResponse } from 'next/server'
+import { consultarCep, type CepResult } from '@/lib/cep'
 
-// Cache de 1 h — CEPs raramente mudam; stale-while-revalidate cobre renovações
-export const revalidate = 3600
-
-interface ViaCepRaw {
-  erro?: boolean | string
-  localidade?: string
-  uf?: string
-  ibge?: string
-  logradouro?: string
-  bairro?: string
-  complemento?: string
-}
-
-export interface CepResult {
-  localidade: string
-  uf: string
-  ibge: string // código IBGE de 7 dígitos (string, pode ter zero à esquerda)
-  logradouro?: string
-  bairro?: string
-  complemento?: string
-}
+export type { CepResult }
 
 /**
- * Proxy do ViaCEP para evitar CORS e adicionar cache no CDN.
- * GET /api/cep/{cep} → { localidade, uf, ibge } ou 404 se não encontrado.
+ * GET /api/cep/{cep} → { localidade, uf, ibge, ... }
+ *   404 CEP_NAO_ENCONTRADO — o CEP não existe;
+ *   502 CEP_INDISPONIVEL   — ViaCEP e BrasilAPI fora do ar: tente de novo.
+ * ViaCEP com fallback BrasilAPI (#280).
  */
 export async function GET(
   _req: Request,
   { params }: { params: { cep: string } },
 ) {
   const digits = params.cep.replace(/\D/g, '')
-
   if (digits.length !== 8) {
     return NextResponse.json(
-      { error: 'CEP deve ter exatamente 8 dígitos' },
+      { error: 'CEP_INVALIDO', message: 'CEP deve ter exatamente 8 dígitos' },
       { status: 400 },
     )
   }
 
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 6_000)
-
-  try {
-    const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`, {
-      signal: controller.signal,
-      headers: { Accept: 'application/json' },
+  const r = await consultarCep(digits)
+  if (r.tipo === 'ok') {
+    return NextResponse.json(r.dados, {
+      headers: { 'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400' },
     })
-    clearTimeout(timeoutId)
-
-    if (!res.ok) {
-      return NextResponse.json({ error: 'CEP não encontrado' }, { status: 404 })
-    }
-
-    const data: ViaCepRaw = await res.json()
-
-    if (data.erro || !data.localidade || !data.ibge) {
-      return NextResponse.json({ error: 'CEP não encontrado' }, { status: 404 })
-    }
-
-    const result: CepResult = {
-      localidade: data.localidade,
-      uf: data.uf ?? '',
-      ibge: data.ibge,
-      logradouro: data.logradouro || undefined,
-      bairro: data.bairro || undefined,
-      complemento: data.complemento || undefined,
-    }
-
-    return NextResponse.json(result, {
-      headers: {
-        'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
-      },
-    })
-  } catch {
-    clearTimeout(timeoutId)
+  }
+  if (r.tipo === 'nao_encontrado') {
     return NextResponse.json(
-      { error: 'Falha ao consultar ViaCEP. Tente novamente.' },
-      { status: 502 },
+      { error: 'CEP_NAO_ENCONTRADO', message: 'CEP não encontrado' },
+      { status: 404, headers: { 'Cache-Control': 'public, max-age=600' } },
     )
   }
+  return NextResponse.json(
+    { error: 'CEP_INDISPONIVEL', message: 'A consulta de CEP está instável no momento. Tente novamente em instantes ou busque o município pelo nome.' },
+    { status: 502, headers: { 'Cache-Control': 'no-store' } },
+  )
 }

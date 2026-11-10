@@ -61,14 +61,19 @@ export function CepMunicipioInput({
     setCepError(null)
     try {
       const res = await fetch(`/api/cep/${digits}`)
-      if (!res.ok) throw new Error('not_found')
+      if (!res.ok) throw new Error(res.status === 404 ? 'not_found' : 'indisponivel')
       const data: CepResult = await res.json()
       setResolved(data)
       setResolvedByCep(true)
       setShowFallback(false)
       onChange(data.ibge, data.localidade, data.uf)
-    } catch {
-      setCepError('CEP não encontrado. Verifique o número ou busque pelo nome abaixo.')
+    } catch (err) {
+      // #280: 404 = CEP não existe; 502/rede = consulta instável (CEP pode estar certo).
+      setCepError(
+        err instanceof Error && err.message === 'not_found'
+          ? 'CEP não encontrado. Verifique o número ou busque pelo nome abaixo.'
+          : 'A consulta de CEP está instável no momento. Busque o município pelo nome abaixo ou tente o CEP de novo em instantes.',
+      )
       setShowFallback(true)
     } finally {
       setLoading(false)

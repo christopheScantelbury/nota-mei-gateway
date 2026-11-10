@@ -231,7 +231,7 @@ export function MunicipioAutocomplete({
       {fetchError && (
         <div className="space-y-1.5">
           <p className="text-xs text-nota-rejeitada">
-            Não foi possível carregar os municípios via IBGE. Digite o código IBGE manualmente (7 dígitos).
+            Não foi possível carregar a lista de municípios agora. Recarregue a página ou digite o código IBGE do município (7 dígitos).
           </p>
           <input
             type="text"
