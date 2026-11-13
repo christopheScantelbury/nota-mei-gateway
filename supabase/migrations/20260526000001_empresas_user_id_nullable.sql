@@ -13,6 +13,17 @@
 --      autenticação do usuário ME/EPP (empresa encontrada por email).
 -- ─────────────────────────────────────────────────────────────────────────────
 
+-- Ordem em banco limpo (CI, `supabase db reset`):
+--   A multi_produto foi criada em 2026-05-07 com data futura no nome
+--   (20260620), então ESTE arquivo — criado depois, em 2026-05-26 — é aplicado
+--   ANTES dela quando as migrations rodam por ordem de nome. Num banco limpo a
+--   coluna ainda não existe aqui, e este arquivo e as policies de 20260526000003,
+--   20260527000001 e 20260527000002 quebravam com `column "user_id" does not
+--   exist`. Por isso a coluna é garantida aqui, com a mesma definição da
+--   multi_produto. Em produção ela já existe: o ADD COLUMN IF NOT EXISTS é no-op.
+ALTER TABLE empresas
+    ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+
 ALTER TABLE empresas
     ALTER COLUMN user_id DROP NOT NULL;
 
