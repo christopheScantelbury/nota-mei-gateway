@@ -11,7 +11,7 @@
 -- nunca lê este arquivo e ele nunca roda em produção. Num Supabase de verdade
 -- (local ou hospedado) nada disto é necessário.
 --
--- Usado por .github/workflows/ci.yml e ci-db.yml.
+-- Usado por .github/workflows/ci.yml, ci-db.yml e e2e.yml.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- ── Roles do PostgREST ───────────────────────────────────────────────────────
