@@ -697,7 +697,8 @@ vercel --prod               # deploy manual produção
 |---|---|
 | **Vercel** (`apps/web/vercel.json`) | `ignoreCommand: bash .vercel-ignore-build.sh` — skippa build se nenhum arquivo de `apps/web/`, `packages/`, `docs/openapi.yaml`, `package*.json`, `turbo.json` mudou |
 | **Railway API** (`railway.toml` raiz + `apps/api/railway.toml`) | `watchPatterns = ["apps/api/**", "Dockerfile", "go.mod", "go.sum", "railway.toml"]` — só rebuilda quando código Go ou Dockerfile mudou |
-| **GitHub Actions** (`.github/workflows/deploy.yml`) | `on.push.paths` com a mesma lista dos `watchPatterns` — o `railway up` do workflow só roda quando a API mudou. Sem isso ele redeployava a API em todo push |
+| **GitHub Actions** (`.github/workflows/deploy.yml`) | `on.push.paths` com a mesma lista dos `watchPatterns` — o `railway up` do workflow só roda quando a API mudou (nos outros pushes o Railway já o marcava como SKIPPED; o filtro só evita rodar o job à toa) |
+| ⚠️ **Railway Worker** (`apps/api/railway.worker.toml`) | **Sem `watchPatterns`** — o worker é redeployado em TODO push na `main`, inclusive docs e migrations (conferido no histórico do Railway em 2026-11-13). Corrigir junto com o próximo deploy da API: mexer nesse arquivo casa com `apps/api/**` e redeploya a API |
 | **IndexNow** (`.github/workflows/indexnow.yml`) | `on.push.paths` com a lista do `.vercel-ignore-build.sh` — só notifica buscadores quando o site foi publicado |
 
 ### Resultado prático
