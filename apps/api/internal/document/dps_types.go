@@ -125,7 +125,7 @@ type InfoPessoa struct {
 
 // ── Endereço (TCEndereco) ─────────────────────────────────────────────────────
 
-// Endereco — TCEndereco. Choice: endNac XOR endExt.
+// DPSEndereco — TCEndereco. Choice: endNac XOR endExt.
 // xLgr, nro, xBairro são obrigatórios.
 type DPSEndereco struct {
 	EndNac  *EnderNac `xml:"endNac,omitempty"`
@@ -143,7 +143,7 @@ type EnderNac struct {
 
 // ── Serviço (TCServ) ──────────────────────────────────────────────────────────
 
-// Servico — TCServ. locPrest e cServ são obrigatórios.
+// DPSServ — TCServ. locPrest e cServ são obrigatórios.
 type DPSServ struct {
 	LocPrest LocPrest `xml:"locPrest"`
 	CServ    CServ    `xml:"cServ"`
@@ -233,20 +233,24 @@ type TribTotalPercent struct {
 
 // ── Enum constants ────────────────────────────────────────────────────────────
 
+// Valores de opSimpNac.
 const (
-	// opSimpNac
 	OpSimpNacNaoOptante = 1
 	OpSimpNacMEI        = 2
 	OpSimpNacMEEPP      = 3
+)
 
-	// regApTribSN (só opSimpNac=3) — regime de apuração dos tributos do SN.
-	// A SEFIN rejeita com E0166 se ausente para ME/EPP optante, apesar do
-	// minOccurs=0 no XSD.
+// Valores de regApTribSN (só opSimpNac=3) — regime de apuração dos tributos
+// do SN. A SEFIN rejeita com E0166 se ausente para ME/EPP optante, apesar do
+// minOccurs=0 no XSD.
+const (
 	RegApTribSNTudoPeloSN    = 1 // federais e municipal pelo SN
 	RegApTribSNISSQNForaDoSN = 2 // federais pelo SN, ISSQN fora do SN
 	RegApTribSNTudoForaDoSN  = 3 // federais e municipal fora do SN
+)
 
-	// regEspTrib
+// Valores de regEspTrib.
+const (
 	RegEspTribNenhum          = 0
 	RegEspTribAtoCooperado    = 1
 	RegEspTribEstimativa      = 2
@@ -255,30 +259,37 @@ const (
 	RegEspTribProfissAutonomo = 5
 	RegEspTribSociedadeProfis = 6
 	RegEspTribOutros          = 9
+)
 
-	// tpEmit
+// Valores de tpEmit.
+const (
 	TpEmitPrestador     = 1
 	TpEmitTomador       = 2
 	TpEmitIntermediario = 3
+)
 
-	// tribISSQN
+// Valores de tribISSQN.
+const (
 	TribISSQNTributavel    = 1
 	TribISSQNImunidade     = 2
 	TribISSQNExportacao    = 3
 	TribISSQNNaoIncidencia = 4
+)
 
-	// tpRetISSQN
+// Valores de tpRetISSQN.
+const (
 	TpRetISSQNNaoRetido           = 1
 	TpRetISSQNRetidoTomador       = 2
 	TpRetISSQNRetidoIntermediario = 3
-
-	// indTotTrib (único valor válido — Decreto 8.264/2014)
-	IndTotTribNaoInforma = 0
-
-	// Application version declared in <verAplic>. TSVerAplic limits to 20 chars.
-	DPSVerAplic = "NotaFacil-1.01"
-
-	// Default série DPS. Pattern allows 0–4 leading zeros + 1–5 digits but
-	// libxml2 v2.13 validates it more strictly with the unpadded form.
-	DPSSerie = "1"
 )
+
+// IndTotTribNaoInforma é o único valor válido de indTotTrib (Decreto 8.264/2014).
+const IndTotTribNaoInforma = 0
+
+// DPSVerAplic is the application version declared in <verAplic>. TSVerAplic
+// limits to 20 chars.
+const DPSVerAplic = "NotaFacil-1.01"
+
+// DPSSerie is the default série DPS. Pattern allows 0–4 leading zeros + 1–5
+// digits but libxml2 v2.13 validates it more strictly with the unpadded form.
+const DPSSerie = "1"

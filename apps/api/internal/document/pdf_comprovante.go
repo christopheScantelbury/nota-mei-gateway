@@ -64,16 +64,16 @@ type ComprovanteParams struct {
 
 // NotaFácil brand palette (light identity — brand-kit v1.0).
 var (
-	clBlue     = [3]int{59, 130, 246}   // blue-500  #3B82F6 (marca)
-	clTeal     = [3]int{20, 184, 166}   // teal-500  #14B8A6 (persona MEI)
-	clSlate900 = [3]int{15, 23, 42}     // slate-900 #0F172A (texto forte)
-	clSlate700 = [3]int{51, 65, 85}     // slate-700 #334155
-	clSlate500 = [3]int{100, 116, 139}  // slate-500 #64748B (texto suave)
-	clSlate400 = [3]int{148, 163, 184}  // slate-400 #94A3B8 (muted)
-	clSlate200 = [3]int{226, 232, 240}  // slate-200 #E2E8F0 (bordas)
-	clSlate100 = [3]int{241, 245, 249}  // slate-100 #F1F5F9 (fundo seção)
-	clSuccess  = [3]int{22, 163, 74}    // success   #16A34A
-	clWarning  = [3]int{217, 119, 6}    // warning   #D97706
+	clBlue     = [3]int{59, 130, 246}  // blue-500  #3B82F6 (marca)
+	clTeal     = [3]int{20, 184, 166}  // teal-500  #14B8A6 (persona MEI)
+	clSlate900 = [3]int{15, 23, 42}    // slate-900 #0F172A (texto forte)
+	clSlate700 = [3]int{51, 65, 85}    // slate-700 #334155
+	clSlate500 = [3]int{100, 116, 139} // slate-500 #64748B (texto suave)
+	clSlate400 = [3]int{148, 163, 184} // slate-400 #94A3B8 (muted)
+	clSlate200 = [3]int{226, 232, 240} // slate-200 #E2E8F0 (bordas)
+	clSlate100 = [3]int{241, 245, 249} // slate-100 #F1F5F9 (fundo seção)
+	clSuccess  = [3]int{22, 163, 74}   // success   #16A34A
+	clWarning  = [3]int{217, 119, 6}   // warning   #D97706
 )
 
 // GenerateComprovante renders a one-page DANFSE-style comprovante for the given

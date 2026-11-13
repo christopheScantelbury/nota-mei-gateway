@@ -70,10 +70,10 @@ type Config struct {
 
 	// SMTP settings for transactional email (replaces Resend).
 	// Works with Brevo free (300/day), Gmail, Mailjet, or any SMTP server.
-	SMTPHost string
-	SMTPPort string
-	SMTPUser string
-	SMTPPass string
+	SMTPHost  string
+	SMTPPort  string
+	SMTPUser  string
+	SMTPPass  string
 	EmailFrom string
 
 	// AdminAllowedIPs is the list of IP addresses permitted to access

@@ -45,7 +45,7 @@ func (s *SupabaseStore) do(req *http.Request) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	body, _ := io.ReadAll(io.LimitReader(res.Body, 50<<20))
 	if res.StatusCode >= 300 {
 		msg := string(body)

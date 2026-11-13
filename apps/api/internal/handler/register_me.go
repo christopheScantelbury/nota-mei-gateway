@@ -63,16 +63,16 @@ func (h *RegisterMEHandler) WithEmailService(svc *email.Service) *RegisterMEHand
 }
 
 type registerMERequest struct {
-	Tipo               string `json:"tipo"`              // "ME" | "EPP"
-	RegimeTributario   string `json:"regime_tributario"` // "SIMPLES_NACIONAL" | "LUCRO_PRESUMIDO"
-	CNPJ               string `json:"cnpj"`
-	RazaoSocial        string `json:"razao_social"`
-	Email              string `json:"email"`
-	MunicipioIBGE      string `json:"municipio_ibge"`
-	CNAE               string `json:"cnae"`                // 7-digit CNAE code — required for DPS
-	CEP                string `json:"cep"`                 // 8-digit CEP — required for DPS
-	InscricaoMunicipal string `json:"inscricao_municipal"` // optional
-	Atribuicao         *atribuicaoPayload `json:"atribuicao"` // optional — origem do cadastro
+	Tipo               string             `json:"tipo"`              // "ME" | "EPP"
+	RegimeTributario   string             `json:"regime_tributario"` // "SIMPLES_NACIONAL" | "LUCRO_PRESUMIDO"
+	CNPJ               string             `json:"cnpj"`
+	RazaoSocial        string             `json:"razao_social"`
+	Email              string             `json:"email"`
+	MunicipioIBGE      string             `json:"municipio_ibge"`
+	CNAE               string             `json:"cnae"`                // 7-digit CNAE code — required for DPS
+	CEP                string             `json:"cep"`                 // 8-digit CEP — required for DPS
+	InscricaoMunicipal string             `json:"inscricao_municipal"` // optional
+	Atribuicao         *atribuicaoPayload `json:"atribuicao"`          // optional — origem do cadastro
 }
 
 // atribuicaoPayload carrega gclid/utm_* capturados pelo frontend na URL de
@@ -322,7 +322,7 @@ func triggerSupabaseSignupMagicLink(ctx context.Context, email string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(resp.Body)

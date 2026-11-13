@@ -106,14 +106,14 @@ func (h *Handler) owner(c *fiber.Ctx) string {
 // Matches reports whether the request must be served by the sandbox.
 func (h *Handler) Matches(c *fiber.Ctx) bool { return h.owner(c) != "" }
 
-// RateLimitMiddleware: DemoKey 20 req/h por IP; chave de dev 300 req/h por chave.
+// RateLimitMiddleware limita a DemoKey a 20 req/h por IP e a chave de dev a 300 req/h por chave.
 // Non-sandbox requests pass through without consuming quota.
 func (h *Handler) RateLimitMiddleware(c *fiber.Ctx) error {
 	owner := h.owner(c)
-	switch {
-	case owner == "":
+	switch owner {
+	case "":
 		return c.Next()
-	case owner == "demo":
+	case "demo":
 		if !h.rl.Allow(c.IP()) {
 			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
 				"error":   "RATE_LIMIT_EXCEEDED",

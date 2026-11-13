@@ -47,8 +47,8 @@ type MensagemProcessamento struct {
 	Complemento string `json:"complemento,omitempty"`
 }
 
-// NFSeNacionalSuccess is the 201 Created response body.
-type NFSeNacionalSuccess struct {
+// NacionalSuccess is the 201 Created response body.
+type NacionalSuccess struct {
 	TipoAmbiente          int                     `json:"tipoAmbiente"`
 	VersaoAplicativo      string                  `json:"versaoAplicativo"`
 	DataHoraProcessamento string                  `json:"dataHoraProcessamento"`
@@ -58,12 +58,12 @@ type NFSeNacionalSuccess struct {
 	Alertas               []MensagemProcessamento `json:"alertas,omitempty"`
 }
 
-// NFSeNacionalError is the 4xx/5xx response body.
+// NacionalError is the 4xx/5xx response body.
 //
 // Receita uses both "erros" (plural — DPS POST /nfse) and "erro" (singular —
 // evento POST /nfse/{ca}/eventos) in different endpoints. We accept both and
 // expose them via Errors().
-type NFSeNacionalError struct {
+type NacionalError struct {
 	TipoAmbiente          int                     `json:"tipoAmbiente"`
 	VersaoAplicativo      string                  `json:"versaoAplicativo"`
 	DataHoraProcessamento string                  `json:"dataHoraProcessamento"`
@@ -76,7 +76,7 @@ type NFSeNacionalError struct {
 }
 
 // Errors returns the combined list from `erros` + `erro`.
-func (e *NFSeNacionalError) Errors() []MensagemProcessamento {
+func (e *NacionalError) Errors() []MensagemProcessamento {
 	if e == nil {
 		return nil
 	}
@@ -88,7 +88,7 @@ func (e *NFSeNacionalError) Errors() []MensagemProcessamento {
 
 // FirstError returns the first error codigo:descricao (with complemento
 // appended when present) or empty strings.
-func (e *NFSeNacionalError) FirstError() (codigo, descricao string) {
+func (e *NacionalError) FirstError() (codigo, descricao string) {
 	msgs := e.Errors()
 	if len(msgs) == 0 {
 		return "", ""
@@ -108,16 +108,16 @@ func (e *NFSeNacionalError) FirstError() (codigo, descricao string) {
 // The XML body is gzip-compressed and base64-encoded, then wrapped in the
 // {"dpsXmlGZipB64": ...} JSON envelope expected by /SefinNacional/nfse.
 //
-// On a 2xx response the parsed NFSeNacionalSuccess is returned (caller can then
+// On a 2xx response the parsed NacionalSuccess is returned (caller can then
 // gunzip+decode nfseXmlGZipB64 to obtain the authorised NFS-e XML). On a 4xx
-// the returned error wraps a *NFSeNacionalError so callers can extract the
+// the returned error wraps a *NacionalError so callers can extract the
 // codigo/descricao for the response payload. 5xx and network errors are
 // retried with the same backoff schedule as the legacy adapter.
 func (a *Adapter) EnviarNFSeNacional(
 	ctx context.Context,
 	signedDPSXML []byte,
 	cert *tls.Certificate,
-) (*NFSeNacionalSuccess, *NFSeNacionalError, error) {
+) (*NacionalSuccess, *NacionalError, error) {
 	gz, err := gzipBytes(signedDPSXML)
 	if err != nil {
 		return nil, nil, fmt.Errorf("gzip dps: %w", err)
@@ -132,8 +132,8 @@ func (a *Adapter) EnviarNFSeNacional(
 	url := a.baseURL + "/nfse"
 
 	var (
-		success   *NFSeNacionalSuccess
-		failure   *NFSeNacionalError
+		success   *NacionalSuccess
+		failure   *NacionalError
 		tentativa int
 	)
 	err = withRetry(ctx, backoffDelays, func() error {
@@ -153,14 +153,14 @@ func (a *Adapter) EnviarNFSeNacional(
 		case resp.StatusCode >= 500:
 			return transientErr{code: resp.StatusCode, body: body}
 		case resp.StatusCode == http.StatusCreated || resp.StatusCode == http.StatusOK:
-			s := &NFSeNacionalSuccess{}
+			s := &NacionalSuccess{}
 			if err := json.Unmarshal(body, s); err != nil {
 				return fmt.Errorf("parse success: %w (body=%.200s)", err, body)
 			}
 			success = s
 			return nil
 		case resp.StatusCode >= 400:
-			f := &NFSeNacionalError{}
+			f := &NacionalError{}
 			// Some 4xx (auth) return text/HTML — capture verbatim.
 			if jsonErr := json.Unmarshal(body, f); jsonErr != nil || len(f.Errors()) == 0 {
 				return fmt.Errorf("sefin client error %d: %.500s", resp.StatusCode, body)
@@ -183,13 +183,13 @@ func (a *Adapter) EnviarNFSeNacional(
 	return success, failure, nil
 }
 
-// CodigoDPSJaExiste: SEFIN — "conjunto de série, número, município e CNPJ/CPF
+// CodigoDPSJaExiste é o código da SEFIN para "conjunto de série, número, município e CNPJ/CPF
 // desta DPS já existe em uma NFS-e gerada a partir de uma DPS enviada anteriormente".
 const CodigoDPSJaExiste = "E0014"
 
 // dpsPodeTerSidoProcessada: E0014, ou qualquer rejeição que só veio depois de
 // um reenvio (a 1ª tentativa pode ter chegado à Receita).
-func dpsPodeTerSidoProcessada(f *NFSeNacionalError) bool {
+func dpsPodeTerSidoProcessada(f *NacionalError) bool {
 	if f.Tentativa > 1 {
 		return true
 	}
@@ -215,11 +215,11 @@ func dhEmiDe(doc []byte) string {
 
 // dpsRecovery é o que recuperarDPSProcessada precisa da SEFIN (fake nos testes).
 type dpsRecovery interface {
-	ConsultarDPSPorID(ctx context.Context, idDPS string, cert *tls.Certificate) (*NFSeNacionalSuccess, error)
+	ConsultarDPSPorID(ctx context.Context, idDPS string, cert *tls.Certificate) (*NacionalSuccess, error)
 	ConsultarNFSe(ctx context.Context, chaveAcesso string, cert *tls.Certificate) ([]byte, error)
 }
 
-func (a *Adapter) recuperarDPSProcessada(ctx context.Context, signedDPSXML []byte, failure *NFSeNacionalError, cert *tls.Certificate) (*NFSeNacionalSuccess, *NFSeNacionalError, error) {
+func (a *Adapter) recuperarDPSProcessada(ctx context.Context, signedDPSXML []byte, failure *NacionalError, cert *tls.Certificate) (*NacionalSuccess, *NacionalError, error) {
 	return recuperarDPSProcessada(ctx, a, signedDPSXML, failure, cert)
 }
 
@@ -228,7 +228,7 @@ func (a *Adapter) recuperarDPSProcessada(ctx context.Context, signedDPSXML []byt
 // rejeição é verdadeira), devolve como sucesso, já com o XML oficial. Sem
 // resposta conclusiva, devolve erro transitório: a nota fica PROCESSANDO e o
 // DPSReconciler resolve depois — nunca REJEITADA por engano.
-func recuperarDPSProcessada(ctx context.Context, sefin dpsRecovery, signedDPSXML []byte, failure *NFSeNacionalError, cert *tls.Certificate) (*NFSeNacionalSuccess, *NFSeNacionalError, error) {
+func recuperarDPSProcessada(ctx context.Context, sefin dpsRecovery, signedDPSXML []byte, failure *NacionalError, cert *tls.Certificate) (*NacionalSuccess, *NacionalError, error) {
 	codigo, _ := failure.FirstError()
 	idDPS := extractIDDPS(string(signedDPSXML))
 	if idDPS == "" {
@@ -276,7 +276,7 @@ func (a *Adapter) CancelarNFSeNacional(
 	chaveAcesso string,
 	signedEventoXML []byte,
 	cert *tls.Certificate,
-) (*NFSeNacionalSuccess, *NFSeNacionalError, error) {
+) (*NacionalSuccess, *NacionalError, error) {
 	gz, err := gzipBytes(signedEventoXML)
 	if err != nil {
 		return nil, nil, fmt.Errorf("gzip evento: %w", err)
@@ -291,8 +291,8 @@ func (a *Adapter) CancelarNFSeNacional(
 	url := fmt.Sprintf("%s/nfse/%s/eventos", a.baseURL, chaveAcesso)
 
 	var (
-		success *NFSeNacionalSuccess
-		failure *NFSeNacionalError
+		success *NacionalSuccess
+		failure *NacionalError
 	)
 	err = withRetry(ctx, backoffDelays, func() error {
 		resp, doErr := a.doJSON(ctx, http.MethodPost, url, bodyJSON, cert)
@@ -307,14 +307,14 @@ func (a *Adapter) CancelarNFSeNacional(
 		case resp.StatusCode >= 500:
 			return transientErr{code: resp.StatusCode, body: body}
 		case resp.StatusCode == http.StatusCreated || resp.StatusCode == http.StatusOK:
-			s := &NFSeNacionalSuccess{}
+			s := &NacionalSuccess{}
 			if err := json.Unmarshal(body, s); err != nil {
 				return fmt.Errorf("parse success: %w", err)
 			}
 			success = s
 			return nil
 		case resp.StatusCode >= 400:
-			f := &NFSeNacionalError{}
+			f := &NacionalError{}
 			if jsonErr := json.Unmarshal(body, f); jsonErr != nil || len(f.Errors()) == 0 {
 				return fmt.Errorf("sefin client error %d: %.500s", resp.StatusCode, body)
 			}
@@ -381,9 +381,9 @@ var ErrDPSNaoEncontrada = errors.New("dps não encontrada na SEFIN Nacional")
 // a resposta chegar até nós.
 //
 // Retorna ErrDPSNaoEncontrada no 404. 5xx e erros de rede são retentados.
-func (a *Adapter) ConsultarDPSPorID(ctx context.Context, idDPS string, cert *tls.Certificate) (*NFSeNacionalSuccess, error) {
+func (a *Adapter) ConsultarDPSPorID(ctx context.Context, idDPS string, cert *tls.Certificate) (*NacionalSuccess, error) {
 	url := a.baseURL + "/dps/" + idDPS
-	var out *NFSeNacionalSuccess
+	var out *NacionalSuccess
 	err := withRetry(ctx, backoffDelays, func() error {
 		resp, err := a.doJSON(ctx, http.MethodGet, url, nil, cert)
 		if err != nil {
@@ -405,7 +405,7 @@ func (a *Adapter) ConsultarDPSPorID(ctx context.Context, idDPS string, cert *tls
 
 // parseConsultaDPSResponse mapeia a resposta de GET /dps/{id}. Separado do
 // transporte para ser testável sem mTLS.
-func parseConsultaDPSResponse(status int, body []byte) (*NFSeNacionalSuccess, error) {
+func parseConsultaDPSResponse(status int, body []byte) (*NacionalSuccess, error) {
 	switch {
 	case status >= 500:
 		return nil, transientErr{code: status, body: body}
@@ -417,7 +417,7 @@ func parseConsultaDPSResponse(status int, body []byte) (*NFSeNacionalSuccess, er
 		}
 		return nil, ErrDPSNaoEncontrada
 	case status == http.StatusOK:
-		s := &NFSeNacionalSuccess{}
+		s := &NacionalSuccess{}
 		if err := json.Unmarshal(body, s); err != nil {
 			return nil, fmt.Errorf("parse consulta dps: %w (body=%.200s)", err, body)
 		}
