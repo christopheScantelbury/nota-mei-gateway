@@ -71,7 +71,7 @@ export default function Page() {
           plataforma
         </li>
         <li>
-          Na tela de configurações, clica em <strong>"Adicionar certificado"</strong>
+          Na tela de configurações, clica em <strong>&ldquo;Adicionar certificado&rdquo;</strong>
         </li>
         <li>
           Faz upload do arquivo <code>.pfx</code> e digita a senha

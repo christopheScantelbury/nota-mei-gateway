@@ -13,7 +13,6 @@ declare global {
   interface Window {
     // gtag injetado pelo script GA4. Tipado de forma laxa pra acomodar a
     // assinatura variádica oficial (event, command, set, consent, etc.).
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     gtag?: (...args: any[]) => void
     dataLayer?: unknown[]
   }
