@@ -124,13 +124,17 @@ CREATE POLICY "audit_super_read" ON admin_audit_log
 
 -- ─── 6. Seed: Christophe como super_admin inicial ─────────────────────────
 -- 5a7353a4-add4-48a0-9843-718eb4f72680 é o user_id do christophescantelbury@gmail.com
+-- Só insere se esse usuário existir em auth.users: num banco limpo (CI,
+-- `supabase db reset`) auth.users está vazia e a FK de admin_users quebraria a
+-- migration. Em produção o usuário existe e o resultado é o mesmo de antes.
 INSERT INTO admin_users (user_id, role, notes, created_at)
-VALUES (
-    '5a7353a4-add4-48a0-9843-718eb4f72680',
+SELECT
+    u.id,
     'super_admin',
     'Seed inicial — owner do projeto (commit 20260622000001_admin_v2)',
     NOW()
-)
+FROM auth.users u
+WHERE u.id = '5a7353a4-add4-48a0-9843-718eb4f72680'
 ON CONFLICT (user_id) DO UPDATE SET role = 'super_admin', ativo = true;
 
 
