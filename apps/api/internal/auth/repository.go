@@ -217,13 +217,13 @@ func (r *Repository) RegisterMEI(ctx context.Context, p RegisterMEIParams) (*Reg
 
 	// Best-effort cleanup of the auth.users row when the DB transaction below fails.
 	committed := false
-	defer func() {
+	defer func() { //nolint:contextcheck // cleanup usa contexto novo de propósito — ver comentário abaixo
 		if committed {
 			return
 		}
-		// Detach from the request's cancellation so the cleanup runs even if
-		// `ctx` is already cancelled (typical when the request times out).
-		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		// Use a fresh background context so the cleanup runs even if `ctx` is
+		// already cancelled (typical when the request times out).
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		_ = r.authAdmin.DeleteUser(cleanupCtx, userID)
 	}()
