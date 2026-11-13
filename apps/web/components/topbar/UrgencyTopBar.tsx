@@ -59,8 +59,8 @@ export default function UrgencyTopBar({ initialDismissed = false }: UrgencyTopBa
   if (!visible) return null
 
   const message = isPostVigencia
-    ? 'NFS-e Nacional vigente desde 01/09/2026 — emita a sua agora'
-    : 'NFS-e Nacional obrigatória em Set/2026 — Migre antes da multidão'
+    ? 'NFS-e Nacional obrigatória para ME e EPP desde 01/11/2026 — emita a sua agora'
+    : 'NFS-e Nacional obrigatória em Nov/2026 — Migre antes da multidão'
 
   return (
     <div

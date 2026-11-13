@@ -18,12 +18,12 @@ export const revalidate = 300
 export const metadata: Metadata = {
   // Title curto importa para o diálogo de instalação do PWA — Chrome usa
   // o título da página como nome no prompt "Adicionar à tela inicial".
-  title: 'NotaFácil — NFS-e Nacional obrigatória para ME e EPP em Set/2026',
+  title: 'NotaFácil — NFS-e Nacional obrigatória para ME e EPP desde Nov/2026',
   description:
     'A primeira plataforma pronta pra NFS-e Nacional ME/EPP — Simples Nacional + Lucro Presumido, multi-empresa nativo. Devs integram via API REST. MEI também é bem-vindo.',
   openGraph: {
     title: 'NotaFácil — NFS-e Nacional pra ME, EPP e devs',
-    description: 'A primeira plataforma pronta pra NFS-e Nacional ME/EPP. Obrigatório set/2026 — comece antes da multidão. API REST pra devs. MEI também atende.',
+    description: 'A primeira plataforma pronta pra NFS-e Nacional ME/EPP. Obrigatório desde nov/2026. API REST pra devs. MEI também atende.',
     url: 'https://emitirnotafacil.com.br',
     siteName: 'NotaFácil',
     images: [{ url: '/og/og-gateway-1200x630.png', width: 1200, height: 630, alt: 'NotaFácil — NFS-e Nacional pra ME, EPP e devs' }],
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'NotaFácil — NFS-e Nacional pra ME, EPP e devs',
-    description: 'A primeira plataforma pronta pra NFS-e Nacional ME/EPP. Obrigatório set/2026. API REST pra devs. MEI também atende.',
+    description: 'A primeira plataforma pronta pra NFS-e Nacional ME/EPP. Obrigatório desde nov/2026. API REST pra devs. MEI também atende.',
     images: ['/og/og-gateway-1200x630.png'],
   },
   alternates: { canonical: 'https://emitirnotafacil.com.br' },
@@ -56,7 +56,7 @@ const jsonLd = {
 const faqs = [
   {
     q: 'Minha ME / EPP precisa emitir NFS-e Nacional a partir de quando?',
-    a: 'A obrigatoriedade começa em set/2026 pra empresas do Simples Nacional e segue cronograma da Receita Federal pros demais regimes. O NotaFácil já está em produção emitindo no padrão Nacional desde mai/2026 — você pode começar a operar hoje e chegar setembro testado, em vez de correr no deadline com a multidão.',
+    a: 'A obrigatoriedade vale desde 1º de novembro de 2026 pra ME e EPP do Simples Nacional (Resolução CGSN nº 191/2026, que prorrogou o prazo original de setembro). O NotaFácil está em produção emitindo no padrão Nacional desde mai/2026 — você cadastra a empresa e emite hoje.',
   },
   {
     q: 'Funciona pra Simples Nacional e Lucro Presumido?',

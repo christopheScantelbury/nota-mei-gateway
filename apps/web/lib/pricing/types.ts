@@ -20,7 +20,7 @@ export interface PricingPlan {
   bullets: string[]
   primaryCta: PricingCta
   secondaryCta?: PricingCta
-  /** badge superior — ex: "Obrigatório a partir de Set/2026" */
+  /** badge superior — ex: "Obrigatório desde Nov/2026" */
   badge?: string
   /** card recebe destaque visual (border 2px, fundo, ordem mobile) */
   highlight: boolean

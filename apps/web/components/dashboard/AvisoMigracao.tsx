@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 
-const PRAZO = new Date('2026-09-01T00:00:00-03:00')
+const PRAZO = new Date('2026-11-01T00:00:00-03:00')
 
 export function AvisoMigracao() {
   const dias = Math.ceil((PRAZO.getTime() - Date.now()) / 86_400_000)
@@ -25,10 +25,10 @@ export function AvisoMigracao() {
         <p className={`font-semibold mb-1 ${urgente ? 'text-nota-rejeitada' : 'text-nota-processando'}`}>
           {urgente
             ? `Prazo crítico: ${dias} dia${dias !== 1 ? 's' : ''} para a obrigatoriedade NFS-e Nacional`
-            : `NFS-e Nacional obrigatória em ${dias} dias (01/09/2026)`}
+            : `NFS-e Nacional obrigatória em ${dias} dias (01/11/2026)`}
         </p>
         <p className="text-sm text-text-2 mb-3 leading-relaxed">
-          A partir de 01/09/2026, MEIs que cresceram para ME ou EPP precisarão
+          A partir de 01/11/2026, MEIs que cresceram para ME ou EPP precisarão
           emitir pelo padrão NFS-e Nacional. Verifique sua situação com seu contador
           e migre antes do prazo para evitar penalidades.
         </p>

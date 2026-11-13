@@ -3,7 +3,7 @@ export function MECTAFinal() {
     <section className="px-6 py-24 text-center">
       <div className="max-w-2xl mx-auto">
         <h2 className="font-display text-4xl font-extrabold text-text-1 mb-6">
-          Prepare sua ME antes de setembro.
+          Coloque sua ME em dia com a NFS-e Nacional.
         </h2>
         <p className="text-text-2 text-lg mb-8 leading-relaxed">
           Trial gratuito durante o período de lançamento.

@@ -20,7 +20,7 @@ function useDiasRestantes(dataAlvo: Date): number {
 
 export function UrgencyBannerME() {
   const [dismissado, setDismissado] = useState(false)
-  const PRAZO = new Date('2026-09-01T00:00:00-04:00')
+  const PRAZO = new Date('2026-11-01T00:00:00-03:00')
   const dias = useDiasRestantes(PRAZO)
 
   useEffect(() => {
@@ -45,8 +45,8 @@ export function UrgencyBannerME() {
 
       <span>
         <strong>ME e EPP no Simples Nacional:</strong>{' '}
-        NFS-e Nacional obrigatória em{' '}
-        <strong>01/09/2026</strong>
+        NFS-e Nacional obrigatória {dias > 0 ? 'em' : 'desde'}{' '}
+        <strong>01/11/2026</strong>
         {dias > 0 && (
           <span className="ml-1 opacity-75">
             — {dias} dia{dias !== 1 ? 's' : ''}
@@ -61,12 +61,12 @@ export function UrgencyBannerME() {
         </a>
         {' · '}
         <a
-          href="https://www.in.gov.br/web/dou/-/resolucao-cgsn-n-189-de-23-de-abril-de-2026"
+          href="https://www.gov.br/receitafederal/pt-br/assuntos/noticias/2026/agosto/simples-nacional-nfs-e-nacional-sera-obrigatoria-para-me-e-epp-a-partir-de-1o-de-novembro-de-2026"
           target="_blank"
           rel="noopener noreferrer"
           className="opacity-60 hover:opacity-100 transition-opacity"
         >
-          Res. CGSN 189/2026
+          Res. CGSN 191/2026
         </a>
       </span>
 

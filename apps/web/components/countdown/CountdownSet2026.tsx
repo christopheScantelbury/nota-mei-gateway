@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react'
 import { computeCountdown, VIGENCIA_DATE } from '@/lib/dates/countdown'
 
 /**
- * Contagem regressiva até 01/09/2026 (vigência NFS-e Nacional).
+ * Contagem regressiva até 01/11/2026 (vigência NFS-e Nacional, CGSN 191/2026).
+ * O nome do componente ficou do prazo original (set/2026), prorrogado depois.
  *
  * Spec: HIST-1.3.
  * - Pré-vigência: "92 dias · 14h · 23min"
  * - Pós-vigência: "Obrigatório há X dias — você está atrasado"
- * - SSR: placeholder "Set/2026" pra evitar hydration mismatch (D-13)
+ * - SSR: placeholder "Nov/2026" pra evitar hydration mismatch (D-13)
  *
  * @example
  * <CountdownSet2026 size="compact" />
@@ -42,7 +43,7 @@ export default function CountdownSet2026({
       <span
         className={`inline-flex items-baseline gap-1 font-mono text-amber-900 ${className}`}
       >
-        Set/2026
+        Nov/2026
       </span>
     )
   }

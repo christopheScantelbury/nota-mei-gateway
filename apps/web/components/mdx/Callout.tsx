@@ -6,7 +6,7 @@
  *
  * @example
  * <Callout type="warn" title="Atenção">
- *   A partir de 01/09/2026, emissões pelo padrão antigo podem ser rejeitadas.
+ *   A partir de 01/11/2026, emissões pelo padrão antigo podem ser rejeitadas.
  * </Callout>
  */
 interface Props {

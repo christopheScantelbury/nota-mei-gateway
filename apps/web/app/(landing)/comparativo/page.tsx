@@ -15,7 +15,7 @@ import PioneerBadge from '@/components/badges/PioneerBadge'
 export const metadata: Metadata = {
   title: 'NotaFácil vs concorrentes — Comparativo de emissores de NFS-e Nacional',
   description:
-    'Compare NotaFácil com Focus NFe, eNotas e PlugNotas. Saiba por que somos a única plataforma nativa para a NFS-e Nacional, com sandbox sem cadastro e atendimento ao MEI.',
+    'Compare NotaFácil com Focus NFe, eNotas e PlugNotas. Plataforma construída direto no padrão da NFS-e Nacional, com sandbox sem cadastro e atendimento ao MEI.',
   alternates: { canonical: 'https://emitirnotafacil.com.br/comparativo' },
   openGraph: {
     title: 'NotaFácil vs concorrentes — NFS-e Nacional',
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 const FAQ = [
   { q: 'Quanto custa migrar do meu emissor atual para o NotaFácil?',                       a: 'A migração é gratuita. O trial de 30 dias sem cartão dá tempo de validar a integração em paralelo ao seu sistema atual antes de cancelar o concorrente. Devs: o sandbox sem cadastro permite testar antes mesmo de criar conta.' },
   { q: 'Vocês cobrem todos os municípios?',                                                 a: 'Sim — todos os municípios que aderiram à NFS-e Nacional, hoje mais de 5.000. Como somos nativos do padrão nacional (não dependemos de integração caso-a-caso com prefeituras), novos municípios entram automaticamente quando aderem.' },
-  { q: 'Diferente do Focus NFe, vocês têm cobertura municipal completa?',                  a: 'Focus NFe e similares construíram cobertura via integrações caso-a-caso com cada prefeitura. Faz sentido para quem precisa do padrão ABRASF municipal antigo. Nós focamos exclusivamente no padrão nacional, que será obrigatório para todos a partir de Set/2026. Para o universo NFS-e Nacional, nossa cobertura é total.' },
+  { q: 'Diferente do Focus NFe, vocês têm cobertura municipal completa?',                  a: 'Focus NFe e similares construíram cobertura via integrações caso-a-caso com cada prefeitura. Faz sentido para quem precisa do padrão ABRASF municipal antigo. Nós focamos exclusivamente no padrão nacional, obrigatório para ME e EPP do Simples Nacional desde nov/2026. Para o universo NFS-e Nacional, nossa cobertura é total.' },
   { q: 'Posso usar a API e a interface web ao mesmo tempo?',                                a: 'Sim. Diferente do eNotas (cuja API só vem nos planos Plus e Pro), todo plano ME/EPP e Gateway inclui acesso à API REST. Você usa a interface para emissões manuais e a API para o que está automatizado.' },
   { q: 'Vocês atendem MEI?',                                                                a: 'Sim — somos o único player do mercado com produto dedicado para MEI. O eNotas declara abertamente que não atende MEI. Focus NFe e PlugNotas atendem mas com o mesmo produto corporate, sem interface simplificada para emissão esporádica.' },
   { q: 'E se eu precisar emitir NFC-e, NF-e ou CT-e também?',                               a: 'Hoje focamos em NFS-e Nacional. Para NFC-e/NF-e/CT-e (operações com produtos físicos), recomendamos players especializados como o Focus NFe. Nosso roadmap inclui suporte a NFC-e em 2027 com a convergência completa do padrão nacional.' },

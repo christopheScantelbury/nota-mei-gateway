@@ -7,7 +7,7 @@ export function MEHero() {
       <span className="inline-flex items-center gap-2 rounded-full border border-nota-processando/30
                        bg-nota-processando/10 px-4 py-1.5 text-xs font-medium text-nota-processando mb-4">
         <span className="h-1.5 w-1.5 rounded-full bg-nota-processando animate-pulse" />
-        Obrigatório para ME e EPP a partir de 01/09/2026
+        Obrigatório para ME e EPP do Simples desde 01/11/2026
       </span>
 
       <div className="mb-6 flex justify-center">
@@ -18,7 +18,7 @@ export function MEHero() {
                      leading-tight mb-6">
         Sua ME precisa emitir{' '}
         <span className="text-brand-cyan">NFS-e nacional</span>
-        {' '}a partir de setembro.
+        {' '}desde 1º de novembro.
       </h1>
 
       <p className="text-text-2 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
@@ -49,10 +49,10 @@ export function MEHero() {
         Trial gratuito · Sem cartão de crédito · Cancelamento a qualquer hora
       </p>
 
-      {/* Countdown dinâmico até 01/09/2026 (HIST-1.3) */}
+      {/* Countdown dinâmico até 01/11/2026 (HIST-1.3) */}
       <div className="mt-10 inline-flex flex-col items-center gap-2 rounded-2xl border border-amber-500/30 bg-amber-500/5 px-6 py-4">
         <p className="text-xs uppercase tracking-wider font-semibold text-amber-300">
-          Faltam para a obrigatoriedade:
+          Prazo da obrigatoriedade:
         </p>
         <CountdownSet2026 />
       </div>

@@ -3,9 +3,10 @@
  * NFS-e Nacional v1.01 em produção com cert ICP-Brasil.
  *
  * Refactor 2026-06-22 (pack Manaus §P1-4): trocou "Pioneiros desde mai/2026"
- * (subjetivo, sinaliza "produto novo") por afirmação técnica verificável que
- * o concorrente externo NÃO tem. Recall: nenhum competidor citado em
- * `data/competitors.json` tem NFS-e Nacional nativa hoje.
+ * (subjetivo, sinaliza "produto novo") por afirmação técnica verificável
+ * sobre o próprio produto. Não afirma nada sobre concorrentes: em nov/2026 a
+ * Focus NFe e outros já ofereciam NFS-e Nacional, e a linha que dizia o
+ * contrário saiu de `data/competitors.json`.
  *
  * Duas variantes: `hero` (maior) e `inline` (menor).
  */
