@@ -15,7 +15,8 @@ const (
 	// Previously the interval was 30s but the TTL was 2min, causing 3 out of
 	// every 4 ticks to burn a Redis SETNX round-trip that immediately returned
 	// "already held". Now both are 2 minutes — one Redis call per actual sweep.
-	stuckLockTTL      = 2 * time.Minute
+	stuckLockTTL = 2 * time.Minute
+	// DefaultStuckInterval is the default sweep interval (see stuckLockTTL).
 	DefaultStuckInterval = 2 * time.Minute
 )
 

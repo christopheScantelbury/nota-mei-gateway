@@ -16,25 +16,25 @@ func nfseComDhEmi(dh string) string {
 }
 
 type fakeRecovery struct {
-	dps    *NFSeNacionalSuccess
+	dps    *NacionalSuccess
 	dpsErr error
 	doc    string
 	docErr error
 }
 
-func (f *fakeRecovery) ConsultarDPSPorID(context.Context, string, *tls.Certificate) (*NFSeNacionalSuccess, error) {
+func (f *fakeRecovery) ConsultarDPSPorID(context.Context, string, *tls.Certificate) (*NacionalSuccess, error) {
 	return f.dps, f.dpsErr
 }
 func (f *fakeRecovery) ConsultarNFSe(context.Context, string, *tls.Certificate) ([]byte, error) {
 	return []byte(f.doc), f.docErr
 }
 
-func e0014(tentativa int) *NFSeNacionalError {
-	return &NFSeNacionalError{Erros: []MensagemProcessamento{{Codigo: "E0014", Descricao: "DPS já existe"}}, Tentativa: tentativa}
+func e0014(tentativa int) *NacionalError {
+	return &NacionalError{Erros: []MensagemProcessamento{{Codigo: "E0014", Descricao: "DPS já existe"}}, Tentativa: tentativa}
 }
 
 func TestDPSPodeTerSidoProcessada(t *testing.T) {
-	outra := &NFSeNacionalError{Erros: []MensagemProcessamento{{Codigo: "E0310"}}, Tentativa: 1}
+	outra := &NacionalError{Erros: []MensagemProcessamento{{Codigo: "E0310"}}, Tentativa: 1}
 	if dpsPodeTerSidoProcessada(outra) {
 		t.Fatal("E0310 na 1ª tentativa é rejeição normal")
 	}
@@ -52,7 +52,7 @@ func TestRecuperarDPSProcessada(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("NFS-e desta DPS → autoriza com XML oficial", func(t *testing.T) {
-		f := &fakeRecovery{dps: &NFSeNacionalSuccess{ChaveAcesso: chave}, doc: nfseComDhEmi("2026-11-04T12:40:00-03:00")}
+		f := &fakeRecovery{dps: &NacionalSuccess{ChaveAcesso: chave}, doc: nfseComDhEmi("2026-11-04T12:40:00-03:00")}
 		s, fail, err := recuperarDPSProcessada(ctx, f, []byte(dpsAssinadaTeste), e0014(2), nil)
 		if err != nil || fail != nil || s == nil || s.ChaveAcesso != chave {
 			t.Fatalf("esperado sucesso: s=%v fail=%v err=%v", s, fail, err)
@@ -70,7 +70,7 @@ func TestRecuperarDPSProcessada(t *testing.T) {
 		}
 	})
 	t.Run("NFS-e de OUTRA DPS com o mesmo número → rejeição vale", func(t *testing.T) {
-		f := &fakeRecovery{dps: &NFSeNacionalSuccess{ChaveAcesso: chave}, doc: nfseComDhEmi("2026-10-01T09:00:00-03:00")}
+		f := &fakeRecovery{dps: &NacionalSuccess{ChaveAcesso: chave}, doc: nfseComDhEmi("2026-10-01T09:00:00-03:00")}
 		s, fail, err := recuperarDPSProcessada(ctx, f, []byte(dpsAssinadaTeste), e0014(1), nil)
 		if s != nil || fail == nil || err != nil {
 			t.Fatalf("esperado rejeição: s=%v fail=%v err=%v", s, fail, err)
@@ -79,7 +79,7 @@ func TestRecuperarDPSProcessada(t *testing.T) {
 	t.Run("consulta falha → transitório (fica PROCESSANDO, nunca REJEITADA)", func(t *testing.T) {
 		for _, f := range []*fakeRecovery{
 			{dpsErr: errors.New("timeout")},
-			{dps: &NFSeNacionalSuccess{ChaveAcesso: chave}, docErr: errors.New("502")},
+			{dps: &NacionalSuccess{ChaveAcesso: chave}, docErr: errors.New("502")},
 		} {
 			s, fail, err := recuperarDPSProcessada(ctx, f, []byte(dpsAssinadaTeste), e0014(2), nil)
 			if s != nil || fail != nil || err == nil {

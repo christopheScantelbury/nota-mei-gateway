@@ -395,13 +395,6 @@ func roundHalfUp(v float64) float64 {
 	return math.Floor(v*100+0.5) / 100
 }
 
-// buildInfDPSId assembles the 45-char TSIdDPS string demanded by the XSD.
-//
-//	"DPS" + cMun(7) + tpInscFed(1) + inscFed(14, zero-padded if CPF)
-//	    + serie(5)  + nDPS(15)
-//
-// Only CNPJ is supported here (tpInscFed=2) because the prestador is always
-// a juridical person in Nota Fácil — MEI/ME/EPP/LP/LR all have CNPJ.
 // IDDPS devolve o Id (TSIdDPS) da DPS emitida pelo NotaFácil para o município,
 // CNPJ e número informados — o mesmo valor que Build grava em infDPS/@Id.
 // Usado para consultar a DPS na SEFIN (GET /dps/{id}) quando o XML enviado
@@ -410,6 +403,13 @@ func IDDPS(cMun, cnpj string, nDPS int64) string {
 	return buildInfDPSId(cMun, cnpj, DPSSerie, nDPS)
 }
 
+// buildInfDPSId assembles the 45-char TSIdDPS string demanded by the XSD.
+//
+//	"DPS" + cMun(7) + tpInscFed(1) + inscFed(14, zero-padded if CPF)
+//	    + serie(5)  + nDPS(15)
+//
+// Only CNPJ is supported here (tpInscFed=2) because the prestador is always
+// a juridical person in Nota Fácil — MEI/ME/EPP/LP/LR all have CNPJ.
 func buildInfDPSId(cMun, cnpj, serie string, nDPS int64) string {
 	const tpInscFed = "2" // 2 = CNPJ
 	mun := padLeft(stripNonDigits(cMun), 7)

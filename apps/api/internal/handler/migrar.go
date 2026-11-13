@@ -20,10 +20,11 @@ type migrarRequest struct {
 // MigrarHandler handles MEI → ME migrations initiated from the dashboard.
 type MigrarHandler struct {
 	db      *pgxpool.Pool
-	auditor *audit.AuditLogger
+	auditor *audit.Logger
 }
 
-func NewMigrarHandler(db *pgxpool.Pool, auditor *audit.AuditLogger) *MigrarHandler {
+// NewMigrarHandler creates a MigrarHandler.
+func NewMigrarHandler(db *pgxpool.Pool, auditor *audit.Logger) *MigrarHandler {
 	return &MigrarHandler{db: db, auditor: auditor}
 }
 

@@ -151,7 +151,7 @@ func TestXMLArchiver_GuardaNFSeNoStorage(t *testing.T) {
 	owner, nota := uuid.New(), uuid.New()
 	a := NewXMLArchiver(store, repo)
 
-	a.GuardarResposta(context.Background(), owner, nota, &NFSeNacionalSuccess{NFSeXMLGZipB64: gzB64(t, xmlNFSeTeste)})
+	a.GuardarResposta(context.Background(), owner, nota, &NacionalSuccess{NFSeXMLGZipB64: gzB64(t, xmlNFSeTeste)})
 
 	key := "notas/" + owner.String() + "/" + nota.String() + "/nfse.xml"
 	if repo.keys[nota] != key {

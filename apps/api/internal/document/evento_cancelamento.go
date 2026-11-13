@@ -34,15 +34,15 @@ type PedRegEvento struct {
 // We always send CNPJAutor (prestador = MEI/ME/EPP/LP/LR are PJ).
 // Id é obrigatório (TSIdPedRegEvt: "PRE" + chave(50) + tipoEvento(6) = 59 chars).
 type InfPedReg struct {
-	ID         string              `xml:"Id,attr"`
-	TpAmb      int                 `xml:"tpAmb"`
-	VerAplic   string              `xml:"verAplic"`
-	DhEvento   string              `xml:"dhEvento"`
-	CNPJAutor  string              `xml:"CNPJAutor,omitempty"`
-	CPFAutor   string              `xml:"CPFAutor,omitempty"`
-	ChNFSe     string              `xml:"chNFSe"`
-	E101101    *EventoCancelamento `xml:"e101101,omitempty"`
-	E105102    *EventoSubstituicao `xml:"e105102,omitempty"`
+	ID        string              `xml:"Id,attr"`
+	TpAmb     int                 `xml:"tpAmb"`
+	VerAplic  string              `xml:"verAplic"`
+	DhEvento  string              `xml:"dhEvento"`
+	CNPJAutor string              `xml:"CNPJAutor,omitempty"`
+	CPFAutor  string              `xml:"CPFAutor,omitempty"`
+	ChNFSe    string              `xml:"chNFSe"`
+	E101101   *EventoCancelamento `xml:"e101101,omitempty"`
+	E105102   *EventoSubstituicao `xml:"e105102,omitempty"`
 }
 
 // EventoCancelamento — TE101101 (cancelamento sem substituição).
@@ -56,20 +56,20 @@ type EventoCancelamento struct {
 // Sent against the ORIGINAL chave to mark it cancelled in favour of a new
 // DPS that already carries the <subst><chSubstda>{original}</subst> block.
 type EventoSubstituicao struct {
-	XDesc        string `xml:"xDesc"`               // fixed value "Cancelamento de NFS-e por Substituição"
-	CMotivo      string `xml:"cMotivo"`             // 01..05 | 99 per TSCodJustSubst
-	XMotivo      string `xml:"xMotivo,omitempty"`   // 15-255 chars
-	ChSubstituta string `xml:"chSubstituta"`        // 50-digit chave da NFS-e substituta
+	XDesc        string `xml:"xDesc"`             // fixed value "Cancelamento de NFS-e por Substituição"
+	CMotivo      string `xml:"cMotivo"`           // 01..05 | 99 per TSCodJustSubst
+	XMotivo      string `xml:"xMotivo,omitempty"` // 15-255 chars
+	ChSubstituta string `xml:"chSubstituta"`      // 50-digit chave da NFS-e substituta
 }
 
 // Cancellation justification codes per TSCodJustCanc.
 const (
-	CMotivoCancErroEmissao   = 1
-	CMotivoCancNaoPrestado   = 2
-	CMotivoCancOutros        = 9
-	XDescCancelamentoPadrao  = "Cancelamento de NFS-e"
-	MinXMotivoLen            = 15
-	MaxXMotivoLen            = 255
+	CMotivoCancErroEmissao  = 1
+	CMotivoCancNaoPrestado  = 2
+	CMotivoCancOutros       = 9
+	XDescCancelamentoPadrao = "Cancelamento de NFS-e"
+	MinXMotivoLen           = 15
+	MaxXMotivoLen           = 255
 )
 
 // ── Builder ───────────────────────────────────────────────────────────────────

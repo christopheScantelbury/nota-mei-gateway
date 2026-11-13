@@ -23,6 +23,7 @@ import (
 //   - 404     → ERRO_TEMPORARIO "NAO_RECEBIDA": seguro emitir de novo;
 //   - erro    → ERRO_TEMPORARIO "AGUARDANDO_RECEITA" (não reemitir ainda); tenta de novo no próximo ciclo.
 
+// Códigos e descrições gravados em erro_codigo/erro_descricao pelo reconciliador.
 const (
 	ErroCodigoAguardandoReceita = "AGUARDANDO_RECEITA"
 	ErroCodigoNaoRecebida       = "NAO_RECEBIDA"
@@ -79,7 +80,7 @@ type reconcileRepo interface {
 }
 
 type dpsConsultor interface {
-	ConsultarDPSPorID(ctx context.Context, idDPS string, cert *tls.Certificate) (*NFSeNacionalSuccess, error)
+	ConsultarDPSPorID(ctx context.Context, idDPS string, cert *tls.Certificate) (*NacionalSuccess, error)
 }
 
 // EmpresaEmissaoCounter incrementa o contador mensal de uma empresa ME/EPP.
@@ -110,9 +111,14 @@ func NewDPSReconciler(repo reconcileRepo, consultor dpsConsultor, certs CertLoad
 	return &DPSReconciler{repo: repo, consultor: consultor, certs: certs, age: age, interval: interval, limit: limit}
 }
 
+// WithCounter define o contador de emissões (cota) usado ao autorizar.
 func (r *DPSReconciler) WithCounter(c EmpresaEmissaoCounter) *DPSReconciler { r.counter = c; return r }
-func (r *DPSReconciler) WithPublisher(p WebhookPublisher) *DPSReconciler    { r.publisher = p; return r }
-func (r *DPSReconciler) WithLocker(l StuckLocker) *DPSReconciler            { r.locker = l; return r }
+
+// WithPublisher define o publicador de webhooks.
+func (r *DPSReconciler) WithPublisher(p WebhookPublisher) *DPSReconciler { r.publisher = p; return r }
+
+// WithLocker define o lock distribuído que evita varreduras concorrentes.
+func (r *DPSReconciler) WithLocker(l StuckLocker) *DPSReconciler { r.locker = l; return r }
 
 // Run varre imediatamente e depois a cada interval, até ctx ser cancelado.
 func (r *DPSReconciler) Run(ctx context.Context) {

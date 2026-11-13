@@ -219,7 +219,7 @@ func (c *Client) sendAPI(ctx context.Context, req SendRequest) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		msg := string(respBody)
@@ -259,7 +259,7 @@ func (c *Client) sendRelay(ctx context.Context, req SendRequest) (string, error)
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 	if resp.StatusCode != http.StatusOK {
 		msg := string(respBody)
@@ -313,7 +313,10 @@ func (c *Client) smtpEnviar(ctx context.Context, addr string, to []string, msg [
 		_ = conn.Close()
 		return err
 	}
-	defer cl.Close()
+	// O caminho feliz encerra com Quit, que já fecha a conexão; este Close só
+	// libera o socket nos retornos antecipados, e o erro dele não acrescenta
+	// nada ao erro que já está sendo devolvido.
+	defer func() { _ = cl.Close() }()
 	if ok, _ := cl.Extension("STARTTLS"); !ok {
 		return errors.New("servidor sem STARTTLS — envio recusado")
 	}

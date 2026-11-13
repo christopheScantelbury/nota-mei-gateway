@@ -221,9 +221,9 @@ func (r *Repository) RegisterMEI(ctx context.Context, p RegisterMEIParams) (*Reg
 		if committed {
 			return
 		}
-		// Use a fresh background context so the cleanup runs even if `ctx` is
-		// already cancelled (typical when the request times out).
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		// Detach from the request's cancellation so the cleanup runs even if
+		// `ctx` is already cancelled (typical when the request times out).
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
 		_ = r.authAdmin.DeleteUser(cleanupCtx, userID)
 	}()

@@ -39,13 +39,13 @@ func (r *fakeReconcileRepo) MarcarErroTemporarioReconciliacao(_ context.Context,
 }
 
 type fakeConsultor struct {
-	res    *NFSeNacionalSuccess
+	res    *NacionalSuccess
 	err    error
 	gotID  string
 	called int
 }
 
-func (f *fakeConsultor) ConsultarDPSPorID(_ context.Context, id string, _ *tls.Certificate) (*NFSeNacionalSuccess, error) {
+func (f *fakeConsultor) ConsultarDPSPorID(_ context.Context, id string, _ *tls.Certificate) (*NacionalSuccess, error) {
 	f.called++
 	f.gotID = id
 	return f.res, f.err
@@ -123,7 +123,7 @@ func TestParseConsultaDPSResponse(t *testing.T) {
 func TestDPSReconciler_DPSExiste_Autoriza(t *testing.T) {
 	n := notaTravada("ERRO_TEMPORARIO")
 	repo := newFakeReconcileRepo(n)
-	cons := &fakeConsultor{res: &NFSeNacionalSuccess{IDDps: idDPSTeste, ChaveAcesso: "CHAVE50"}}
+	cons := &fakeConsultor{res: &NacionalSuccess{IDDps: idDPSTeste, ChaveAcesso: "CHAVE50"}}
 	cnt, pub := &fakeCounter{}, &fakePublisher{}
 	r := NewDPSReconciler(repo, cons, fakeCerts{}, DefaultReconcileAge, time.Minute, 50).WithCounter(cnt).WithPublisher(pub)
 
