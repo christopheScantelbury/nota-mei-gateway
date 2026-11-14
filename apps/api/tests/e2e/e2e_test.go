@@ -22,6 +22,11 @@ import (
 
 var baseURL string
 
+// demoKey is the public sandbox key (sandbox.DemoKey): /v1/nfse answers with
+// simulated notes, no certificate and no Receita call. The seeded MEI key goes
+// through the real pipeline instead, which stops at CERTIFICADO_AUSENTE.
+const demoKey = "sk_test_sandbox_demo"
+
 func TestMain(m *testing.M) {
 	baseURL = os.Getenv("E2E_API_URL")
 	if baseURL == "" {
@@ -115,10 +120,13 @@ func TestHealthCheck(t *testing.T) {
 	if body["status"] != "ok" {
 		t.Fatalf("expected status ok, got %v", body)
 	}
-	if body["db"] != "ok" {
-		t.Fatalf("expected db ok, got %v", body["db"])
+	// Shape: {"status":"ok","env":"...","services":{"db":{"status":"ok"},...}}
+	services, _ := body["services"].(map[string]any)
+	db, _ := services["db"].(map[string]any)
+	if db["status"] != "ok" {
+		t.Fatalf("expected services.db.status ok, got %v", body)
 	}
-	t.Logf("Health OK — env=%v db=%v", body["env"], body["db"])
+	t.Logf("Health OK — env=%v db=%v", body["env"], db["status"])
 }
 
 // TestSandboxSeed verifies the idempotent seed endpoint returns a stable key.
@@ -203,10 +211,43 @@ func TestEmitirNotaValidacao(t *testing.T) {
 	}
 }
 
-// TestEmitirNotaFluxo tests the full happy path: submit → PROCESSANDO → poll status.
-// The note stays PROCESSANDO in staging (no real certificate for Receita Federal).
-func TestEmitirNotaFluxo(t *testing.T) {
+// TestEmitirNotaSemCertificado verifies the real pipeline for the seeded MEI:
+// it has no A1 certificate, so emission must stop with 422 CERTIFICADO_AUSENTE
+// before anything is sent to the Receita.
+func TestEmitirNotaSemCertificado(t *testing.T) {
 	key := seedKey(t)
+
+	payload := map[string]any{
+		"servico": map[string]any{
+			"codigo_nbs":    "01.01.01.10",
+			"discriminacao": "Sem certificado — teste E2E",
+			"valor":         100.00,
+			"aliquota_iss":  2.0,
+		},
+		"tomador": map[string]any{
+			"tipo":           "PJ",
+			"documento":      "12345678000190",
+			"razao_social":   "Empresa Teste LTDA",
+			"email":          "teste@empresa.com",
+			"municipio_ibge": "3550308",
+		},
+		"competencia": "2026-04",
+	}
+
+	resp, body := post(t, "/v1/nfse", key, payload)
+	if resp.StatusCode != http.StatusUnprocessableEntity {
+		t.Fatalf("expected 422, got %d — body: %v", resp.StatusCode, body)
+	}
+	if body["error"] != "CERTIFICADO_AUSENTE" {
+		t.Fatalf("expected CERTIFICADO_AUSENTE, got %v", body)
+	}
+	t.Logf("Emissão sem certificado barrada com 422 CERTIFICADO_AUSENTE ✅")
+}
+
+// TestEmitirNotaFluxo tests the full happy path on the sandbox (demo key):
+// submit → PROCESSANDO → poll status → list → get.
+func TestEmitirNotaFluxo(t *testing.T) {
+	key := demoKey
 
 	payload := map[string]any{
 		"servico": map[string]any{
@@ -238,7 +279,7 @@ func TestEmitirNotaFluxo(t *testing.T) {
 	}
 	t.Logf("Nota criada: %s — status PROCESSANDO ✅", notaID)
 
-	// Poll status (up to 10s, staging might transition quickly to REJEITADA without cert).
+	// Poll status (up to 10s; the sandbox reports AUTORIZADA on the first read).
 	var finalStatus string
 	for i := 0; i < 10; i++ {
 		time.Sleep(1 * time.Second)
@@ -254,13 +295,10 @@ func TestEmitirNotaFluxo(t *testing.T) {
 		}
 	}
 
-	// In staging without a real cert the note ends as PROCESSANDO or REJEITADA — both are valid.
-	switch finalStatus {
-	case "PROCESSANDO", "REJEITADA", "AUTORIZADA", "ERRO_TEMPORARIO":
-		t.Logf("Final status: %s (expected in staging) ✅", finalStatus)
-	default:
-		t.Fatalf("Unexpected final status: %q", finalStatus)
+	if finalStatus != "AUTORIZADA" {
+		t.Fatalf("expected sandbox nota to end AUTORIZADA, got %q", finalStatus)
 	}
+	t.Logf("Final status: %s ✅", finalStatus)
 
 	// Test list endpoint includes this note.
 	listResp := get(t, "/v1/nfse", key)
@@ -275,11 +313,10 @@ func TestEmitirNotaFluxo(t *testing.T) {
 	t.Logf("GET /v1/nfse/%s ✅", notaID)
 }
 
-// TestCancelarNota verifies cancellation endpoint reachability.
-// Can only cancel an AUTORIZADA note; in staging we test the path returns
-// the correct error (not 500) when the note isn't AUTORIZADA.
+// TestCancelarNota emits a note on the sandbox (demo key) and cancels it:
+// the first DELETE must return 200 CANCELADA and a second one 409 ALREADY_CANCELLED.
 func TestCancelarNota(t *testing.T) {
-	key := seedKey(t)
+	key := demoKey
 
 	// Submit a note first.
 	payload := map[string]any{
@@ -305,18 +342,17 @@ func TestCancelarNota(t *testing.T) {
 		t.Fatalf("failed to create nota for cancellation test: %v", createBody)
 	}
 
-	// Try to cancel — expect either 200 (AUTORIZADA) or 409 ALREADY_CANCELLED / 422 PROCESSANDO.
 	resp, body := del(t, "/v1/nfse/"+notaID, key)
-	switch resp.StatusCode {
-	case http.StatusOK:
-		t.Logf("Nota cancelada com sucesso: %v ✅", body)
-	case http.StatusConflict: // 409 ALREADY_CANCELLED
-		t.Logf("Nota já cancelada (esperado em staging) ✅")
-	case http.StatusUnprocessableEntity: // 422 — not in AUTORIZADA state
-		t.Logf("Nota não pode ser cancelada — status incorreto (esperado em staging) ✅")
-	default:
-		t.Fatalf("DELETE /v1/nfse/%s: unexpected status %d — body: %v", notaID, resp.StatusCode, body)
+	if resp.StatusCode != http.StatusOK || body["status"] != "CANCELADA" {
+		t.Fatalf("DELETE /v1/nfse/%s: expected 200 CANCELADA, got %d — body: %v", notaID, resp.StatusCode, body)
 	}
+	t.Logf("Nota cancelada: %v ✅", body)
+
+	resp, body = del(t, "/v1/nfse/"+notaID, key)
+	if resp.StatusCode != http.StatusConflict || body["error"] != "ALREADY_CANCELLED" {
+		t.Fatalf("second DELETE: expected 409 ALREADY_CANCELLED, got %d — body: %v", resp.StatusCode, body)
+	}
+	t.Logf("Segundo cancelamento devolve 409 ALREADY_CANCELLED ✅")
 }
 
 // TestLimiteTrial verifies that the BillingGuard blocks notes beyond the Trial limit.
