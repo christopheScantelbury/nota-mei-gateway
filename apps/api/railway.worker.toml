@@ -20,6 +20,13 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
+# Só rebuilda quando muda algo que entra na imagem: o Dockerfile da raiz copia
+# apenas apps/api/. Este arquivo também casa com apps/api/**. Sem isto o worker
+# era redeployado em TODO push na main (docs, web, migrations).
+watchPatterns = [
+  "apps/api/**",
+  "Dockerfile",
+]
 
 [deploy]
 startCommand = "./worker"
