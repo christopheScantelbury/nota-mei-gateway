@@ -3,6 +3,7 @@
 //
 // Roda no GitHub Action `.github/workflows/monitor-prod.yml` (de hora em hora).
 // 1. Chama GET /api/cron/monitor-prod com a janela [desde, ate) — dados já sanitizados.
+//    Antes disso testa, de fora, cada IP dos domínios públicos (ver "Domínios públicos").
 // 2. Para cada achado (identificado por fingerprint `fp`):
 //    - issue aberta com o mesmo fp  → atualiza o bloco de estatísticas (edição silenciosa)
 //    - issue fechada e o erro voltou → abre "[regressão]" referenciando a anterior
@@ -10,10 +11,15 @@
 //
 // O repo é PÚBLICO e o log do Action também: este script não imprime nada além
 // de títulos e contagens. Env: MONITOR_URL, MONITOR_SECRET, GITHUB_TOKEN,
-// GITHUB_REPOSITORY, HORAS (janela, default 1), DRY_RUN=1 (só lista).
+// GITHUB_REPOSITORY, HORAS (janela, default 1), DRY_RUN=1 (só lista),
+// MONITOR_DOMINIOS (lista separada por vírgula; default: domínio raiz + www).
+
+import { resolve4 } from 'node:dns/promises'
+import https from 'node:https'
 
 const {
   MONITOR_URL = 'https://www.emitirnotafacil.com.br',
+  MONITOR_DOMINIOS = 'emitirnotafacil.com.br,www.emitirnotafacil.com.br',
   MONITOR_SECRET,
   GITHUB_TOKEN,
   GITHUB_REPOSITORY = 'christopheScantelbury/nota-mei-gateway',
@@ -123,21 +129,91 @@ async function garantirLabel() {
   }
 }
 
+// ─── Domínios públicos ───────────────────────────────────────────────────────
+// /api/cron/monitor-prod roda DENTRO do site, então não enxerga "o domínio não
+// chega no site". Aqui o runner testa de fora cada IP publicado no DNS, um por
+// um: com dois registros A, um IP morto fica escondido atrás do outro, e com um
+// só o domínio some (foi o que derrubou o endereço sem www em 2026-11-14, #286).
+// Qualquer resposta HTTP conta como ok — o que se mede é conexão + TLS válido.
+
+function testarIp(host, ip, timeoutMs = 10_000) {
+  return new Promise((resolve) => {
+    const req = https.request(
+      { host: ip, servername: host, method: 'HEAD', path: '/', headers: { Host: host }, timeout: timeoutMs },
+      (res) => { res.resume(); resolve(null) },
+    )
+    req.on('timeout', () => req.destroy(new Error('timeout')))
+    req.on('error', (e) => resolve(e.code ?? e.message))
+    req.end()
+  })
+}
+
+async function verificarDominios() {
+  const agora = new Date().toISOString()
+  const achados = []
+  for (const host of MONITOR_DOMINIOS.split(',').map((s) => s.trim()).filter(Boolean)) {
+    let ips = []
+    const erros = []
+    try { ips = await resolve4(host) } catch (e) { erros.push(`DNS: ${e.code ?? e.message}`) }
+    for (const ip of ips) {
+      // Segunda tentativa antes de acusar: evita issue por oscilação de rede do runner.
+      const erro = (await testarIp(host, ip)) && (await testarIp(host, ip))
+      if (erro) erros.push(`${ip}: ${erro}`)
+    }
+    if (!erros.length) continue
+    const parcial = ips.length > erros.length
+    achados.push({
+      fp: `dominio-${host.replace(/\W/g, '-')}`,
+      fonte: 'web',
+      severidade: 'alta',
+      titulo: parcial ? `Domínio ${host}: ${erros.length} de ${ips.length} IPs não respondem` : `Domínio ${host} não responde`,
+      detalhe: erros.join('\n'),
+      contexto: { dominio: host, ips_no_dns: ips.join(', ') || '—' },
+      ocorrencias: 1,
+      primeira: agora,
+      ultima: agora,
+      onde_investigar: [
+        `Confirmar de outra rede: \`curl -I --resolve ${host}:443:<ip> https://${host}/\`.`,
+        'IPs que o Vercel recomenda hoje: `GET /v6/domains/<domínio>/config` (campo `recommendedIPv4`) ou Project → Domains.',
+        'A zona DNS fica no Registro.br (sem API): painel → administrar o domínio → Configurar zona DNS.',
+      ],
+    })
+  }
+  return achados
+}
+
 // ─── Execução ────────────────────────────────────────────────────────────────
 
-const url = `${MONITOR_URL}/api/cron/monitor-prod?desde=${desde.toISOString()}&ate=${ate.toISOString()}`
-const res = await fetch(url, { headers: { Authorization: `Bearer ${MONITOR_SECRET}` } })
-if (!res.ok) fail(`monitor-prod respondeu ${res.status}`)
-const { achados = [], falhas = [] } = await res.json()
+const achados = await verificarDominios()
+let falhas = []
+let erroColeta = null
+
+// Se o site estiver fora, a coleta falha — mas o achado de domínio acima ainda
+// precisa virar issue; o job só é marcado como falho depois disso.
+try {
+  const url = `${MONITOR_URL}/api/cron/monitor-prod?desde=${desde.toISOString()}&ate=${ate.toISOString()}`
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${MONITOR_SECRET}` } })
+  if (!res.ok) throw new Error(`monitor-prod respondeu ${res.status}`)
+  const dados = await res.json()
+  achados.push(...(dados.achados ?? []))
+  falhas = dados.falhas ?? []
+} catch (e) {
+  erroColeta = e.message
+}
+
+function encerrar() {
+  if (erroColeta) fail(erroColeta)
+  process.exit(0)
+}
 
 console.log(`Janela ${desde.toISOString()} → ${ate.toISOString()}: ${achados.length} achado(s)`)
 for (const f of falhas) console.log(`::warning title=Fonte indisponível::${f}`)
 
 if (DRY_RUN) {
   for (const a of achados) console.log(`- [${a.severidade}] ${a.titulo} (${a.ocorrencias ?? a.total_absoluto ?? '?'})`)
-  process.exit(0)
+  encerrar()
 }
-if (!achados.length) process.exit(0)
+if (!achados.length) encerrar()
 
 await garantirLabel()
 const existentes = await issuesExistentes()
@@ -177,3 +253,4 @@ for (const a of achados) {
 if (adiados.length) {
   console.log(`::warning title=Limite de issues::${adiados.length} achado(s) ficaram para a próxima execução`)
 }
+encerrar()
