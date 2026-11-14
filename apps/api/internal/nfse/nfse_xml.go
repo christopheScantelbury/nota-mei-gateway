@@ -25,7 +25,7 @@ import (
 // depois em GET /nfse/{chaveAcesso}. Aqui ficam: a consulta, a validação, a
 // gravação no object storage e o preenchimento das notas antigas.
 
-// ErrNFSeNaoEncontrada: a SEFIN respondeu 404 (JSON) para a chave de acesso.
+// ErrNFSeNaoEncontrada indica que a SEFIN respondeu 404 (JSON) para a chave de acesso.
 var ErrNFSeNaoEncontrada = errors.New("nfse não encontrada na SEFIN Nacional")
 
 // ConsultarNFSe busca o XML oficial da NFS-e em GET {SefinNacional}/nfse/{chave}.
@@ -69,7 +69,7 @@ func parseConsultaNFSeResponse(status int, body []byte) ([]byte, error) {
 		}
 		return nil, ErrNFSeNaoEncontrada
 	case status == http.StatusOK:
-		s := &NFSeNacionalSuccess{}
+		s := &NacionalSuccess{}
 		if err := json.Unmarshal(body, s); err != nil {
 			return nil, fmt.Errorf("parse consulta nfse: %w (body=%.200s)", err, body)
 		}
@@ -153,7 +153,7 @@ func (a *XMLArchiver) Guardar(ctx context.Context, ownerID, notaID uuid.UUID, do
 // GuardarResposta decodifica o nfseXmlGZipB64 da resposta de autorização e grava.
 // Falha aqui não desfaz a autorização: o download e o backfill buscam o XML na
 // Receita quando ele não estiver guardado.
-func (a *XMLArchiver) GuardarResposta(ctx context.Context, ownerID, notaID uuid.UUID, success *NFSeNacionalSuccess) {
+func (a *XMLArchiver) GuardarResposta(ctx context.Context, ownerID, notaID uuid.UUID, success *NacionalSuccess) {
 	if a == nil || success == nil {
 		return
 	}
@@ -218,6 +218,7 @@ func NewXMLBackfill(repo backfillRepo, consultor nfseConsultor, certs CertLoader
 	}
 }
 
+// WithLocker define o lock distribuído que evita varreduras concorrentes.
 func (b *XMLBackfill) WithLocker(l StuckLocker) *XMLBackfill { b.locker = l; return b }
 
 // Run varre logo ao iniciar e depois a cada interval.

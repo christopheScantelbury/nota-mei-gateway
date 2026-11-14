@@ -15,6 +15,7 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
+
 	// Use software.sslmate.com/src/go-pkcs12 instead of golang.org/x/crypto/pkcs12:
 	// the official x/crypto package only accepts PFX files with exactly two
 	// "safe bags" (cert + key), which rejects most Brazilian ICP-Brasil A1

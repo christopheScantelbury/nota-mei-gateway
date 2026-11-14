@@ -9,14 +9,17 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type AuditLogger struct {
+// Logger grava entradas na tabela audit_log.
+type Logger struct {
 	db *pgxpool.Pool
 }
 
-func New(db *pgxpool.Pool) *AuditLogger {
-	return &AuditLogger{db: db}
+// New cria um Logger que grava no pool informado.
+func New(db *pgxpool.Pool) *Logger {
+	return &Logger{db: db}
 }
 
+// LogEntry é uma entrada do audit_log.
 type LogEntry struct {
 	UserID    string
 	EmpresaID string
@@ -34,8 +37,13 @@ const auditTimeout = 5 * time.Second
 
 // Log writes an audit entry asynchronously. Errors are logged but never
 // propagate to the caller — audit failures must not break business flows.
-func (a *AuditLogger) Log(_ context.Context, e LogEntry) {
-	go func() {
+//
+// O contexto do chamador é ignorado de propósito: quem chama passa o
+// *fasthttp.RequestCtx do Fiber, que é reciclado assim que o handler retorna.
+// A goroutine sobrevive ao request, então derivar dele (mesmo com
+// context.WithoutCancel) leria um contexto já reutilizado por outra requisição.
+func (a *Logger) Log(_ context.Context, e LogEntry) {
+	go func() { //nolint:contextcheck // goroutine desacoplada do request de propósito — ver comentário de Log
 		ctx, cancel := context.WithTimeout(context.Background(), auditTimeout)
 		defer cancel()
 

@@ -26,7 +26,7 @@ type NFSeAdapter interface {
 		ctx context.Context,
 		signedDPSXML []byte,
 		cert *tls.Certificate,
-	) (*nfse.NFSeNacionalSuccess, *nfse.NFSeNacionalError, error)
+	) (*nfse.NacionalSuccess, *nfse.NacionalError, error)
 }
 
 // XMLSigner mirrors document.Signer — exposed here to keep the dependency surface narrow.

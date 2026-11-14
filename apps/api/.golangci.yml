@@ -25,6 +25,21 @@ linters:
       extra-words:
         - typo: "ADN"
           correction: "ADN"
+      # O código, os comentários e os textos entregues ao usuário são em PT-BR.
+      # O misspell só conhece inglês e lê estas palavras portuguesas (e o campo
+      # `interm` do XSD da NFS-e) como erros de digitação — "clientes" viraria
+      # "clients", "VALIDADE" viraria "VALIDATED". Não são erros: ignorar.
+      ignore-rules:
+        - clientes
+        - correspondente
+        - exponencial
+        - independente
+        - informativo
+        - interm
+        - momento
+        - profissional
+        - rela
+        - validade
 
 formatters:
   enable:

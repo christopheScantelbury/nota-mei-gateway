@@ -14,7 +14,7 @@ import (
 // ErrNotFound is returned when a recorrencia does not exist or does not belong to the MEI.
 var ErrNotFound = errors.New("recorrencia not found")
 
-// ErrSemCertificado: a empresa não tem certificado A1 que carregue (nunca
+// ErrSemCertificado indica que a empresa não tem certificado A1 que carregue (nunca
 // enviou ou perdeu na saída da AWS). A recorrência fica pendente até o reenvio.
 var ErrSemCertificado = errors.New("empresa sem certificado A1 válido")
 

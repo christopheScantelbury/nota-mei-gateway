@@ -7,14 +7,36 @@
 -- ─── 1. user_id na tabela empresas ──────────────────────────
 -- Permite um usuário ter múltiplas empresas
 
-ALTER TABLE empresas
-    ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+-- Ordem em banco limpo (CI, `supabase db reset`):
+--   Este arquivo foi criado em 2026-05-07 com data futura no nome (20260620).
+--   Em produção ele rodou ANTES de 20260526000001_empresas_user_id_nullable,
+--   que depois tirou o NOT NULL — o estado final lá é user_id NULLABLE (a API
+--   cadastra ME/EPP sem user_id e o /auth/callback faz o vínculo).
+--   Por ordem de nome a 20260526000001 vem ANTES deste arquivo e já cria a
+--   coluna como nullable. Se o NOT NULL fosse reaplicado aqui, o banco limpo
+--   terminaria diferente da produção. Então: o NOT NULL só é aplicado quando
+--   a coluna é criada por esta migration (a ordem em que rodou em produção).
+DO $$
+DECLARE
+    coluna_ja_existia BOOLEAN := EXISTS (
+        SELECT 1 FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name   = 'empresas'
+           AND column_name  = 'user_id'
+    );
+BEGIN
+    ALTER TABLE empresas
+        ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
 
--- Popular user_id nos registros existentes
--- (hoje id = auth.uid() via RLS, então user_id = id)
-UPDATE empresas SET user_id = id WHERE user_id IS NULL;
+    -- Popular user_id nos registros existentes
+    -- (hoje id = auth.uid() via RLS, então user_id = id)
+    UPDATE empresas SET user_id = id WHERE user_id IS NULL;
 
-ALTER TABLE empresas ALTER COLUMN user_id SET NOT NULL;
+    IF NOT coluna_ja_existia THEN
+        ALTER TABLE empresas ALTER COLUMN user_id SET NOT NULL;
+    END IF;
+END
+$$;
 
 -- Remover política RLS antiga
 DROP POLICY IF EXISTS "empresa_own_data" ON empresas;

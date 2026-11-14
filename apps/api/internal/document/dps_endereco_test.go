@@ -40,8 +40,8 @@ func TestDPSBuilder_Tomador_ComEndereco_EmiteEndNac(t *testing.T) {
 		}
 	}
 	// Ordem do XSD (TCInfoPessoa): xNome → end → email.
-	if !(strings.Index(toma, "<xNome>") < strings.Index(toma, "<end>") &&
-		strings.Index(toma, "<end>") < strings.Index(toma, "<email>")) {
+	if strings.Index(toma, "<xNome>") >= strings.Index(toma, "<end>") ||
+		strings.Index(toma, "<end>") >= strings.Index(toma, "<email>") {
 		t.Errorf("ordem xNome/end/email fora do XSD:\n%s", toma)
 	}
 }

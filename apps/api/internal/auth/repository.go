@@ -217,7 +217,7 @@ func (r *Repository) RegisterMEI(ctx context.Context, p RegisterMEIParams) (*Reg
 
 	// Best-effort cleanup of the auth.users row when the DB transaction below fails.
 	committed := false
-	defer func() {
+	defer func() { //nolint:contextcheck // cleanup usa contexto novo de propósito — ver comentário abaixo
 		if committed {
 			return
 		}

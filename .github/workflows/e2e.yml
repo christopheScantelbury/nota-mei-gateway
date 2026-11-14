@@ -98,28 +98,15 @@ jobs:
       - name: Instalar postgresql-client
         run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client
 
-      - name: Stub auth schema (paridade Supabase)
+      - name: Stub do Supabase (auth, storage, roles)
         env:
           PGPASSWORD: postgres
           PGHOST: localhost
           PGUSER: postgres
           PGDATABASE: postgres
           PGPORT: 5432
-        run: |
-          psql -v ON_ERROR_STOP=1 <<'EOSQL'
-          CREATE SCHEMA IF NOT EXISTS auth;
-          CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid
-            LANGUAGE sql STABLE AS $$ SELECT NULL::uuid $$;
-          DO $$
-          BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon') THEN
-              CREATE ROLE anon NOLOGIN; END IF;
-            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'authenticated') THEN
-              CREATE ROLE authenticated NOLOGIN; END IF;
-            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
-              CREATE ROLE service_role NOLOGIN; END IF;
-          END $$;
-          EOSQL
+        # Mesmo stub do ci.yml / ci-db.yml: auth.users, auth.uid(), storage.buckets, roles.
+        run: psql -v ON_ERROR_STOP=1 -f supabase/ci/stub_supabase.sql
 
       - name: Aplicar migrations
         env:

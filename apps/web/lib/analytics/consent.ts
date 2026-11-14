@@ -13,7 +13,7 @@ declare global {
   interface Window {
     // gtag injetado pelo script GA4. Tipado de forma laxa pra acomodar a
     // assinatura variádica oficial (event, command, set, consent, etc.).
-    gtag?: (...args: any[]) => void
+    gtag?: (...args: unknown[]) => void
     dataLayer?: unknown[]
   }
 }
