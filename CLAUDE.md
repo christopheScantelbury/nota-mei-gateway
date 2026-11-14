@@ -487,7 +487,9 @@ status-cancelada.png    → #6473A0 (cinza)
                               · Autorizar/Rejeitar: WHERE status='PROCESSANDO' guard
                               migration 20260504000002_rps_sequences.sql aplicada em prod
 ✅ DNS                        emitirnotafacil.com.br totalmente configurado (2026-05-04)
-                              A @ → 216.198.79.1 | CNAME www → c4ed91af802cfdc8.vercel-dns-017.com
+                              A @ → 64.29.17.1 + 76.76.21.21 | CNAME www → c4ed91af802cfdc8.vercel-dns-017.com
+                              (2026-11-14: era um A único, 216.198.79.1, que parou de responder
+                              e derrubou o endereço sem www — #286. Zona no Registro.br, sem API.)
                               CNAME api → tay2rr7t.up.railway.app (Railway proxy)
                               TXT _railway-verify.api → token de verificação Railway
                               SSL Vercel ativo · API Railway 200 OK · todos os domínios online
@@ -801,7 +803,7 @@ Se precisar forçar build (ex: env var nova no Vercel + redeploy):
 
 ```
 ✅ DNS          emitirnotafacil.com.br totalmente configurado (2026-05-04)
-                A @ → 216.198.79.1 | CNAME www → c4ed91af802cfdc8.vercel-dns-017.com
+                A @ → 64.29.17.1 + 76.76.21.21 (desde 2026-11-14, #286) | CNAME www → c4ed91af802cfdc8.vercel-dns-017.com
                 CNAME api → api-production-73b1.up.railway.app (Railway custom domain ativo)
 
 ✅ Supabase     supabase db push concluído — todas as 20 migrations aplicadas (2026-05-06)
