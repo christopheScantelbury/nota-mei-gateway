@@ -21,7 +21,7 @@ export interface PricingPlanMeta {
   bullets: string[]
   primaryCta: PricingCta
   secondaryCta?: PricingCta
-  /** badge superior — ex: "Obrigatório a partir de Set/2026" */
+  /** badge superior — ex: "Obrigatório desde Nov/2026" */
   badge?: string
   /** card recebe destaque visual (border 2px, fundo, ordem mobile) */
   highlight: boolean
@@ -50,7 +50,7 @@ export const ANCHOR_PLAN_META: PricingPlanMeta[] = [
       href: `/cadastro/me?plano=start&${UTM_HOME_PRICING}&utm_content=me_card`,
     },
     secondaryCta: { label: 'Ver todos os planos ME →', href: '/me#precos' },
-    badge: 'Obrigatório a partir de Set/2026',
+    badge: 'Obrigatório desde Nov/2026',
     highlight: true,
     fallback: {
       priceLabel: 'R$ 59,99/mês',

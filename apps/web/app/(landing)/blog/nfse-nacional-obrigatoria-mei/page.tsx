@@ -24,10 +24,11 @@ export default function Page() {
   return (
     <PostLayout slug={SLUG}>
       <p>
-        A partir de <strong>1º de setembro de 2026</strong>, todo MEI prestador
-        de serviço passa a ser obrigado a emitir <strong>NFS-e do padrão
-        nacional</strong> (NFS-e Nacional), gerenciado pela Receita Federal.
-        A mudança encerra um cenário em que cada município operava o próprio
+        Desde <strong>1º de setembro de 2023</strong>, o MEI prestador de
+        serviço emite <strong>NFS-e do padrão nacional</strong> (NFS-e
+        Nacional), gerenciado pela Receita Federal. Em 2026 a regra chegou
+        também às ME e EPP do Simples Nacional, obrigadas desde{' '}
+        <strong>1º de novembro de 2026</strong>. A mudança encerra um cenário em que cada município operava o próprio
         sistema com regras distintas.
       </p>
 
@@ -84,18 +85,18 @@ export default function Page() {
 
       <h2>O que fazer agora</h2>
       <p>
-        Mesmo que a obrigatoriedade só comece em setembro/2026, é recomendável
-        já <strong>adquirir o certificado A1</strong> e fazer um cadastro
-        prévio numa plataforma. Veja nosso{' '}
+        A obrigatoriedade já está em vigor. Se você ainda não emite pelo
+        padrão nacional, o primeiro passo é{' '}
+        <strong>adquirir o certificado A1</strong> e fazer o cadastro numa
+        plataforma. Veja nosso{' '}
         <Link href="/blog/certificado-a1-mei-passo-a-passo">guia
         passo-a-passo do certificado A1</Link> para começar.
       </p>
 
       <blockquote>
-        <strong>Resumo:</strong> MEI prestador de serviço terá que emitir
-        NFS-e Nacional a partir de set/2026. Adquira certificado A1, escolha
-        uma plataforma de emissão e cadastre-se com antecedência para evitar
-        correria nas primeiras semanas.
+        <strong>Resumo:</strong> MEI prestador de serviço emite NFS-e
+        Nacional desde set/2023; ME e EPP do Simples, desde nov/2026. Adquira
+        certificado A1, escolha uma plataforma de emissão e cadastre-se.
       </blockquote>
     </PostLayout>
   )

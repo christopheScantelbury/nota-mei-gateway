@@ -8,7 +8,7 @@ export function StructuredDataME() {
     url: 'https://emitirnotafacil.com.br/me',
     description:
       'Plataforma para emissão de Nota Fiscal de Serviço Eletrônica (NFS-e) ' +
-      'para Microempresas (ME) e EPP. Padrão nacional obrigatório a partir de 01/09/2026.',
+      'para Microempresas (ME) e EPP. Padrão nacional obrigatório para o Simples Nacional desde 01/11/2026.',
     offers: {
       '@type': 'Offer',
       price: '0',
@@ -41,7 +41,7 @@ export function StructuredDataME() {
         acceptedAnswer: {
           '@type': 'Answer',
           text:
-            'A partir de 01/09/2026, conforme Resolução CGSN nº 189/2026, ' +
+            'Desde 01/11/2026, conforme Resolução CGSN nº 191/2026, ' +
             'para ME e EPP optantes pelo Simples Nacional.',
         },
       },

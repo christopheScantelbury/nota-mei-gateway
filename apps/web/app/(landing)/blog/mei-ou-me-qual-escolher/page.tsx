@@ -89,8 +89,8 @@ export default function Page() {
           fixo (~{fmtMoney(DAS_MEI.servicos)}/mês em {ANO_REFERENCIA}).
         </li>
         <li>
-          <strong>NFS-e:</strong> ambos emitem pelo padrão nacional a partir
-          de set/2026. Se hoje você é MEI usando NotaFácil, a{' '}
+          <strong>NFS-e:</strong> ambos emitem pelo padrão nacional — o
+          MEI desde set/2023, a ME do Simples desde nov/2026. Se hoje você é MEI usando NotaFácil, a{' '}
           <Link href="/configuracoes/migrar">migração para ME</Link> é
           automática — preserva todo o histórico de notas.
         </li>

@@ -20,7 +20,7 @@ export default function LandingME() {
     <main className="bg-navy-900 min-h-screen text-text-1 font-body">
       <SoftwareAppStructuredData
         name="NotaFácil Empresa"
-        description="Plataforma de emissão de NFS-e Nacional para Microempresa e EPP. Simples Nacional e Lucro Presumido. Obrigatório a partir de set/2026."
+        description="Plataforma de emissão de NFS-e Nacional para Microempresa e EPP. Simples Nacional e Lucro Presumido. Obrigatório para o Simples Nacional desde nov/2026."
         url="https://emitirnotafacil.com.br/me"
       />
       <Navbar />

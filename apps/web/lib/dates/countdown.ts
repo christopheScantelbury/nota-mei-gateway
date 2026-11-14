@@ -2,8 +2,12 @@
 //
 // Spec: HIST-1.3 + D-13 (decisão fechada: timezone Brasília UTC-3).
 
-/** Data oficial de vigência da NFS-e Nacional obrigatória (Brasília UTC-3). */
-export const VIGENCIA_DATE = new Date('2026-09-01T00:00:00-03:00')
+/**
+ * Data oficial de vigência da NFS-e Nacional obrigatória para ME e EPP do
+ * Simples Nacional (Brasília UTC-3). Resolução CGSN nº 191/2026, que revogou
+ * a nº 189/2026 e prorrogou o prazo de 01/09 para 01/11/2026.
+ */
+export const VIGENCIA_DATE = new Date('2026-11-01T00:00:00-03:00')
 
 export interface CountdownDiff {
   isOver: boolean

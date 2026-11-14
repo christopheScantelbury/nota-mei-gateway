@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 const ATALHOS = [
   { href: '/mei',     emoji: '🧾', title: 'NotaFácil MEI',     desc: 'Emissão simples de NFS-e para MEI no celular' },
-  { href: '/me',      emoji: '🏢', title: 'NotaFácil Empresa', desc: 'NFS-e Nacional para ME e EPP — obrigatório em set/2026' },
+  { href: '/me',      emoji: '🏢', title: 'NotaFácil Empresa', desc: 'NFS-e Nacional para ME e EPP — obrigatório desde nov/2026' },
   { href: '/gateway', emoji: '🔌', title: 'NotaFácil API',     desc: 'Integre emissão de NFS-e no seu SaaS via API REST' },
   { href: '/blog',    emoji: '📚', title: 'Blog',              desc: 'Guias práticos sobre NFS-e, certificado A1 e tributação' },
   { href: '/precos',  emoji: '💳', title: 'Preços',            desc: 'Planos a partir do gratuito · sem cartão de crédito' },

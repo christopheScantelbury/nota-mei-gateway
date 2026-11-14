@@ -432,7 +432,7 @@ export default function GatewayLandingPage() {
                     { feature: 'Sandbox incluso sem custo adicional',                direto: false, genericas: null  as boolean | null, gateway: true },
                     { feature: 'SDK Node.js, Python e PHP mantidos',                 direto: false, genericas: null  as boolean | null, gateway: true },
                     { feature: 'Webhooks assinados (HMAC-SHA256) com retry',         direto: false, genericas: null  as boolean | null, gateway: true },
-                    { feature: 'NFS-e Nacional v1.01 (set/2026)',                    direto: false, genericas: null  as boolean | null, gateway: true },
+                    { feature: 'NFS-e Nacional v1.01 (obrigatória nov/2026)', direto: false, genericas: null  as boolean | null, gateway: true },
                     { feature: 'Suporte técnico em pt-BR',                           direto: false, genericas: null  as boolean | null, gateway: true },
                   ]
                 ).map(({ feature, direto, genericas, gateway }) => (

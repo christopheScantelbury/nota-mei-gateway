@@ -9,7 +9,6 @@
     "plugnotas": "PlugNotas"
   },
   "features": [
-    { "id": "nfse_nacional_native",  "label": "NFS-e Nacional nativa desde mai/2026",        "highlight": true,  "values": { "notafacil": "✅", "emissor_nacional": "✅",        "focus_nfe": "❌",         "enotas": "❌",            "plugnotas": "❌" } },
     { "id": "client_data_saved",      "label": "Dados do cliente salvos para reusar",         "highlight": true,  "values": { "notafacil": "✅", "emissor_nacional": "❌",        "focus_nfe": "✅",         "enotas": "✅",            "plugnotas": "✅" } },
     { "id": "fast_emission",          "label": "Emissão em ~30 segundos",                     "highlight": true,  "values": { "notafacil": "✅", "emissor_nacional": "❌",        "focus_nfe": "Parcial",    "enotas": "Parcial",       "plugnotas": "Parcial" } },
     { "id": "email_auto",             "label": "PDF + XML automáticos por e-mail",            "highlight": false, "values": { "notafacil": "✅", "emissor_nacional": "❌",        "focus_nfe": "✅",         "enotas": "✅",            "plugnotas": "✅" } },

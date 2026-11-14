@@ -187,7 +187,7 @@ export default async function PrecosPage() {
             <h2 className="font-display text-2xl font-extrabold">Planos ME / EPP e API</h2>
           </div>
           <p className="text-text-2 text-sm mb-8 ml-5">
-            Para Microempresas, EPP e desenvolvedores que integram via API REST. NFS-e Nacional obrigatória a partir de set/2026.
+            Para Microempresas, EPP e desenvolvedores que integram via API REST. NFS-e Nacional obrigatória para ME e EPP do Simples desde nov/2026.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">

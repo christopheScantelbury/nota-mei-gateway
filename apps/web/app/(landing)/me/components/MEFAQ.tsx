@@ -23,11 +23,12 @@ const FAQS = [
       'os documentos fiscais automaticamente. Suporte a A3 está no roadmap.',
   },
   {
-    pergunta: 'A obrigatoriedade é realmente em setembro/2026?',
+    pergunta: 'Desde quando a NFS-e Nacional é obrigatória?',
     resposta:
-      'Sim. A Resolução CGSN nº 189, de 23 de abril de 2026, estabelece ' +
-      '01/09/2026 como data obrigatória para ME e EPP optantes pelo Simples Nacional. ' +
-      'Lucro Presumido também está no escopo da obrigatoriedade.',
+      'Desde 01/11/2026 para ME e EPP optantes pelo Simples Nacional. ' +
+      'A Resolução CGSN nº 191, de 4 de agosto de 2026, revogou a nº 189, que previa ' +
+      '01/09/2026, e prorrogou o prazo. A resolução trata do Simples Nacional; ' +
+      'se a sua empresa é do Lucro Presumido, confirme a regra do seu município com o contador.',
   },
   {
     pergunta: 'Quanto custa?',

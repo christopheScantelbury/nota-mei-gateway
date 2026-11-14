@@ -73,7 +73,7 @@ export default function HeroSection() {
             desc="Simples Nacional e Lucro Presumido, multi-empresa nativo. Obrigatório e pronto."
             cta="Cadastrar minha empresa →"
             href="/me"
-            badge="Obrigatório Set/2026"
+            badge="Obrigatório Nov/2026"
             persona="me"
             location="hero_card_me"
             showCountdown
@@ -159,7 +159,7 @@ function PrimaryCard({
       </div>
       {showCountdown && (
         <div className="text-xs text-amber-300/90 border border-amber-500/30 bg-amber-500/5 rounded-lg px-3 py-2">
-          <p className="text-[11px] text-amber-200/80 mb-1">Faltam para a obrigatoriedade:</p>
+          <p className="text-[11px] text-amber-200/80 mb-1">Prazo da obrigatoriedade:</p>
           <CountdownSet2026 size="compact" />
         </div>
       )}
