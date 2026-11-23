@@ -147,6 +147,12 @@ func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS 
 
 	tomador := buildDPSTomador(req.Tomador)
 
+	// Grupo IBS/CBS (#296) — só para empresa com a classificação configurada.
+	ibscbs, err := buildIBSCBS(empresa)
+	if err != nil {
+		return nil, err
+	}
+
 	// Substituição (opcional) — quando este DPS substitui uma nota já autorizada.
 	var subst *Substituicao
 	if req.Subst != nil {
@@ -221,6 +227,8 @@ func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS 
 				TotTrib: buildTotTrib(opSimpNac),
 			},
 		},
+
+		IBSCBS: ibscbs,
 	}
 
 	doc := DPS{
@@ -387,6 +395,69 @@ func buildTotTrib(opSimpNac int) TribTotal {
 	}
 	z := IndTotTribNaoInforma
 	return TribTotal{IndTotTrib: &z}
+}
+
+// buildIBSCBS monta o grupo <IBSCBS> da DPS (TCRTCInfoIBSCBS) a partir da
+// classificação padrão da empresa (#296).
+//
+//   - Nada configurado → nil: o grupo é omitido e a DPS sai como sempre saiu.
+//     O envio depende da configuração da empresa, não do regime tributário:
+//     não está confirmado em fonte oficial quem do Simples/MEI é obrigado.
+//   - CST, cClassTrib e cIndOp configurados → grupo mínimo válido no XSD
+//     v1.01: finNFSe=0, cIndOp, indDest=0 e valores/trib/gIBSCBS com CST e
+//     cClassTrib.
+//   - Configuração parcial ou fora do padrão do XSD → ErrValidation. Enviar
+//     assim renderia E1235 (falha de esquema) na Sefin; omitir o grupo em
+//     silêncio deixaria a empresa achando que está declarando IBS/CBS.
+//
+// O emissor NÃO calcula IBS nem CBS: nenhum valor ou alíquota vai aqui. A
+// Sefin Nacional calcula na autorização e devolve no grupo IBSCBS da NFS-e.
+//
+// regApIBSCBSSN e cAtvSN (Simples Nacional, NT SE/CGNFS-e nº 009, leiaute
+// V1.04.01) não existem no XSD v1.01 e por isso NÃO são enviados — nem lidos
+// aqui. Ficam só no cadastro da empresa até o XSD novo entrar no repositório.
+func buildIBSCBS(empresa *auth.Empresa) (*InfoIBSCBS, error) {
+	cst := strings.TrimSpace(empresa.IBSCBSCST)
+	cClassTrib := strings.TrimSpace(empresa.IBSCBSCClassTrib)
+	cIndOp := strings.TrimSpace(empresa.IBSCBSCIndOp)
+	if cst == "" && cClassTrib == "" && cIndOp == "" {
+		return nil, nil
+	}
+
+	campos := []struct {
+		field, nome, valor string
+		digitos            int
+	}{
+		{"empresa.ibscbs_cst_padrao", "CST", cst, 3},
+		{"empresa.ibscbs_cclasstrib_padrao", "cClassTrib", cClassTrib, 6},
+		{"empresa.ibscbs_cindop_padrao", "cIndOp", cIndOp, 6},
+	}
+	for _, c := range campos {
+		if len(c.valor) != c.digitos || stripNonDigits(c.valor) != c.valor {
+			return nil, &ErrValidation{
+				Field: c.field,
+				Message: fmt.Sprintf(
+					"configuração de IBS/CBS da empresa incompleta ou inválida: %s deve ter %d dígitos — CST, cClassTrib e cIndOp precisam estar todos preenchidos",
+					c.nome, c.digitos),
+			}
+		}
+	}
+
+	return &InfoIBSCBS{
+		FinNFSe: FinNFSeRegular,
+		CIndOp:  cIndOp,
+		// Destinatário = tomador identificado na nota. Destinatário diferente
+		// (indDest=1 + <dest>) depende de campo novo na API pública.
+		IndDest: IndDestProprioTomador,
+		Valores: InfoValoresIBSCBS{
+			Trib: InfoTributosIBSCBS{
+				GIBSCBS: InfoTributosSitClas{
+					CST:        cst,
+					CClassTrib: cClassTrib,
+				},
+			},
+		},
+	}, nil
 }
 
 // roundHalfUp rounds a value to 2 decimals using HALF_UP (banker's rounding

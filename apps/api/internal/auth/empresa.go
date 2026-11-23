@@ -26,7 +26,13 @@ type Empresa struct {
 	InscricaoMunicipal *string
 	// RegApTribSN: regime de apuração do Simples (1/2/3) para ME/EPP optante
 	// (#279). 1 quando não configurado.
-	RegApTribSN      int
+	RegApTribSN int
+	// IBS/CBS (reforma tributária, #296): classificação padrão da empresa para
+	// o grupo <IBSCBS> da DPS. Os três vazios = não configurado, e a DPS sai
+	// sem o grupo. O envio depende desta configuração, não do regime.
+	IBSCBSCST        string // CST padrão — 3 dígitos
+	IBSCBSCClassTrib string // cClassTrib padrão — 6 dígitos
+	IBSCBSCIndOp     string // cIndOp padrão — 6 dígitos
 	CertSecretARN    *string
 	CertValidUntil   *time.Time
 	StripeCustomerID *string
@@ -109,6 +115,13 @@ func (r *Repository) FindEmpresaByUserID(ctx context.Context, userID uuid.UUID) 
 }
 
 // FindEmpresa loads an empresa and their active subscription info for the current month.
+//
+// As colunas ibscbs_* (#296) são lidas via to_jsonb(e)->>'coluna' para a
+// consulta funcionar também antes de a migration 20261123000001 ser aplicada:
+// chave ausente vira NULL em vez de "column does not exist". Esta consulta
+// roda em toda requisição autenticada — referência direta à coluna derrubaria
+// a API se o deploy chegasse antes do `supabase db push`. Pode virar
+// e.ibscbs_* depois que a migration estiver em produção.
 func (r *Repository) FindEmpresa(ctx context.Context, empresaID uuid.UUID) (*Empresa, error) {
 	row := r.db.Pool().QueryRow(ctx, `
 		SELECT
@@ -123,6 +136,9 @@ func (r *Repository) FindEmpresa(ctx context.Context, empresaID uuid.UUID) (*Emp
 			COALESCE(e.cep, '')               AS cep,
 			e.inscricao_municipal,
 			COALESCE(e.regime_apuracao_sn, 1) AS regime_apuracao_sn,
+			COALESCE(to_jsonb(e)->>'ibscbs_cst_padrao', '')        AS ibscbs_cst,
+			COALESCE(to_jsonb(e)->>'ibscbs_cclasstrib_padrao', '') AS ibscbs_cclasstrib,
+			COALESCE(to_jsonb(e)->>'ibscbs_cindop_padrao', '')     AS ibscbs_cindop,
 			e.cert_secret_arn,
 			e.cert_valid_until,
 			e.stripe_customer_id,
@@ -148,6 +164,7 @@ func (r *Repository) FindEmpresa(ctx context.Context, empresaID uuid.UUID) (*Emp
 		&e.CNAE, &e.CEP,
 		&e.InscricaoMunicipal,
 		&e.RegApTribSN,
+		&e.IBSCBSCST, &e.IBSCBSCClassTrib, &e.IBSCBSCIndOp,
 		&e.CertSecretARN, &e.CertValidUntil,
 		&e.StripeCustomerID,
 		&e.TrialMe,

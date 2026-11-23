@@ -60,6 +60,10 @@ type InfDPS struct {
 	Toma    *InfoPessoa   `xml:"toma,omitempty"`
 	Serv    DPSServ       `xml:"serv"`
 	Valores InfoValores   `xml:"valores"`
+
+	// IBSCBS — reforma tributária (#296). Opcional no XSD v1.01 e último
+	// elemento da sequência de TCInfDPS. nil = grupo omitido.
+	IBSCBS *InfoIBSCBS `xml:"IBSCBS,omitempty"`
 }
 
 // Substituicao — TCSubstituicao. Used in the DPS to declare it replaces a
@@ -231,7 +235,102 @@ type TribTotalPercent struct {
 	PTotTribMun float64 `xml:"pTotTribMun"`
 }
 
+// ── IBS/CBS declarado pelo emitente (TCRTCInfoIBSCBS) ─────────────────────────
+//
+// Grupo <IBSCBS> da DPS — tiposComplexos_v1.01.xsd, elemento na sequência de
+// TCInfDPS e tipo TCRTCInfoIBSCBS. Não confundir com TCRTCIBSCBS, que é o
+// grupo homônimo da NFS-e (infNFSe): aquele é gerado pela Sefin Nacional na
+// autorização, com base de cálculo, alíquotas e valores. O emissor só declara
+// a classificação da operação; não calcula IBS nem CBS.
+//
+// Todos os tipos simples deste grupo são xs:string com enumeração ou padrão
+// de dígitos (zeros à esquerda são significativos), por isso os campos são
+// string e não int.
+//
+// Fora do leiaute v1.01 (NÃO enviar enquanto DPSVersao for "1.01"):
+// regApIBSCBSSN, cAtvSN e gPgtoVinc pertencem ao leiaute da Nota Técnica
+// SE/CGNFS-e nº 009 (Anexo VI V1.04.01), cujo XSD ainda não está em
+// docs/nfse-schemas/. Os padrões por empresa já ficam guardados em
+// empresas.ibscbs_regime_apuracao_sn e empresas.ibscbs_catv_sn.
+
+// InfoIBSCBS — TCRTCInfoIBSCBS. A ordem dos campos é a do xs:sequence.
+type InfoIBSCBS struct {
+	FinNFSe   string       `xml:"finNFSe"`             // TSRTCFinNFSe: só "0" (NFS-e regular)
+	IndFinal  string       `xml:"indFinal,omitempty"`  // TSRTCIndFinal: "0"=não | "1"=uso ou consumo pessoal
+	CIndOp    string       `xml:"cIndOp"`              // TSRTCCodIndOp: 6 dígitos (tabela "código indicador de operação")
+	TpOper    string       `xml:"tpOper,omitempty"`    // TSRTCTpOper: "1".."5" (entes governamentais / bens imóveis)
+	GRefNFSe  *InfoRefNFSe `xml:"gRefNFSe,omitempty"`  // NFS-e referenciadas
+	TpEnteGov string       `xml:"tpEnteGov,omitempty"` // TSRTCTpEnteGov: "1".."4"
+	IndDest   string       `xml:"indDest"`             // TSRTCIndDest: "0"=destinatário é o tomador | "1"=outro
+	Dest      *InfoDest    `xml:"dest,omitempty"`      // só quando indDest="1"
+	// <imovel> (TCRTCInfoImovel, opcional) entra aqui na sequência — não
+	// modelado: o NotaFácil não emite operações com bens imóveis.
+	Valores InfoValoresIBSCBS `xml:"valores"`
+}
+
+// InfoRefNFSe — TCInfoRefNFSe. De 1 a 99 chaves de acesso (50 dígitos).
+type InfoRefNFSe struct {
+	RefNFSe []string `xml:"refNFSe"`
+}
+
+// InfoDest — TCRTCInfoDest. Choice: CNPJ XOR CPF XOR NIF XOR cNaoNIF.
+type InfoDest struct {
+	CNPJ    string       `xml:"CNPJ,omitempty"`
+	CPF     string       `xml:"CPF,omitempty"`
+	NIF     string       `xml:"NIF,omitempty"`
+	CNaoNIF *int         `xml:"cNaoNIF,omitempty"`
+	XNome   string       `xml:"xNome"` // required
+	End     *DPSEndereco `xml:"end,omitempty"`
+	Fone    string       `xml:"fone,omitempty"`
+	Email   string       `xml:"email,omitempty"`
+}
+
+// InfoValoresIBSCBS — TCRTCInfoValoresIBSCBS.
+type InfoValoresIBSCBS struct {
+	// <gReeRepRes> (TCRTCInfoReeRepRes, opcional) entra aqui na sequência —
+	// não modelado: reembolso, repasse e ressarcimento estão fora do escopo.
+	Trib InfoTributosIBSCBS `xml:"trib"`
+}
+
+// InfoTributosIBSCBS — TCRTCInfoTributosIBSCBS.
+type InfoTributosIBSCBS struct {
+	GIBSCBS InfoTributosSitClas `xml:"gIBSCBS"`
+}
+
+// InfoTributosSitClas — TCRTCInfoTributosSitClas. CST e cClassTrib são
+// obrigatórios; é a classificação que a Sefin usa para apurar os tributos.
+type InfoTributosSitClas struct {
+	CST          string                   `xml:"CST"`                 // TSRTCCodSitTrib: 3 dígitos
+	CClassTrib   string                   `xml:"cClassTrib"`          // TSRTCCodClassTrib: 6 dígitos
+	CCredPres    string                   `xml:"cCredPres,omitempty"` // TSRTCCodCredPres: 2 dígitos
+	GTribRegular *InfoTributosTribRegular `xml:"gTribRegular,omitempty"`
+	GDif         *InfoTributosDif         `xml:"gDif,omitempty"`
+}
+
+// InfoTributosTribRegular — TCRTCInfoTributosTribRegular.
+type InfoTributosTribRegular struct {
+	CSTReg        string `xml:"CSTReg"`        // TSRTCCodSitTrib: 3 dígitos
+	CClassTribReg string `xml:"cClassTribReg"` // TSRTCCodClassTrib: 6 dígitos
+}
+
+// InfoTributosDif — TCRTCInfoTributosDif. Percentuais no formato TSDec3V2
+// ("0", "0.50", "100", "33.33") — string para preservar as duas casas.
+type InfoTributosDif struct {
+	PDifUF  string `xml:"pDifUF"`
+	PDifMun string `xml:"pDifMun"`
+	PDifCBS string `xml:"pDifCBS"`
+}
+
 // ── Enum constants ────────────────────────────────────────────────────────────
+
+// FinNFSeRegular é o único valor de finNFSe no leiaute v1.01.
+const FinNFSeRegular = "0"
+
+// Valores de indDest.
+const (
+	IndDestProprioTomador = "0" // tomador = adquirente = destinatário
+	IndDestOutro          = "1" // destinatário diferente do tomador (exige <dest>)
+)
 
 // Valores de opSimpNac.
 const (

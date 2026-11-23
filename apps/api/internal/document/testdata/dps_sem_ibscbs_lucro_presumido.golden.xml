@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<DPS xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">
+  <infDPS Id="DPS130260321234567800019000001000000000000042">
+    <tpAmb>2</tpAmb>
+    <dhEmi>DHEMI</dhEmi>
+    <verAplic>NotaFacil-1.01</verAplic>
+    <serie>1</serie>
+    <nDPS>42</nDPS>
+    <dCompet>2026-06-01</dCompet>
+    <tpEmit>1</tpEmit>
+    <cLocEmi>1302603</cLocEmi>
+    <prest>
+      <CNPJ>12345678000190</CNPJ>
+      <regTrib>
+        <opSimpNac>1</opSimpNac>
+        <regEspTrib>0</regEspTrib>
+      </regTrib>
+    </prest>
+    <toma>
+      <CNPJ>98765432000100</CNPJ>
+      <xNome>Tomador LTDA</xNome>
+      <email>fin@tomador.com.br</email>
+    </toma>
+    <serv>
+      <locPrest>
+        <cLocPrestacao>1302603</cLocPrestacao>
+      </locPrest>
+      <cServ>
+        <cTribNac>010101</cTribNac>
+        <xDescServ>Desenvolvimento de software conforme contrato</xDescServ>
+      </cServ>
+    </serv>
+    <valores>
+      <vServPrest>
+        <vServ>3500</vServ>
+      </vServPrest>
+      <trib>
+        <tribMun>
+          <tribISSQN>1</tribISSQN>
+          <tpRetISSQN>1</tpRetISSQN>
+          <pAliq>2</pAliq>
+        </tribMun>
+        <totTrib>
+          <indTotTrib>0</indTotTrib>
+        </totTrib>
+      </trib>
+    </valores>
+  </infDPS>
+</DPS>
