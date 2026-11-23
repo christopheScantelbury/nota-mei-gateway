@@ -97,6 +97,28 @@ type ServicoRequest struct {
 	// então o schema mais natural é `servico.iss_retido`. Quando ambos vêm,
 	// root vence (compat). EmissaoRequest.Normalize() promove este pro root.
 	IssRetido *bool `json:"iss_retido,omitempty"`
+	// IBSCBS (opcional, #296) — classificação de IBS/CBS desta nota. Cada
+	// campo informado vale no lugar do padrão cadastrado na empresa. Fica
+	// dentro de `servico` porque a classificação é do serviço prestado e
+	// porque é esse objeto que a recorrência grava e reenvia.
+	IBSCBS *IBSCBSRequest `json:"ibs_cbs,omitempty"`
+}
+
+// IBSCBSRequest é a classificação de IBS/CBS informada por nota (#296). Todos
+// os campos são opcionais; o que faltar vem do padrão da empresa. Depois da
+// fusão, CST, cClassTrib e cIndOp precisam existir os três (o grupo <IBSCBS>
+// vai na DPS) ou nenhum (o grupo é omitido). O emissor só declara a
+// classificação — quem calcula IBS e CBS é a Sefin Nacional.
+type IBSCBSRequest struct {
+	// CST do IBS/CBS — 3 dígitos.
+	CST string `json:"cst,omitempty"`
+	// CodigoClassificacaoTributaria é o cClassTrib — 6 dígitos.
+	CodigoClassificacaoTributaria string `json:"codigo_classificacao_tributaria,omitempty"`
+	// CodigoIndicadorOperacao é o cIndOp — 6 dígitos.
+	CodigoIndicadorOperacao string `json:"codigo_indicador_operacao,omitempty"`
+	// ConsumoPessoal é o indFinal: operação de uso ou consumo pessoal
+	// (art. 57). Não informado → a tag não vai na DPS.
+	ConsumoPessoal *bool `json:"consumo_pessoal,omitempty"`
 }
 
 // TomadorRequest holds the service recipient details.

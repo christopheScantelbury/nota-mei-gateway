@@ -72,6 +72,18 @@ func TestDevKey_EmiteNoSandbox(t *testing.T) {
 	}
 }
 
+// servico.ibs_cbs (#296) é campo novo do corpo de emissão: o sandbox não
+// conhece a classificação, mas não pode rejeitar quem já a envia.
+func TestDevKey_SandboxAceitaIBSCBS(t *testing.T) {
+	const corpo = `{"servico":{"valor":10,"ibs_cbs":{"cst":"000","codigo_classificacao_tributaria":"000001",` +
+		`"codigo_indicador_operacao":"100301","consumo_pessoal":true}},` +
+		`"tomador":{"razao_social":"X"},"competencia":"2026-11"}`
+	status, body := do(t, newApp(), "POST", "/v1/nfse", devKeyA, corpo)
+	if status != 202 || !strings.Contains(body, "SANDBOX") {
+		t.Fatalf("sandbox deveria aceitar servico.ibs_cbs: %d %s", status, body)
+	}
+}
+
 func TestChaveDesconhecida_SegueParaAuthReal(t *testing.T) {
 	app := newApp()
 	status, body := do(t, app, "GET", "/v1/nfse", "sk_test_desconhecida", "")
