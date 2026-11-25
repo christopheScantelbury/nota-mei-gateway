@@ -55,10 +55,21 @@ export default function PWAProvider() {
         })
         .catch((err) => console.warn('[PWA] SW register falhou:', err))
 
-      // Recarrega quando o SW assume controle (cobre o caso de outro tab
-      // ter ativado a nova versão).
+      // Recarrega quando um SW NOVO substitui o que controlava a página (cobre
+      // o caso de outro tab ter ativado a nova versão).
+      //
+      // Na primeira visita não há controller: o SW recém-instalado dá
+      // clients.claim() e isso também dispara `controllerchange`. Recarregar
+      // ali não atualiza nada — a página já é a versão atual — e apagava o que
+      // o visitante tinha feito nos primeiros ~2 s (issue #302). Esse primeiro
+      // evento só marca a página como controlada.
+      let controlled = !!navigator.serviceWorker.controller
       let reloaded = false
       navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!controlled) {
+          controlled = true
+          return
+        }
         if (reloaded) return
         reloaded = true
         window.location.reload()
