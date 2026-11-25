@@ -42,6 +42,7 @@ def _build_emissao_body(
             "discriminacao": servico["discriminacao"],
             "valor": servico["valor"],
             "aliquota_iss": servico["aliquota_iss"],
+            **({"ibs_cbs": dict(servico["ibs_cbs"])} if "ibs_cbs" in servico else {}),
         },
         "tomador": {
             "tipo": tipo,

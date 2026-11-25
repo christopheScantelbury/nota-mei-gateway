@@ -10,6 +10,7 @@ export type {
   WebhookEvent,
   WebhookPayload,
   ServicoInput,
+  IbsCbsInput,
   TomadorInput,
   EnderecoInput,
   EmissaoInput,

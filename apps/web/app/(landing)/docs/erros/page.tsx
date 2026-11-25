@@ -43,6 +43,12 @@ export default function ErrosPage() {
       fix: 'Corrija os dados conforme erro_descricao e reenvie com uma NOVA Idempotency-Key (a antiga devolve a nota rejeitada).',
     },
     {
+      code: 'IBS_CBS_CONFIGURACAO_INVALIDA',
+      http: 422,
+      desc: 'A classificação padrão de IBS/CBS do cadastro da empresa está incompleta ou inválida. Nada foi enviado à Receita.',
+      fix: 'Envie os três códigos (cst, codigo_classificacao_tributaria e codigo_indicador_operacao) na nota, em servico.ibs_cbs, ou fale com o suporte para corrigir o padrão da empresa.',
+    },
+    {
       code: 'INVALID_NBS',
       http: 422,
       desc: 'Código NBS inválido ou não encontrado.',

@@ -304,6 +304,10 @@ Authorization: Bearer sk_live_<hex64>
 ```
 `tomador.municipio_ibge`/`cep` soltos só vão pra DPS junto com `endereco` (fallback).
 Header `Idempotency-Key` (ou `idempotency_key` no corpo) — única por empresa; reenvio devolve a nota existente.
+`servico.ibs_cbs` (opcional, #296) — `cst` (3 dígitos), `codigo_classificacao_tributaria` (6), `codigo_indicador_operacao` (6)
+e `consumo_pessoal` (bool → `indFinal`). Vale só pra nota e prevalece, campo a campo, sobre o padrão da empresa
+(`empresas.ibscbs_*_padrao`). Depois da fusão: três códigos → grupo `<IBSCBS>` na DPS; nenhum → DPS sem o grupo.
+Fica dentro de `servico` porque a recorrência só grava `servico` e `tomador`.
 
 ### Response de emissão (síncrona na maioria dos casos)
 | HTTP | `status` | Quando |
@@ -311,6 +315,7 @@ Header `Idempotency-Key` (ou `idempotency_key` no corpo) — única por empresa;
 | 201 | AUTORIZADA | Receita autorizou na hora (`chave_acesso` no corpo) |
 | 202 | PROCESSANDO | Receita não respondeu — resultado via webhook/poller |
 | 422 | REJEITADA | `error: RECEITA_REJECTION` + `nota_id`, `erro_codigo`, `erro_descricao` |
+| 422 | — | `IBS_CBS_CONFIGURACAO_INVALIDA` — padrão de IBS/CBS da empresa incompleto/inválido (nada enviado, número da DPS não consumido) |
 | 200 | qualquer | Replay de `Idempotency-Key` já usada (`Idempotent-Replayed: true`) |
 | 409 | — | `IDEMPOTENCY_KEY_CONFLICT` |
 
@@ -585,6 +590,18 @@ status-cancelada.png    → #6473A0 (cinza)
                                 dashboard/link público tratam rejeição, SDKs node/python/sheets
                               · Build Vercel: overrides eslint-config-next = lockfile — b67e3cd
                               · Testes Go: rodar em Docker (Smart App Control bloqueia go test)
+🟡 IBS-CBS (#296, 2026-11-24)  Grupo <IBSCBS> na DPS v1.01 — código em prod (#297), NÃO validado na Sefin
+                              · Tipo TCRTCInfoIBSCBS, último filho de <infDPS>; sai só com CST + cClassTrib + cIndOp
+                              · Por nota: servico.ibs_cbs · por empresa: empresas.ibscbs_*_padrao
+                              · document.ValidateIBSCBS roda antes da cota e do NextNumeroDPS
+                                (emissão, substituição, recorrência)
+                              · Sem classificação a DPS é byte a byte a de antes (golden em testdata/)
+                              · ✅ migration 20261123000001_empresas_ibscbs.sql aplicada em prod (2026-11-25);
+                                nenhuma empresa com padrão preenchido ainda
+                              · ⏳ FindEmpresa: a leitura via to_jsonb (pra funcionar antes da migration)
+                                é trocada por e.ibscbs_* no PR #300 — até o merge dele, segue to_jsonb
+                              · ⏳ Falta: nota real em produção restrita, tela de configuração da empresa,
+                                campos da NT 009 (regApIBSCBSSN, cAtvSN), leitura do retorno, DANFSE
 ```
 
 ---
@@ -637,6 +654,7 @@ NOT_FOUND              → 404
 ALREADY_CANCELLED      → 409
 VALIDATION_ERROR       → 422
 RECEITA_REJECTION      → 422
+IBS_CBS_CONFIGURACAO_INVALIDA → 422
 INTERNAL_ERROR         → 500
 ```
 
