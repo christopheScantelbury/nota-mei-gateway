@@ -109,6 +109,27 @@ function StatusBadge({ code }: { code: number }) {
 
 interface WebhookPayload { received_at: string; body: Record<string, unknown> }
 
+/**
+ * Lê a lista do GET /v1/sandbox/webhook.
+ *
+ * A API responde `{ data: [...], total }`, do mais antigo pro mais novo. Esta
+ * página só aceitava array puro ou `{ webhooks }`, então o monitor nunca
+ * mostrava nada (issue #301). Os dois formatos antigos seguem aceitos.
+ *
+ * Devolve do mais novo pro mais antigo, ou null se a resposta não traz lista.
+ */
+function extractWebhooks(data: unknown): WebhookPayload[] | null {
+  const obj = data as { data?: unknown; webhooks?: unknown } | null
+  const lista = Array.isArray(data) ? data
+    : Array.isArray(obj?.data) ? obj.data
+    : Array.isArray(obj?.webhooks) ? obj.webhooks
+    : null
+  if (!lista) return null
+  return (lista as WebhookPayload[])
+    .filter(wh => wh && typeof wh === 'object' && wh.body && typeof wh.body === 'object')
+    .reverse()
+}
+
 export default function SandboxPage() {
   const [rawBody, setRawBody]       = useState(JSON.stringify(DEFAULT_BODY, null, 2))
   const [activeTab, setActiveTab]   = useState<Tab>('curl')
@@ -132,6 +153,13 @@ export default function SandboxPage() {
     try { JSON.parse(rawBody); return null }
     catch (e) { return (e as Error).message }
   }, [rawBody])
+
+  // A lista da API é uma só pra todos os visitantes do sandbox. O monitor mostra
+  // apenas os callbacks das notas emitidas neste navegador (as do histórico).
+  const meusWebhooks = useMemo((): WebhookPayload[] => {
+    const ids = new Set<unknown>(history.map(h => h.body?.nota_id).filter(id => typeof id === 'string'))
+    return webhooks.filter(wh => ids.has(wh.body.nota_id))
+  }, [webhooks, history])
 
   const snippets = useMemo((): Record<Tab, string> => ({
     curl:   buildCurl(parsedBody ?? DEFAULT_BODY),
@@ -170,12 +198,9 @@ export default function SandboxPage() {
       const res = await fetch(`${WEBHOOK_URL}`)
       if (!res.ok) return
       const data = await res.json().catch(() => null)
-      // API pode retornar objeto {error} ou null — garante que state SEMPRE é array
-      if (Array.isArray(data)) {
-        setWebhooks(data)
-      } else if (data && Array.isArray((data as { webhooks?: unknown }).webhooks)) {
-        setWebhooks((data as { webhooks: WebhookPayload[] }).webhooks)
-      }
+      const lista = extractWebhooks(data)
+      // Resposta sem lista ({error}, null) não mexe no estado: ele SEMPRE é array.
+      if (lista) setWebhooks(lista)
     } catch { /* non-fatal */ }
   }
 
@@ -387,13 +412,13 @@ export default function SandboxPage() {
             </Button>
           </div>
 
-          {webhooks.length === 0 ? (
+          {meusWebhooks.length === 0 ? (
             <p className="text-xs sm:text-sm text-text-2 text-center py-4">
               Nenhum webhook recebido ainda. Execute uma requisição para ver os callbacks.
             </p>
           ) : (
             <div className="space-y-2 max-h-48 overflow-y-auto">
-              {webhooks.slice(0, 20).map((wh, i) => (
+              {meusWebhooks.slice(0, 20).map((wh, i) => (
                 <div key={i} className="bg-navy-900 border border-navy-600 rounded-lg px-3 py-2">
                   <div className="flex items-center justify-between mb-1 gap-2">
                     <code className="text-xs font-mono text-brand-cyan truncate">
