@@ -60,6 +60,10 @@ type InfDPS struct {
 	Toma    *InfoPessoa   `xml:"toma,omitempty"`
 	Serv    DPSServ       `xml:"serv"`
 	Valores InfoValores   `xml:"valores"`
+
+	// IBSCBS — reforma tributária (#296). Opcional no XSD v1.01 e último
+	// elemento da sequência de TCInfDPS. nil = grupo omitido.
+	IBSCBS *InfoIBSCBS `xml:"IBSCBS,omitempty"`
 }
 
 // Substituicao — TCSubstituicao. Used in the DPS to declare it replaces a
@@ -231,7 +235,86 @@ type TribTotalPercent struct {
 	PTotTribMun float64 `xml:"pTotTribMun"`
 }
 
+// ── IBS/CBS declarado pelo emitente (TCRTCInfoIBSCBS) ─────────────────────────
+//
+// Grupo <IBSCBS> da DPS — tiposComplexos_v1.01.xsd, elemento na sequência de
+// TCInfDPS e tipo TCRTCInfoIBSCBS. Não confundir com TCRTCIBSCBS, que é o
+// grupo homônimo da NFS-e (infNFSe): aquele é gerado pela Sefin Nacional na
+// autorização, com base de cálculo, alíquotas e valores. O emissor só declara
+// a classificação da operação; não calcula IBS nem CBS.
+//
+// Todos os tipos simples deste grupo são xs:string com enumeração ou padrão
+// de dígitos (zeros à esquerda são significativos), por isso os campos são
+// string e não int.
+//
+// Fora do leiaute v1.01 (NÃO enviar enquanto DPSVersao for "1.01"):
+// regApIBSCBSSN, cAtvSN e gPgtoVinc pertencem ao leiaute da Nota Técnica
+// SE/CGNFS-e nº 009 (Anexo VI V1.04.01), cujo XSD ainda não está em
+// docs/nfse-schemas/. Os padrões por empresa já ficam guardados em
+// empresas.ibscbs_regime_apuracao_sn e empresas.ibscbs_catv_sn.
+
+// InfoIBSCBS — TCRTCInfoIBSCBS. A ordem dos campos é a do xs:sequence.
+//
+// Só estão modelados os elementos que o builder preenche. Sequência completa
+// do XSD, para quem for modelar os opcionais (★ = modelado):
+//
+//		finNFSe ★ · indFinal ★ · cIndOp ★ · tpOper · gRefNFSe · tpEnteGov ·
+//		indDest ★ · dest · imovel · valores ★
+//
+//	  - tpOper (TSRTCTpOper, "1".."5"): entes governamentais / bens imóveis.
+//	  - gRefNFSe (TCInfoRefNFSe): 1 a 99 <refNFSe>, chaves de 50 dígitos.
+//	  - tpEnteGov (TSRTCTpEnteGov, "1".."4").
+//	  - dest (TCRTCInfoDest): só quando indDest="1" — CNPJ|CPF|NIF|cNaoNIF,
+//	    xNome, end, fone, email.
+//	  - imovel (TCRTCInfoImovel): operações com bens imóveis.
+type InfoIBSCBS struct {
+	FinNFSe  string            `xml:"finNFSe"`            // TSRTCFinNFSe: só "0" (NFS-e regular)
+	IndFinal string            `xml:"indFinal,omitempty"` // TSRTCIndFinal: "0"=não | "1"=uso ou consumo pessoal
+	CIndOp   string            `xml:"cIndOp"`             // TSRTCCodIndOp: 6 dígitos (tabela "código indicador de operação")
+	IndDest  string            `xml:"indDest"`            // TSRTCIndDest: "0"=destinatário é o tomador | "1"=outro
+	Valores  InfoValoresIBSCBS `xml:"valores"`
+}
+
+// InfoValoresIBSCBS — TCRTCInfoValoresIBSCBS. Sequência: gReeRepRes · trib ★.
+// gReeRepRes (TCRTCInfoReeRepRes, opcional): reembolso, repasse e
+// ressarcimento — fora do escopo.
+type InfoValoresIBSCBS struct {
+	Trib InfoTributosIBSCBS `xml:"trib"`
+}
+
+// InfoTributosIBSCBS — TCRTCInfoTributosIBSCBS.
+type InfoTributosIBSCBS struct {
+	GIBSCBS InfoTributosSitClas `xml:"gIBSCBS"`
+}
+
+// InfoTributosSitClas — TCRTCInfoTributosSitClas. CST e cClassTrib são
+// obrigatórios; é a classificação que a Sefin usa para apurar os tributos.
+//
+// Sequência completa: CST ★ · cClassTrib ★ · cCredPres · gTribRegular · gDif
+//
+//   - cCredPres (TSRTCCodCredPres, 2 dígitos): crédito presumido.
+//   - gTribRegular (TCRTCInfoTributosTribRegular): CSTReg, cClassTribReg.
+//   - gDif (TCRTCInfoTributosDif): pDifUF, pDifMun, pDifCBS (TSDec3V2).
+type InfoTributosSitClas struct {
+	CST        string `xml:"CST"`        // TSRTCCodSitTrib: 3 dígitos
+	CClassTrib string `xml:"cClassTrib"` // TSRTCCodClassTrib: 6 dígitos
+}
+
 // ── Enum constants ────────────────────────────────────────────────────────────
+
+// FinNFSeRegular é o único valor de finNFSe no leiaute v1.01.
+const FinNFSeRegular = "0"
+
+// Valores de indFinal — operação de uso ou consumo pessoal (art. 57).
+const (
+	IndFinalNao = "0"
+	IndFinalSim = "1"
+)
+
+// IndDestProprioTomador é o indDest que o builder envia: tomador = adquirente
+// = destinatário. O outro valor do XSD ("1", destinatário diferente do
+// tomador) exige o grupo <dest>, que não está modelado.
+const IndDestProprioTomador = "0"
 
 // Valores de opSimpNac.
 const (

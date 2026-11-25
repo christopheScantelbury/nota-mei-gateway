@@ -26,7 +26,13 @@ type Empresa struct {
 	InscricaoMunicipal *string
 	// RegApTribSN: regime de apuração do Simples (1/2/3) para ME/EPP optante
 	// (#279). 1 quando não configurado.
-	RegApTribSN      int
+	RegApTribSN int
+	// IBS/CBS (reforma tributária, #296): classificação padrão da empresa para
+	// o grupo <IBSCBS> da DPS. Os três vazios = não configurado, e a DPS sai
+	// sem o grupo. O envio depende desta configuração, não do regime.
+	IBSCBSCST        string // CST padrão — 3 dígitos
+	IBSCBSCClassTrib string // cClassTrib padrão — 6 dígitos
+	IBSCBSCIndOp     string // cIndOp padrão — 6 dígitos
 	CertSecretARN    *string
 	CertValidUntil   *time.Time
 	StripeCustomerID *string
@@ -109,37 +115,17 @@ func (r *Repository) FindEmpresaByUserID(ctx context.Context, userID uuid.UUID) 
 }
 
 // FindEmpresa loads an empresa and their active subscription info for the current month.
+//
+// As colunas ibscbs_* (#296) são lidas do JSON da linha (ej.j->>'coluna') para
+// a consulta funcionar também antes de a migration 20261123000001 ser
+// aplicada: chave ausente vira NULL em vez de "column does not exist". Esta
+// consulta roda em toda requisição autenticada — referência direta à coluna
+// derrubaria a API se o deploy chegasse antes do `supabase db push`.
+//
+// TODO(#296): depois do `supabase db push` em produção, trocar ej.j->>'…' por
+// e.ibscbs_* e remover o LATERAL.
 func (r *Repository) FindEmpresa(ctx context.Context, empresaID uuid.UUID) (*Empresa, error) {
-	row := r.db.Pool().QueryRow(ctx, `
-		SELECT
-			e.id,
-			e.tipo,
-			e.regime_tributario,
-			e.cnpj,
-			e.razao_social,
-			e.email,
-			e.municipio_ibge,
-			COALESCE(e.cnae, '')              AS cnae,
-			COALESCE(e.cep, '')               AS cep,
-			e.inscricao_municipal,
-			COALESCE(e.regime_apuracao_sn, 1) AS regime_apuracao_sn,
-			e.cert_secret_arn,
-			e.cert_valid_until,
-			e.stripe_customer_id,
-			e.trial_me,
-			em.stripe_subscription_id,
-			em.stripe_subscription_status,
-			COALESCE(p.nome, 'Trial ME')      AS plano_nome,
-			COALESCE(p.emissoes_limite, 5)    AS plano_limite,
-			COALESCE(p.preco_excedente_brl, 0) AS plano_prec_excedente,
-			COALESCE(em.total_emitidas, 0)    AS total_emitidas
-		FROM empresas e
-		LEFT JOIN emissoes_mensais em
-			ON em.empresa_id = e.id
-			AND em.competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
-		LEFT JOIN planos p ON p.id = em.plano_id
-		WHERE e.id = $1
-	`, empresaID)
+	row := r.db.Pool().QueryRow(ctx, findEmpresaSQL, empresaID)
 
 	var e Empresa
 	if err := row.Scan(
@@ -148,6 +134,7 @@ func (r *Repository) FindEmpresa(ctx context.Context, empresaID uuid.UUID) (*Emp
 		&e.CNAE, &e.CEP,
 		&e.InscricaoMunicipal,
 		&e.RegApTribSN,
+		&e.IBSCBSCST, &e.IBSCBSCClassTrib, &e.IBSCBSCIndOp,
 		&e.CertSecretARN, &e.CertValidUntil,
 		&e.StripeCustomerID,
 		&e.TrialMe,
@@ -162,6 +149,44 @@ func (r *Repository) FindEmpresa(ctx context.Context, empresaID uuid.UUID) (*Emp
 	}
 	return &e, nil
 }
+
+// findEmpresaSQL é a consulta de FindEmpresa. O LATERAL com OFFSET 0 faz o
+// to_jsonb(e) ser avaliado uma vez por linha: sem o OFFSET 0 o planner embute
+// a subconsulta e repete a expressão em cada coluna que a usa.
+const findEmpresaSQL = `
+		SELECT
+			e.id,
+			e.tipo,
+			e.regime_tributario,
+			e.cnpj,
+			e.razao_social,
+			e.email,
+			e.municipio_ibge,
+			COALESCE(e.cnae, '')              AS cnae,
+			COALESCE(e.cep, '')               AS cep,
+			e.inscricao_municipal,
+			COALESCE(e.regime_apuracao_sn, 1) AS regime_apuracao_sn,
+			COALESCE(ej.j->>'ibscbs_cst_padrao', '')        AS ibscbs_cst,
+			COALESCE(ej.j->>'ibscbs_cclasstrib_padrao', '') AS ibscbs_cclasstrib,
+			COALESCE(ej.j->>'ibscbs_cindop_padrao', '')     AS ibscbs_cindop,
+			e.cert_secret_arn,
+			e.cert_valid_until,
+			e.stripe_customer_id,
+			e.trial_me,
+			em.stripe_subscription_id,
+			em.stripe_subscription_status,
+			COALESCE(p.nome, 'Trial ME')      AS plano_nome,
+			COALESCE(p.emissoes_limite, 5)    AS plano_limite,
+			COALESCE(p.preco_excedente_brl, 0) AS plano_prec_excedente,
+			COALESCE(em.total_emitidas, 0)    AS total_emitidas
+		FROM empresas e
+		CROSS JOIN LATERAL (SELECT to_jsonb(e) AS j OFFSET 0) ej
+		LEFT JOIN emissoes_mensais em
+			ON em.empresa_id = e.id
+			AND em.competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
+		LEFT JOIN planos p ON p.id = em.plano_id
+		WHERE e.id = $1
+	`
 
 // RegisterEmpresa inserts a new ME/EPP empresa, assigns the Trial ME plan for
 // the current month, and creates a live API key — all inside a single transaction.

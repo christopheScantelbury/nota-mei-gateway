@@ -113,6 +113,13 @@ func (e *RealEmissor) EmitirNota(ctx context.Context, meiID string, reqMap map[s
 		return "", fmt.Errorf("%w: %v", ErrSemCertificado, err)
 	}
 
+	// Classificação de IBS/CBS (#296) também antes do número: servico.ibs_cbs
+	// vem do JSON gravado na recorrência, e o padrão vem do cadastro. Com erro
+	// aqui o tick falha sem queimar número de DPS.
+	if err := document.ValidateIBSCBS(req, empresa); err != nil {
+		return "", fmt.Errorf("classificação de IBS/CBS: %w", err)
+	}
+
 	// 3. Allocate DPS sequence number (atomic).
 	numeroDPS, err := e.notaRepo.NextNumeroDPS(ctx, empresa.ID)
 	if err != nil {

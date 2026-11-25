@@ -277,6 +277,12 @@ func (h *NFSeHandler) emitirNotaME(c *fiber.Ctx, req document.EmissaoRequest, em
 		}
 	}
 
+	// ── IBS/CBS (#296) ────────────────────────────────────────────────────
+	// Antes da cota (o guard incrementa o contador) e do número da DPS.
+	if barrado, resp := ibscbsPreflight(c, req, empresa); barrado {
+		return resp
+	}
+
 	// ── 1. Billing check ──────────────────────────────────────────────────
 	em, err := h.billingRepo.GetOrCreateEmissaoMensalEmpresa(ctx, empresa.ID)
 	if err != nil {
@@ -906,6 +912,11 @@ func (h *NFSeHandler) SubstituirNota(c *fiber.Ctx) error {
 		ChaveSubstituida: *original.NumeroNFSe,
 		CodigoMotivo:     codigoMotivo,
 		DescricaoMotivo:  reqBody.Substituicao.DescricaoMotivo,
+	}
+
+	// IBS/CBS (#296) — antes de alocar o número da DPS substituta.
+	if barrado, resp := ibscbsPreflight(c, req, empresa); barrado {
+		return resp
 	}
 
 	ctx := c.Context()
@@ -1792,6 +1803,40 @@ func validateEmissaoRequest(r document.EmissaoRequest) []fiber.Map {
 		}
 	}
 	return errs
+}
+
+// ibscbsPreflight valida a classificação de IBS/CBS da nota (#296) antes de
+// consumir cota e de alocar o número da DPS. Devolve (true, resposta) quando
+// a emissão tem que parar.
+//
+//   - Erro no request (servico.ibs_cbs.*) → 422 VALIDATION_ERROR com o campo.
+//   - Padrão cadastrado na empresa incompleto ou inválido → 422
+//     IBS_CBS_CONFIGURACAO_INVALIDA: o integrador não tem o que corrigir no
+//     corpo; quem resolve é o cadastro da empresa.
+func ibscbsPreflight(c *fiber.Ctx, req document.EmissaoRequest, empresa *auth.Empresa) (bool, error) {
+	err := document.ValidateIBSCBS(req, empresa)
+	if err == nil {
+		return false, nil
+	}
+	var validErr *document.ErrValidation
+	if errors.As(err, &validErr) {
+		return true, c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error":      "VALIDATION_ERROR",
+			"message":    "campos inválidos",
+			"fields":     []fiber.Map{{"field": validErr.Field, "message": validErr.Message}},
+			"request_id": c.Locals("request_id"),
+		})
+	}
+	var cfgErr *document.ErrConfigEmpresa
+	if errors.As(err, &cfgErr) {
+		return true, c.Status(fiber.StatusUnprocessableEntity).JSON(fiber.Map{
+			"error":      "IBS_CBS_CONFIGURACAO_INVALIDA",
+			"message":    cfgErr.Message,
+			"fields":     []fiber.Map{{"field": cfgErr.Field, "message": cfgErr.Message}},
+			"request_id": c.Locals("request_id"),
+		})
+	}
+	return true, internalError(c, "erro ao validar a classificação de IBS/CBS")
 }
 
 // ─── serialisation ────────────────────────────────────────────────────────

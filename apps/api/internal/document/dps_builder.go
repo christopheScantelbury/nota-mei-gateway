@@ -147,6 +147,14 @@ func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS 
 
 	tomador := buildDPSTomador(req.Tomador)
 
+	// Grupo IBS/CBS (#296) — só quando há classificação, na nota ou no padrão
+	// da empresa. Os chamadores já validaram com ValidateIBSCBS antes de
+	// alocar o número da DPS; aqui é a última barreira.
+	ibscbs, err := buildIBSCBS(req.Servico.IBSCBS, empresa)
+	if err != nil {
+		return nil, err
+	}
+
 	// Substituição (opcional) — quando este DPS substitui uma nota já autorizada.
 	var subst *Substituicao
 	if req.Subst != nil {
@@ -221,6 +229,8 @@ func (b *DPSBuilder) Build(req EmissaoRequest, empresa *auth.Empresa, numeroDPS 
 				TotTrib: buildTotTrib(opSimpNac),
 			},
 		},
+
+		IBSCBS: ibscbs,
 	}
 
 	doc := DPS{
@@ -387,6 +397,169 @@ func buildTotTrib(opSimpNac int) TribTotal {
 	}
 	z := IndTotTribNaoInforma
 	return TribTotal{IndTotTrib: &z}
+}
+
+// ── IBS/CBS (#296) ────────────────────────────────────────────────────────────
+
+// Campos de erro da classificação de IBS/CBS. Erro de quem chama a API aponta
+// o campo do request; erro do cadastro aponta "empresa.ibs_cbs" — nunca o
+// nome da coluna do banco.
+const (
+	campoIBSCBSRequest = "servico.ibs_cbs"
+	campoIBSCBSEmpresa = "empresa.ibs_cbs"
+)
+
+// ErrConfigEmpresa sinaliza que o cadastro da empresa impede a emissão — não
+// é um erro do pedido. O handler responde 422 com um código próprio para o
+// integrador não procurar o problema no corpo que enviou.
+type ErrConfigEmpresa struct {
+	Field   string
+	Message string
+}
+
+func (e *ErrConfigEmpresa) Error() string { return e.Field + ": " + e.Message }
+
+// ValidateIBSCBS confere a classificação de IBS/CBS que a nota vai levar
+// (request campo a campo sobre o padrão da empresa) sem montar a DPS. Chamar
+// ANTES de consumir cota e de alocar o número da DPS: classificação inválida
+// não pode queimar número nem contar no limite do plano.
+//
+// Devolve *ErrValidation quando o problema está no request e
+// *ErrConfigEmpresa quando está no padrão cadastrado na empresa.
+func ValidateIBSCBS(req EmissaoRequest, empresa *auth.Empresa) error {
+	if empresa == nil {
+		return fmt.Errorf("empresa is nil")
+	}
+	_, err := buildIBSCBS(req.Servico.IBSCBS, empresa)
+	return err
+}
+
+// buildIBSCBS monta o grupo <IBSCBS> da DPS (TCRTCInfoIBSCBS).
+//
+// Precedência, campo a campo: o que veio em servico.ibs_cbs, senão o padrão
+// da empresa. Depois da fusão:
+//
+//   - Nenhum dos três códigos → nil: o grupo é omitido e a DPS sai como
+//     sempre saiu. O envio depende de haver classificação, não do regime
+//     tributário: não está confirmado em fonte oficial quem do Simples/MEI é
+//     obrigado.
+//   - CST, cClassTrib e cIndOp informados e no padrão do XSD → grupo mínimo
+//     válido no leiaute v1.01: finNFSe=0, [indFinal], cIndOp, indDest=0 e
+//     valores/trib/gIBSCBS com CST e cClassTrib.
+//   - Parcial ou fora do padrão → erro. Enviar assim renderia E1235 (falha de
+//     esquema) na Sefin; omitir o grupo em silêncio deixaria a empresa
+//     achando que está declarando IBS/CBS.
+//
+// O emissor NÃO calcula IBS nem CBS: nenhum valor ou alíquota vai aqui. A
+// Sefin Nacional calcula na autorização e devolve no grupo IBSCBS da NFS-e.
+//
+// regApIBSCBSSN e cAtvSN (Simples Nacional, NT SE/CGNFS-e nº 009, leiaute
+// V1.04.01) não existem no XSD v1.01 e por isso NÃO são enviados — nem lidos
+// aqui. Ficam só no cadastro da empresa até o XSD novo entrar no repositório.
+func buildIBSCBS(nota *IBSCBSRequest, empresa *auth.Empresa) (*InfoIBSCBS, error) {
+	if nota == nil {
+		nota = &IBSCBSRequest{}
+	}
+	campos := []struct {
+		json, nome        string // campo do request e nome no leiaute
+		daNota, daEmpresa string
+		digitos           int
+	}{
+		{"cst", "CST", nota.CST, empresa.IBSCBSCST, 3},
+		{"codigo_classificacao_tributaria", "cClassTrib", nota.CodigoClassificacaoTributaria, empresa.IBSCBSCClassTrib, 6},
+		{"codigo_indicador_operacao", "cIndOp", nota.CodigoIndicadorOperacao, empresa.IBSCBSCIndOp, 6},
+	}
+
+	valores := make([]string, len(campos))
+	algumDaNota, algum := false, false
+	for i, c := range campos {
+		v := strings.TrimSpace(c.daNota)
+		if v != "" {
+			algumDaNota = true
+			if !soDigitos(v, c.digitos) {
+				return nil, &ErrValidation{
+					Field:   campoIBSCBSRequest + "." + c.json,
+					Message: fmt.Sprintf("%s deve ter exatamente %d dígitos", c.nome, c.digitos),
+				}
+			}
+		} else if v = strings.TrimSpace(c.daEmpresa); v != "" && !soDigitos(v, c.digitos) {
+			return nil, &ErrConfigEmpresa{
+				Field: campoIBSCBSEmpresa,
+				Message: fmt.Sprintf(
+					"a classificação padrão de IBS/CBS cadastrada na empresa está inválida: %s deve ter exatamente %d dígitos — corrija o cadastro da empresa antes de emitir",
+					c.nome, c.digitos),
+			}
+		}
+		valores[i] = v
+		algum = algum || v != ""
+	}
+
+	if !algum {
+		// indFinal só existe dentro do grupo: sem classificação não há onde
+		// declarar o consumo pessoal, e ignorar o campo em silêncio esconderia
+		// isso de quem enviou.
+		if nota.ConsumoPessoal != nil {
+			return nil, &ErrValidation{
+				Field:   campoIBSCBSRequest + ".consumo_pessoal",
+				Message: "só pode ser informado junto da classificação de IBS/CBS — envie cst, codigo_classificacao_tributaria e codigo_indicador_operacao, ou cadastre o padrão na empresa",
+			}
+		}
+		return nil, nil
+	}
+
+	for i, c := range campos {
+		if valores[i] != "" {
+			continue
+		}
+		// Falta um código. Se a nota trouxe algum, é ela que está incompleta
+		// (a empresa não tem padrão para completar); senão é o cadastro.
+		if algumDaNota {
+			return nil, &ErrValidation{
+				Field:   campoIBSCBSRequest + "." + c.json,
+				Message: fmt.Sprintf("obrigatório: %s não foi informado e a empresa não tem padrão cadastrado — CST, cClassTrib e cIndOp vão sempre juntos", c.nome),
+			}
+		}
+		return nil, &ErrConfigEmpresa{
+			Field: campoIBSCBSEmpresa,
+			Message: fmt.Sprintf(
+				"a classificação padrão de IBS/CBS cadastrada na empresa está incompleta: falta %s — CST, cClassTrib e cIndOp vão sempre juntos; complete o cadastro da empresa antes de emitir",
+				c.nome),
+		}
+	}
+
+	grupo := &InfoIBSCBS{
+		FinNFSe: FinNFSeRegular,
+		CIndOp:  valores[2],
+		// Destinatário = tomador identificado na nota. Destinatário diferente
+		// (indDest=1 + <dest>) depende de campo novo na API pública.
+		//
+		// A VALIDAR em produção restrita (#296): DPS sem <toma> — só acontece
+		// em recorrência gravada sem tomador — também sai com indDest=0. A
+		// regra da Sefin para "destinatário é o tomador" sem tomador
+		// identificado não foi confirmada; o comportamento fica como está até
+		// haver resposta da Sefin.
+		IndDest: IndDestProprioTomador,
+		Valores: InfoValoresIBSCBS{
+			Trib: InfoTributosIBSCBS{
+				GIBSCBS: InfoTributosSitClas{
+					CST:        valores[0],
+					CClassTrib: valores[1],
+				},
+			},
+		},
+	}
+	if nota.ConsumoPessoal != nil {
+		grupo.IndFinal = IndFinalNao
+		if *nota.ConsumoPessoal {
+			grupo.IndFinal = IndFinalSim
+		}
+	}
+	return grupo, nil
+}
+
+// soDigitos diz se s tem exatamente n caracteres, todos dígitos ASCII.
+func soDigitos(s string, n int) bool {
+	return len(s) == n && stripNonDigits(s) == s
 }
 
 // roundHalfUp rounds a value to 2 decimals using HALF_UP (banker's rounding
