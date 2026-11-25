@@ -116,14 +116,9 @@ func (r *Repository) FindEmpresaByUserID(ctx context.Context, userID uuid.UUID) 
 
 // FindEmpresa loads an empresa and their active subscription info for the current month.
 //
-// As colunas ibscbs_* (#296) são lidas do JSON da linha (ej.j->>'coluna') para
-// a consulta funcionar também antes de a migration 20261123000001 ser
-// aplicada: chave ausente vira NULL em vez de "column does not exist". Esta
-// consulta roda em toda requisição autenticada — referência direta à coluna
-// derrubaria a API se o deploy chegasse antes do `supabase db push`.
-//
-// TODO(#296): depois do `supabase db push` em produção, trocar ej.j->>'…' por
-// e.ibscbs_* e remover o LATERAL.
+// Esta consulta roda em toda requisição autenticada. As colunas ibscbs_* (#296)
+// vêm da migration 20261123000001, aplicada em produção em 2026-11-25; um banco
+// sem ela devolve "column does not exist" aqui.
 func (r *Repository) FindEmpresa(ctx context.Context, empresaID uuid.UUID) (*Empresa, error) {
 	row := r.db.Pool().QueryRow(ctx, findEmpresaSQL, empresaID)
 
@@ -150,9 +145,7 @@ func (r *Repository) FindEmpresa(ctx context.Context, empresaID uuid.UUID) (*Emp
 	return &e, nil
 }
 
-// findEmpresaSQL é a consulta de FindEmpresa. O LATERAL com OFFSET 0 faz o
-// to_jsonb(e) ser avaliado uma vez por linha: sem o OFFSET 0 o planner embute
-// a subconsulta e repete a expressão em cada coluna que a usa.
+// findEmpresaSQL é a consulta de FindEmpresa.
 const findEmpresaSQL = `
 		SELECT
 			e.id,
@@ -166,9 +159,9 @@ const findEmpresaSQL = `
 			COALESCE(e.cep, '')               AS cep,
 			e.inscricao_municipal,
 			COALESCE(e.regime_apuracao_sn, 1) AS regime_apuracao_sn,
-			COALESCE(ej.j->>'ibscbs_cst_padrao', '')        AS ibscbs_cst,
-			COALESCE(ej.j->>'ibscbs_cclasstrib_padrao', '') AS ibscbs_cclasstrib,
-			COALESCE(ej.j->>'ibscbs_cindop_padrao', '')     AS ibscbs_cindop,
+			COALESCE(e.ibscbs_cst_padrao, '')        AS ibscbs_cst,
+			COALESCE(e.ibscbs_cclasstrib_padrao, '') AS ibscbs_cclasstrib,
+			COALESCE(e.ibscbs_cindop_padrao, '')     AS ibscbs_cindop,
 			e.cert_secret_arn,
 			e.cert_valid_until,
 			e.stripe_customer_id,
@@ -180,7 +173,6 @@ const findEmpresaSQL = `
 			COALESCE(p.preco_excedente_brl, 0) AS plano_prec_excedente,
 			COALESCE(em.total_emitidas, 0)    AS total_emitidas
 		FROM empresas e
-		CROSS JOIN LATERAL (SELECT to_jsonb(e) AS j OFFSET 0) ej
 		LEFT JOIN emissoes_mensais em
 			ON em.empresa_id = e.id
 			AND em.competencia = to_char(NOW() AT TIME ZONE 'UTC', 'YYYY-MM')
