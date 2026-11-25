@@ -37,6 +37,7 @@ info:
     | `ALREADY_CANCELLED` | 409 |
     | `VALIDATION_ERROR` | 422 |
     | `RECEITA_REJECTION` | 422 |
+    | `IBS_CBS_CONFIGURACAO_INVALIDA` | 422 |
     | `INTERNAL_ERROR` | 500 |
   contact:
     name: ScantelburyDevs
@@ -184,6 +185,9 @@ paths:
             `VALIDATION_ERROR` — dados inválidos (lista em `fields`), nada foi enviado à Receita.
             `RECEITA_REJECTION` — a Receita rejeitou a nota. A nota fica registrada como `REJEITADA`
             (`nota_id` no corpo). Corrija os dados e reenvie com **nova** `Idempotency-Key`.
+            `IBS_CBS_CONFIGURACAO_INVALIDA` — a classificação padrão de IBS/CBS do cadastro da
+            empresa está incompleta ou inválida. Nada foi enviado à Receita e nenhum número de
+            DPS foi consumido. Corrija o cadastro ou envie os três códigos em `servico.ibs_cbs`.
           content:
             application/json:
               schema:
@@ -197,6 +201,24 @@ paths:
                     fields:
                       - field: "tomador.endereco.bairro"
                         message: "obrigatório quando endereco é informado"
+                    request_id: "req-uuid"
+                ibs_cbs_request:
+                  summary: Classificação de IBS/CBS inválida no request
+                  value:
+                    error: VALIDATION_ERROR
+                    message: "campos inválidos"
+                    fields:
+                      - field: "servico.ibs_cbs.cst"
+                        message: "CST deve ter exatamente 3 dígitos"
+                    request_id: "req-uuid"
+                ibs_cbs_empresa:
+                  summary: Classificação padrão de IBS/CBS da empresa inválida
+                  value:
+                    error: IBS_CBS_CONFIGURACAO_INVALIDA
+                    message: "a classificação padrão de IBS/CBS cadastrada na empresa está incompleta: falta cIndOp — CST, cClassTrib e cIndOp vão sempre juntos; complete o cadastro da empresa antes de emitir"
+                    fields:
+                      - field: "empresa.ibs_cbs"
+                        message: "a classificação padrão de IBS/CBS cadastrada na empresa está incompleta: falta cIndOp — CST, cClassTrib e cIndOp vão sempre juntos; complete o cadastro da empresa antes de emitir"
                     request_id: "req-uuid"
                 rejeicao:
                   summary: Rejeitada pela Receita
@@ -876,6 +898,45 @@ components:
         iss_retido:
           type: boolean
           description: Alias de `iss_retido` na raiz do request.
+        ibs_cbs:
+          $ref: '#/components/schemas/IBSCBSRequest'
+
+    IBSCBSRequest:
+      type: object
+      description: |
+        Classificação de IBS/CBS da nota (reforma tributária do consumo, LC 214/2025). Opcional.
+        Cada código informado aqui vale só para esta nota e prevalece sobre o padrão do cadastro
+        da empresa; o que faltar é completado pelo padrão, campo a campo.
+
+        Depois dessa combinação, ou os três códigos existem (e o grupo `IBSCBS` vai na DPS), ou
+        nenhum existe (e a nota sai sem o grupo, como antes). Combinação incompleta ou código fora
+        do formato devolve 422 antes de qualquer envio à Receita.
+
+        A API não calcula IBS nem CBS: a Receita calcula os valores na autorização, a partir da
+        classificação. Os códigos são os das tabelas oficiais da NFS-e Nacional; a API confere
+        apenas o formato.
+      properties:
+        cst:
+          type: string
+          pattern: '^\d{3}$'
+          description: Código de Situação Tributária do IBS/CBS (`CST`), 3 dígitos.
+          example: "000"
+        codigo_classificacao_tributaria:
+          type: string
+          pattern: '^\d{6}$'
+          description: Código de classificação tributária do IBS/CBS (`cClassTrib`), 6 dígitos.
+          example: "000001"
+        codigo_indicador_operacao:
+          type: string
+          pattern: '^\d{6}$'
+          description: Código indicador da operação (`cIndOp`), 6 dígitos.
+          example: "100301"
+        consumo_pessoal:
+          type: boolean
+          description: |
+            Indica operação de uso ou consumo pessoal (`indFinal`): `true` envia 1, `false` envia 0.
+            Omitido, a tag não é enviada. Só vale junto com a classificação: sem os três códigos
+            (na nota ou no cadastro da empresa), informar este campo devolve 422.
 
     TomadorRequest:
       type: object
@@ -1215,6 +1276,7 @@ components:
             - ALREADY_CANCELLED
             - VALIDATION_ERROR
             - RECEITA_REJECTION
+            - IBS_CBS_CONFIGURACAO_INVALIDA
             - IDEMPOTENCY_KEY_CONFLICT
             - INTERNAL_ERROR
         message:
@@ -1222,7 +1284,7 @@ components:
           description: Mensagem legível em português
         fields:
           type: array
-          description: Erros de validação por campo (apenas em VALIDATION_ERROR)
+          description: Erros por campo (em VALIDATION_ERROR e IBS_CBS_CONFIGURACAO_INVALIDA)
           items:
             type: object
             properties:
