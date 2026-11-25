@@ -28,6 +28,25 @@ export interface ServicoInput {
   valor: number
   /** Alíquota ISS em % (ex: 2.0) */
   aliquotaISS: number
+  /** Classificação de IBS/CBS desta nota (opcional). Prevalece sobre o padrão da empresa. */
+  ibsCbs?: IbsCbsInput
+}
+
+/**
+ * Classificação de IBS/CBS (reforma tributária do consumo). Cada código informado
+ * vale só para a nota e prevalece sobre o padrão do cadastro da empresa; o que
+ * faltar é completado pelo padrão. No fim, ou os três códigos existem, ou nenhum.
+ * A API não calcula IBS nem CBS: a Receita calcula na autorização.
+ */
+export interface IbsCbsInput {
+  /** CST do IBS/CBS — 3 dígitos */
+  cst?: string
+  /** Código de classificação tributária (cClassTrib) — 6 dígitos */
+  codigoClassificacaoTributaria?: string
+  /** Código indicador da operação (cIndOp) — 6 dígitos */
+  codigoIndicadorOperacao?: string
+  /** Uso ou consumo pessoal (indFinal). Só vale junto com a classificação. */
+  consumoPessoal?: boolean
 }
 
 export interface TomadorInput {

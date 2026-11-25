@@ -10,11 +10,29 @@ PlanoNome = Literal["Trial", "Starter", "Basic", "Pro", "Business"]
 
 # ── Input TypedDicts (passados como dicts) ────────────────────────────────────
 
-class Servico(TypedDict):
+class IbsCbs(TypedDict, total=False):
+    """Classificação de IBS/CBS da nota (reforma tributária do consumo).
+
+    Cada código informado vale só para a nota e prevalece sobre o padrão do
+    cadastro da empresa; o que faltar é completado pelo padrão. No fim, ou os
+    três códigos existem, ou nenhum. A API não calcula IBS nem CBS.
+    """
+
+    cst: str  # CST do IBS/CBS, 3 dígitos
+    codigo_classificacao_tributaria: str  # cClassTrib, 6 dígitos
+    codigo_indicador_operacao: str  # cIndOp, 6 dígitos
+    consumo_pessoal: bool  # indFinal; só vale junto com a classificação
+
+
+class _ServicoRequired(TypedDict):
     codigo_nbs: str
     discriminacao: str
     valor: float
     aliquota_iss: float
+
+
+class Servico(_ServicoRequired, total=False):
+    ibs_cbs: IbsCbs
 
 
 class _TomadorRequired(TypedDict):

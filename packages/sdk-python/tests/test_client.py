@@ -55,6 +55,23 @@ class TestEmitir:
         assert body["tomador"]["documento"] == "12345678900"
 
     @resp_mock.activate
+    def test_ibs_cbs_vai_dentro_de_servico(self, client):
+        resp_mock.add(resp_mock.POST, f"{BASE}/v1/nfse", json=EMISSAO_RESP, status=202)
+        ibs_cbs = {"cst": "000", "codigo_classificacao_tributaria": "000001", "consumo_pessoal": False}
+        client.emitir(servico={**SERVICO, "ibs_cbs": ibs_cbs}, tomador=TOMADOR_PJ)
+
+        body = json.loads(resp_mock.calls[0].request.body)
+        assert body["servico"]["ibs_cbs"] == ibs_cbs
+
+    @resp_mock.activate
+    def test_sem_ibs_cbs_nao_envia_o_campo(self, client):
+        resp_mock.add(resp_mock.POST, f"{BASE}/v1/nfse", json=EMISSAO_RESP, status=202)
+        client.emitir(servico=SERVICO, tomador=TOMADOR_PJ)
+
+        body = json.loads(resp_mock.calls[0].request.body)
+        assert "ibs_cbs" not in body["servico"]
+
+    @resp_mock.activate
     def test_idempotency_key_header(self, client):
         resp_mock.add(resp_mock.POST, f"{BASE}/v1/nfse", json=EMISSAO_RESP, status=202)
         client.emitir(servico=SERVICO, tomador=TOMADOR_PJ, idempotency_key="pedido-999")

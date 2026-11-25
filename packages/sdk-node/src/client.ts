@@ -20,6 +20,12 @@ interface ApiServico {
   discriminacao: string
   valor: number
   aliquota_iss: number
+  ibs_cbs?: {
+    cst?: string
+    codigo_classificacao_tributaria?: string
+    codigo_indicador_operacao?: string
+    consumo_pessoal?: boolean
+  }
 }
 
 interface ApiTomador {
@@ -121,6 +127,18 @@ function toApiEmissao(input: EmissaoInput): ApiEmissaoRequest {
       discriminacao: input.servico.discriminacao,
       valor: input.servico.valor,
       aliquota_iss: input.servico.aliquotaISS,
+      ...(input.servico.ibsCbs !== undefined && {
+        ibs_cbs: {
+          ...(input.servico.ibsCbs.cst !== undefined && { cst: input.servico.ibsCbs.cst }),
+          ...(input.servico.ibsCbs.codigoClassificacaoTributaria !== undefined && {
+            codigo_classificacao_tributaria: input.servico.ibsCbs.codigoClassificacaoTributaria,
+          }),
+          ...(input.servico.ibsCbs.codigoIndicadorOperacao !== undefined && {
+            codigo_indicador_operacao: input.servico.ibsCbs.codigoIndicadorOperacao,
+          }),
+          ...(input.servico.ibsCbs.consumoPessoal !== undefined && { consumo_pessoal: input.servico.ibsCbs.consumoPessoal }),
+        },
+      }),
     },
     tomador: {
       tipo,

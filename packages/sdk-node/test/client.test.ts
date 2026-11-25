@@ -134,6 +134,42 @@ describe('NotaMEI client', () => {
       assert.equal(tomador['documento'], '12345678900')
     })
 
+    test('envia servico.ibs_cbs em snake_case só com os campos informados', async () => {
+      let capturedBody: unknown
+      srv.setHandler(async (req, res) => {
+        capturedBody = JSON.parse(await readBody(req))
+        json(res, 202, emissaoResponse)
+      })
+
+      await client.emitir({
+        ...emissaoInput,
+        servico: {
+          ...emissaoInput.servico,
+          ibsCbs: { cst: '000', codigoClassificacaoTributaria: '000001', consumoPessoal: false },
+        },
+      })
+
+      const servico = (capturedBody as Record<string, unknown>)['servico'] as Record<string, unknown>
+      assert.deepEqual(servico['ibs_cbs'], {
+        cst: '000',
+        codigo_classificacao_tributaria: '000001',
+        consumo_pessoal: false,
+      })
+    })
+
+    test('não envia ibs_cbs quando ibsCbs é omitido', async () => {
+      let capturedBody: unknown
+      srv.setHandler(async (req, res) => {
+        capturedBody = JSON.parse(await readBody(req))
+        json(res, 202, emissaoResponse)
+      })
+
+      await client.emitir(emissaoInput)
+
+      const servico = (capturedBody as Record<string, unknown>)['servico'] as Record<string, unknown>
+      assert.equal('ibs_cbs' in servico, false)
+    })
+
     test('envia Idempotency-Key quando idempotencyKey fornecida', async () => {
       let capturedHeaders: Record<string, string | string[] | undefined> = {}
       srv.setHandler(async (req, res) => {
