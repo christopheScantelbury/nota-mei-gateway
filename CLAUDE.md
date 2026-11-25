@@ -598,8 +598,8 @@ status-cancelada.png    → #6473A0 (cinza)
                               · Sem classificação a DPS é byte a byte a de antes (golden em testdata/)
                               · ✅ migration 20261123000001_empresas_ibscbs.sql aplicada em prod (2026-11-25);
                                 nenhuma empresa com padrão preenchido ainda
-                              · ⏳ FindEmpresa ainda lê as colunas via to_jsonb (era pra funcionar antes da
-                                migration) — TODO(#296) em auth/empresa.go: trocar por e.ibscbs_*
+                              · ⏳ FindEmpresa: a leitura via to_jsonb (pra funcionar antes da migration)
+                                é trocada por e.ibscbs_* no PR #300 — até o merge dele, segue to_jsonb
                               · ⏳ Falta: nota real em produção restrita, tela de configuração da empresa,
                                 campos da NT 009 (regApIBSCBSSN, cAtvSN), leitura do retorno, DANFSE
 ```
